@@ -1,0 +1,21 @@
+name = "signal-subscription-bot"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Cron Trigger : toutes les 5 minutes -> diffusion des signaux + rattrapage
+# des paiements USDT/Monero/Litecoin (voir src/index.ts, scheduled()).
+[triggers]
+crons = ["*/5 * * * *"]
+
+# Variables non sensibles (visibles dans ce fichier, donc jamais de secrets ici).
+# Les vraies clés/tokens sont fournis via `wrangler secret put` (voir README).
+[vars]
+# ⚠️ Testnet Amoy pour l'instant (contrat pas encore déployé sur mainnet).
+POLYGON_RPC_URL = "https://polygon-amoy-bor-rpc.publicnode.com"
+CONTRACT_ADDRESS = "0x057F9d816D1b2F6BdE2831bECe5dB9887B4Aa950"
+MONERO_MIN_CONFIRMATIONS = "10"
+LTC_MIN_CONFIRMATIONS = "1"
+TELEGRAM_BOT_USERNAME = "ProVIPSignals_bot"
+# Canal public gratuit (diffusion différée de 15 min, voir cron/dispatchPublicChannel.ts).
+TELEGRAM_CHANNEL_ID = "-1004450068761"

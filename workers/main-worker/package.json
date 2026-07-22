@@ -1,0 +1,27 @@
+{
+  "name": "signal-subscription-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bot Telegram (webhook) + Cron Triggers, sur Cloudflare Workers",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "test": "vitest run",
+    "set-webhook": "tsx scripts/set-webhook.ts"
+  },
+  "dependencies": {
+    "@ethereumjs/rlp": "5.0.2",
+    "@noble/curves": "1.6.0",
+    "@noble/hashes": "1.5.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.5.0",
+    "@cloudflare/workers-types": "^5.20260714.0",
+    "@types/node": "^20.14.0",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.4",
+    "vitest": "~2.0.0",
+    "wrangler": "^4.0.0"
+  }
+}

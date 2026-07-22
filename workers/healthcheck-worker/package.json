@@ -1,0 +1,16 @@
+{
+  "name": "signal-subscription-healthcheck",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Supervision horaire du Worker principal + de Supabase, alerte Telegram en cas d'anomalie",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260714.0",
+    "typescript": "^5.5.4",
+    "wrangler": "^4.0.0"
+  }
+}

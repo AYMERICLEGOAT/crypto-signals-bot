@@ -1,0 +1,14 @@
+# Pour `wrangler dev` en local uniquement : copie en ".dev.vars" (jamais commité,
+# déjà dans .gitignore) et remplis les valeurs. En production, ces mêmes noms sont
+# posés via `wrangler secret put <NOM>` (voir README.md) — .dev.vars ne sert
+# qu'au développement local, il n'est jamais déployé.
+
+TELEGRAM_BOT_TOKEN=1234567890:VOTRE_TOKEN_BOTFATHER
+TELEGRAM_WEBHOOK_SECRET=une-chaine-aleatoire-longue-et-secrete
+SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
+SUPABASE_KEY=eyJxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ADMIN_PRIVATE_KEY=0xCLE_PRIVEE_DU_WALLET_OWNER
+MONERO_WALLET_RPC_URL=http://127.0.0.1:18082/json_rpc
+MONERO_WALLET_RPC_USER=
+MONERO_WALLET_RPC_PASSWORD=
+BLOCKCHAIR_API_KEY=

@@ -1,0 +1,7 @@
+# Pour `wrangler dev` en local. Copie en ".dev.vars" (jamais commité).
+# En production : `wrangler secret put <NOM>` (voir README.md).
+
+TELEGRAM_BOT_TOKEN=1234567890:VOTRE_TOKEN_BOTFATHER
+ADMIN_CHAT_ID=123456789
+SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
+SUPABASE_KEY=eyJxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
