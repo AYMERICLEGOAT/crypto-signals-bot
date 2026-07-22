@@ -1,17 +1,25 @@
 /**
- * Flux de paiement USDT (Polygon). Comme dans la version Node du bot : le
- * Worker ne demande jamais la clé privée de l'utilisateur et ne soumet
- * aucune transaction en son nom. L'utilisateur signe lui-même approve()
- * puis subscribe() ; le cron catchUpMissedEvents() confirme automatiquement.
+ * Flux de paiement USDT (Polygon) — 100% off-chain (V2) : l'utilisateur
+ * envoie directement l'USDT à l'adresse de réception configurée
+ * (PAYMENT_ADDRESS_USDT). Pas de smart contract impliqué dans le paiement :
+ * le cron `processUsdtTransfers` (voir cron/pollPayments.ts) surveille les
+ * transferts USDT entrants et active l'abonnement automatiquement.
+ *
+ * Le contrat SignalSubscription.sol reste écrit, testé et déployable (voir
+ * contract/) pour une migration future optionnelle — simplement pas utilisé
+ * pour le paiement tant qu'il n'est pas déployé sur mainnet.
  */
 
 import { Env } from "../env";
 import { SupabaseConfig } from "../supabaseRest";
-import { getPlanPriceUsdt } from "../blockchain/contract";
 import { createPendingPayment } from "../db/payments";
 import { setWalletAddress } from "../db/users";
 
 const USDT_TOKEN_ADDRESS = "0xc2132D05D31c914a87C6611C10748AEb04B58e8F";
+
+// Prix fixes (alignés sur les constantes PLAN1_PRICE/PLAN2_PRICE du contrat,
+// pour rester cohérent si le contrat est réactivé plus tard).
+export const USDT_PLAN_PRICES: Record<1 | 2, number> = { 1: 10, 2: 25 };
 
 export async function startUsdtPayment(
   env: Env,
@@ -21,27 +29,21 @@ export async function startUsdtPayment(
   walletAddress: string
 ): Promise<string> {
   await setWalletAddress(db, telegramId, walletAddress);
-  const price = await getPlanPriceUsdt(env, plan);
+  const price = USDT_PLAN_PRICES[plan];
   await createPendingPayment(db, { telegramId, method: "USDT", plan, amountExpected: price });
 
   return [
     `💳 *Paiement USDT (Polygon) — Plan ${plan} : ${price} USDT / 30 jours*`,
     "",
-    "Deux transactions à envoyer toi-même depuis ton wallet (ex: onglet *Write Contract*",
-    "sur Polygonscan, en connectant ton wallet) :",
+    `Envoie *exactement ${price} USDT* (réseau Polygon) depuis l'adresse `,
+    `\`${walletAddress}\` vers :`,
+    `\`${env.PAYMENT_ADDRESS_USDT}\``,
     "",
-    "1️⃣ *Approuver* le contrat pour dépenser tes USDT :",
-    `   Token USDT : \`${USDT_TOKEN_ADDRESS}\``,
-    `   Fonction : approve(spender, amount)`,
-    `   spender = \`${env.CONTRACT_ADDRESS}\``,
-    `   amount = ${price} USDT (soit ${Math.round(price * 1e6)} en unités brutes, 6 décimales)`,
+    `Token USDT (Polygon) : \`${USDT_TOKEN_ADDRESS}\` — vérifie bien que ton wallet`,
+    "envoie sur le réseau Polygon, pas Ethereum mainnet.",
     "",
-    "2️⃣ *Souscrire* sur le contrat d'abonnement :",
-    `   Contrat : \`${env.CONTRACT_ADDRESS}\``,
-    `   Fonction : subscribe(${plan})`,
-    "",
-    "✅ Dès que ta transaction `subscribe` est confirmée sur la blockchain, ton abonnement",
-    "s'active automatiquement (vérifié toutes les 5 minutes) — aucune autre action de ta part.",
+    "✅ Dès que le transfert est confirmé sur la blockchain, ton abonnement s'active",
+    "automatiquement (vérifié toutes les 5 minutes) — aucune autre action de ta part.",
     "Vérifie avec /status.",
     "",
     "⚠️ Le bot ne te demandera jamais ta clé privée ou ta phrase de récupération.",

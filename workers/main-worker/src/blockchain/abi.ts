@@ -22,6 +22,11 @@ export const SELECTORS = {
 export const SUBSCRIBED_TOPIC0 =
   "0x" + bytesToHex(keccak_256(new TextEncoder().encode("Subscribed(address,uint8,uint256,uint256)")));
 
+// Événement standard ERC20 Transfer(address indexed from, address indexed to, uint256 value).
+// Vérifié contre la valeur bien connue 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef.
+export const TRANSFER_TOPIC0 =
+  "0x" + bytesToHex(keccak_256(new TextEncoder().encode("Transfer(address,address,uint256)")));
+
 function stripHexPrefix(hex: string): string {
   return hex.startsWith("0x") ? hex.slice(2) : hex;
 }

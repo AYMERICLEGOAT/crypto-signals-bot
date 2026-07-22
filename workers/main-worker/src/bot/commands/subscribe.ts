@@ -1,7 +1,6 @@
 import { Env, dbConfig } from "../../env";
 import { sendMessage } from "../../telegram";
-import { getPlanPriceUsdt } from "../../blockchain/contract";
-import { startUsdtPayment } from "../../payments/usdt";
+import { startUsdtPayment, USDT_PLAN_PRICES } from "../../payments/usdt";
 import { createMoneroInvoice } from "../../payments/monero";
 import { createLitecoinInvoice } from "../../payments/litecoin";
 import { createPendingPayment } from "../../db/payments";
@@ -9,7 +8,7 @@ import { setPendingAction } from "../../db/pendingActions";
 import { planKeyboard, paymentMethodKeyboard } from "../keyboards";
 
 export async function handleSubscribeCommand(env: Env, telegramId: number): Promise<void> {
-  const [price1, price2] = await Promise.all([getPlanPriceUsdt(env, 1), getPlanPriceUsdt(env, 2)]);
+  const [price1, price2] = [USDT_PLAN_PRICES[1], USDT_PLAN_PRICES[2]];
   await sendMessage(
     env.TELEGRAM_BOT_TOKEN,
     telegramId,
@@ -44,7 +43,7 @@ export async function handlePaymentMethodSelection(env: Env, telegramId: number,
     return;
   }
 
-  const priceUsd = await getPlanPriceUsdt(env, plan);
+  const priceUsd = USDT_PLAN_PRICES[plan];
 
   if (method === "XMR") {
     const invoice = await createMoneroInvoice(env, telegramId, plan, priceUsd);

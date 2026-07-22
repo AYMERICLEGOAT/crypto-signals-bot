@@ -11,11 +11,18 @@ crons = ["*/5 * * * *"]
 # Variables non sensibles (visibles dans ce fichier, donc jamais de secrets ici).
 # Les vraies clés/tokens sont fournis via `wrangler secret put` (voir README).
 [vars]
-# ⚠️ Testnet Amoy pour l'instant (contrat pas encore déployé sur mainnet).
-POLYGON_RPC_URL = "https://polygon-amoy-bor-rpc.publicnode.com"
+# Mainnet : le flux USDT off-chain (V2) surveille de vrais transferts USDT,
+# donc il lui faut le vrai réseau — polygon-rpc.com renvoyait des erreurs
+# depuis cet environnement, remplacé par un point d'accès public équivalent.
+POLYGON_RPC_URL = "https://polygon-bor-rpc.publicnode.com"
+# Contrat déployé sur Amoy (testnet) uniquement — conservé pour une
+# réactivation future du flux on-chain, mais inutilisé par le code actif
+# (V2 100% off-chain, voir cron/pollPayments.ts et payments/usdt.ts).
 CONTRACT_ADDRESS = "0x057F9d816D1b2F6BdE2831bECe5dB9887B4Aa950"
 MONERO_MIN_CONFIRMATIONS = "10"
 LTC_MIN_CONFIRMATIONS = "1"
 TELEGRAM_BOT_USERNAME = "ProVIPSignals_bot"
 # Canal public gratuit (diffusion différée de 15 min, voir cron/dispatchPublicChannel.ts).
 TELEGRAM_CHANNEL_ID = "-1004450068761"
+# Adresse de réception USDT (V2 100% off-chain) — wallet OWNER, adresse publique.
+PAYMENT_ADDRESS_USDT = "0x71367B5f4519700a63c2564b754cF959317E1f61"

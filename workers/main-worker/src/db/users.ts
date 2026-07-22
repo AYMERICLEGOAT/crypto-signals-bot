@@ -38,6 +38,22 @@ export async function findUserByWalletAddress(db: SupabaseConfig, address: strin
   return selectOne<UserRecord>(db, "users", { wallet_address: `eq.${address.toLowerCase()}` });
 }
 
+/**
+ * Anti-abus pour l'essai gratuit sans contrat (V2 off-chain) : le contrat
+ * garantissait "un essai par adresse" via son mapping trialUsed on-chain,
+ * indépendamment du compte Telegram utilisé. Cette vérification reproduit
+ * la même garantie côté Supabase, en cherchant TOUT utilisateur (peu
+ * importe son telegram_id) ayant déjà consommé un essai avec cette adresse.
+ */
+export async function hasWalletClaimedTrial(db: SupabaseConfig, address: string): Promise<boolean> {
+  const rows = await selectRows<UserRecord>(db, "users", {
+    wallet_address: `eq.${address.toLowerCase()}`,
+    trial_used: "eq.true",
+    limit: "1",
+  });
+  return rows.length > 0;
+}
+
 export async function activateSubscription(
   db: SupabaseConfig,
   telegramId: number,

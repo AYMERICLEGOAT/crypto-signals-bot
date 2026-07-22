@@ -1,5 +1,6 @@
 import { Env, dbConfig } from "../env";
 import { catchUpMissedEvents } from "../blockchain/subscriptionEvents";
+import { catchUpUsdtTransfers } from "../blockchain/usdtTransfers";
 import { findUserByWalletAddress, activateSubscription } from "../db/users";
 import { getLatestPendingPayment, markPaymentConfirmed, getPendingPayments } from "../db/payments";
 import { sendMessage } from "../telegram";
@@ -8,7 +9,13 @@ import { checkLitecoinPayment } from "../payments/litecoin";
 import { addDays } from "../utils/date";
 import { maybeRewardReferral } from "../bot/referral";
 
-/** Rattrape les événements Subscribed (paiements USDT) manqués depuis le dernier cycle. */
+const USDT_AMOUNT_TOLERANCE = 0.97; // tolère 3% d'écart (arrondis, frais éventuels)
+
+/**
+ * Rattrape les événements Subscribed du smart contract — conservé intact
+ * pour une réactivation future, mais sans effet tant qu'aucun contrat n'est
+ * déployé sur mainnet (CONTRACT_ADDRESS pointe sur Amoy, testnet).
+ */
 async function processUsdtEvents(env: Env): Promise<void> {
   const db = dbConfig(env);
   const events = await catchUpMissedEvents(env, db);
@@ -23,6 +30,41 @@ async function processUsdtEvents(env: Env): Promise<void> {
     await activateSubscription(db, user.telegram_id, event.plan, new Date(event.newExpirationMs));
     const pending = await getLatestPendingPayment(db, user.telegram_id, "USDT");
     if (pending) await markPaymentConfirmed(db, pending.id);
+    await maybeRewardReferral(env, user.telegram_id);
+
+    await sendMessage(env.TELEGRAM_BOT_TOKEN, user.telegram_id, "✅ Paiement USDT confirmé sur la blockchain ! Ton abonnement est actif.");
+  }
+}
+
+/**
+ * Flux USDT 100% off-chain (V2, actif par défaut) : surveille les transferts
+ * USDT entrants vers PAYMENT_ADDRESS_USDT, retrouve l'utilisateur par son
+ * adresse d'envoi enregistrée, et confirme via son paiement en attente
+ * (qui porte déjà le plan choisi) plutôt que de déduire le plan du seul montant.
+ */
+async function processUsdtTransfers(env: Env): Promise<void> {
+  const db = dbConfig(env);
+  const transfers = await catchUpUsdtTransfers(env, db);
+
+  for (const transfer of transfers) {
+    const user = await findUserByWalletAddress(db, transfer.from);
+    if (!user) {
+      console.warn(`[usdt-offchain] Transfert USDT reçu de ${transfer.from} mais aucun utilisateur Telegram associé.`);
+      continue;
+    }
+
+    const pending = await getLatestPendingPayment(db, user.telegram_id, "USDT");
+    if (!pending || pending.amount_expected === null) {
+      console.warn(`[usdt-offchain] Transfert de ${transfer.from} (${transfer.amount} USDT) sans paiement en attente correspondant.`);
+      continue;
+    }
+    if (transfer.amount < pending.amount_expected * USDT_AMOUNT_TOLERANCE) {
+      console.warn(`[usdt-offchain] Montant insuffisant de ${transfer.from}: reçu ${transfer.amount}, attendu ${pending.amount_expected}.`);
+      continue;
+    }
+
+    await markPaymentConfirmed(db, pending.id);
+    await activateSubscription(db, user.telegram_id, pending.plan, addDays(new Date(), 30));
     await maybeRewardReferral(env, user.telegram_id);
 
     await sendMessage(env.TELEGRAM_BOT_TOKEN, user.telegram_id, "✅ Paiement USDT confirmé sur la blockchain ! Ton abonnement est actif.");
@@ -75,6 +117,7 @@ async function processLitecoinPayments(env: Env): Promise<void> {
 export async function pollPayments(env: Env): Promise<void> {
   await Promise.all([
     processUsdtEvents(env).catch((err) => console.error("[usdt] Erreur du cron:", err)),
+    processUsdtTransfers(env).catch((err) => console.error("[usdt-offchain] Erreur du cron:", err)),
     processMoneroPayments(env).catch((err) => console.error("[monero] Erreur du cron:", err)),
     processLitecoinPayments(env).catch((err) => console.error("[litecoin] Erreur du cron:", err)),
   ]);

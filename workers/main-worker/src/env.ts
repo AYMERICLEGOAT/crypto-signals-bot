@@ -31,6 +31,9 @@ export interface Env {
   TELEGRAM_BOT_USERNAME: string;
   // Canal public gratuit (diffusion différée) — optionnel : si absent, dispatchPublicChannel() ne fait rien.
   TELEGRAM_CHANNEL_ID?: string;
+  // Adresse de réception USDT (V2 100% off-chain) — pas un secret, une adresse
+  // publique de wallet. Si absent, processUsdtTransfers() ne fait rien.
+  PAYMENT_ADDRESS_USDT?: string;
 }
 
 export function dbConfig(env: Env): SupabaseConfig {

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   SELECTORS,
   SUBSCRIBED_TOPIC0,
+  TRANSFER_TOPIC0,
   encodeAddressArg,
   encodeCall,
   decodeUint256,
@@ -19,6 +20,8 @@ const REF = {
   plan2Price: "0x8a672de2",
   setTrial: "0x4914c997",
   subscribedTopic0: "0x0461beb329d7acfbed27b25e75051d4b137810d66ecd6d048744f7b636385ad0",
+  // Topic0 standard ERC20 Transfer, bien connu et documenté publiquement.
+  transferTopic0: "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
 };
 
 describe("abi.ts — sélecteurs et topic, recoupés avec ethers.id()", () => {
@@ -31,6 +34,10 @@ describe("abi.ts — sélecteurs et topic, recoupés avec ethers.id()", () => {
 
   it("calcule le bon topic0 pour l'événement Subscribed", () => {
     expect(SUBSCRIBED_TOPIC0).toBe(REF.subscribedTopic0);
+  });
+
+  it("calcule le bon topic0 pour l'événement ERC20 Transfer", () => {
+    expect(TRANSFER_TOPIC0).toBe(REF.transferTopic0);
   });
 });
 
