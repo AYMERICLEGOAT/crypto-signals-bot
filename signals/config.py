@@ -55,16 +55,10 @@ BOLLINGER_STD = 2
 STOP_LOSS_PCT = 0.02      # -2 %
 TAKE_PROFIT_PCT = 0.04    # +4 %
 
-# --- Boucle temps réel ---
-POLL_INTERVAL_SECONDS = 5 * 60  # 5 minutes
-# Nombre de points minimum requis dans l'historique avant de pouvoir
-# calculer des indicateurs fiables (EMA21 + marge).
+# --- Exécution (GitHub Actions, une passe par heure) ---
+# Nombre de points minimum requis dans l'historique récupéré avant de
+# pouvoir calculer des indicateurs fiables (EMA21 + marge).
 MIN_HISTORY_POINTS = 30
-# Nombre de points conservés par paire dans le cache local (borne la taille du fichier).
-MAX_HISTORY_POINTS = 500
-
-# --- Cache local (SQLite) ---
-LOCAL_CACHE_DB_PATH = os.path.join(os.path.dirname(__file__), "data", "price_cache.db")
 
 # --- Graphiques (joints aux notifications Telegram/Discord) ---
 # Bucket Supabase Storage à créer une fois manuellement (Dashboard -> Storage

@@ -1,16 +1,20 @@
 # Module de signaux crypto
 
 Génère des signaux ACHAT/VENTE sur 20 paires USDT à partir de l'API
-gratuite CoinGecko, avec backtest sur ~6 mois et stockage dans Supabase.
-Aucune dépendance payante.
+publique Binance (repli CoinGecko en cas d'indisponibilité), avec backtest
+sur ~6 mois et stockage dans Supabase. Aucune dépendance payante.
+
+Exécuté en production via **GitHub Actions**, une fois par heure (voir
+[`.github/workflows/signals.yml`](../.github/workflows/signals.yml) à la
+racine du dépôt) — aucun serveur ni machine locale ne doit rester allumée.
 
 ## 1. Prérequis
 
 - Python 3.10+
 - Un compte [Supabase](https://supabase.com) gratuit (pas de KYC, juste un email)
-- Aucune clé API CoinGecko n'est nécessaire (endpoints publics)
+- Aucune clé API Binance ou CoinGecko n'est nécessaire (endpoints publics)
 
-## 2. Installation
+## 2. Installation (développement local uniquement)
 
 ```bash
 cd signals
@@ -20,12 +24,21 @@ venv\Scripts\activate        # Windows
 pip install -r requirements.txt
 ```
 
+En production, ce n'est pas nécessaire : le workflow GitHub Actions installe
+les dépendances lui-même à chaque exécution.
+
 ## 3. Configuration de la base Supabase
 
 1. Crée un projet sur [supabase.com](https://supabase.com).
-2. Va dans **SQL Editor** et exécute le contenu de [`schema.sql`](schema.sql) pour créer la table `signals`.
-3. Va dans **Project Settings > API** et récupère `Project URL` et la clé `anon` (ou `service_role` si tu préfères insérer sans les règles RLS par défaut — voir section 6).
-4. Copie `.env.example` en `.env` et renseigne `SUPABASE_URL` / `SUPABASE_KEY`.
+2. Va dans **SQL Editor** et exécute [`../init.sql`](../init.sql) (schéma
+   complet du projet) — ou, si tu veux juste ce module, [`schema.sql`](schema.sql)
+   + [`schema_update_chart.sql`](schema_update_chart.sql) + [`schema_strategy_params.sql`](schema_strategy_params.sql).
+3. Va dans **Project Settings > API** et récupère `Project URL` et la clé
+   `service_role` (voir section 7 sur les policies RLS).
+4. En local : copie `.env.example` en `.env` et renseigne `SUPABASE_URL` /
+   `SUPABASE_KEY`. En production : ces deux valeurs sont posées comme
+   *secrets* du dépôt GitHub (`Settings > Secrets and variables > Actions`),
+   lus par `.github/workflows/signals.yml`.
 
 ## 4. Lancer le backtest
 
@@ -34,37 +47,60 @@ python backtest.py
 ```
 
 Ce script :
-- télécharge ~180 jours d'historique OHLC pour chaque paire (1 appel par paire, espacé pour respecter la limite de 10 appels/minute de l'API gratuite),
-- teste la stratégie par défaut (EMA 9/21, RSI 14, seuils 40/60),
-- si le taux de réussite est < 60 %, lance une recherche automatique sur une petite grille de périodes EMA / seuils RSI,
-- écrit les paramètres retenus dans `data/optimized_params.json`. `main.py` les charge automatiquement au démarrage s'ils existent.
+- télécharge ~180 jours de bougies **horaires réelles** via l'API Binance
+  (BTC/USDT et ETH/USDT par défaut — voir `BACKTEST_PAIRS` dans `backtest.py`),
+- teste la stratégie active (EMA 9/21, RSI 14, seuils 40/60 par défaut),
+- mesure le taux de réussite, le ratio gain/perte et le drawdown maximum,
+- si l'échantillon est trop petit (< 15 trades) OU le taux de réussite
+  < 60 %, lance une recherche automatique sur une grille de périodes EMA /
+  seuils RSI, et retient la meilleure combinaison suffisamment significative,
+- enregistre le résultat retenu dans la table Supabase `strategy_params`
+  (une seule ligne `is_active = true` à la fois). `main.py` la charge
+  automatiquement à sa prochaine exécution — plus besoin de fichier local
+  (les runners GitHub Actions repartent de zéro à chaque fois).
 
-⚠️ **Limite technique à connaître** : CoinGecko gratuit ne conserve la granularité 5 minutes que sur les dernières 24h. Au-delà de 90 jours, l'API bascule automatiquement sur des bougies **journalières**. Le backtest 6 mois tourne donc sur des clôtures journalières (un proxy raisonnable de la logique de la stratégie), alors que la boucle temps réel (`main.py`) travaille sur des points ~5 minutes construits au fil de l'eau.
+⚠️ **Sur la taille de l'échantillon** : EMA9/21 + confirmation RSI est un
+événement rare. Sur seulement 2 paires et 6 mois de bougies horaires, il
+n'est pas garanti d'atteindre un nombre de trades statistiquement
+significatif (le script le signale clairement si c'est le cas plutôt que
+d'afficher un taux de réussite trompeur calculé sur une poignée de trades).
+Étendre `BACKTEST_PAIRS` aux 20 paires de `config.py` donne un échantillon
+nettement plus robuste.
 
-⚠️ **Sur l'optimisation automatique des seuils** : quand `backtest.py` ajuste les paramètres pour atteindre 60 % de réussite, il le fait *sur les mêmes données historiques qui servent à mesurer la performance* (optimisation "in-sample"). Un taux de réussite élevé en backtest ne garantit pas un taux identique en conditions réelles — c'est un risque de surapprentissage connu de toute stratégie optimisée sur données passées. Avant d'agir sur les signaux avec de l'argent réel, il est recommandé de faire tourner le système quelques semaines en observation ("paper trading") et de comparer les signaux générés à la performance réelle du marché.
+⚠️ **Sur l'optimisation automatique** : elle se fait *in-sample* (sur les
+mêmes données qui servent à mesurer la performance). Un taux de réussite
+élevé en backtest ne garantit pas un taux identique en conditions réelles
+(surapprentissage). Avant d'agir sur les signaux avec de l'argent réel, il
+est recommandé d'observer le système quelques semaines en "paper trading"
+et de comparer les signaux générés à la performance réelle du marché.
 
-## 5. Lancer la génération de signaux en temps réel
+## 5. Génération des signaux en production (GitHub Actions)
+
+Le point d'entrée [`main.py`](main.py) fait une **exécution unique** (pas
+de boucle) :
+
+- pour chacune des 20 paires, récupère les ~100 dernières bougies horaires
+  (Binance en priorité, repli CoinGecko si Binance est indisponible),
+- calcule les indicateurs à partir de cet historique frais (aucun état
+  local à conserver entre deux exécutions),
+- dès qu'un croisement EMA + confirmation RSI est détecté, insère un signal
+  dans la table `signals` de Supabase (`sent = false`) avec son graphique.
+
+`.github/workflows/signals.yml` déclenche `python main.py` toutes les
+heures (`cron: "0 * * * *"`) + à la demande (`workflow_dispatch`).
+
+**Lancer un cycle manuellement en local** (pour tester) :
 
 ```bash
 python main.py
 ```
 
-Ce que fait le script :
-- toutes les 5 minutes, un seul appel à `/simple/price` récupère le prix des 20 paires,
-- chaque prix est ajouté au cache local SQLite (`data/price_cache.db`), qui sert d'historique pour calculer EMA/RSI/Bollinger,
-- au tout premier lancement, le cache est amorcé avec l'historique intrajournalier gratuit de CoinGecko (dernières 24h, granularité ~5 min) pour ne pas attendre plusieurs heures avant d'avoir des indicateurs exploitables,
-- dès qu'un croisement EMA + confirmation RSI est détecté, un signal est inséré dans la table `signals` de Supabase (`sent = false`).
-
-**Arrêt propre** : `Ctrl+C` (ou `SIGTERM` sous Linux) déclenche un arrêt propre — le cycle en cours se termine, puis le script quitte. Comme le cache est écrit à chaque cycle, redémarrer le script reprend exactement où il s'était arrêté, sans perte d'historique ni recalcul.
-
-**Le script n'a pas besoin de tourner 24h/24** : si le PC est éteint la nuit, il suffit de relancer `python main.py` le lendemain ; le cache local + le bootstrap comblent le trou.
-
 ## 6. Graphiques joints aux signaux
 
-Chaque signal est désormais accompagné d'un graphique PNG (prix + EMA9/21 +
-niveaux entrée/SL/TP), généré avec matplotlib et hébergé sur Supabase
-Storage — les bots (module 2/3) et le module trafic/ l'utilisent pour joindre
-une image aux notifications Telegram/Discord.
+Chaque signal est accompagné d'un graphique PNG (prix + EMA9/21 + niveaux
+entrée/SL/TP), généré avec matplotlib et hébergé sur Supabase Storage — les
+bots (module 2/3) et le module trafic/ l'utilisent pour joindre une image
+aux notifications Telegram/Discord.
 
 1. Exécute [`schema_update_chart.sql`](schema_update_chart.sql) (ajoute la colonne `chart_url`).
 2. Dans le Dashboard Supabase : **Storage -> New bucket** -> nom `signal-charts`
@@ -91,22 +127,27 @@ create policy "allow insert from service" on signals
 
 ```
 signals/
-  config.py              # Paramètres centralisés (paires, seuils, chemins)
-  coingecko_client.py     # Client HTTP CoinGecko avec rate-limit + retry
-  indicators.py           # EMA, RSI, Bandes de Bollinger (pandas pur)
-  strategy.py             # Détection des signaux ACHAT/VENTE
-  state_cache.py          # Cache local SQLite (historique de prix, reprise sans perte)
-  chart_generator.py       # Génère le PNG (prix + EMA + niveaux) d'un signal
-  storage.py              # Insertion des signaux + upload des graphiques dans Supabase
-  backtest.py             # Backtest 6 mois + recherche de paramètres
-  main.py                 # Boucle temps réel (point d'entrée)
-  schema.sql              # Schéma de la table Supabase
-  schema_update_chart.sql  # Ajoute la colonne chart_url (à exécuter une fois)
+  config.py                    # Paramètres centralisés (paires, seuils, chemins)
+  binance_client.py            # Client HTTP Binance (source principale, sans clé)
+  coingecko_client.py          # Client HTTP CoinGecko (repli)
+  indicators.py                # EMA, RSI, Bandes de Bollinger (pandas pur)
+  strategy.py                  # Détection des signaux ACHAT/VENTE
+  params_store.py              # Lecture/écriture des paramètres actifs (Supabase)
+  chart_generator.py           # Génère le PNG (prix + EMA + niveaux) d'un signal
+  storage.py                   # Insertion des signaux + upload des graphiques dans Supabase
+  backtest.py                  # Backtest 6 mois (Binance) + recherche de paramètres
+  main.py                      # Exécution unique (point d'entrée GitHub Actions)
+  schema.sql                   # Schéma de la table `signals`
+  schema_update_chart.sql      # Ajoute la colonne chart_url
+  schema_strategy_params.sql   # Table `strategy_params` (paramètres actifs)
   requirements.txt
   .env.example
-  data/                   # Cache SQLite + résultats du backtest (créé automatiquement)
+  data/                        # Résultats locaux du backtest (créé automatiquement, dev uniquement)
 ```
 
 ## 9. Adapter les paires suivies
 
-Modifie le dictionnaire `PAIRS` dans [`config.py`](config.py) — la clé est l'affichage ("BTC/USDT"), la valeur est l'identifiant CoinGecko (visible dans l'URL de la page de la crypto sur coingecko.com).
+Modifie le dictionnaire `PAIRS` dans [`config.py`](config.py) — la clé est
+l'affichage ("BTC/USDT"), la valeur est l'identifiant CoinGecko (utilisé
+uniquement pour le repli ; le symbole Binance est dérivé automatiquement de
+la clé, ex: "BTC/USDT" -> "BTCUSDT").

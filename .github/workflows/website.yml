@@ -1,0 +1,37 @@
+name: Site SEO (quotidien)
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  publish-website:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installer les dépendances
+        run: pip install -r website/requirements.txt
+
+      - name: Générer et publier le site (public/)
+        working-directory: website
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          # Nom "GITHUB_TOKEN" réservé par GitHub Actions (token auto à portée
+          # limitée) : on ne peut pas créer de secret sous ce nom, d'où
+          # SITE_PUBLISH_TOKEN ci-dessous, remappé vers la variable attendue
+          # par website/config.py.
+          GITHUB_TOKEN: ${{ secrets.SITE_PUBLISH_TOKEN }}
+          GITHUB_REPO: AYMERICLEGOAT/crypto-signals-bot
+          GITHUB_BRANCH: main
+          SITE_SUBDIR: public
+          SITE_BASE_URL: https://crypto-signals-bot-site.signalytics.workers.dev
+          SITE_NAME: "Signaux Crypto Gratuits"
+          TELEGRAM_BOT_USERNAME: ProVIPSignals_bot
+        run: python main.py

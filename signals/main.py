@@ -1,76 +1,63 @@
 """
-Point d'entrée du module de signaux.
+Point d'entrée du module de signaux — exécution UNIQUE (pas de boucle).
 
-Boucle infinie :
-  1. Toutes les 5 minutes, récupère le prix courant des 20 paires en un
-     seul appel CoinGecko (/simple/price).
-  2. Met à jour le cache local SQLite (state_cache.py) -> permet de
-     reprendre sans perte après un redémarrage.
-  3. Calcule les indicateurs et détecte un éventuel signal par paire.
-  4. Insère les signaux détectés dans Supabase.
+Conçu pour tourner via GitHub Actions (.github/workflows/signals.yml,
+toutes les heures) : chaque exécution part d'une machine neuve, donc chaque
+paire récupère elle-même assez d'historique récent (bougies horaires) pour
+recalculer les indicateurs à partir de zéro — aucun état local à faire
+survivre entre deux runs (l'ancien cache SQLite local, state_cache.py,
+n'a plus lieu d'être et a été retiré).
 
-Arrêt propre : Ctrl+C (SIGINT) ou SIGTERM. Le cache étant persisté à
-chaque itération, un redémarrage reprend exactement là où le script
-s'était arrêté (pas de recalcul ni de perte d'historique).
+Étapes par paire :
+  1. Récupère les ~100 dernières bougies horaires : Binance en priorité
+     (endpoints publics, pas de clé requise), repli CoinGecko si Binance
+     est indisponible.
+  2. Calcule les indicateurs et détecte un éventuel croisement EMA + RSI.
+  3. Si un signal est détecté : génère son graphique, l'envoie sur Supabase
+     Storage, puis insère le signal dans la table `signals`.
+
+Les paramètres de stratégie (EMA/RSI) sont chargés depuis la table Supabase
+`strategy_params` (dernière ligne is_active=true, écrite par backtest.py),
+avec repli sur les valeurs par défaut de config.py si aucune n'existe encore.
 """
 
-import json
 import logging
 import os
-import signal
-import time
 from datetime import datetime, timezone
 
+import pandas as pd
+
 import config
-import state_cache
 import storage
-from coingecko_client import get_current_prices, get_intraday_history
+import params_store
+import binance_client
+import coingecko_client
 from indicators import compute_all_indicators
 from strategy import detect_signal
-from backtest import OPTIMIZED_PARAMS_PATH
 from chart_generator import generate_chart
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-_shutdown_requested = False
-
-
-def _handle_shutdown(signum, frame):
-    global _shutdown_requested
-    logger.info("Signal d'arrêt reçu (%s), fin propre en cours...", signum)
-    _shutdown_requested = True
-
-
-def _register_signal_handlers():
-    signal.signal(signal.SIGINT, _handle_shutdown)
-    # SIGTERM existe sous Windows mais n'est pas toujours délivrable aux
-    # processus console ; on l'enregistre quand même pour Linux/Docker.
-    try:
-        signal.signal(signal.SIGTERM, _handle_shutdown)
-    except (AttributeError, ValueError):
-        pass
+KLINES_LOOKBACK = 100  # bougies horaires Binance (largement > MIN_HISTORY_POINTS)
+COINGECKO_FALLBACK_DAYS = 6  # granularité horaire chez CoinGecko sur cette fenêtre, ~144 points
 
 
 def load_active_params() -> dict:
-    """
-    Charge les paramètres retenus par le backtest (data/optimized_params.json)
-    s'ils existent, sinon retombe sur les valeurs par défaut de config.py.
-    """
-    if os.path.exists(OPTIMIZED_PARAMS_PATH):
-        with open(OPTIMIZED_PARAMS_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
+    """Charge les paramètres actifs depuis Supabase, ou les valeurs par défaut de config.py."""
+    row = params_store.load_active_params()
+    if row:
         logger.info(
-            "Paramètres chargés depuis %s (source=%s, win_rate=%.1f%%)",
-            OPTIMIZED_PARAMS_PATH, data.get("source", "?"), data.get("global_win_rate", 0) * 100,
+            "Paramètres actifs chargés depuis Supabase (source=%s, win_rate=%.1f%%)",
+            row.get("source", "?"), float(row.get("global_win_rate", 0)) * 100,
         )
         return {
-            "ema_fast": data["ema_fast"],
-            "ema_slow": data["ema_slow"],
-            "rsi_buy_threshold": data["rsi_buy_threshold"],
-            "rsi_sell_threshold": data["rsi_sell_threshold"],
+            "ema_fast": row["ema_fast"],
+            "ema_slow": row["ema_slow"],
+            "rsi_buy_threshold": row["rsi_buy_threshold"],
+            "rsi_sell_threshold": row["rsi_sell_threshold"],
         }
-    logger.info("Aucun optimized_params.json trouvé, utilisation des valeurs par défaut de config.py.")
+    logger.info("Aucun paramètre actif en base, utilisation des valeurs par défaut de config.py.")
     return {
         "ema_fast": config.EMA_FAST_PERIOD,
         "ema_slow": config.EMA_SLOW_PERIOD,
@@ -79,57 +66,31 @@ def load_active_params() -> dict:
     }
 
 
-def bootstrap_history_if_needed():
+def fetch_recent_prices(pair: str, coin_id: str):
     """
-    Au démarrage, si le cache local d'une paire est trop petit pour
-    calculer des indicateurs fiables, on l'amorce avec l'historique
-    intrajournalier gratuit de CoinGecko (~5 min sur les dernières 24h).
+    Historique récent d'une paire sous forme de DataFrame (colonnes ts_ms,
+    price). Binance en priorité (bougies horaires réelles), repli CoinGecko
+    en cas d'échec. Retourne None si les deux échouent.
     """
-    for pair, coin_id in config.PAIRS.items():
-        if state_cache.count_points(pair) >= config.MIN_HISTORY_POINTS:
-            continue
-        logger.info("Amorçage de l'historique pour %s...", pair)
-        try:
-            points = get_intraday_history(coin_id, days=1)
-            state_cache.append_prices_bulk(pair, points)
-            logger.info("%s: %d points chargés.", pair, len(points))
-        except Exception:
-            logger.exception("Échec du bootstrap pour %s, on continuera avec la boucle temps réel.", pair)
-
-
-def run_cycle(params: dict):
-    """Une itération complète : fetch -> cache -> indicateurs -> signal -> stockage."""
-    now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    symbol = binance_client.pair_to_symbol(pair)
+    try:
+        candles = binance_client.get_klines(symbol, interval="1h", limit=KLINES_LOOKBACK)
+        if candles:
+            return pd.DataFrame(
+                [(ts, close) for ts, _open, _high, _low, close, _vol in candles],
+                columns=["ts_ms", "price"],
+            )
+    except Exception:
+        logger.warning("Binance indisponible pour %s, repli sur CoinGecko.", pair, exc_info=True)
 
     try:
-        prices = get_current_prices(list(config.PAIRS.values()))
+        points = coingecko_client.get_intraday_history(coin_id, days=COINGECKO_FALLBACK_DAYS)
+        if points:
+            return pd.DataFrame(points, columns=["ts_ms", "price"])
     except Exception:
-        logger.exception("Échec de la récupération des prix, on retentera au prochain cycle.")
-        return
+        logger.exception("Échec du repli CoinGecko pour %s.", pair)
 
-    for pair, coin_id in config.PAIRS.items():
-        price = prices.get(coin_id)
-        if price is None:
-            logger.warning("Pas de prix reçu pour %s (%s), ignoré ce cycle.", pair, coin_id)
-            continue
-
-        state_cache.append_price(pair, now_ms, price)
-        state_cache.trim_history(pair, config.MAX_HISTORY_POINTS)
-
-        df = state_cache.load_history(pair, config.MAX_HISTORY_POINTS)
-        if len(df) < config.MIN_HISTORY_POINTS:
-            continue
-
-        enriched = compute_all_indicators(
-            df, params["ema_fast"], params["ema_slow"],
-            config.RSI_PERIOD, config.BOLLINGER_PERIOD, config.BOLLINGER_STD,
-        )
-        signal_dict = detect_signal(
-            enriched, pair, params["rsi_buy_threshold"], params["rsi_sell_threshold"]
-        )
-        if signal_dict:
-            signal_dict["chart_url"] = _generate_and_upload_chart(enriched, signal_dict, now_ms)
-            storage.insert_signal(signal_dict)
+    return None
 
 
 def _generate_and_upload_chart(enriched_df, signal_dict: dict, now_ms: int) -> str | None:
@@ -157,27 +118,37 @@ def _generate_and_upload_chart(enriched_df, signal_dict: dict, now_ms: int) -> s
             pass
 
 
+def run_once(params: dict) -> int:
+    """Une passe complète sur toutes les paires. Retourne le nombre de signaux détectés."""
+    now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    signals_found = 0
+
+    for pair, coin_id in config.PAIRS.items():
+        df = fetch_recent_prices(pair, coin_id)
+        if df is None or len(df) < config.MIN_HISTORY_POINTS:
+            logger.warning("Historique insuffisant pour %s, ignoré ce cycle.", pair)
+            continue
+
+        enriched = compute_all_indicators(
+            df, params["ema_fast"], params["ema_slow"],
+            config.RSI_PERIOD, config.BOLLINGER_PERIOD, config.BOLLINGER_STD,
+        )
+        signal_dict = detect_signal(
+            enriched, pair, params["rsi_buy_threshold"], params["rsi_sell_threshold"]
+        )
+        if signal_dict:
+            signal_dict["chart_url"] = _generate_and_upload_chart(enriched, signal_dict, now_ms)
+            storage.insert_signal(signal_dict)
+            signals_found += 1
+
+    return signals_found
+
+
 def main():
-    _register_signal_handlers()
-    logger.info("Démarrage du module de signaux (%d paires suivies).", len(config.PAIRS))
-
+    logger.info("Exécution unique du module de signaux (%d paires, Binance -> repli CoinGecko).", len(config.PAIRS))
     params = load_active_params()
-    bootstrap_history_if_needed()
-
-    while not _shutdown_requested:
-        cycle_start = time.time()
-        run_cycle(params)
-
-        elapsed = time.time() - cycle_start
-        remaining = max(0.0, config.POLL_INTERVAL_SECONDS - elapsed)
-        # On dort par petites tranches pour réagir vite à un signal d'arrêt.
-        slept = 0.0
-        while slept < remaining and not _shutdown_requested:
-            step = min(1.0, remaining - slept)
-            time.sleep(step)
-            slept += step
-
-    logger.info("Arrêt propre effectué. L'historique local est conservé pour la prochaine exécution.")
+    signals_found = run_once(params)
+    logger.info("Terminé : %d signal(aux) détecté(s) sur ce cycle.", signals_found)
 
 
 if __name__ == "__main__":

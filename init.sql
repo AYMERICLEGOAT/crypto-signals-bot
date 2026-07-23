@@ -15,6 +15,7 @@
 --   6. traffic/schema_update.sql
 --   7. workers/main-worker/schema.sql
 --   8. workers/main-worker/schema_update_public_channel.sql
+--   9. signals/schema_strategy_params.sql
 -- ============================================================================
 
 
@@ -173,6 +174,32 @@ $$;
 alter table signals add column if not exists sent_to_channel boolean not null default false;
 
 create index if not exists idx_signals_sent_to_channel on signals (sent_to_channel);
+
+
+-- ----------------------------------------------------------------------------
+-- 9. signals/schema_strategy_params.sql — historique des paramètres de
+--    stratégie retenus par backtest.py (remplace le fichier local
+--    data/optimized_params.json, qui ne survit pas entre deux exécutions
+--    GitHub Actions). Une seule ligne is_active = true à la fois.
+-- ----------------------------------------------------------------------------
+
+create table if not exists strategy_params (
+    id                 bigserial primary key,
+    ema_fast           integer not null,
+    ema_slow           integer not null,
+    rsi_buy_threshold  integer not null,
+    rsi_sell_threshold integer not null,
+    total_trades       integer not null,
+    global_win_rate    numeric not null,
+    gain_loss_ratio    numeric,
+    max_drawdown_pct   numeric,
+    source             text not null,
+    pairs_tested       text not null,
+    is_active          boolean not null default true,
+    created_at         timestamptz not null default now()
+);
+
+create index if not exists idx_strategy_params_active on strategy_params (is_active) where is_active = true;
 
 
 -- ----------------------------------------------------------------------------
