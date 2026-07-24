@@ -9,6 +9,15 @@ export interface UserRecord {
   created_at: string;
   referred_by: number | null;
   referral_rewarded: boolean;
+  plan_started_at: string | null;
+  reminder_48h_sent: boolean;
+  reminder_24h_sent: boolean;
+  reengagement_sent: boolean;
+  survey_sent: boolean;
+  survey_response: "up" | "down" | null;
+  paid_referral_count: number;
+  vip_until: string | null;
+  pending_promo_code: string | null;
 }
 
 export async function getOrCreateUser(db: SupabaseConfig, telegramId: number): Promise<UserRecord> {
@@ -65,13 +74,38 @@ export async function countReferralsBy(db: SupabaseConfig, telegramId: number): 
   return rows.length;
 }
 
+/**
+ * Active/étend un abonnement. Remet systématiquement à zéro les indicateurs
+ * de relance (48h/24h avant expiration, réengagement post-expiration) : vu
+ * que l'expiration change, un rappel déjà envoyé pour l'ancienne date n'a
+ * plus de sens et doit pouvoir se redéclencher pour la nouvelle.
+ *
+ * plan_started_at n'est posé qu'une seule fois (jamais écrasé) au premier
+ * passage à un plan payant (plan > 0) — sert de repère pour le sondage de
+ * satisfaction à J+7, indépendant des renouvellements/extensions ultérieurs.
+ */
 export async function activateSubscription(
   db: SupabaseConfig,
   telegramId: number,
   plan: number,
   expiration: Date
 ): Promise<void> {
-  await updateRows(db, "users", { telegram_id: `eq.${telegramId}` }, { plan, expiration: expiration.toISOString() });
+  const patch: Record<string, unknown> = {
+    plan,
+    expiration: expiration.toISOString(),
+    reminder_48h_sent: false,
+    reminder_24h_sent: false,
+    reengagement_sent: false,
+  };
+
+  if (plan > 0) {
+    const user = await getUserIfExists(db, telegramId);
+    if (user && !user.plan_started_at) {
+      patch.plan_started_at = new Date().toISOString();
+    }
+  }
+
+  await updateRows(db, "users", { telegram_id: `eq.${telegramId}` }, patch);
 }
 
 export async function markTrialUsed(db: SupabaseConfig, telegramId: number): Promise<void> {

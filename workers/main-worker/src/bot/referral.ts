@@ -8,6 +8,7 @@
 
 import { Env, dbConfig } from "../env";
 import { getUserIfExists, setReferredBy, markReferralRewarded, activateSubscription } from "../db/users";
+import { updateRows } from "../supabaseRest";
 import { sendMessage } from "../telegram";
 import { addDays } from "../utils/date";
 
@@ -16,6 +17,11 @@ import { addDays } from "../utils/date";
 // parrainage à soi-même via un second compte ne génère des jours gratuits
 // sans qu'aucun paiement réel n'ait eu lieu).
 export const REFERRAL_BONUS_DAYS = 7;
+
+// Palier supplémentaire : tous les 3 filleuls payants (cumulatif, jamais
+// remis à zéro), un mois gratuit en plus du bonus habituel de chaque filleul.
+export const MILESTONE_REFERRALS = 3;
+export const MILESTONE_BONUS_DAYS = 30;
 
 export function encodeReferralCode(telegramId: number): string {
   return telegramId.toString(36);
@@ -64,21 +70,27 @@ export async function maybeRewardReferral(env: Env, referredTelegramId: number):
   const referrer = await getUserIfExists(db, user.referred_by);
   if (!referrer) return;
 
+  const newPaidReferralCount = (referrer.paid_referral_count ?? 0) + 1;
+  const hitMilestone = newPaidReferralCount % MILESTONE_REFERRALS === 0;
+  const bonusDays = REFERRAL_BONUS_DAYS + (hitMilestone ? MILESTONE_BONUS_DAYS : 0);
+
   const base =
     referrer.expiration && new Date(referrer.expiration).getTime() > Date.now()
       ? new Date(referrer.expiration)
       : new Date();
-  const newExpiration = addDays(base, REFERRAL_BONUS_DAYS);
+  const newExpiration = addDays(base, bonusDays);
 
   await activateSubscription(db, referrer.telegram_id, referrer.plan ?? 1, newExpiration);
+  await updateRows(db, "users", { telegram_id: `eq.${referrer.telegram_id}` }, { paid_referral_count: newPaidReferralCount });
   await markReferralRewarded(db, referredTelegramId);
 
+  let message = `🎁 Un ami que tu as parrainé vient de s'abonner ! +${REFERRAL_BONUS_DAYS} jours ajoutés à ton abonnement.`;
+  if (hitMilestone) {
+    message += `\n\n🏆 Palier atteint : ${newPaidReferralCount} filleuls payants ! +${MILESTONE_BONUS_DAYS} jours supplémentaires offerts (1 mois gratuit).`;
+  }
+
   try {
-    await sendMessage(
-      env.TELEGRAM_BOT_TOKEN,
-      referrer.telegram_id,
-      `🎁 Un ami que tu as parrainé vient de s'abonner ! +${REFERRAL_BONUS_DAYS} jours ajoutés à ton abonnement.`
-    );
+    await sendMessage(env.TELEGRAM_BOT_TOKEN, referrer.telegram_id, message);
   } catch (err) {
     console.error(`[referral] Échec de la notification au parrain ${referrer.telegram_id}:`, err);
   }
