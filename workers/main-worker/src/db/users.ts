@@ -168,3 +168,20 @@ export async function getUsersExpiredSince(db: SupabaseConfig, daysAgo: number):
 export async function markReengagementSent(db: SupabaseConfig, telegramId: number): Promise<void> {
   await updateRows(db, "users", { telegram_id: `eq.${telegramId}` }, { reengagement_sent: true });
 }
+
+/** Utilisateurs payants depuis au moins `days` jours (plan_started_at), sondage de satisfaction pas encore envoyé. */
+export async function getUsersDueForSurvey(db: SupabaseConfig, days: number): Promise<UserRecord[]> {
+  const threshold = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  return selectRows<UserRecord>(db, "users", {
+    plan_started_at: `lte.${threshold.toISOString()}`,
+    survey_sent: "eq.false",
+  });
+}
+
+export async function markSurveySent(db: SupabaseConfig, telegramId: number): Promise<void> {
+  await updateRows(db, "users", { telegram_id: `eq.${telegramId}` }, { survey_sent: true });
+}
+
+export async function setSurveyResponse(db: SupabaseConfig, telegramId: number, response: "up" | "down"): Promise<void> {
+  await updateRows(db, "users", { telegram_id: `eq.${telegramId}` }, { survey_response: response });
+}

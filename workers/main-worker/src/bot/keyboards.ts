@@ -18,3 +18,10 @@ export function paymentMethodKeyboard(plan: 1 | 2): InlineKeyboard {
     [{ text: "⚪ Litecoin (LTC)", callback_data: `pay:LTC:${plan}` }],
   ];
 }
+
+export const surveyKeyboard: InlineKeyboard = [
+  [
+    { text: "👍", callback_data: "survey:up" },
+    { text: "👎", callback_data: "survey:down" },
+  ],
+];

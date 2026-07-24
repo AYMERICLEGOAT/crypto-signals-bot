@@ -8,6 +8,7 @@ import { handlePayCommand } from "./commands/pay";
 import { handleReferralCommand } from "./commands/referral";
 import { handlePromoCodeCommand } from "./commands/promoCode";
 import { handleStatsCommand } from "./commands/stats";
+import { handleSurveyResponse } from "./commands/surveyResponse";
 import { handleTextMessage } from "./walletAddressHandler";
 
 /** Traite une Update Telegram reçue par le webhook (voir index.ts, fetch()). */
@@ -51,5 +52,6 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
     else if (data === "start:status") await handleStatusCommand(env, chatId);
     else if (data.startsWith("plan:")) await handlePlanSelection(env, chatId, data);
     else if (data.startsWith("pay:")) await handlePaymentMethodSelection(env, chatId, data);
+    else if (data.startsWith("survey:")) await handleSurveyResponse(env, chatId, data);
   }
 }
