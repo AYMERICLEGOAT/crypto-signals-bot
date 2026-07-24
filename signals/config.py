@@ -32,7 +32,10 @@ PAIRS = {
     "DOT/USDT": "polkadot",
     "LINK/USDT": "chainlink",
     "TRX/USDT": "tron",
-    "MATIC/USDT": "matic-network",
+    # Polygon a migré son token MATIC -> POL en 2024 ; Binance a délisté
+    # MATICUSDT en conséquence (dernière bougie ~sept. 2024). "polygon-ecosystem-token"
+    # est l'identifiant CoinGecko courant pour POL (ex-MATIC).
+    "POL/USDT": "polygon-ecosystem-token",
     "LTC/USDT": "litecoin",
     "SHIB/USDT": "shiba-inu",
     "UNI/USDT": "uniswap",

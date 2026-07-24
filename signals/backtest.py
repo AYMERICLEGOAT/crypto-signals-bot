@@ -1,6 +1,7 @@
 """
 Backtest de la stratégie sur 6 mois de données réelles Binance (bougies
-horaires), pour BTC/USDT et ETH/USDT.
+horaires), sur les 20 paires de config.py (BACKTEST_PAIRS en dérive
+directement — modifier config.PAIRS suffit à changer le périmètre testé).
 
 Contrairement à l'ancienne version (CoinGecko, limitée à des clôtures
 JOURNALIÈRES au-delà de 90 jours sur le plan gratuit), Binance fournit de
@@ -39,7 +40,7 @@ from indicators import compute_all_indicators
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-BACKTEST_PAIRS = ["BTC/USDT", "ETH/USDT"]
+BACKTEST_PAIRS = list(config.PAIRS.keys())
 INTERVAL = "1h"
 # BACKTEST_TRADE_TIMEOUT_DAYS est exprimé en jours (config.py) ; les bougies
 # du backtest sont désormais horaires, donc il faut 24x plus de bougies pour
