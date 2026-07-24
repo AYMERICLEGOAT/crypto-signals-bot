@@ -29,3 +29,8 @@ TELEGRAM_CHANNEL_ID = "-1004450068761"
 TELEGRAM_CHANNEL_URL = "https://t.me/ProSignauxPublic"
 # Adresse de réception USDT (V2 100% off-chain) — wallet OWNER, adresse publique.
 PAYMENT_ADDRESS_USDT = "0x71367B5f4519700a63c2564b754cF959317E1f61"
+# Guide visuel de paiement (signals/generate_payment_guide.py) — Storage public,
+# nom de fichier fixe donc cette URL reste valide si l'image est régénérée.
+PAYMENT_GUIDE_IMAGE_URL = "https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/payment-guide.png"
+# Telegram ID admin (toi) — gate la commande /stats.
+ADMIN_TELEGRAM_ID = "8647576528"

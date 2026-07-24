@@ -57,12 +57,14 @@ def main():
 
     print("3/6 — Calcul des statistiques de performance...")
     performance = outcome_evaluator.compute_performance_stats()
+    backtest_stats = supabase_client.get_active_backtest_stats()
 
     print("4/6 — Génération des pages HTML (français + anglais)...")
     fr_archive_path = f"/signaux/{today_str}.html"
     en_archive_path = f"/en/signals/{today_str}.html"
     fr_home_path = "/"
     en_home_path = "/en/"
+    home_files = {"index.html", "en/index.html"}
 
     pages = [
         ("index.html", fr_home_path, en_home_path, "fr"),
@@ -72,7 +74,10 @@ def main():
     ]
     files_to_publish = []
     for relative_path, canonical_path, alternate_path, lang in pages:
-        content = build_daily_page(signals, performance, today, canonical_path, lang=lang, alternate_path=alternate_path)
+        content = build_daily_page(
+            signals, performance, today, canonical_path, lang=lang, alternate_path=alternate_path,
+            backtest_stats=backtest_stats if relative_path in home_files else None,
+        )
         files_to_publish.append((relative_path, content))
 
     print("5/6 — Mise à jour du sitemap et de robots.txt...")

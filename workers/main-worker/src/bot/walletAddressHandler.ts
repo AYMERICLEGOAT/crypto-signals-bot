@@ -1,5 +1,5 @@
 import { Env, dbConfig } from "../env";
-import { sendMessage } from "../telegram";
+import { sendMessage, sendPhoto } from "../telegram";
 import { consumePendingAction, setPendingAction } from "../db/pendingActions";
 import { startUsdtPayment } from "../payments/usdt";
 import { activateTrialForWallet } from "./commands/trial";
@@ -24,6 +24,9 @@ export async function handleTextMessage(env: Env, telegramId: number, text: stri
 
   if (action.type === "awaiting_wallet_usdt") {
     const message = await startUsdtPayment(env, db, telegramId, action.plan, trimmed);
+    if (env.PAYMENT_GUIDE_IMAGE_URL) {
+      await sendPhoto(env.TELEGRAM_BOT_TOKEN, telegramId, env.PAYMENT_GUIDE_IMAGE_URL);
+    }
     await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, message, { markdown: true });
   } else if (action.type === "awaiting_wallet_trial") {
     await activateTrialForWallet(env, telegramId, trimmed);

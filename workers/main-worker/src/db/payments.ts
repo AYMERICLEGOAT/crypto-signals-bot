@@ -59,6 +59,20 @@ export async function getLatestPendingPayment(
   return rows[0] ?? null;
 }
 
+/** Utilisé par /pay : rappelle le paiement en cours, peu importe la méthode choisie. */
+export async function getLatestPendingPaymentAnyMethod(
+  db: SupabaseConfig,
+  telegramId: number
+): Promise<PendingPayment | null> {
+  const rows = await selectRows<PendingPayment>(db, "pending_payments", {
+    telegram_id: `eq.${telegramId}`,
+    status: "eq.pending",
+    order: "created_at.desc",
+    limit: "1",
+  });
+  return rows[0] ?? null;
+}
+
 export async function markPaymentConfirmed(db: SupabaseConfig, id: number): Promise<void> {
   await updateRows(
     db,

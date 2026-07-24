@@ -88,6 +88,24 @@ def update_signal_outcome(signal_id, outcome, outcome_price):
     return resp.json()
 
 
+def get_active_backtest_stats():
+    """
+    La ligne is_active=true la plus récente de strategy_params (résultat du
+    dernier backtest.py, voir signals/backtest.py) — win_rate et trade_count
+    réels, jamais codés en dur. Retourne None si aucun backtest n'a encore
+    été enregistré.
+    """
+    resp = requests.get(
+        f"{SUPABASE_URL}/rest/v1/strategy_params",
+        headers=_headers(),
+        params={"is_active": "eq.true", "order": "last_tested.desc", "limit": "1"},
+        timeout=15,
+    )
+    _check(resp, "select strategy_params (actif)")
+    rows = resp.json()
+    return rows[0] if rows else None
+
+
 def get_performance_window(limit):
     """Les `limit` signaux les plus récents ayant un résultat connu (WIN/LOSS)."""
     resp = requests.get(

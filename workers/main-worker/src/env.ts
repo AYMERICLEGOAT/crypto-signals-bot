@@ -37,6 +37,11 @@ export interface Env {
   // Adresse de réception USDT (V2 100% off-chain) — pas un secret, une adresse
   // publique de wallet. Si absent, processUsdtTransfers() ne fait rien.
   PAYMENT_ADDRESS_USDT?: string;
+  // Image explicative (signals/generate_payment_guide.py), envoyée avec /pay
+  // et les instructions de paiement USDT/LTC/XMR.
+  PAYMENT_GUIDE_IMAGE_URL?: string;
+  // Telegram ID de l'administrateur — gate la commande /stats.
+  ADMIN_TELEGRAM_ID?: string;
 }
 
 export function dbConfig(env: Env): SupabaseConfig {

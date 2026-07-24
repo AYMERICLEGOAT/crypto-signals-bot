@@ -4,6 +4,7 @@ import { handleStart } from "./commands/start";
 import { handleStatusCommand } from "./commands/status";
 import { handleTrialCommand } from "./commands/trial";
 import { handleSubscribeCommand, handlePlanSelection, handlePaymentMethodSelection } from "./commands/subscribe";
+import { handlePayCommand } from "./commands/pay";
 import { handleTextMessage } from "./walletAddressHandler";
 
 /** Traite une Update Telegram reçue par le webhook (voir index.ts, fetch()). */
@@ -21,6 +22,8 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
       await handleStatusCommand(env, chatId);
     } else if (text === "/trial") {
       await handleTrialCommand(env, chatId);
+    } else if (text === "/pay") {
+      await handlePayCommand(env, chatId);
     } else if (text && !text.startsWith("/")) {
       await handleTextMessage(env, chatId, text);
     }

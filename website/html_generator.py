@@ -41,6 +41,14 @@ _STRINGS = {
         "perf_table_result": "Résultat",
         "perf_note": "Résultat déterminé automatiquement en comparant le prix courant de chaque "
         "signal à son stop loss et son take profit (pas une analyse tick par tick de l'historique intrabar).",
+        "backtest_heading": "🧪 Backtest de la stratégie",
+        "backtest_stat": lambda win_rate, trades: (
+            f"{win_rate:.1f}% de réussite sur {trades} trades en 6 mois"
+        ),
+        "backtest_detail": "Simulé sur 20 paires, données horaires réelles Binance des 6 derniers mois.",
+        "backtest_note": "⚠️ Résultat d'une optimisation \"in-sample\" (sur les données ayant servi à choisir "
+        "les paramètres) : une performance passée ne garantit pas un résultat identique en conditions réelles. "
+        "Ce backtest est mis à jour automatiquement à chaque nouvelle exécution.",
         "cta_text": "📡 Reçois ces signaux en temps réel, dès qu'ils sont détectés :",
         "cta_link": lambda username: f"Rejoindre @{username} sur Telegram",
         "disclaimer": "⚠️ Ce contenu est fourni à titre informatif et pédagogique, il ne constitue pas "
@@ -78,6 +86,14 @@ _STRINGS = {
         "perf_table_result": "Result",
         "perf_note": "Result determined automatically by comparing each signal's current price to "
         "its stop loss and take profit (not a tick-by-tick intrabar analysis).",
+        "backtest_heading": "🧪 Strategy backtest",
+        "backtest_stat": lambda win_rate, trades: (
+            f"{win_rate:.1f}% win rate on {trades} trades over 6 months"
+        ),
+        "backtest_detail": "Simulated on 20 pairs, real hourly Binance data from the last 6 months.",
+        "backtest_note": "⚠️ Result of an \"in-sample\" optimization (using the same data that chose the "
+        "parameters): past performance does not guarantee identical real-world results. This backtest is "
+        "updated automatically on every new run.",
         "cta_text": "📡 Get these signals in real time, the moment they're detected:",
         "cta_link": lambda username: f"Join @{username} on Telegram",
         "disclaimer": "⚠️ This content is provided for informational and educational purposes only, "
@@ -112,6 +128,9 @@ _STYLE = """
   .cta { background: linear-gradient(135deg, #6366f1, #4338ca); color: white; padding: 24px;
          border-radius: 12px; text-align: center; margin: 2.5rem 0; }
   .cta a { color: white; font-weight: 700; font-size: 1.1rem; text-decoration: underline; }
+  .backtest { background: #f5f5ff; border: 1px solid #e0e0f5; border-radius: 12px; padding: 18px 20px; margin: 1.5rem 0; }
+  .backtest h2 { margin-top: 0; border-bottom: none; }
+  .backtest-stat { font-size: 1.4rem; font-weight: 700; color: #4338ca; margin: 4px 0; }
   .perf-stats { display: flex; gap: 24px; flex-wrap: wrap; margin: 16px 0; }
   .perf-stat { text-align: center; }
   .perf-stat b { display: block; font-size: 1.6rem; }
@@ -185,7 +204,29 @@ def _performance_section_html(stats, s):
     </section>"""
 
 
-def build_daily_page(signals, performance_stats, page_date, canonical_path, lang="fr", alternate_path=None):
+def _backtest_section_html(backtest_stats, s):
+    """
+    backtest_stats : ligne active de la table strategy_params (win_rate en
+    fraction 0-1, trade_count entier), ou None si aucun backtest n'a encore
+    tourné — dans ce cas la section est simplement omise (jamais de chiffre
+    inventé).
+    """
+    if not backtest_stats:
+        return ""
+
+    win_rate_pct = float(backtest_stats["win_rate"]) * 100
+    trades = int(backtest_stats["trade_count"])
+
+    return f"""
+    <section class="backtest">
+      <h2>{s["backtest_heading"]}</h2>
+      <p class="backtest-stat">{s["backtest_stat"](win_rate_pct, trades)}</p>
+      <p>{s["backtest_detail"]}</p>
+      <p style="font-size:0.85rem;color:#777;">{s["backtest_note"]}</p>
+    </section>"""
+
+
+def build_daily_page(signals, performance_stats, page_date, canonical_path, lang="fr", alternate_path=None, backtest_stats=None):
     """
     Construit la page HTML complète pour une date donnée, dans la langue `lang` ("fr"/"en").
     `alternate_path` : chemin de la page équivalente dans l'autre langue (pour hreflang + lien de bascule).
@@ -213,6 +254,7 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
         lang_switch_html = f'<p class="lang-switch"><a href="{alternate_path}">{s["lang_switch"]}</a></p>'
 
     footer_ts = datetime.now().strftime(s["footer_date_format"])
+    backtest_html = _backtest_section_html(backtest_stats, s)
 
     return f"""<!DOCTYPE html>
 <html lang="{s["html_lang"]}">
@@ -236,6 +278,8 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
     <h1>{s["h1"](date_str)}</h1>
     <p class="subtitle">{s["subtitle"]}</p>
   </header>
+
+  {backtest_html}
 
   <section>
     <h2>{s["signals_heading"](len(signals))}</h2>

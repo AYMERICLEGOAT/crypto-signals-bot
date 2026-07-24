@@ -1,5 +1,5 @@
 import { Env, dbConfig } from "../../env";
-import { sendMessage } from "../../telegram";
+import { sendMessage, sendPhoto } from "../../telegram";
 import { startUsdtPayment, USDT_PLAN_PRICES } from "../../payments/usdt";
 import { createMoneroInvoice } from "../../payments/monero";
 import { createLitecoinInvoice } from "../../payments/litecoin";
@@ -55,6 +55,9 @@ export async function handlePaymentMethodSelection(env: Env, telegramId: number,
       addressIndex: invoice.addressIndex,
       amountExpected: invoice.amountXmr,
     });
+    if (env.PAYMENT_GUIDE_IMAGE_URL) {
+      await sendPhoto(env.TELEGRAM_BOT_TOKEN, telegramId, env.PAYMENT_GUIDE_IMAGE_URL);
+    }
     await sendMessage(
       env.TELEGRAM_BOT_TOKEN,
       telegramId,
@@ -86,6 +89,9 @@ export async function handlePaymentMethodSelection(env: Env, telegramId: number,
       addressIndex: invoice.hdIndex,
       amountExpected: invoice.amountLtc,
     });
+    if (env.PAYMENT_GUIDE_IMAGE_URL) {
+      await sendPhoto(env.TELEGRAM_BOT_TOKEN, telegramId, env.PAYMENT_GUIDE_IMAGE_URL);
+    }
     await sendMessage(
       env.TELEGRAM_BOT_TOKEN,
       telegramId,
