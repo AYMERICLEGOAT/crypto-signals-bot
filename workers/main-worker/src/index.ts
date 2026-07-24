@@ -4,6 +4,7 @@ import { routeUpdate } from "./bot/router";
 import { dispatchSignals } from "./cron/dispatchSignals";
 import { dispatchPublicChannel } from "./cron/dispatchPublicChannel";
 import { dispatchEducationalPost } from "./cron/dispatchEducationalPost";
+import { runLuckyVipDay } from "./cron/luckyVipDay";
 import { pollPayments } from "./cron/pollPayments";
 import { pingSupabase } from "./supabaseRest";
 import { dbConfig } from "./env";
@@ -52,6 +53,7 @@ export default {
         await dispatchSignals(env).catch((err) => console.error("[cron] Erreur dispatchSignals:", err));
         await dispatchPublicChannel(env).catch((err) => console.error("[cron] Erreur dispatchPublicChannel:", err));
         await dispatchEducationalPost(env).catch((err) => console.error("[cron] Erreur dispatchEducationalPost:", err));
+        await runLuckyVipDay(env).catch((err) => console.error("[cron] Erreur luckyVipDay:", err));
         await pollPayments(env).catch((err) => console.error("[cron] Erreur pollPayments:", err));
       })()
     );

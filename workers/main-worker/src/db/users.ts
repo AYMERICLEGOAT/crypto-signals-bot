@@ -87,3 +87,11 @@ export function isSubscriptionActive(user: Pick<UserRecord, "expiration">): bool
 export async function getActiveUsers(db: SupabaseConfig): Promise<UserRecord[]> {
   return selectRows<UserRecord>(db, "users", { expiration: `gt.${new Date().toISOString()}` });
 }
+
+/** Utilisateurs actuellement en essai gratuit actif (plan=0, pas encore expiré) — vivier du Lucky VIP Day. */
+export async function getActiveTrialUsers(db: SupabaseConfig): Promise<UserRecord[]> {
+  return selectRows<UserRecord>(db, "users", {
+    plan: "eq.0",
+    expiration: `gt.${new Date().toISOString()}`,
+  });
+}
