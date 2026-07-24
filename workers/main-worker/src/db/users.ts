@@ -54,6 +54,17 @@ export async function hasWalletClaimedTrial(db: SupabaseConfig, address: string)
   return rows.length > 0;
 }
 
+/**
+ * Nombre de filleuls attribués à ce parrain (attributeReferralIfNeeded),
+ * peu importe s'ils ont payé ou non — utilisé par la boucle virale du
+ * /trial (voir bot/commands/trial.ts), distincte de maybeRewardReferral
+ * qui ne récompense le parrain qu'à un premier paiement confirmé.
+ */
+export async function countReferralsBy(db: SupabaseConfig, telegramId: number): Promise<number> {
+  const rows = await selectRows<UserRecord>(db, "users", { referred_by: `eq.${telegramId}` });
+  return rows.length;
+}
+
 export async function activateSubscription(
   db: SupabaseConfig,
   telegramId: number,

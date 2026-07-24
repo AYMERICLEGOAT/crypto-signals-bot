@@ -24,5 +24,8 @@ LTC_MIN_CONFIRMATIONS = "1"
 TELEGRAM_BOT_USERNAME = "ProVIPSignals_bot"
 # Canal public gratuit (diffusion différée de 15 min, voir cron/dispatchPublicChannel.ts).
 TELEGRAM_CHANNEL_ID = "-1004450068761"
+# Même canal, lien public affiché aux utilisateurs (getChatMember veut l'ID numérique,
+# les humains veulent un lien cliquable) — voir bot/commands/trial.ts (boucle virale).
+TELEGRAM_CHANNEL_URL = "https://t.me/ProSignauxPublic"
 # Adresse de réception USDT (V2 100% off-chain) — wallet OWNER, adresse publique.
 PAYMENT_ADDRESS_USDT = "0x71367B5f4519700a63c2564b754cF959317E1f61"

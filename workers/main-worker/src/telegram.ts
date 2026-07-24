@@ -97,3 +97,17 @@ export async function answerCallbackQuery(token: string, callbackQueryId: string
 export async function setWebhook(token: string, url: string, secretToken: string): Promise<void> {
   await callTelegramApi(token, "setWebhook", { url, secret_token: secretToken });
 }
+
+/**
+ * Statut d'un utilisateur dans un chat (ex: le canal public), pour la
+ * boucle virale du /trial. Retourne null si l'utilisateur n'a jamais
+ * interagi avec le chat (Telegram répond "ok: false" dans ce cas précis —
+ * ce n'est pas une erreur, juste "pas membre").
+ */
+export async function getChatMemberStatus(token: string, chatId: string | number, userId: number): Promise<string | null> {
+  const res = await fetch(
+    `${API_BASE}${token}/getChatMember?chat_id=${encodeURIComponent(String(chatId))}&user_id=${userId}`
+  );
+  const json = (await res.json()) as { ok: boolean; result?: { status: string } };
+  return json.ok ? json.result?.status ?? null : null;
+}
