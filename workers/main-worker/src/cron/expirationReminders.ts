@@ -1,24 +1,15 @@
 import { Env, dbConfig } from "../env";
 import { sendMessage } from "../telegram";
 import { getUsersExpiringWithin, markReminderSent, UserRecord } from "../db/users";
-import { selectRows } from "../supabaseRest";
-
-interface StrategyParamsRow {
-  win_rate: number;
-  trade_count: number;
-}
+import { getActiveStrategyParams } from "../db/strategyParams";
 
 async function getPerformanceLine(env: Env): Promise<string> {
   try {
     const db = dbConfig(env);
-    const rows = await selectRows<StrategyParamsRow>(db, "strategy_params", {
-      is_active: "eq.true",
-      order: "last_tested.desc",
-      limit: "1",
-    });
-    if (!rows[0]) return "";
-    const winRatePct = (rows[0].win_rate * 100).toFixed(1);
-    return `\n📊 Rappel : la stratégie affiche ${winRatePct}% de réussite sur ${rows[0].trade_count} trades (backtest 6 mois, in-sample — voir le site pour le détail).\n`;
+    const stats = await getActiveStrategyParams(db);
+    if (!stats) return "";
+    const winRatePct = (stats.win_rate * 100).toFixed(1);
+    return `\n📊 Rappel : la stratégie affiche ${winRatePct}% de réussite sur ${stats.trade_count} trades (backtest 6 mois, in-sample — voir le site pour le détail).\n`;
   } catch {
     return ""; // le récap de perf est un bonus, jamais bloquant pour la relance elle-même
   }
