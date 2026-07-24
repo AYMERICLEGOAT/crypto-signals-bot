@@ -1,0 +1,28 @@
+name: Publication Discord (quotidienne)
+
+on:
+  schedule:
+    - cron: "10 8 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  post-discord:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installer les dépendances
+        run: pip install -r traffic/requirements.txt
+
+      - name: Publier le message du jour
+        working-directory: traffic
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+        run: python discord_daily.py

@@ -20,7 +20,7 @@ from config import (
     TWITTER_MIN_DELAY_SECONDS,
     TWITTER_MAX_DELAY_SECONDS,
 )
-from content_templates import format_tweet
+from content_templates import format_tweet, format_tweet_reply
 import supabase_client
 
 logger = logging.getLogger(__name__)
@@ -85,7 +85,18 @@ def publish_to_twitter(signal, randomized_delay=True):
         tweet_id = response.data.get("id") if response and response.data else None
         supabase_client.record_posted("twitter", signal["id"])
         logger.info("Twitter: tweet publié (id=%s) pour le signal #%s.", tweet_id, signal["id"])
-        return True
     except tweepy.TweepyException:
         logger.exception("Twitter: échec de la publication pour le signal #%s.", signal["id"])
         return False
+
+    # Lien en réponse plutôt que dans le tweet principal (voir format_tweet_reply).
+    # Non bloquant : le tweet principal est déjà publié et enregistré même si
+    # la réponse échoue (ex: rate limit atteint juste après le 1er appel).
+    if tweet_id:
+        try:
+            client.create_tweet(text=format_tweet_reply(signal), in_reply_to_tweet_id=tweet_id)
+            logger.info("Twitter: lien posté en réponse au tweet %s.", tweet_id)
+        except tweepy.TweepyException:
+            logger.exception("Twitter: échec de la réponse contenant le lien pour le tweet %s.", tweet_id)
+
+    return True

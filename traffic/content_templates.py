@@ -38,22 +38,29 @@ _TWEET_HOOKS = [
 
 
 def format_tweet(signal):
-    """Reste sous 280 caractères. Aucune promesse de gain, juste les niveaux et le lien."""
+    """
+    Reste sous 280 caractères. Aucune promesse de gain, juste les niveaux.
+    Pas de lien direct ici : Twitter/X pénalise la portée des tweets qui
+    sortent l'utilisateur de la plateforme. Le lien part en réponse
+    (voir format_tweet_reply), technique standard et non trompeuse — le
+    contenu du tweet reste honnête, seul l'emplacement du lien change.
+    """
     hook = random.choice(_TWEET_HOOKS).format(pair=signal["pair"], side=_side_label(signal))
     text = (
         f"{_emoji(signal)} {hook}\n"
         f"{_side_label(signal)} | Entrée {format_price(signal['entry_price'])} | "
         f"SL {format_price(signal['stop_loss'])} | TP {format_price(signal['take_profit'])}\n\n"
-        f"Signaux gratuits (15 min de délai) : {TELEGRAM_CHANNEL_URL}\n"
         f"#Crypto #Trading"
     )
     if len(text) > 280:
         # Repli compact si la paire/les prix rendent le texte trop long.
-        text = (
-            f"{_emoji(signal)} Signal {_side_label(signal)} {signal['pair']} — "
-            f"entrée {format_price(signal['entry_price'])}\n{TELEGRAM_CHANNEL_URL}"
-        )
+        text = f"{_emoji(signal)} Signal {_side_label(signal)} {signal['pair']} — entrée {format_price(signal['entry_price'])}"
     return text
+
+
+def format_tweet_reply(signal):
+    """Réponse au tweet principal, contenant le seul lien (canal Telegram gratuit)."""
+    return f"👇 Signaux gratuits (15 min de délai) : {TELEGRAM_CHANNEL_URL}"
 
 
 # --- Reddit ---
