@@ -15,6 +15,7 @@ local ne survivrait donc pas d'une exécution à l'autre.
 """
 
 import logging
+from datetime import datetime, timezone
 
 import config
 from storage import get_client
@@ -22,6 +23,7 @@ from storage import get_client
 logger = logging.getLogger(__name__)
 
 TABLE = "strategy_params"
+TRADES_TABLE = "backtest_trades"
 
 
 def load_active_params() -> dict | None:
@@ -67,9 +69,15 @@ def save_params(result: dict, pairs_tested: list[str]) -> None:
     donc uniquement dans les logs de backtest.py, pas persistées ici.
     """
     client = get_client()
+    # Horodatage inclus : param_set a une contrainte UNIQUE en base, et les
+    # paramètres par défaut reviennent souvent identiques d'un run à l'autre
+    # (ex: "EMA9-21_RSI40-60_default") — sans suffixe, le 2e insert échoue en
+    # silence (conflit 409) et la ligne active de la veille n'est JAMAIS
+    # remplacée alors qu'elle vient d'être désactivée juste avant.
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     param_set = (
         f"EMA{result['ema_fast']}-{result['ema_slow']}_"
-        f"RSI{result['rsi_buy_threshold']}-{result['rsi_sell_threshold']}_{result['source']}"
+        f"RSI{result['rsi_buy_threshold']}-{result['rsi_sell_threshold']}_{result['source']}_{timestamp}"
     )
     try:
         client.table(TABLE).update({"is_active": False}).eq("is_active", True).execute()
@@ -89,3 +97,36 @@ def save_params(result: dict, pairs_tested: list[str]) -> None:
         logger.info("Paramètres enregistrés comme actifs dans Supabase (strategy_params: %s).", param_set)
     except Exception:
         logger.exception("Échec de l'enregistrement des paramètres dans Supabase.")
+
+
+def _ms_to_iso(ms: int) -> str:
+    return datetime.fromtimestamp(ms / 1000, tz=timezone.utc).isoformat()
+
+
+def save_backtest_trades(trades: list[dict]) -> None:
+    """
+    Remplace le contenu de backtest_trades par `trades` (vide la table puis
+    réinsère) : ce sont des exemples illustrant la stratégie ACTIVE, pas un
+    journal cumulatif — chaque nouveau backtest reflète les paramètres
+    actuellement en vigueur. entered_at/exited_at sont les vrais timestamps
+    des bougies Binance utilisées dans la simulation, jamais des dates
+    inventées (voir backtest.py, simulate_trades).
+    """
+    if not trades:
+        return
+    client = get_client()
+    try:
+        client.table(TRADES_TABLE).delete().neq("id", 0).execute()
+        rows = [{
+            "pair": t["pair"],
+            "side": t["side"],
+            "entry_price": t["entry_price"],
+            "exit_price": t["exit_price"],
+            "outcome": t["outcome"],
+            "pnl_pct": t["pnl_pct"],
+            "entered_at": _ms_to_iso(t["entered_at"]),
+            "exited_at": _ms_to_iso(t["exited_at"]),
+        } for t in trades]
+        client.table(TRADES_TABLE).insert(rows).execute()
+    except Exception:
+        logger.exception("Échec de l'enregistrement des trades individuels du backtest.")

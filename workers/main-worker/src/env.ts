@@ -42,6 +42,10 @@ export interface Env {
   PAYMENT_GUIDE_IMAGE_URL?: string;
   // Telegram ID de l'administrateur — gate la commande /stats.
   ADMIN_TELEGRAM_ID?: string;
+  // "false" tant qu'on n'a pas assez de signaux réels accumulés (30+ jours,
+  // voir Bloc 4) pour afficher un taux de réussite EN CONDITIONS RÉELLES
+  // plutôt que le backtest in-sample. Scaffold pour l'instant, pas encore lu.
+  DISPLAY_WINRATE?: string;
 }
 
 export function dbConfig(env: Env): SupabaseConfig {

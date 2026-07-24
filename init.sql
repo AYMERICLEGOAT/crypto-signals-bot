@@ -17,6 +17,9 @@
 --   8. workers/main-worker/schema_update_public_channel.sql
 --   9. signals/schema_strategy_params.sql
 --   10. workers/main-worker/schema_update_growth_features.sql
+--   11. workers/main-worker/schema_update_bloc1to10.sql
+--   12. signals/schema_signal_pause.sql
+--   13. traffic/schema_nullable_signal_id.sql
 -- ============================================================================
 
 
@@ -263,8 +266,121 @@ on conflict (code) do nothing;
 
 -- ----------------------------------------------------------------------------
 -- Vérification optionnelle : liste les tables créées pour confirmer que tout
+-- ----------------------------------------------------------------------------
+-- 11. workers/main-worker/schema_update_bloc1to10.sql — Blocs 1 à 10
+--     (archives backtest, offre de lancement, Effet Sniper, alertes momentum,
+--     suivi post-trade, admin/rate-limit, stats quotidiennes, RGPD, cache
+--     paiement, correction Lucky VIP Day)
+-- ----------------------------------------------------------------------------
+
+create table if not exists backtest_trades (
+    id            bigserial primary key,
+    pair          text not null,
+    side          text not null check (side in ('BUY', 'SELL')),
+    entry_price   numeric not null,
+    exit_price    numeric not null,
+    outcome       text not null check (outcome in ('WIN', 'LOSS', 'TIMEOUT')),
+    pnl_pct       numeric not null,
+    entered_at    timestamptz not null,
+    exited_at     timestamptz not null,
+    created_at    timestamptz not null default now()
+);
+
+create table if not exists offer_counter (
+    offer_name   text primary key,
+    slots_total  integer not null,
+    slots_used   integer not null default 0
+);
+insert into offer_counter (offer_name, slots_total, slots_used)
+values ('decouverte', 50, 0)
+on conflict (offer_name) do nothing;
+
+create table if not exists signal_deliveries (
+    id           bigserial primary key,
+    signal_id    bigint not null references signals (id),
+    telegram_id  bigint not null references users (telegram_id),
+    tier         text not null check (tier in ('pro', 'standard')),
+    delivered_at timestamptz not null default now()
+);
+create index if not exists idx_signal_deliveries_signal on signal_deliveries (signal_id);
+
+create table if not exists momentum_alerts (
+    id           bigserial primary key,
+    pair         text not null,
+    alert_type   text not null check (alert_type in ('rsi_exit_neutral', 'ema_cross', 'atr_spike')),
+    direction    text,
+    triggered_at timestamptz not null default now()
+);
+create index if not exists idx_momentum_alerts_pair_type_date on momentum_alerts (pair, alert_type, triggered_at desc);
+
+alter table signals add column if not exists close_reason text check (close_reason in ('tp_hit', 'sl_hit', 'expired'));
+alter table signals add column if not exists last_status_update_at timestamptz;
+
+create table if not exists admin_actions (
+    id                  bigserial primary key,
+    admin_telegram_id   bigint not null,
+    action              text not null,
+    target_telegram_id  bigint,
+    details             text,
+    created_at          timestamptz not null default now()
+);
+
+create table if not exists command_rate_limit (
+    telegram_id  bigint primary key,
+    window_start timestamptz not null,
+    count        integer not null default 0
+);
+
+create table if not exists daily_stats (
+    id                  bigserial primary key,
+    stat_date           date not null unique,
+    total_users         integer not null,
+    active_trials       integer not null,
+    paying_subscribers  integer not null,
+    winrate_rolling_30d numeric,
+    total_revenue_usdt  numeric not null default 0
+);
+
+alter table users add column if not exists cancelled boolean not null default false;
+alter table users add column if not exists deleted boolean not null default false;
+
+create table if not exists payment_cache (
+    tx_hash         text primary key,
+    verified_result boolean not null,
+    checked_at      timestamptz not null default now()
+);
+
+alter table lucky_vip_draws add column if not exists previous_plan smallint;
+alter table lucky_vip_draws add column if not exists reverted boolean not null default false;
+
+
+-- ----------------------------------------------------------------------------
+-- Vérification optionnelle : liste les tables créées pour confirmer que tout
 -- s'est bien exécuté (à lancer séparément après le script ci-dessus si tu veux).
 -- ----------------------------------------------------------------------------
 -- select table_name from information_schema.tables
 -- where table_schema = 'public'
 -- order by table_name;
+
+
+-- ----------------------------------------------------------------------------
+-- 12. signals/schema_signal_pause.sql — pause automatique anti-corrélation
+--     (si >50% des paires signalent la même direction en <4h, bloque 24h)
+-- ----------------------------------------------------------------------------
+
+create table if not exists signal_pause (
+    id         bigserial primary key,
+    paused_at  timestamptz not null default now(),
+    resumes_at timestamptz not null,
+    reason     text not null,
+    announced  boolean not null default false
+);
+
+create index if not exists idx_signal_pause_active on signal_pause (resumes_at desc);
+
+
+-- ----------------------------------------------------------------------------
+-- 13. traffic/schema_nullable_signal_id.sql — résumés macro sans signal réel
+-- ----------------------------------------------------------------------------
+
+alter table posted_content alter column signal_id drop not null;

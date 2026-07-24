@@ -13,6 +13,7 @@ import requests
 from config import DISCORD_BOT_TOKEN, DISCORD_CHANNEL_ID
 from content_templates import format_discord_embed
 import supabase_client
+from macro_summary import get_btc_macro_summary, format_macro_discord_embed
 
 logger = logging.getLogger(__name__)
 
@@ -54,4 +55,37 @@ def publish_to_discord(signal):
 
     supabase_client.record_posted("discord", signal["id"])
     logger.info("Discord: message publié pour le signal #%s.", signal["id"])
+    return True
+
+
+def publish_macro_summary():
+    """
+    Publie le résumé macro BTC (voir macro_summary.py) si aucun message n'est
+    déjà parti aujourd'hui — utilisé quand aucun signal réel n'existe, pour
+    ne jamais laisser le canal silencieux. Retourne True si publié.
+    """
+    if not DISCORD_BOT_TOKEN or not DISCORD_CHANNEL_ID:
+        raise RuntimeError("DISCORD_BOT_TOKEN / DISCORD_CHANNEL_ID manquants dans .env")
+
+    if not is_due():
+        return False
+
+    summary = get_btc_macro_summary()
+    if summary is None:
+        logger.warning("Discord: résumé macro indisponible (API Binance), rien à publier.")
+        return False
+
+    payload = format_macro_discord_embed(summary)
+    resp = requests.post(
+        f"{DISCORD_API_BASE}/channels/{DISCORD_CHANNEL_ID}/messages",
+        headers={"Authorization": f"Bot {DISCORD_BOT_TOKEN}", "Content-Type": "application/json"},
+        json=payload,
+        timeout=15,
+    )
+    if not resp.ok:
+        logger.error("Discord: échec de l'envoi du résumé macro (HTTP %s): %s", resp.status_code, resp.text)
+        return False
+
+    supabase_client.record_posted("discord", None, target="macro-summary")
+    logger.info("Discord: résumé macro publié.")
     return True

@@ -22,6 +22,7 @@ from config import (
 )
 from content_templates import format_tweet, format_tweet_reply
 import supabase_client
+from macro_summary import get_btc_macro_summary, format_macro_tweet
 
 logger = logging.getLogger(__name__)
 
@@ -100,3 +101,30 @@ def publish_to_twitter(signal, randomized_delay=True):
             logger.exception("Twitter: échec de la réponse contenant le lien pour le tweet %s.", tweet_id)
 
     return True
+
+
+def publish_macro_summary():
+    """
+    Publie le résumé macro BTC (voir macro_summary.py) si les plafonds le
+    permettent — utilisé quand aucun signal réel n'existe, pour ne jamais
+    laisser le compte silencieux. Contenu factuel (données Binance réelles),
+    jamais promotionnel. Retourne True si publié.
+    """
+    if not is_due():
+        return False
+
+    summary = get_btc_macro_summary()
+    if summary is None:
+        logger.warning("Twitter: résumé macro indisponible (API Binance), rien à publier.")
+        return False
+
+    try:
+        client = _get_client()
+        response = client.create_tweet(text=format_macro_tweet(summary))
+        tweet_id = response.data.get("id") if response and response.data else None
+        supabase_client.record_posted("twitter", None, target="macro-summary")
+        logger.info("Twitter: résumé macro publié (id=%s).", tweet_id)
+        return True
+    except tweepy.TweepyException:
+        logger.exception("Twitter: échec de la publication du résumé macro.")
+        return False

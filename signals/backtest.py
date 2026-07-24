@@ -56,6 +56,47 @@ RSI_THRESHOLD_CANDIDATES = [(30, 70), (35, 65), (40, 60)]
 # pas fiable statistiquement — trop peu d'occurrences pour rien affirmer.
 MIN_SIGNIFICANT_TRADES = 15
 
+# Filtre anti-corrélation (même logique que signals/correlation_guard.py, en
+# production) : si plus de 50% des paires suivies déclenchent un trade dans
+# la même direction en moins de 4h, c'est un mouvement de marché systémique
+# (tout corrélé), pas un edge de la stratégie — ces trades sont exclus du
+# calcul de performance pour ne pas laisser un seul événement de marché
+# dominer artificiellement (à la hausse ou à la baisse) le win rate affiché.
+CORRELATION_THRESHOLD = 0.5
+CORRELATION_WINDOW_MS = 4 * 60 * 60 * 1000
+
+
+def filter_correlated_trades(trades: list, total_pairs: int) -> list:
+    """
+    Retire les trades faisant partie d'un cluster corrélé (voir constantes
+    ci-dessus). Un trade peut être exclu via plusieurs "ancres" qui se
+    chevauchent ; le résultat ne dépend pas de l'ordre de la liste d'entrée.
+    """
+    if not trades:
+        return trades
+
+    sorted_trades = sorted(trades, key=lambda t: t["entered_at"])
+    threshold_count = total_pairs * CORRELATION_THRESHOLD
+    excluded = set()
+
+    for i, anchor in enumerate(sorted_trades):
+        window_end = anchor["entered_at"] + CORRELATION_WINDOW_MS
+        cluster = [
+            j for j, t in enumerate(sorted_trades)
+            if anchor["entered_at"] <= t["entered_at"] <= window_end and t["side"] == anchor["side"]
+        ]
+        distinct_pairs = {sorted_trades[j]["pair"] for j in cluster}
+        if len(distinct_pairs) > threshold_count:
+            excluded.update(cluster)
+
+    if excluded:
+        logger.info(
+            "Filtre anti-corrélation : %d/%d trades exclus (mouvement de marché corrélé détecté).",
+            len(excluded), len(sorted_trades),
+        )
+
+    return [t for i, t in enumerate(sorted_trades) if i not in excluded]
+
 
 def fetch_all_klines(pairs=BACKTEST_PAIRS, days=config.BACKTEST_DAYS) -> dict:
     """Récupère l'historique horaire Binance de chaque paire (~180 jours)."""
@@ -74,11 +115,16 @@ def fetch_all_klines(pairs=BACKTEST_PAIRS, days=config.BACKTEST_DAYS) -> dict:
 
 
 def simulate_trades(df: pd.DataFrame, ema_fast: int, ema_slow: int, rsi_buy: int, rsi_sell: int,
-                     timeout_periods: int = TIMEOUT_PERIODS) -> list:
+                     pair: str = "", timeout_periods: int = TIMEOUT_PERIODS) -> list:
     """
     Détecte les signaux sur le DataFrame enrichi puis simule chaque trade
     bougie par bougie jusqu'à toucher le stop loss, le take profit, ou
     expirer (timeout -> clôture au marché, PnL réel calculé).
+
+    Chaque trade retourné porte aussi entered_at/exited_at (vrais timestamps
+    des bougies Binance utilisées) et exit_price — nécessaires pour
+    persister des exemples de trades avec de VRAIES dates historiques
+    (voir save_backtest_trades), jamais des dates inventées.
     """
     enriched = compute_all_indicators(
         df, ema_fast, ema_slow, config.RSI_PERIOD, config.BOLLINGER_PERIOD, config.BOLLINGER_STD
@@ -109,32 +155,41 @@ def simulate_trades(df: pd.DataFrame, ema_fast: int, ema_slow: int, rsi_buy: int
             stop_loss = entry_price * (1 + config.STOP_LOSS_PCT)
             take_profit = entry_price * (1 - config.TAKE_PROFIT_PCT)
 
-        outcome, exit_price = "TIMEOUT", None
+        outcome, exit_price, exit_idx = "TIMEOUT", None, None
         for j in range(i + 1, min(i + 1 + timeout_periods, len(enriched))):
             candle = enriched.iloc[j]
             if side == "BUY":
                 if candle["low"] <= stop_loss:
-                    outcome, exit_price = "LOSS", stop_loss
+                    outcome, exit_price, exit_idx = "LOSS", stop_loss, j
                     break
                 if candle["high"] >= take_profit:
-                    outcome, exit_price = "WIN", take_profit
+                    outcome, exit_price, exit_idx = "WIN", take_profit, j
                     break
             else:
                 if candle["high"] >= stop_loss:
-                    outcome, exit_price = "LOSS", stop_loss
+                    outcome, exit_price, exit_idx = "LOSS", stop_loss, j
                     break
                 if candle["low"] <= take_profit:
-                    outcome, exit_price = "WIN", take_profit
+                    outcome, exit_price, exit_idx = "WIN", take_profit, j
                     break
 
         if exit_price is None:
-            last_idx = min(i + timeout_periods, len(enriched) - 1)
-            exit_price = enriched.iloc[last_idx]["price"]
+            exit_idx = min(i + timeout_periods, len(enriched) - 1)
+            exit_price = enriched.iloc[exit_idx]["price"]
 
         pnl_pct = ((exit_price - entry_price) / entry_price if side == "BUY"
                    else (entry_price - exit_price) / entry_price)
 
-        trades.append({"side": side, "entry_price": entry_price, "outcome": outcome, "pnl_pct": pnl_pct})
+        trades.append({
+            "pair": pair,
+            "side": side,
+            "entry_price": entry_price,
+            "exit_price": exit_price,
+            "outcome": outcome,
+            "pnl_pct": pnl_pct,
+            "entered_at": int(curr["ts_ms"]),
+            "exited_at": int(enriched.iloc[exit_idx]["ts_ms"]),
+        })
 
     return trades
 
@@ -189,15 +244,19 @@ def grid_search(pair_dfs: dict) -> dict:
             if ema_fast >= ema_slow:
                 continue
             for rsi_buy, rsi_sell in RSI_THRESHOLD_CANDIDATES:
-                all_trades = []
-                per_pair = {}
+                all_trades_raw = []
                 for pair, df in pair_dfs.items():
-                    trades = simulate_trades(df, ema_fast, ema_slow, rsi_buy, rsi_sell)
-                    per_pair[pair] = {"trades": len(trades), "win_rate": round(win_rate_of(trades), 4)}
-                    all_trades.extend(trades)
+                    all_trades_raw.extend(simulate_trades(df, ema_fast, ema_slow, rsi_buy, rsi_sell, pair=pair))
 
-                if len(all_trades) < 15:
+                all_trades = filter_correlated_trades(all_trades_raw, total_pairs=len(pair_dfs))
+
+                if len(all_trades) < MIN_SIGNIFICANT_TRADES:
                     continue
+
+                per_pair = {}
+                for pair in pair_dfs:
+                    pair_trades = [t for t in all_trades if t["pair"] == pair]
+                    per_pair[pair] = {"trades": len(pair_trades), "win_rate": round(win_rate_of(pair_trades), 4)}
 
                 global_win_rate = win_rate_of(all_trades)
                 candidate = {
@@ -224,13 +283,18 @@ def main():
         logger.error("Aucune donnée téléchargée, backtest impossible.")
         return
 
-    default_trades = []
-    per_pair_default = {}
+    default_trades_raw = []
     for pair, df in pair_dfs.items():
-        trades = simulate_trades(df, config.EMA_FAST_PERIOD, config.EMA_SLOW_PERIOD,
-                                  config.RSI_BUY_THRESHOLD, config.RSI_SELL_THRESHOLD)
-        per_pair_default[pair] = {"trades": len(trades), "win_rate": round(win_rate_of(trades), 4)}
-        default_trades.extend(trades)
+        default_trades_raw.extend(simulate_trades(
+            df, config.EMA_FAST_PERIOD, config.EMA_SLOW_PERIOD,
+            config.RSI_BUY_THRESHOLD, config.RSI_SELL_THRESHOLD, pair=pair,
+        ))
+
+    default_trades = filter_correlated_trades(default_trades_raw, total_pairs=len(pair_dfs))
+    per_pair_default = {}
+    for pair in pair_dfs:
+        pair_trades = [t for t in default_trades if t["pair"] == pair]
+        per_pair_default[pair] = {"trades": len(pair_trades), "win_rate": round(win_rate_of(pair_trades), 4)}
 
     default_win_rate = win_rate_of(default_trades)
     default_gl_ratio = gain_loss_ratio_of(default_trades)
@@ -309,6 +373,21 @@ def main():
         "Paramètres retenus enregistrés comme actifs dans Supabase (strategy_params). "
         "Rappel : optimisation in-sample — valide en paper trading avant tout usage réel."
     )
+
+    # Ré-simule avec les paramètres RETENUS (par défaut ou grid_search) pour obtenir
+    # la liste définitive des trades à afficher comme exemples sur le site — jamais
+    # de date inventée, ce sont les vrais timestamps des bougies Binance utilisées.
+    # Même filtre anti-corrélation que pour le calcul des stats ci-dessus, pour que
+    # les exemples affichés correspondent exactement au win rate annoncé.
+    winning_trades_raw = []
+    for pair, df in pair_dfs.items():
+        winning_trades_raw.extend(simulate_trades(
+            df, result["ema_fast"], result["ema_slow"],
+            result["rsi_buy_threshold"], result["rsi_sell_threshold"], pair=pair,
+        ))
+    winning_trades = filter_correlated_trades(winning_trades_raw, total_pairs=len(pair_dfs))
+    params_store.save_backtest_trades(winning_trades)
+    logger.info("%d trades individuels enregistrés (exemples pour le site, dates réelles).", len(winning_trades))
 
 
 if __name__ == "__main__":

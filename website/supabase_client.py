@@ -106,6 +106,23 @@ def get_active_backtest_stats():
     return rows[0] if rows else None
 
 
+def get_backtest_trades(limit=50):
+    """
+    Exemples de trades issus du dernier backtest.py (voir signals/backtest.py,
+    save_backtest_trades) — vraies dates historiques (bougies Binance réelles
+    utilisées dans la simulation), jamais inventées. Ce sont des exemples de
+    la stratégie backtestée, PAS des signaux réellement envoyés aux abonnés.
+    """
+    resp = requests.get(
+        f"{SUPABASE_URL}/rest/v1/backtest_trades",
+        headers=_headers(),
+        params={"order": "entered_at.desc", "limit": str(limit)},
+        timeout=15,
+    )
+    _check(resp, "select backtest_trades")
+    return resp.json()
+
+
 def get_performance_window(limit):
     """Les `limit` signaux les plus récents ayant un résultat connu (WIN/LOSS)."""
     resp = requests.get(

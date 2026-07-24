@@ -34,3 +34,8 @@ PAYMENT_ADDRESS_USDT = "0x71367B5f4519700a63c2564b754cF959317E1f61"
 PAYMENT_GUIDE_IMAGE_URL = "https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/payment-guide.png"
 # Telegram ID admin (toi) — gate la commande /stats.
 ADMIN_TELEGRAM_ID = "8647576528"
+# Désactivé tant qu'on n'a pas 30+ jours de signaux réels accumulés (voir
+# db/liveWinRate.ts, Bloc 4) : une fois "true", les messages qui parlent de
+# performance basculeront du backtest vers le taux de réussite RÉEL des
+# signaux effectivement envoyés — plus fiable qu'un backtest in-sample.
+DISPLAY_WINRATE = "false"

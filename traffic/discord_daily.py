@@ -7,7 +7,7 @@ déclencher QUE Discord depuis ce workflow (pas Twitter/Reddit).
 import logging
 
 import supabase_client
-from discord_publisher import publish_to_discord
+from discord_publisher import publish_to_discord, publish_macro_summary
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -16,7 +16,9 @@ logger = logging.getLogger(__name__)
 def main():
     signal = supabase_client.get_latest_signal()
     if not signal:
-        logger.info("Aucun signal en base, rien à publier sur Discord.")
+        logger.info("Aucun signal en base : publication du résumé macro à la place.")
+        published = publish_macro_summary()
+        logger.info("Discord (résumé macro): %s", "publié" if published else "pas de publication cette fois")
         return
 
     logger.info("Signal considéré: #%s %s %s", signal["id"], signal["pair"], signal["type"])

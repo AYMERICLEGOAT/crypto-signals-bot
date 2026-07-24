@@ -32,6 +32,7 @@ import storage
 import params_store
 import binance_client
 import coingecko_client
+import correlation_guard
 from indicators import compute_all_indicators
 from strategy import detect_signal
 from chart_generator import generate_chart
@@ -119,9 +120,16 @@ def _generate_and_upload_chart(enriched_df, signal_dict: dict, now_ms: int) -> s
 
 
 def run_once(params: dict) -> int:
-    """Une passe complète sur toutes les paires. Retourne le nombre de signaux détectés."""
+    """
+    Une passe complète sur toutes les paires. Les signaux détectés sont
+    d'abord collectés (pas insérés) pour permettre au filtre anti-corrélation
+    (voir correlation_guard.py) de les examiner ENSEMBLE avant toute
+    écriture : si plus de 50% des paires signalent la même direction en
+    moins de 4h, AUCUN de ces signaux n'est inséré et la génération est
+    mise en pause 24h. Retourne le nombre de signaux effectivement insérés.
+    """
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
-    signals_found = 0
+    candidates = []
 
     for pair, coin_id in config.PAIRS.items():
         df = fetch_recent_prices(pair, coin_id)
@@ -137,15 +145,36 @@ def run_once(params: dict) -> int:
             enriched, pair, params["rsi_buy_threshold"], params["rsi_sell_threshold"]
         )
         if signal_dict:
-            signal_dict["chart_url"] = _generate_and_upload_chart(enriched, signal_dict, now_ms)
-            storage.insert_signal(signal_dict)
-            signals_found += 1
+            candidates.append((signal_dict, enriched))
 
-    return signals_found
+    if not candidates:
+        return 0
+
+    if correlation_guard.check_and_maybe_pause([c[0] for c in candidates]):
+        logger.warning(
+            "🚫 %d signal(aux) détecté(s) mais NON envoyés : mouvement de marché corrélé détecté, "
+            "génération mise en pause 24h par sécurité.", len(candidates),
+        )
+        return 0
+
+    for signal_dict, enriched in candidates:
+        signal_dict["chart_url"] = _generate_and_upload_chart(enriched, signal_dict, now_ms)
+        storage.insert_signal(signal_dict)
+
+    return len(candidates)
 
 
 def main():
     logger.info("Exécution unique du module de signaux (%d paires, Binance -> repli CoinGecko).", len(config.PAIRS))
+
+    active_pause = correlation_guard.get_active_pause()
+    if active_pause:
+        logger.warning(
+            "⏸️ Génération de signaux en pause jusqu'à %s (%s).",
+            active_pause["resumes_at"], active_pause["reason"],
+        )
+        return
+
     params = load_active_params()
     signals_found = run_once(params)
     logger.info("Terminé : %d signal(aux) détecté(s) sur ce cycle.", signals_found)

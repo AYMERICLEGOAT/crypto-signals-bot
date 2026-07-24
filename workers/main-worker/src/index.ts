@@ -3,6 +3,7 @@ import { TelegramUpdate } from "./telegram";
 import { routeUpdate } from "./bot/router";
 import { dispatchSignals } from "./cron/dispatchSignals";
 import { dispatchPublicChannel } from "./cron/dispatchPublicChannel";
+import { announceSignalPause } from "./cron/announceSignalPause";
 import { dispatchEducationalPost } from "./cron/dispatchEducationalPost";
 import { runLuckyVipDay } from "./cron/luckyVipDay";
 import { checkExpirationReminders } from "./cron/expirationReminders";
@@ -55,6 +56,7 @@ export default {
       (async () => {
         await dispatchSignals(env).catch((err) => console.error("[cron] Erreur dispatchSignals:", err));
         await dispatchPublicChannel(env).catch((err) => console.error("[cron] Erreur dispatchPublicChannel:", err));
+        await announceSignalPause(env).catch((err) => console.error("[cron] Erreur announceSignalPause:", err));
         await dispatchEducationalPost(env).catch((err) => console.error("[cron] Erreur dispatchEducationalPost:", err));
         await runLuckyVipDay(env).catch((err) => console.error("[cron] Erreur luckyVipDay:", err));
         await checkExpirationReminders(env).catch((err) => console.error("[cron] Erreur checkExpirationReminders:", err));
