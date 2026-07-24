@@ -129,3 +129,42 @@ export async function getActiveTrialUsers(db: SupabaseConfig): Promise<UserRecor
     expiration: `gt.${new Date().toISOString()}`,
   });
 }
+
+/**
+ * Utilisateurs dont l'accès expire dans la fenêtre (now, now+withinHours],
+ * et n'ayant pas encore reçu la relance correspondante (`flagColumn=eq.false`).
+ * Utilisé pour les relances 48h/24h avant expiration (cron/expirationReminders.ts).
+ */
+export async function getUsersExpiringWithin(
+  db: SupabaseConfig,
+  withinHours: number,
+  flagColumn: "reminder_48h_sent" | "reminder_24h_sent"
+): Promise<UserRecord[]> {
+  const now = new Date();
+  const threshold = new Date(now.getTime() + withinHours * 60 * 60 * 1000);
+  return selectRows<UserRecord>(db, "users", {
+    expiration: `gt.${now.toISOString()}`,
+    and: `(expiration.lte.${threshold.toISOString()},${flagColumn}.eq.false)`,
+  });
+}
+
+export async function markReminderSent(
+  db: SupabaseConfig,
+  telegramId: number,
+  flagColumn: "reminder_48h_sent" | "reminder_24h_sent"
+): Promise<void> {
+  await updateRows(db, "users", { telegram_id: `eq.${telegramId}` }, { [flagColumn]: true });
+}
+
+/** Utilisateurs dont l'accès a expiré il y a au moins `daysAgo` jours, sans offre de réengagement envoyée. */
+export async function getUsersExpiredSince(db: SupabaseConfig, daysAgo: number): Promise<UserRecord[]> {
+  const threshold = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
+  return selectRows<UserRecord>(db, "users", {
+    expiration: `lte.${threshold.toISOString()}`,
+    reengagement_sent: "eq.false",
+  });
+}
+
+export async function markReengagementSent(db: SupabaseConfig, telegramId: number): Promise<void> {
+  await updateRows(db, "users", { telegram_id: `eq.${telegramId}` }, { reengagement_sent: true });
+}
