@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Politique de confidentialité — Signaux Crypto Gratuits</title>
+<meta name="description" content="Quelles données sont collectées par le bot Signaux Crypto Gratuits, pourquoi, et comment elles sont protégées.">
+<meta name="robots" content="index, follow">
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 780px;
+         margin: 0 auto; padding: 24px 16px 64px; line-height: 1.6; color: #1a1a2e; }
+  h1 { font-size: 1.7rem; margin-bottom: 4px; }
+  h2 { font-size: 1.2rem; margin-top: 2.2rem; border-bottom: 2px solid #6366f1; padding-bottom: 6px; }
+  .subtitle { color: #666; margin-top: 0; }
+  ul { padding-left: 1.3rem; }
+  li { margin: 6px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e5e5ef; vertical-align: top; }
+  th { color: #4338ca; }
+  code { background: #f5f5ff; padding: 1px 6px; border-radius: 4px; font-size: 0.9em; }
+  .cta { background: linear-gradient(135deg, #6366f1, #4338ca); color: white; padding: 20px;
+         border-radius: 12px; text-align: center; margin: 2rem 0; }
+  .cta a { color: white; font-weight: 700; text-decoration: underline; }
+  footer { margin-top: 2.5rem; font-size: 0.85rem; color: #999; border-top: 1px solid #e5e5ef; padding-top: 12px; }
+  a { color: #4338ca; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Politique de confidentialité</h1>
+    <p class="subtitle">Signaux Crypto Gratuits — dernière mise à jour : 2026-07-24</p>
+  </header>
+
+  <p>Cette page décrit, honnêtement et de façon exhaustive, quelles données notre bot Telegram et notre site collectent, pourquoi, où elles sont stockées, et comment tu peux les faire supprimer.</p>
+
+  <h2>1. Ce que nous collectons</h2>
+  <table>
+    <thead><tr><th>Donnée</th><th>Pourquoi</th></tr></thead>
+    <tbody>
+      <tr><td>Ton identifiant Telegram (un numéro, pas ton numéro de téléphone ni ton nom)</td><td>Identifier ton compte pour t'envoyer les signaux et gérer ton abonnement</td></tr>
+      <tr><td>Ton adresse de wallet crypto (Polygon/USDT), si tu paies en USDT</td><td>Détecter automatiquement ton paiement sur la blockchain (publique par nature)</td></tr>
+      <tr><td>Statut d'abonnement (plan, date d'expiration, essai utilisé ou non)</td><td>Savoir si tu dois recevoir les signaux et quand te rappeler de renouveler</td></tr>
+      <tr><td>Relations de parrainage (qui t'a parrainé, combien de personnes tu as parrainées)</td><td>Faire fonctionner le programme de parrainage (/referral)</td></tr>
+      <tr><td>Historique de paiement (méthode, montant, statut — jamais tes clés privées)</td><td>Confirmer les paiements et éviter les doublons</td></tr>
+      <tr><td>Code promo appliqué à ton compte, s'il y en a un</td><td>Appliquer la bonne réduction et empêcher sa réutilisation</td></tr>
+      <tr><td>Ta réponse au sondage de satisfaction (👍/👎), si tu réponds</td><td>Mesurer si le service te convient</td></tr>
+    </tbody>
+  </table>
+
+  <h2>2. Ce que nous ne collectons PAS</h2>
+  <ul>
+    <li>Pas de nom, prénom, email ou numéro de téléphone (Telegram ne nous les transmet pas et nous ne les demandons jamais)</li>
+    <li>Jamais ta clé privée ou ta phrase de récupération — le bot ne te la demandera jamais, sous aucun prétexte</li>
+    <li>Aucun cookie ni traceur publicitaire sur ce site : c'est une page statique, sans script d'analyse tierce</li>
+    <li>Aucune revente ni partage de données à des tiers à des fins commerciales</li>
+  </ul>
+
+  <h2>3. Où sont stockées les données</h2>
+  <p>Les données sont hébergées chez <a href="https://supabase.com/privacy" target="_blank" rel="noopener">Supabase</a> (base de données) et le bot tourne sur <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare Workers</a>. Les messages transitent par l'infrastructure de <a href="https://telegram.org/privacy" target="_blank" rel="noopener">Telegram</a>, soumise à sa propre politique de confidentialité. Les paiements sont vérifiés directement sur des blockchains publiques (Polygon, Litecoin, Monero selon le mode choisi) — ces réseaux sont par nature transparents et publics, indépendamment de nous.</p>
+
+  <h2>4. Combien de temps</h2>
+  <p>Les données de ton compte sont conservées tant que ton compte existe (pour faire fonctionner l'historique d'abonnement, le parrainage et l'anti-abus des essais gratuits). Tu peux demander leur suppression à tout moment (voir section 6).</p>
+
+  <h2>5. Sécurité</h2>
+  <p>L'accès à la base de données est protégé par clé d'API secrète, jamais exposée publiquement. Le webhook Telegram du bot vérifie un jeton secret sur chaque requête pour empêcher toute commande non autorisée. Le code source de ce projet est <a href="https://github.com/AYMERICLEGOAT/crypto-signals-bot" target="_blank" rel="noopener">public sur GitHub</a> — tu peux vérifier toi-même exactement ce qui est fait de tes données.</p>
+
+  <h2>6. Tes droits</h2>
+  <p>Tu peux demander l'accès, la correction ou la suppression de tes données à tout moment en contactant l'administrateur via le bot Telegram. Une suppression de compte met fin à ton abonnement et efface tes données associées (hors ce que la loi nous oblige à conserver, le cas échéant).</p>
+
+  <div class="cta">
+    <p>Une question sur tes données ?</p>
+    <a href="https://t.me/ProVIPSignals_bot">Contacte-nous via @ProVIPSignals_bot</a>
+  </div>
+
+  <footer>
+    <p><a href="/">← Retour à l'accueil</a></p>
+  </footer>
+</body>
+</html>

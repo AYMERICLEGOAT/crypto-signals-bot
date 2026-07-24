@@ -90,6 +90,7 @@ def main():
     sitemap_pages = [
         {"path": "/", "lastmod": today_str},
         {"path": "/en/", "lastmod": today_str},
+        {"path": "/privacy.html", "lastmod": today_str},
     ] + manifest
     sitemap_xml = build_sitemap(sitemap_pages)
     robots_txt = build_robots_txt()

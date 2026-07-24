@@ -55,6 +55,7 @@ _STRINGS = {
         "un conseil en investissement. Le trading de cryptoactifs comporte un risque de perte en "
         "capital. Les performances passées ne préjugent pas des performances futures.",
         "footer": lambda ts: f"Page générée automatiquement le {ts}.",
+        "privacy_link": "Politique de confidentialité",
         "lang_switch": "English version",
         "date_format": "%d/%m/%Y",
         "footer_date_format": "%d/%m/%Y à %H:%M",
@@ -100,6 +101,7 @@ _STRINGS = {
         "it does not constitute investment advice. Trading cryptoassets carries a risk of capital "
         "loss. Past performance does not guarantee future results.",
         "footer": lambda ts: f"Page automatically generated on {ts}.",
+        "privacy_link": "Privacy Policy",
         "lang_switch": "Version française",
         "date_format": "%m/%d/%Y",
         "footer_date_format": "%m/%d/%Y at %H:%M",
@@ -296,7 +298,7 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
   <p class="disclaimer">{s["disclaimer"]}</p>
 
   <footer>
-    <p>{s["footer"](footer_ts)}</p>
+    <p>{s["footer"](footer_ts)} — <a href="/privacy.html">{s["privacy_link"]}</a></p>
   </footer>
 </body>
 </html>"""
