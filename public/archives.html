@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Archives du backtest — exemples de trades — Signaux Crypto Gratuits</title>
+  <meta name="description" content="Exemples de trades issus du backtest de la stratégie (données historiques réelles Binance), avec leurs résultats détaillés. Ce ne sont pas des signaux envoyés à des abonnés.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://crypto-signals-bot-site.signalytics.workers.dev/archives.html">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 780px;
+           margin: 0 auto; padding: 24px 16px 64px; line-height: 1.55; color: #1a1a2e; }
+    h1 { font-size: 1.6rem; margin-bottom: 4px; }
+    .subtitle { color: #666; }
+    .honesty-banner { background: #fff7ed; border: 1px solid #fdba74; border-radius: 10px;
+                       padding: 12px 16px; font-size: 0.9rem; margin: 16px 0; }
+    .archive-stats { font-size: 1.1rem; font-weight: 700; color: #4338ca; }
+    .next-signal { font-size: 0.92rem; color: #555; }
+    .archive-row { display: flex; gap: 14px; align-items: center; border: 1px solid #e5e5ef;
+                    border-radius: 10px; padding: 12px 14px; margin: 10px 0; }
+    .archive-svg { flex-shrink: 0; }
+    .archive-header { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+    .archive-pair { font-weight: 700; }
+    .archive-side { font-size: 0.85rem; color: #666; }
+    .archive-outcome { font-size: 0.9rem; font-weight: 600; }
+    .archive-detail { font-size: 0.85rem; color: #666; margin-top: 2px; }
+    .disclaimer { font-size: 0.82rem; color: #777; margin-top: 3rem; border-top: 1px solid #e5e5ef; padding-top: 12px; }
+    footer { margin-top: 2rem; font-size: 0.85rem; color: #999; }
+    a { color: #4338ca; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Archives du backtest</h1>
+    <p class="subtitle">Exemples de trades issus de la simulation de la stratégie</p>
+  </header>
+
+  <div class="honesty-banner">
+    ⚠️ <strong>Important</strong> : les trades ci-dessous proviennent d'un <strong>backtest</strong>
+    (simulation sur des données historiques réelles Binance) — ce ne sont <strong>pas</strong> des
+    signaux réellement envoyés à des abonnés. Les dates sont les vraies dates des bougies utilisées
+    dans la simulation. Utilise <a href="/">/demo</a> sur le bot Telegram pour voir le format d'un
+    signal, ou <a href="/">/trial</a> pour recevoir de vrais signaux en direct.
+  </div>
+
+  <p class="archive-stats">33.3% de réussite sur 3 trades (backtest 6 mois, in-sample).</p>
+  <p class="next-signal">📡 Fréquence historique : environ un signal tous les 60.0 jours (moyenne sur le backtest, pas une garantie de timing).</p>
+
+  <section>
+    
+    <div class="archive-row">
+      <div class="archive-svg"><svg viewBox="0 0 100 40" width="100" height="40" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Illustration schématique entrée vers sortie"><line x1="10" y1="35.0" x2="90" y2="10.0" stroke="#dc2626" stroke-width="3" stroke-linecap="round"/><circle cx="10" cy="35.0" r="3.5" fill="#6366f1"/><circle cx="90" cy="10.0" r="3.5" fill="#dc2626"/></svg></div>
+      <div class="archive-info">
+        <div class="archive-header">
+          <span class="archive-pair">DOGE/USDT</span>
+          <span class="archive-side">VENTE</span>
+          <span class="archive-outcome" style="color:#dc2626;">Stop loss touché ❌</span>
+        </div>
+        <div class="archive-detail">
+          Entrée 0.120750 → Sortie 0.123165
+          (-2.0%) — 26/01/2026 09:00 UTC
+        </div>
+      </div>
+    </div>
+    <div class="archive-row">
+      <div class="archive-svg"><svg viewBox="0 0 100 40" width="100" height="40" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Illustration schématique entrée vers sortie"><line x1="10" y1="10.0" x2="90" y2="35.0" stroke="#16a34a" stroke-width="3" stroke-linecap="round"/><circle cx="10" cy="10.0" r="3.5" fill="#6366f1"/><circle cx="90" cy="35.0" r="3.5" fill="#16a34a"/></svg></div>
+      <div class="archive-info">
+        <div class="archive-header">
+          <span class="archive-pair">TRX/USDT</span>
+          <span class="archive-side">VENTE</span>
+          <span class="archive-outcome" style="color:#16a34a;">Take profit atteint ✅</span>
+        </div>
+        <div class="archive-detail">
+          Entrée 0.295400 → Sortie 0.283584
+          (+4.0%) — 26/01/2026 09:00 UTC
+        </div>
+      </div>
+    </div>
+    <div class="archive-row">
+      <div class="archive-svg"><svg viewBox="0 0 100 40" width="100" height="40" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Illustration schématique entrée vers sortie"><line x1="10" y1="35.0" x2="90" y2="10.0" stroke="#dc2626" stroke-width="3" stroke-linecap="round"/><circle cx="10" cy="35.0" r="3.5" fill="#6366f1"/><circle cx="90" cy="10.0" r="3.5" fill="#dc2626"/></svg></div>
+      <div class="archive-info">
+        <div class="archive-header">
+          <span class="archive-pair">ATOM/USDT</span>
+          <span class="archive-side">VENTE</span>
+          <span class="archive-outcome" style="color:#dc2626;">Stop loss touché ❌</span>
+        </div>
+        <div class="archive-detail">
+          Entrée 2.24 → Sortie 2.28
+          (-2.0%) — 26/01/2026 03:00 UTC
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <p class="disclaimer">Performance passée (et a fortiori issue d'un backtest optimisé in-sample) ne garantit pas les performances futures. Contenu éducatif, pas un conseil en investissement.</p>
+
+  <footer>
+    <p>Page générée automatiquement le 24/07/2026 à 20:39 UTC. <a href="/privacy.html">Politique de confidentialité</a></p>
+  </footer>
+</body>
+</html>

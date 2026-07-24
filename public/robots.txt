@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://crypto-signals-bot-site.signalytics.workers.dev/sitemap.xml
