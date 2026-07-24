@@ -6,6 +6,7 @@ import { dispatchPublicChannel } from "./cron/dispatchPublicChannel";
 import { dispatchEducationalPost } from "./cron/dispatchEducationalPost";
 import { runLuckyVipDay } from "./cron/luckyVipDay";
 import { checkExpirationReminders } from "./cron/expirationReminders";
+import { sendReengagementOffers } from "./cron/reengagementOffer";
 import { pollPayments } from "./cron/pollPayments";
 import { pingSupabase } from "./supabaseRest";
 import { dbConfig } from "./env";
@@ -56,6 +57,7 @@ export default {
         await dispatchEducationalPost(env).catch((err) => console.error("[cron] Erreur dispatchEducationalPost:", err));
         await runLuckyVipDay(env).catch((err) => console.error("[cron] Erreur luckyVipDay:", err));
         await checkExpirationReminders(env).catch((err) => console.error("[cron] Erreur checkExpirationReminders:", err));
+        await sendReengagementOffers(env).catch((err) => console.error("[cron] Erreur sendReengagementOffers:", err));
         await pollPayments(env).catch((err) => console.error("[cron] Erreur pollPayments:", err));
       })()
     );

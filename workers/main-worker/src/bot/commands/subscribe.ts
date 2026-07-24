@@ -3,6 +3,7 @@ import { sendMessage, sendPhoto } from "../../telegram";
 import { startUsdtPayment, USDT_PLAN_PRICES } from "../../payments/usdt";
 import { createMoneroInvoice } from "../../payments/monero";
 import { createLitecoinInvoice } from "../../payments/litecoin";
+import { getEffectivePriceUsd } from "../../payments/promoCodes";
 import { createPendingPayment } from "../../db/payments";
 import { setPendingAction } from "../../db/pendingActions";
 import { planKeyboard, paymentMethodKeyboard } from "../keyboards";
@@ -43,7 +44,7 @@ export async function handlePaymentMethodSelection(env: Env, telegramId: number,
     return;
   }
 
-  const priceUsd = USDT_PLAN_PRICES[plan];
+  const priceUsd = await getEffectivePriceUsd(db, telegramId, USDT_PLAN_PRICES[plan]);
 
   if (method === "XMR") {
     const invoice = await createMoneroInvoice(env, telegramId, plan, priceUsd);

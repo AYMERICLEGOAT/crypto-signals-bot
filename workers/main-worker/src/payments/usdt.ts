@@ -14,6 +14,7 @@ import { Env } from "../env";
 import { SupabaseConfig } from "../supabaseRest";
 import { createPendingPayment } from "../db/payments";
 import { setWalletAddress } from "../db/users";
+import { getEffectivePriceUsd } from "./promoCodes";
 
 const USDT_TOKEN_ADDRESS = "0xc2132D05D31c914a87C6611C10748AEb04B58e8F";
 
@@ -29,7 +30,7 @@ export async function startUsdtPayment(
   walletAddress: string
 ): Promise<string> {
   await setWalletAddress(db, telegramId, walletAddress);
-  const price = USDT_PLAN_PRICES[plan];
+  const price = await getEffectivePriceUsd(db, telegramId, USDT_PLAN_PRICES[plan]);
   await createPendingPayment(db, { telegramId, method: "USDT", plan, amountExpected: price });
 
   return [
