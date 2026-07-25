@@ -8,6 +8,7 @@
 
 import { Env, dbConfig } from "../env";
 import { getUserIfExists, setReferredBy, markReferralRewarded, activateSubscription } from "../db/users";
+import { recordReferralReward } from "../db/referralRewards";
 import { updateRows } from "../supabaseRest";
 import { sendMessage } from "../telegram";
 import { addDays } from "../utils/date";
@@ -22,6 +23,13 @@ export const REFERRAL_BONUS_DAYS = 7;
 // remis à zéro), un mois gratuit en plus du bonus habituel de chaque filleul.
 export const MILESTONE_REFERRALS = 3;
 export const MILESTONE_BONUS_DAYS = 30;
+
+// Bonus "Joker" (Bloc 6) : parrainer quelqu'un dans les heures qui précèdent
+// l'expiration de son PROPRE abonnement (encore actif, pas déjà expiré)
+// rapporte quelques jours de plus — encourage à relancer son réseau
+// précisément au moment où on est tenté de laisser filer l'abonnement.
+export const JOKER_THRESHOLD_HOURS = 48;
+export const JOKER_BONUS_DAYS = 3;
 
 export function encodeReferralCode(telegramId: number): string {
   return telegramId.toString(36);
@@ -72,7 +80,12 @@ export async function maybeRewardReferral(env: Env, referredTelegramId: number):
 
   const newPaidReferralCount = (referrer.paid_referral_count ?? 0) + 1;
   const hitMilestone = newPaidReferralCount % MILESTONE_REFERRALS === 0;
-  const bonusDays = REFERRAL_BONUS_DAYS + (hitMilestone ? MILESTONE_BONUS_DAYS : 0);
+
+  const expiresAt = referrer.expiration ? new Date(referrer.expiration).getTime() : null;
+  const msUntilExpiry = expiresAt !== null ? expiresAt - Date.now() : null;
+  const hitJoker = msUntilExpiry !== null && msUntilExpiry > 0 && msUntilExpiry <= JOKER_THRESHOLD_HOURS * 60 * 60 * 1000;
+
+  const bonusDays = REFERRAL_BONUS_DAYS + (hitMilestone ? MILESTONE_BONUS_DAYS : 0) + (hitJoker ? JOKER_BONUS_DAYS : 0);
 
   const base =
     referrer.expiration && new Date(referrer.expiration).getTime() > Date.now()
@@ -84,7 +97,20 @@ export async function maybeRewardReferral(env: Env, referredTelegramId: number):
   await updateRows(db, "users", { telegram_id: `eq.${referrer.telegram_id}` }, { paid_referral_count: newPaidReferralCount });
   await markReferralRewarded(db, referredTelegramId);
 
+  // Non bloquant : le classement hebdomadaire (Bloc 6) est une fonctionnalité
+  // secondaire, elle ne doit jamais faire échouer la récompense elle-même
+  // (déjà appliquée ci-dessus) ni les étapes suivantes de la confirmation
+  // de paiement appelante (cron/pollPayments.ts, boucle sur plusieurs paiements).
+  try {
+    await recordReferralReward(db, referrer.telegram_id, referredTelegramId, bonusDays, hitMilestone, hitJoker);
+  } catch (err) {
+    console.error(`[referral] Échec de l'enregistrement pour le leaderboard (parrain ${referrer.telegram_id}):`, err);
+  }
+
   let message = `🎁 Un ami que tu as parrainé vient de s'abonner ! +${REFERRAL_BONUS_DAYS} jours ajoutés à ton abonnement.`;
+  if (hitJoker) {
+    message += `\n\n🃏 Bonus Joker : tu as parrainé juste avant l'expiration de ton abonnement, +${JOKER_BONUS_DAYS} jours supplémentaires offerts !`;
+  }
   if (hitMilestone) {
     message += `\n\n🏆 Palier atteint : ${newPaidReferralCount} filleuls payants ! +${MILESTONE_BONUS_DAYS} jours supplémentaires offerts (1 mois gratuit).`;
   }

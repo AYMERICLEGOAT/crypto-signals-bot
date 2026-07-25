@@ -1,7 +1,14 @@
 import { Env, dbConfig } from "../../env";
 import { sendMessage } from "../../telegram";
 import { getOrCreateUser, countReferralsBy } from "../../db/users";
-import { buildReferralLink, MILESTONE_REFERRALS, MILESTONE_BONUS_DAYS, REFERRAL_BONUS_DAYS } from "../referral";
+import {
+  buildReferralLink,
+  MILESTONE_REFERRALS,
+  MILESTONE_BONUS_DAYS,
+  REFERRAL_BONUS_DAYS,
+  JOKER_THRESHOLD_HOURS,
+  JOKER_BONUS_DAYS,
+} from "../referral";
 
 export async function handleReferralCommand(env: Env, telegramId: number): Promise<void> {
   const db = dbConfig(env);
@@ -17,7 +24,8 @@ export async function handleReferralCommand(env: Env, telegramId: number): Promi
     "🔗 *Ton lien de parrainage*\n" +
       `${link}\n\n` +
       `+${REFERRAL_BONUS_DAYS} jours pour toi à chaque fois qu'un filleul s'abonne (paiement confirmé).\n` +
-      `🏆 Tous les ${MILESTONE_REFERRALS} filleuls payants : +${MILESTONE_BONUS_DAYS} jours de plus (1 mois gratuit).\n\n` +
+      `🏆 Tous les ${MILESTONE_REFERRALS} filleuls payants : +${MILESTONE_BONUS_DAYS} jours de plus (1 mois gratuit).\n` +
+      `🃏 Bonus Joker : parraine dans les ${JOKER_THRESHOLD_HOURS}h avant l'expiration de ton abonnement pour +${JOKER_BONUS_DAYS} jours de plus.\n\n` +
       `📊 *Ta progression*\n` +
       `${totalReferred} personne(s) ont rejoint via ton lien\n` +
       `${paidCount} filleul(s) payant(s) au total\n` +
