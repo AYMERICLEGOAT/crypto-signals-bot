@@ -108,6 +108,20 @@ déjà via `promo_main.py`, sans la commande) :
 python discord_bot.py
 ```
 
+⚠️ **Audit#7 : ce processus ne tourne PAS automatiquement dans ce projet.**
+GitHub Actions (utilisé pour tout le reste) est fait pour des tâches
+ponctuelles et planifiées, pas pour un processus qui doit rester connecté en
+continu — un job y est de toute façon coupé après un délai maximum. Il n'y a
+donc, volontairement, aucun workflow pour `discord_bot.py`. Trois choix
+honnêtes :
+1. **Ne pas l'utiliser** (recommandé pour rester 100% gratuit/automatique) :
+   le message quotidien Discord fonctionne déjà sans lui, seule la commande
+   `!signal` à la demande serait absente — un manque mineur.
+2. L'héberger sur un service à niveau gratuit adapté aux processus longs
+   (Railway, Fly.io, Render...) — ajoute un compte externe à gérer.
+3. Le lancer manuellement sur une machine perso quand tu veux la commande
+   `!signal` ponctuellement, sans viser une disponibilité continue.
+
 ## 7. Logs
 
 Toutes les actions (et erreurs) sont écrites dans `data/promo.log`, en plus
