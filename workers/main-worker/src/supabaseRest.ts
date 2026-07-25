@@ -62,6 +62,18 @@ export async function insertRow<T>(config: SupabaseConfig, table: string, row: R
   return rows[0];
 }
 
+/** Insertion groupée (un seul POST, tableau en corps) — évite N allers-retours pour N lignes. */
+export async function insertRows<T>(config: SupabaseConfig, table: string, rows: Record<string, unknown>[]): Promise<T[]> {
+  if (rows.length === 0) return [];
+  const res = await fetch(`${config.url}/rest/v1/${table}`, {
+    method: "POST",
+    headers: headers(config, { Prefer: "return=representation" }),
+    body: JSON.stringify(rows),
+  });
+  await assertOk(res, "insert (bulk)", table);
+  return (await res.json()) as T[];
+}
+
 export async function updateRows<T>(
   config: SupabaseConfig,
   table: string,

@@ -87,8 +87,9 @@ describe("buildPlanKeyboard", () => {
 describe("Effet Sniper — dispatchSignals (vitesse Pro/essai)", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("n'envoie qu'aux abonnés Pro et essai gratuit, jamais à Standard/Découverte", async () => {
+  it("n'envoie qu'aux abonnés Pro et essai gratuit, jamais à Standard/Découverte, et trace les livraisons (Bloc 4)", async () => {
     const notified: number[] = [];
+    let recordedDeliveries: any[] | null = null;
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
@@ -109,6 +110,10 @@ describe("Effet Sniper — dispatchSignals (vitesse Pro/essai)", () => {
           notified.push(JSON.parse(init!.body as string).chat_id);
           return jsonResponse({ ok: true, result: {} });
         }
+        if (url.includes("signal_deliveries") && init?.method === "POST") {
+          recordedDeliveries = JSON.parse(init.body as string);
+          return jsonResponse([]);
+        }
         if (url.includes("signals") && init?.method === "PATCH") return jsonResponse([]);
         throw new Error(`URL inattendue: ${url}`);
       })
@@ -116,15 +121,23 @@ describe("Effet Sniper — dispatchSignals (vitesse Pro/essai)", () => {
 
     await dispatchSignals(env);
     expect(notified.sort()).toEqual([1, 2]);
+    expect(recordedDeliveries).toEqual(
+      expect.arrayContaining([
+        { signal_id: 1, telegram_id: 1, tier: "pro" },
+        { signal_id: 1, telegram_id: 2, tier: "pro" },
+      ])
+    );
+    expect(recordedDeliveries).toHaveLength(2);
   });
 });
 
 describe("Effet Sniper — dispatchStandardTier (délai Standard/Découverte)", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("n'envoie qu'aux abonnés Standard et Découverte, pour les signaux dus, et marque sent_to_standard", async () => {
+  it("n'envoie qu'aux abonnés Standard et Découverte, pour les signaux dus, marque sent_to_standard et trace les livraisons (Bloc 4)", async () => {
     const notified: number[] = [];
     let marked = false;
+    let recordedDeliveries: any[] | null = null;
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
@@ -144,6 +157,10 @@ describe("Effet Sniper — dispatchStandardTier (délai Standard/Découverte)", 
           notified.push(JSON.parse(init!.body as string).chat_id);
           return jsonResponse({ ok: true, result: {} });
         }
+        if (url.includes("signal_deliveries") && init?.method === "POST") {
+          recordedDeliveries = JSON.parse(init.body as string);
+          return jsonResponse([]);
+        }
         if (url.includes("signals") && init?.method === "PATCH") {
           if (JSON.parse(init.body as string).sent_to_standard === true) marked = true;
           return jsonResponse([]);
@@ -155,6 +172,13 @@ describe("Effet Sniper — dispatchStandardTier (délai Standard/Découverte)", 
     await dispatchStandardTier(env);
     expect(notified.sort()).toEqual([3, 4]);
     expect(marked).toBe(true);
+    expect(recordedDeliveries).toEqual(
+      expect.arrayContaining([
+        { signal_id: 1, telegram_id: 3, tier: "standard" },
+        { signal_id: 1, telegram_id: 4, tier: "standard" },
+      ])
+    );
+    expect(recordedDeliveries).toHaveLength(2);
   });
 
   it("ne fait rien si aucun signal n'est dû", async () => {

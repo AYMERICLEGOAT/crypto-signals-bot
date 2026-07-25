@@ -12,6 +12,9 @@ export interface SignalRecord {
   chart_url: string | null;
   sent_to_channel: boolean;
   sent_to_standard: boolean;
+  outcome: "WIN" | "LOSS" | null;
+  outcome_price: number | null;
+  close_reason: "tp_hit" | "sl_hit" | "expired" | null;
 }
 
 export async function getUnsentSignals(db: SupabaseConfig): Promise<SignalRecord[]> {
@@ -67,4 +70,40 @@ export async function getSignalsDueForPublicChannel(
 
 export async function markSentToChannel(db: SupabaseConfig, id: number): Promise<void> {
   await updateRows(db, "signals", { id: `eq.${id}` }, { sent_to_channel: true });
+}
+
+/**
+ * Signaux déjà envoyés (au moins aux abonnés Pro/essai) et pas encore
+ * résolus (Bloc 4 — suivi post-trade). Filtre aussi sur `outcome=is.null` en
+ * plus de `close_reason` : le site SEO (website/outcome_evaluator.py) peut
+ * résoudre un signal en premier (rare, cadence quotidienne vs 5 min ici) —
+ * dans ce cas `outcome` est déjà posé et on ne doit pas le réévaluer, même
+ * si `close_reason` (propre à ce Worker) est resté vide.
+ */
+export async function getOpenSignals(db: SupabaseConfig): Promise<SignalRecord[]> {
+  return selectRows<SignalRecord>(db, "signals", {
+    sent: "eq.true",
+    outcome: "is.null",
+    order: "created_at.asc",
+  });
+}
+
+export async function markSignalClosed(
+  db: SupabaseConfig,
+  id: number,
+  outcome: { outcome: "WIN" | "LOSS"; outcomePrice: number | null; closeReason: "tp_hit" | "sl_hit" | "expired" }
+): Promise<void> {
+  const now = new Date().toISOString();
+  await updateRows(
+    db,
+    "signals",
+    { id: `eq.${id}` },
+    {
+      outcome: outcome.outcome,
+      outcome_price: outcome.outcomePrice,
+      close_reason: outcome.closeReason,
+      evaluated_at: now,
+      last_status_update_at: now,
+    }
+  );
 }

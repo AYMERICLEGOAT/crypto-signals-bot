@@ -1,6 +1,7 @@
 import { Env, dbConfig } from "../env";
 import { getUnsentSignals, markSignalSent, SignalRecord } from "../db/signals";
 import { getActiveUsers } from "../db/users";
+import { recordDeliveries } from "../db/signalDeliveries";
 import { sendMessage, sendPhoto } from "../telegram";
 import { PRO_PLAN } from "../payments/plans";
 
@@ -41,16 +42,31 @@ export async function dispatchSignals(env: Env): Promise<void> {
         ? sendPhoto(env.TELEGRAM_BOT_TOKEN, id, signal.chart_url as string, { caption: text, markdown: true })
         : sendMessage(env.TELEGRAM_BOT_TOKEN, id, text, { markdown: true });
 
+    // Destinataires réellement livrés (Bloc 4) : sert au suivi post-trade
+    // (cron/trackSignalOutcomes.ts) pour notifier précisément qui a reçu ce
+    // signal, indépendamment des abonnés actifs au moment de sa clôture.
+    const delivered: number[] = [];
+
     for (let i = 0; i < activeIds.length; i += BATCH_SIZE) {
       const batch = activeIds.slice(i, i + BATCH_SIZE);
-      await Promise.all(
-        batch.map((id) => send(id).catch((err) => console.error(`[signals] Échec d'envoi à ${id}:`, err)))
+      const results = await Promise.all(
+        batch.map(async (id) => {
+          try {
+            await send(id);
+            return id;
+          } catch (err) {
+            console.error(`[signals] Échec d'envoi à ${id}:`, err);
+            return null;
+          }
+        })
       );
+      delivered.push(...results.filter((id): id is number => id !== null));
       if (i + BATCH_SIZE < activeIds.length) {
         await new Promise((resolve) => setTimeout(resolve, DELAY_BETWEEN_BATCHES_MS));
       }
     }
 
+    await recordDeliveries(db, signal.id, delivered, "pro");
     await markSignalSent(db, signal.id);
   }
 }

@@ -1,6 +1,7 @@
 import { Env, dbConfig } from "../../env";
 import { sendMessage } from "../../telegram";
 import { getUserSignalHistory, SignalDeliveryWithSignal } from "../../db/history";
+import { computePnlPct } from "../../signalMath";
 
 function statusLabel(signal: SignalDeliveryWithSignal["signals"]): string {
   if (!signal) return "Inconnu";
@@ -18,9 +19,7 @@ function statusLabel(signal: SignalDeliveryWithSignal["signals"]): string {
 
 function pnlPct(signal: NonNullable<SignalDeliveryWithSignal["signals"]>): number | null {
   if (signal.outcome_price === null) return null;
-  const entry = Number(signal.entry_price);
-  const exit = Number(signal.outcome_price);
-  return signal.type === "BUY" ? ((exit - entry) / entry) * 100 : ((entry - exit) / entry) * 100;
+  return computePnlPct(signal.type, Number(signal.entry_price), Number(signal.outcome_price));
 }
 
 /** /history — les 5 derniers signaux reçus par CET utilisateur (via signal_deliveries), avec statut et P&L cumulé. */
