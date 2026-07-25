@@ -1,5 +1,6 @@
-import { Env } from "../env";
-import { TelegramUpdate, answerCallbackQuery } from "../telegram";
+import { Env, dbConfig } from "../env";
+import { TelegramUpdate, answerCallbackQuery, sendMessage } from "../telegram";
+import { isRateLimited } from "../db/rateLimit";
 import { handleStart } from "./commands/start";
 import { handleStatusCommand } from "./commands/status";
 import { handleTrialCommand } from "./commands/trial";
@@ -8,15 +9,30 @@ import { handlePayCommand } from "./commands/pay";
 import { handleReferralCommand } from "./commands/referral";
 import { handlePromoCodeCommand } from "./commands/promoCode";
 import { handleStatsCommand } from "./commands/stats";
+import { handleAdminActivateCommand } from "./commands/adminActivate";
 import { handleDemoCommand } from "./commands/demo";
 import { handleHistoryCommand } from "./commands/history";
 import { handleSurveyResponse } from "./commands/surveyResponse";
 import { handleTextMessage } from "./walletAddressHandler";
 
+/**
+ * Anti-abus générique (Bloc 5.3) : l'administrateur en est exempté (ses
+ * commandes, dont /admin_activate en cas d'urgence support, ne doivent
+ * jamais être bloquées par erreur).
+ */
+async function isBlockedByRateLimit(env: Env, telegramId: number): Promise<boolean> {
+  if (env.ADMIN_TELEGRAM_ID && String(telegramId) === env.ADMIN_TELEGRAM_ID) return false;
+  return isRateLimited(dbConfig(env), telegramId);
+}
+
 /** Traite une Update Telegram reçue par le webhook (voir index.ts, fetch()). */
 export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<void> {
   if (update.message) {
     const chatId = update.message.chat.id;
+    if (await isBlockedByRateLimit(env, chatId)) {
+      await sendMessage(env.TELEGRAM_BOT_TOKEN, chatId, "⏳ Trop de commandes envoyées d'un coup. Réessaie dans une minute.");
+      return;
+    }
     const text = (update.message.text ?? "").trim();
 
     if (text === "/start" || text.startsWith("/start ")) {
@@ -36,6 +52,8 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
       await handlePromoCodeCommand(env, chatId, text.slice("/code".length).trim());
     } else if (text === "/stats") {
       await handleStatsCommand(env, chatId);
+    } else if (text === "/admin_activate" || text.startsWith("/admin_activate ")) {
+      await handleAdminActivateCommand(env, chatId, text.slice("/admin_activate".length).trim());
     } else if (text === "/demo") {
       await handleDemoCommand(env, chatId);
     } else if (text === "/history") {
@@ -52,6 +70,8 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
     const data = cq.data ?? "";
 
     await answerCallbackQuery(env.TELEGRAM_BOT_TOKEN, cq.id);
+
+    if (await isBlockedByRateLimit(env, chatId)) return; // callback déjà "répondu" ci-dessus, on ignore juste l'action
 
     if (data === "start:subscribe") await handleSubscribeCommand(env, chatId);
     else if (data === "start:trial") await handleTrialCommand(env, chatId);
