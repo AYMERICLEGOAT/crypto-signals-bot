@@ -158,7 +158,7 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
 
   <p class="disclaimer">Ceci n'est pas un conseil financier. Le trading de cryptomonnaies comporte des risques de perte en capital. Les performances passées ne préjugent pas des résultats futurs.</p>
 
-  <footer>Signaux Crypto Gratuits — mise à jour automatique dès la publication des premiers signaux réels. — <a href="/privacy.html">Politique de confidentialité</a></footer>
+  <footer>Signaux Crypto Gratuits — mise à jour automatique dès la publication des premiers signaux réels. — <a href="/privacy.html">Politique de confidentialité</a> — <a href="/terms.html">Conditions générales</a></footer>
 </body>
 </html>"""
 
@@ -253,7 +253,7 @@ def build_archives_page(trades, backtest_stats, canonical_path="/archives.html")
   <p class="disclaimer">Performance passée (et a fortiori issue d'un backtest optimisé in-sample) ne garantit pas les performances futures. Contenu éducatif, pas un conseil en investissement.</p>
 
   <footer>
-    <p>Page générée automatiquement le {footer_ts}. <a href="/privacy.html">Politique de confidentialité</a></p>
+    <p>Page générée automatiquement le {footer_ts}. <a href="/privacy.html">Politique de confidentialité</a> — <a href="/terms.html">Conditions générales</a></p>
   </footer>
 </body>
 </html>"""

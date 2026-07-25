@@ -107,6 +107,7 @@ def main():
     sitemap_pages = [
         {"path": "/", "lastmod": today_str},
         {"path": "/privacy.html", "lastmod": today_str},
+        {"path": "/terms.html", "lastmod": today_str},
         {"path": "/archives.html", "lastmod": today_str},
     ]
     if signals:
