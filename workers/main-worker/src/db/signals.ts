@@ -88,6 +88,17 @@ export async function getOpenSignals(db: SupabaseConfig): Promise<SignalRecord[]
   });
 }
 
+/** Bloc 9 — y a-t-il eu un vrai signal dans les `hours` dernières heures ? (statut "aucun signal aujourd'hui"). */
+export async function hasRecentSignal(db: SupabaseConfig, hours: number): Promise<boolean> {
+  const threshold = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+  const rows = await selectRows<{ id: number }>(db, "signals", {
+    created_at: `gte.${threshold}`,
+    select: "id",
+    limit: "1",
+  });
+  return rows.length > 0;
+}
+
 export async function markSignalClosed(
   db: SupabaseConfig,
   id: number,

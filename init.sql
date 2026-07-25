@@ -25,6 +25,7 @@
 --   16. workers/main-worker/schema_update_referral_gamification.sql
 --   17. workers/main-worker/schema_update_bloc7_rgpd.sql
 --   18. workers/main-worker/schema_update_bloc8_robustness.sql
+--   19. workers/main-worker/schema_update_bloc9_ux.sql
 -- ============================================================================
 
 
@@ -458,3 +459,18 @@ create table if not exists system_heartbeats (
   last_run_at  timestamptz not null default now(),
   alerted      boolean not null default false
 );
+
+
+-- ----------------------------------------------------------------------------
+-- 19. workers/main-worker/schema_update_bloc9_ux.sql — Bloc 9
+-- ----------------------------------------------------------------------------
+
+alter table users add column if not exists reminder_2h_sent boolean not null default false;
+
+create table if not exists no_signal_status_posts (
+  id bigserial primary key,
+  posted_at timestamptz not null default now()
+);
+create index if not exists idx_no_signal_status_posts_date on no_signal_status_posts (posted_at desc);
+
+update promo_codes set active = false where code = 'RELANCE20';

@@ -8,6 +8,7 @@ import { dispatchMomentumAlerts } from "./cron/dispatchMomentumAlerts";
 import { trackSignalOutcomes } from "./cron/trackSignalOutcomes";
 import { announceSignalPause } from "./cron/announceSignalPause";
 import { dispatchEducationalPost } from "./cron/dispatchEducationalPost";
+import { dispatchNoSignalStatus } from "./cron/dispatchNoSignalStatus";
 import { runLuckyVipDay } from "./cron/luckyVipDay";
 import { postLeaderboard } from "./cron/postLeaderboard";
 import { checkExpirationReminders } from "./cron/expirationReminders";
@@ -68,6 +69,7 @@ export default {
         await trackSignalOutcomes(env).catch((err) => console.error("[cron] Erreur trackSignalOutcomes:", err));
         await announceSignalPause(env).catch((err) => console.error("[cron] Erreur announceSignalPause:", err));
         await dispatchEducationalPost(env).catch((err) => console.error("[cron] Erreur dispatchEducationalPost:", err));
+        await dispatchNoSignalStatus(env).catch((err) => console.error("[cron] Erreur dispatchNoSignalStatus:", err));
         await runLuckyVipDay(env).catch((err) => console.error("[cron] Erreur luckyVipDay:", err));
         await postLeaderboard(env).catch((err) => console.error("[cron] Erreur postLeaderboard:", err));
         await checkExpirationReminders(env).catch((err) => console.error("[cron] Erreur checkExpirationReminders:", err));

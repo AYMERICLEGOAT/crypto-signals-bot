@@ -12,6 +12,7 @@ export interface UserRecord {
   plan_started_at: string | null;
   reminder_48h_sent: boolean;
   reminder_24h_sent: boolean;
+  reminder_2h_sent: boolean;
   reengagement_sent: boolean;
   survey_sent: boolean;
   survey_response: "up" | "down" | null;
@@ -117,6 +118,7 @@ export async function activateSubscription(
     expiration: expiration.toISOString(),
     reminder_48h_sent: false,
     reminder_24h_sent: false,
+    reminder_2h_sent: false,
     reengagement_sent: false,
     // Un nouveau paiement confirmé annule implicitement une éventuelle
     // annulation précédente (Bloc 7 — /cancel) : la personne est clairement
@@ -164,7 +166,7 @@ export async function getActiveTrialUsers(db: SupabaseConfig): Promise<UserRecor
 export async function getUsersExpiringWithin(
   db: SupabaseConfig,
   withinHours: number,
-  flagColumn: "reminder_48h_sent" | "reminder_24h_sent"
+  flagColumn: "reminder_48h_sent" | "reminder_24h_sent" | "reminder_2h_sent"
 ): Promise<UserRecord[]> {
   const now = new Date();
   const threshold = new Date(now.getTime() + withinHours * 60 * 60 * 1000);
@@ -178,7 +180,7 @@ export async function getUsersExpiringWithin(
 export async function markReminderSent(
   db: SupabaseConfig,
   telegramId: number,
-  flagColumn: "reminder_48h_sent" | "reminder_24h_sent"
+  flagColumn: "reminder_48h_sent" | "reminder_24h_sent" | "reminder_2h_sent"
 ): Promise<void> {
   await updateRows(db, "users", { telegram_id: `eq.${telegramId}` }, { [flagColumn]: true });
 }

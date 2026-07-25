@@ -14,7 +14,8 @@ export async function handleStart(env: Env, telegramId: number, referralPayload?
     env.TELEGRAM_BOT_TOKEN,
     telegramId,
     "👋 Bienvenue !\n\n" +
-      "Ce bot diffuse des signaux de trading crypto (BTC, ETH, SOL, ...) à ses abonnés.\n\n" +
+      "Ce bot diffuse des signaux de trading crypto (BTC, ETH, SOL, ...) à ses abonnés.\n" +
+      "📊 Stratégie backtestée sur 6 mois de données historiques – performances réelles suivies et publiées chaque semaine.\n\n" +
       "• /subscribe — voir les offres et s'abonner\n" +
       "• /trial — essai gratuit de 3 jours (une fois par wallet)\n" +
       "• /status — vérifier ton abonnement\n\n" +

@@ -10,7 +10,7 @@ const env = { TELEGRAM_BOT_TOKEN: "fake-token", SUPABASE_URL: "https://fake-supa
 describe("sendReengagementOffers", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("envoie le code RELANCE20 aux utilisateurs expirés depuis 3+ jours et marque l'envoi", async () => {
+  it("envoie le code RELANCE50 aux utilisateurs expirés depuis 3+ jours et marque l'envoi", async () => {
     let sentText = "";
     let marked = false;
 
@@ -34,7 +34,7 @@ describe("sendReengagementOffers", () => {
     );
 
     await sendReengagementOffers(env);
-    expect(sentText).toContain("RELANCE20");
+    expect(sentText).toContain("RELANCE50");
     expect(marked).toBe(true);
   });
 
