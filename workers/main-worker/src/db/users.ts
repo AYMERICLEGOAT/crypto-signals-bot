@@ -118,6 +118,10 @@ export async function activateSubscription(
     reminder_48h_sent: false,
     reminder_24h_sent: false,
     reengagement_sent: false,
+    // Un nouveau paiement confirmé annule implicitement une éventuelle
+    // annulation précédente (Bloc 7 — /cancel) : la personne est clairement
+    // revenue, les relances futures doivent reprendre normalement.
+    cancelled: false,
   };
 
   if (plan > 0) {
@@ -166,6 +170,7 @@ export async function getUsersExpiringWithin(
   const threshold = new Date(now.getTime() + withinHours * 60 * 60 * 1000);
   return selectRows<UserRecord>(db, "users", {
     expiration: `gt.${now.toISOString()}`,
+    cancelled: "eq.false",
     and: `(expiration.lte.${threshold.toISOString()},${flagColumn}.eq.false)`,
   });
 }
@@ -184,6 +189,7 @@ export async function getUsersExpiredSince(db: SupabaseConfig, daysAgo: number):
   return selectRows<UserRecord>(db, "users", {
     expiration: `lte.${threshold.toISOString()}`,
     reengagement_sent: "eq.false",
+    cancelled: "eq.false",
   });
 }
 
@@ -197,6 +203,8 @@ export async function getUsersDueForSurvey(db: SupabaseConfig, days: number): Pr
   return selectRows<UserRecord>(db, "users", {
     plan_started_at: `lte.${threshold.toISOString()}`,
     survey_sent: "eq.false",
+    cancelled: "eq.false",
+    deleted: "eq.false",
   });
 }
 
@@ -206,4 +214,34 @@ export async function markSurveySent(db: SupabaseConfig, telegramId: number): Pr
 
 export async function setSurveyResponse(db: SupabaseConfig, telegramId: number, response: "up" | "down"): Promise<void> {
   await updateRows(db, "users", { telegram_id: `eq.${telegramId}` }, { survey_response: response });
+}
+
+/** /cancel (Bloc 7) — n'affecte jamais l'accès déjà payé, seulement les futures relances/offres. */
+export async function markUserCancelled(db: SupabaseConfig, telegramId: number): Promise<void> {
+  await updateRows(db, "users", { telegram_id: `eq.${telegramId}` }, { cancelled: true });
+}
+
+/**
+ * /delete_my_data (Bloc 7, RGPD) — anonymise les champs personnels et révoque
+ * l'accès immédiatement. wallet_address est volontairement CONSERVÉE : seule
+ * donnée utilisée pour l'anti-abus (une offre par wallet, voir
+ * hasWalletClaimedTrial/hasWalletClaimedDiscovery) — la supprimer permettrait
+ * de réclamer une nouvelle offre via un second compte Telegram avec le même
+ * wallet. Limitation assumée et annoncée à l'utilisateur, pas cachée
+ * (prévention de la fraude = base légale légitime pour cette rétention
+ * minimale, RGPD art. 17§3).
+ */
+export async function eraseUserPersonalData(db: SupabaseConfig, telegramId: number): Promise<void> {
+  await updateRows(
+    db,
+    "users",
+    { telegram_id: `eq.${telegramId}` },
+    {
+      referred_by: null,
+      pending_promo_code: null,
+      survey_response: null,
+      expiration: null,
+      deleted: true,
+    }
+  );
 }

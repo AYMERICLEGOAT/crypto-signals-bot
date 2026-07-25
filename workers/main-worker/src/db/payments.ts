@@ -81,3 +81,19 @@ export async function markPaymentConfirmed(db: SupabaseConfig, id: number): Prom
     { status: "confirmed", confirmed_at: new Date().toISOString() }
   );
 }
+
+/**
+ * Purge (Bloc 7) : paiements jamais finalisés, abandonnés depuis
+ * `olderThanDays` — sans ça, les paiements XMR/LTC (poll_Payments.ts les
+ * boucle en entier à CHAQUE cycle de 5 min) s'accumuleraient indéfiniment
+ * et gaspilleraient des appels blockchain sur des tentatives mortes.
+ */
+export async function expireStalePendingPayments(db: SupabaseConfig, olderThanDays: number): Promise<void> {
+  const threshold = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString();
+  await updateRows(
+    db,
+    "pending_payments",
+    { status: "eq.pending", created_at: `lt.${threshold}` },
+    { status: "expired" }
+  );
+}

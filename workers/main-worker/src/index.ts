@@ -14,6 +14,7 @@ import { checkExpirationReminders } from "./cron/expirationReminders";
 import { sendReengagementOffers } from "./cron/reengagementOffer";
 import { sendSatisfactionSurveys } from "./cron/satisfactionSurvey";
 import { pollPayments } from "./cron/pollPayments";
+import { runDailyMaintenance } from "./cron/dailyMaintenance";
 import { pingSupabase } from "./supabaseRest";
 import { dbConfig } from "./env";
 
@@ -71,6 +72,7 @@ export default {
         await sendReengagementOffers(env).catch((err) => console.error("[cron] Erreur sendReengagementOffers:", err));
         await sendSatisfactionSurveys(env).catch((err) => console.error("[cron] Erreur sendSatisfactionSurveys:", err));
         await pollPayments(env).catch((err) => console.error("[cron] Erreur pollPayments:", err));
+        await runDailyMaintenance(env).catch((err) => console.error("[cron] Erreur runDailyMaintenance:", err));
       })()
     );
   },

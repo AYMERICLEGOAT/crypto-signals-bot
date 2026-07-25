@@ -1,4 +1,4 @@
-import { SupabaseConfig, selectRows, updateRows } from "../supabaseRest";
+import { SupabaseConfig, selectRows, updateRows, deleteRows } from "../supabaseRest";
 
 export type MomentumAlertKind = "rsi_neutral_exit" | "ema_cross_unconfirmed" | "atr_spike";
 
@@ -21,4 +21,10 @@ export async function getUnsentMomentumAlerts(db: SupabaseConfig, limit = 20): P
 
 export async function markMomentumAlertSent(db: SupabaseConfig, id: number): Promise<void> {
   await updateRows(db, "momentum_alerts", { id: `eq.${id}` }, { sent_to_channel: true });
+}
+
+/** Purge (Bloc 7) : alertes déjà diffusées, sans valeur une fois postées — évite une croissance illimitée de la table. */
+export async function purgeOldSentMomentumAlerts(db: SupabaseConfig, olderThanDays: number): Promise<void> {
+  const threshold = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString();
+  await deleteRows(db, "momentum_alerts", { sent_to_channel: "eq.true", created_at: `lt.${threshold}` });
 }

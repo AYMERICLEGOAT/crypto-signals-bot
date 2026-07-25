@@ -23,6 +23,7 @@
 --   14. workers/main-worker/schema_update_pricing.sql
 --   15. signals/schema_momentum_alerts.sql
 --   16. workers/main-worker/schema_update_referral_gamification.sql
+--   17. workers/main-worker/schema_update_bloc7_rgpd.sql
 -- ============================================================================
 
 
@@ -434,3 +435,13 @@ create table if not exists leaderboard_posts (
   posted_at timestamptz not null default now()
 );
 create index if not exists idx_leaderboard_posts_date on leaderboard_posts (posted_at desc);
+
+
+-- ----------------------------------------------------------------------------
+-- 17. workers/main-worker/schema_update_bloc7_rgpd.sql — Bloc 7
+--     daily_stats, users.cancelled et users.deleted existent déjà (section 11)
+-- ----------------------------------------------------------------------------
+
+insert into promo_codes (code, discount_pct)
+values ('RELANCE50', 50)
+on conflict (code) do nothing;
