@@ -87,8 +87,15 @@ def publish_to_twitter(signal, randomized_delay=True):
         supabase_client.record_posted("twitter", signal["id"])
         logger.info("Twitter: tweet publié (id=%s) pour le signal #%s.", tweet_id, signal["id"])
     except tweepy.TweepyException:
+        # Audit#3 : on ne l'avale plus. Un plafond atteint ou un signal déjà
+        # publié retournent False plus haut (comportement normal, silencieux à
+        # raison) — mais une VRAIE erreur d'API (permissions OAuth1 insuffisantes,
+        # clés invalides, etc.) doit faire échouer le job GitHub Actions, sinon
+        # le workflow reste vert indéfiniment pendant que rien ne se publie
+        # jamais (c'est exactement ce qui s'est produit avec le blocage de
+        # permissions "Read" au lieu de "Read and Write").
         logger.exception("Twitter: échec de la publication pour le signal #%s.", signal["id"])
-        return False
+        raise
 
     # Lien en réponse plutôt que dans le tweet principal (voir format_tweet_reply).
     # Non bloquant : le tweet principal est déjà publié et enregistré même si
@@ -126,5 +133,7 @@ def publish_macro_summary():
         logger.info("Twitter: résumé macro publié (id=%s).", tweet_id)
         return True
     except tweepy.TweepyException:
+        # Audit#3 : voir le commentaire équivalent dans publish_to_twitter — une
+        # vraie erreur d'API doit remonter, pas être avalée en False silencieux.
         logger.exception("Twitter: échec de la publication du résumé macro.")
-        return False
+        raise
