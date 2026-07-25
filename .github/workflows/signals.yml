@@ -24,3 +24,15 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python main.py
+
+      # Audit#13 : sans ça, un échec de ce workflow passait inaperçu jusqu'à
+      # ce que quelqu'un remarque l'absence de nouveaux signaux. Nécessite le
+      # secret de dépôt TELEGRAM_BOT_TOKEN (Settings > Secrets and variables
+      # > Actions) -- même token que le bot ; ADMIN_TELEGRAM_ID n'est pas un
+      # secret (déjà visible en clair dans wrangler.toml).
+      - name: Alerter l'admin en cas d'échec
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            --data-urlencode "chat_id=8647576528" \
+            --data-urlencode "text=⚠️ Échec du workflow \"Signaux crypto (horaire)\" (run #${{ github.run_number }}). Détails : https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"

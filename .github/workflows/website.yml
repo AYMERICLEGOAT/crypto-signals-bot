@@ -45,3 +45,11 @@ jobs:
           SITE_NAME: "Signaux Crypto Gratuits"
           TELEGRAM_BOT_USERNAME: ProVIPSignals_bot
         run: python main.py
+
+      # Audit#13 : voir signals.yml pour le contexte (même secret TELEGRAM_BOT_TOKEN requis).
+      - name: Alerter l'admin en cas d'échec
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            --data-urlencode "chat_id=8647576528" \
+            --data-urlencode "text=⚠️ Échec du workflow \"Site SEO (quotidien)\" (run #${{ github.run_number }}). Détails : https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"

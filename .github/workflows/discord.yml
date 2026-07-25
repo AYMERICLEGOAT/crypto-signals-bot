@@ -26,3 +26,11 @@ jobs:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
         run: python discord_daily.py
+
+      # Audit#13 : voir signals.yml pour le contexte (même secret TELEGRAM_BOT_TOKEN requis).
+      - name: Alerter l'admin en cas d'échec
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            --data-urlencode "chat_id=8647576528" \
+            --data-urlencode "text=⚠️ Échec du workflow \"Publication Discord (quotidienne)\" (run #${{ github.run_number }}). Détails : https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"

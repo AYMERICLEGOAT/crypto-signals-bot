@@ -30,3 +30,11 @@ jobs:
           REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
           REDDIT_SUBREDDITS: ${{ secrets.REDDIT_SUBREDDITS }}
         run: python reddit_daily.py
+
+      # Audit#13 : voir signals.yml pour le contexte (même secret TELEGRAM_BOT_TOKEN requis).
+      - name: Alerter l'admin en cas d'échec
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            --data-urlencode "chat_id=8647576528" \
+            --data-urlencode "text=⚠️ Échec du workflow \"Publication Reddit\" (run #${{ github.run_number }}). Détails : https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
