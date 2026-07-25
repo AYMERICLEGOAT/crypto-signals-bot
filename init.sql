@@ -310,14 +310,15 @@ create table if not exists signal_deliveries (
 );
 create index if not exists idx_signal_deliveries_signal on signal_deliveries (signal_id);
 
-create table if not exists momentum_alerts (
-    id           bigserial primary key,
-    pair         text not null,
-    alert_type   text not null check (alert_type in ('rsi_exit_neutral', 'ema_cross', 'atr_spike')),
-    direction    text,
-    triggered_at timestamptz not null default now()
-);
-create index if not exists idx_momentum_alerts_pair_type_date on momentum_alerts (pair, alert_type, triggered_at desc);
+-- Audit#2 : la définition de momentum_alerts prévue ici (alert_type/direction/
+-- triggered_at) a été SUPERSEDÉE avant sa mise en usage réel par une forme
+-- différente (kind/detail/created_at/sent_to_channel, voir section 15 —
+-- signals/schema_momentum_alerts.sql, Bloc 3), qui est celle que le code
+-- (signals/momentum.py, workers/main-worker/src/db/momentumAlerts.ts) utilise
+-- réellement. Les deux définitions coexistaient ici et faisaient planter tout
+-- déploiement neuf (la deuxième "create table if not exists" ne faisait rien,
+-- puis son "create index" échouait sur des colonnes inexistantes). Supprimée
+-- pour ne garder que la version réelle, plus bas.
 
 alter table signals add column if not exists close_reason text check (close_reason in ('tp_hit', 'sl_hit', 'expired'));
 alter table signals add column if not exists last_status_update_at timestamptz;

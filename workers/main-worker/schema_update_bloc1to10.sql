@@ -36,14 +36,18 @@ create table if not exists signal_deliveries (
 create index if not exists idx_signal_deliveries_signal on signal_deliveries (signal_id);
 
 -- ===== Bloc 3 : alertes momentum (anti-doublon) =====
-create table if not exists momentum_alerts (
+-- OBSOLÈTE (audit) : cette forme a été abandonnée avant tout usage réel au
+-- profit de signals/schema_momentum_alerts.sql (kind/detail/created_at/
+-- sent_to_channel), que le code utilise effectivement. Ne PAS exécuter ce
+-- bloc — conservé uniquement comme trace historique. Voir init.sql section 15.
+create table if not exists momentum_alerts_OBSOLETE_DO_NOT_RUN (
     id           bigserial primary key,
     pair         text not null,
     alert_type   text not null check (alert_type in ('rsi_exit_neutral', 'ema_cross', 'atr_spike')),
     direction    text,
     triggered_at timestamptz not null default now()
 );
-create index if not exists idx_momentum_alerts_pair_type_date on momentum_alerts (pair, alert_type, triggered_at desc);
+create index if not exists idx_momentum_alerts_pair_type_date on momentum_alerts_OBSOLETE_DO_NOT_RUN (pair, alert_type, triggered_at desc);
 
 -- ===== Bloc 4 : suivi post-trade (outcome/outcome_price/evaluated_at existent déjà) =====
 alter table signals add column if not exists close_reason text check (close_reason in ('tp_hit', 'sl_hit', 'expired'));
