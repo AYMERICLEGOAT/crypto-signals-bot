@@ -36,58 +36,6 @@ def get_recent_signals(limit=5):
     return resp.json()
 
 
-def get_unresolved_signals(max_age_days):
-    """Signaux sans résultat connu (outcome IS NULL), pas plus vieux que max_age_days."""
-    from datetime import datetime, timezone, timedelta
-
-    since = (datetime.now(timezone.utc) - timedelta(days=max_age_days)).isoformat()
-    resp = requests.get(
-        f"{SUPABASE_URL}/rest/v1/signals",
-        headers=_headers(),
-        params={
-            "outcome": "is.null",
-            "created_at": f"gte.{since}",
-            "order": "created_at.asc",
-        },
-        timeout=15,
-    )
-    _check(resp, "select signals (non résolus)")
-    return resp.json()
-
-
-def get_expired_unresolved_signals(max_age_days):
-    """Signaux non résolus plus vieux que max_age_days -> à clôturer en perte (timeout)."""
-    from datetime import datetime, timezone, timedelta
-
-    threshold = (datetime.now(timezone.utc) - timedelta(days=max_age_days)).isoformat()
-    resp = requests.get(
-        f"{SUPABASE_URL}/rest/v1/signals",
-        headers=_headers(),
-        params={"outcome": "is.null", "created_at": f"lt.{threshold}"},
-        timeout=15,
-    )
-    _check(resp, "select signals (expirés)")
-    return resp.json()
-
-
-def update_signal_outcome(signal_id, outcome, outcome_price):
-    from datetime import datetime, timezone
-
-    resp = requests.patch(
-        f"{SUPABASE_URL}/rest/v1/signals",
-        headers=_headers({"Prefer": "return=representation"}),
-        params={"id": f"eq.{signal_id}"},
-        json={
-            "outcome": outcome,
-            "outcome_price": outcome_price,
-            "evaluated_at": datetime.now(timezone.utc).isoformat(),
-        },
-        timeout=15,
-    )
-    _check(resp, "update signal outcome")
-    return resp.json()
-
-
 def get_active_backtest_stats():
     """
     La ligne is_active=true la plus récente de strategy_params (résultat du

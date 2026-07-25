@@ -53,22 +53,25 @@ def main():
     today = datetime.now(timezone.utc).date()
     today_str = today.isoformat()
 
-    print("1/7 — Évaluation des résultats des signaux passés...")
-    outcome_evaluator.resolve_pending_signals()
+    # Audit#5 : la résolution des issues de signaux (outcome_evaluator) a été
+    # retirée d'ici — c'est désormais le rôle exclusif du Worker Cloudflare
+    # (trackSignalOutcomes.ts, toutes les 5 min), pour éviter que les deux
+    # systèmes se marchent dessus sur les mêmes colonnes Supabase. Ce module
+    # ne fait plus que LIRE les résultats déjà connus (compute_performance_stats).
 
-    print("2/7 — Récupération des derniers signaux et du backtest...")
+    print("1/6 — Récupération des derniers signaux et du backtest...")
     signals = supabase_client.get_recent_signals(limit=NUM_SIGNALS_TO_DISPLAY)
     backtest_stats = supabase_client.get_active_backtest_stats()
     backtest_trades = supabase_client.get_backtest_trades()
 
-    print("3/7 — Génération des archives du backtest...")
+    print("2/6 — Génération des archives du backtest...")
     files_to_publish = [("archives.html", build_archives_page(backtest_trades, backtest_stats))]
 
     fr_home_path = "/"
     en_home_path = "/en/"
 
     if signals:
-        print("4/7 — Signaux réels trouvés : génération des pages du jour (français + anglais)...")
+        print("3/6 — Signaux réels trouvés : génération des pages du jour (français + anglais)...")
         performance = outcome_evaluator.compute_performance_stats()
         fr_archive_path = f"/signaux/{today_str}.html"
         en_archive_path = f"/en/signals/{today_str}.html"
