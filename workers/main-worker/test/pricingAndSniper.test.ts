@@ -82,6 +82,14 @@ describe("buildPlanKeyboard", () => {
     expect(labels.some((l) => l.includes("Découverte"))).toBe(false);
     expect(labels).toHaveLength(2);
   });
+
+  it("Audit#19 : masque Pro quand proPlanVisible=false, sans toucher Standard/Découverte", () => {
+    const kb = buildPlanKeyboard(7, false);
+    const labels = kb.flat().map((b) => b.text);
+    expect(labels.some((l) => l.includes("Standard"))).toBe(true);
+    expect(labels.some((l) => l.includes("Pro"))).toBe(false);
+    expect(labels.some((l) => l.includes("Découverte"))).toBe(true);
+  });
 });
 
 describe("Effet Sniper — dispatchSignals (vitesse Pro/essai)", () => {

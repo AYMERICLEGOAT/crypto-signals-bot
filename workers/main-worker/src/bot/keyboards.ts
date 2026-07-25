@@ -12,12 +12,20 @@ export const startKeyboard: InlineKeyboard = [
  * Découverte en dernier avec un compteur RÉEL de places restantes (jamais
  * décoratif — voir db/offerCounter.ts). Si épuisée, l'option n'est plus
  * proposée du tout plutôt que d'afficher "0 places".
+ *
+ * Audit#19 : `proPlanVisible` (par défaut true, passé à false par
+ * subscribe.ts tant que env.PRO_PLAN_VISIBLE !== "true") masque Pro pour
+ * simplifier le choix au lancement — sans avantage démontrable tant qu'il
+ * n'y a pas assez d'abonnés pour que la priorité de diffusion (Effet
+ * Sniper) fasse une vraie différence. Le plan et son fonctionnement restent
+ * intacts : c'est une simplification d'affichage, réversible en repassant
+ * le flag à "true".
  */
-export function buildPlanKeyboard(remainingDiscoverySlots: number): InlineKeyboard {
-  const keyboard: InlineKeyboard = [
-    [{ text: "⭐ Standard — 19 USDT / mois", callback_data: "plan:1" }],
-    [{ text: "🎯 Pro — 39 USDT / mois", callback_data: "plan:2" }],
-  ];
+export function buildPlanKeyboard(remainingDiscoverySlots: number, proPlanVisible = true): InlineKeyboard {
+  const keyboard: InlineKeyboard = [[{ text: "⭐ Standard — 19 USDT / mois", callback_data: "plan:1" }]];
+  if (proPlanVisible) {
+    keyboard.push([{ text: "🎯 Pro — 39 USDT / mois", callback_data: "plan:2" }]);
+  }
   if (remainingDiscoverySlots > 0) {
     keyboard.push([
       { text: `🚀 Découverte — 5 USDT / 14j (Offre de lancement, ${remainingDiscoverySlots} places restantes)`, callback_data: "plan:3" },

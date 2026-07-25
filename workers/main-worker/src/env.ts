@@ -56,6 +56,11 @@ export interface Env {
   // on-chain (contrat mainnet réel + CONTRACT_ADDRESS à jour) ; "false"/absent
   // = désactivé (défaut).
   ONCHAIN_CONTRACT_POLLING_ENABLED?: string;
+  // Audit#19 : grille tarifaire simplifiée à 2 paliers visibles (Standard +
+  // Découverte tant qu'il reste des places) pour le lancement — Pro reste
+  // entièrement fonctionnel (voir payments/plans.ts) mais masqué de
+  // /subscribe tant que ce flag n'est pas "true" (voir bot/keyboards.ts).
+  PRO_PLAN_VISIBLE?: string;
 }
 
 export function dbConfig(env: Env): SupabaseConfig {

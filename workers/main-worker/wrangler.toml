@@ -23,6 +23,11 @@ CONTRACT_ADDRESS = "0x057F9d816D1b2F6BdE2831bECe5dB9887B4Aa950"
 # voir env.ts pour le détail. Passer à "true" seulement après avoir déployé un
 # vrai contrat sur mainnet et mis à jour CONTRACT_ADDRESS en conséquence.
 ONCHAIN_CONTRACT_POLLING_ENABLED = "false"
+# Audit#19 : masque le plan Pro de /subscribe pour simplifier le choix au
+# lancement (Standard + Découverte suffisent tant qu'il n'y a pas de volume
+# justifiant la priorité de diffusion payante). Passer à "true" une fois une
+# base d'abonnés établie.
+PRO_PLAN_VISIBLE = "false"
 MONERO_MIN_CONFIRMATIONS = "10"
 LTC_MIN_CONFIRMATIONS = "1"
 TELEGRAM_BOT_USERNAME = "ProVIPSignals_bot"

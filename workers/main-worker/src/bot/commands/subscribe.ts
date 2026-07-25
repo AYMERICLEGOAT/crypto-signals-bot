@@ -14,13 +14,13 @@ import { PaidPlan, PLAN_PRICES_USD, PLAN_NAMES, PLAN_DURATION_DAYS, DISCOVERY_PL
 export async function handleSubscribeCommand(env: Env, telegramId: number): Promise<void> {
   const db = dbConfig(env);
   const remainingDiscoverySlots = await getRemainingDiscoverySlots(db);
+  // Audit#19 : grille simplifiée à 2 paliers pour le lancement (voir keyboards.ts).
+  const proPlanVisible = env.PRO_PLAN_VISIBLE === "true";
 
-  const lines = [
-    "📅 *Nos offres*",
-    "",
-    `⭐ Standard — ${PLAN_PRICES_USD[1]} USDT / ${PLAN_DURATION_DAYS[1]} jours`,
-    `🎯 Pro — ${PLAN_PRICES_USD[2]} USDT / ${PLAN_DURATION_DAYS[2]} jours (signaux en priorité, avant tout le monde)`,
-  ];
+  const lines = ["📅 *Nos offres*", "", `⭐ Standard — ${PLAN_PRICES_USD[1]} USDT / ${PLAN_DURATION_DAYS[1]} jours`];
+  if (proPlanVisible) {
+    lines.push(`🎯 Pro — ${PLAN_PRICES_USD[2]} USDT / ${PLAN_DURATION_DAYS[2]} jours (signaux en priorité, avant tout le monde)`);
+  }
   if (remainingDiscoverySlots > 0) {
     lines.push(
       `🚀 Découverte — ${PLAN_PRICES_USD[3]} USDT / ${PLAN_DURATION_DAYS[3]} jours ` +
@@ -31,7 +31,7 @@ export async function handleSubscribeCommand(env: Env, telegramId: number): Prom
 
   await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, lines.join("\n"), {
     markdown: true,
-    keyboard: buildPlanKeyboard(remainingDiscoverySlots),
+    keyboard: buildPlanKeyboard(remainingDiscoverySlots, proPlanVisible),
   });
 }
 
