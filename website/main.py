@@ -96,27 +96,32 @@ def main():
                 manifest.append({"path": path, "lastmod": today_str})
         _save_manifest(manifest)
     else:
-        print("4/7 — Aucun signal réel pour le moment : page d'accueil basée sur les archives du backtest.")
+        print("3/6 — Aucun signal réel pour le moment : page d'accueil basée sur les archives du backtest.")
         files_to_publish.append(("index.html", build_waiting_homepage(backtest_stats, TELEGRAM_BOT_USERNAME)))
         manifest = _load_manifest()
 
-    print("5/7 — Mise à jour du sitemap et de robots.txt (toujours publiés, même sans signal)...")
+    print("4/6 — Mise à jour du sitemap et de robots.txt (toujours publiés, même sans signal)...")
+    # Audit#10 : /en/index.html n'est généré que si `signals` est non vide (branche
+    # ci-dessus) — l'annoncer dans le sitemap avant qu'il existe créait une entrée
+    # cassée (404) pour les moteurs de recherche tant qu'aucun signal réel n'existe.
     sitemap_pages = [
         {"path": "/", "lastmod": today_str},
-        {"path": "/en/", "lastmod": today_str},
         {"path": "/privacy.html", "lastmod": today_str},
         {"path": "/archives.html", "lastmod": today_str},
-    ] + manifest
+    ]
+    if signals:
+        sitemap_pages.append({"path": "/en/", "lastmod": today_str})
+    sitemap_pages += manifest
     files_to_publish += [
         ("sitemap.xml", build_sitemap(sitemap_pages)),
         ("robots.txt", build_robots_txt()),
     ]
 
-    print("6/7 — Écriture des copies locales...")
+    print("5/6 — Écriture des copies locales...")
     for relative_path, content in files_to_publish:
         _write_local_copy(relative_path, content)
 
-    print("7/7 — Publication sur GitHub...")
+    print("6/6 — Publication sur GitHub...")
     commit_message = f"Contenu SEO du {today_str}"
     github_publisher.publish_files(
         [(path, content, commit_message) for path, content in files_to_publish]
