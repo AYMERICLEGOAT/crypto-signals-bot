@@ -220,8 +220,8 @@ def build_archives_page(trades, backtest_stats, canonical_path="/archives.html")
     ⚠️ <strong>Important</strong> : les trades ci-dessous proviennent d'un <strong>backtest</strong>
     (simulation sur des données historiques réelles Binance) — ce ne sont <strong>pas</strong> des
     signaux réellement envoyés à des abonnés. Les dates sont les vraies dates des bougies utilisées
-    dans la simulation. Utilise <a href="/">/demo</a> sur le bot Telegram pour voir le format d'un
-    signal, ou <a href="/">/trial</a> pour recevoir de vrais signaux en direct.
+    dans la simulation. Tape <code>/demo</code> sur le bot Telegram pour voir le format d'un
+    signal, ou <code>/trial</code> pour recevoir de vrais signaux en direct.
   </div>
 
   {stats_line}
