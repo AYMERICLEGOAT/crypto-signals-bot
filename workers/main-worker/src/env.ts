@@ -46,6 +46,16 @@ export interface Env {
   // voir Bloc 4) pour afficher un taux de réussite EN CONDITIONS RÉELLES
   // plutôt que le backtest in-sample. Scaffold pour l'instant, pas encore lu.
   DISPLAY_WINRATE?: string;
+  // Audit#16 : le flux de paiement actif est 100% off-chain (V2, voir
+  // processUsdtTransfers). CONTRACT_ADDRESS pointe sur Amoy (testnet) alors
+  // que POLYGON_RPC_URL interroge le mainnet -- ça désactivait déjà
+  // *implicitement* processUsdtEvents (aucun log ne peut jamais matcher),
+  // mais le cron continuait à consommer un appel RPC public + une écriture
+  // Supabase toutes les 5 min pour rien, sans que ce soit une décision
+  // explicite et documentée. "true" pour réactiver un jour un vrai flux
+  // on-chain (contrat mainnet réel + CONTRACT_ADDRESS à jour) ; "false"/absent
+  // = désactivé (défaut).
+  ONCHAIN_CONTRACT_POLLING_ENABLED?: string;
 }
 
 export function dbConfig(env: Env): SupabaseConfig {

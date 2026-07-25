@@ -19,6 +19,10 @@ POLYGON_RPC_URL = "https://polygon-bor-rpc.publicnode.com"
 # réactivation future du flux on-chain, mais inutilisé par le code actif
 # (V2 100% off-chain, voir cron/pollPayments.ts et payments/usdt.ts).
 CONTRACT_ADDRESS = "0x057F9d816D1b2F6BdE2831bECe5dB9887B4Aa950"
+# Audit#16 : désactive explicitement le polling on-chain (processUsdtEvents) —
+# voir env.ts pour le détail. Passer à "true" seulement après avoir déployé un
+# vrai contrat sur mainnet et mis à jour CONTRACT_ADDRESS en conséquence.
+ONCHAIN_CONTRACT_POLLING_ENABLED = "false"
 MONERO_MIN_CONFIRMATIONS = "10"
 LTC_MIN_CONFIRMATIONS = "1"
 TELEGRAM_BOT_USERNAME = "ProVIPSignals_bot"

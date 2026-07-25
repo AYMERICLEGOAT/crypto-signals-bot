@@ -28,10 +28,16 @@ async function onPaymentConfirmed(db: SupabaseConfig, telegramId: number, plan: 
 
 /**
  * Rattrape les événements Subscribed du smart contract — conservé intact
- * pour une réactivation future, mais sans effet tant qu'aucun contrat n'est
- * déployé sur mainnet (CONTRACT_ADDRESS pointe sur Amoy, testnet).
+ * pour une réactivation future (voir env.ts, ONCHAIN_CONTRACT_POLLING_ENABLED),
+ * mais désactivé par défaut : le flux actif est 100% off-chain (V2, voir
+ * processUsdtTransfers), et CONTRACT_ADDRESS pointe sur Amoy (testnet) alors
+ * que POLYGON_RPC_URL interroge le mainnet -- sans ce flag explicite, cette
+ * fonction consommait un appel RPC public + une écriture Supabase toutes les
+ * 5 min sans jamais pouvoir trouver le moindre événement (Audit#16).
  */
 async function processUsdtEvents(env: Env): Promise<void> {
+  if (env.ONCHAIN_CONTRACT_POLLING_ENABLED !== "true") return;
+
   const db = dbConfig(env);
   const events = await catchUpMissedEvents(env, db);
 
