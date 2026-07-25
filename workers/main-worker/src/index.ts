@@ -15,6 +15,7 @@ import { postLeaderboard } from "./cron/postLeaderboard";
 import { checkExpirationReminders } from "./cron/expirationReminders";
 import { sendReengagementOffers } from "./cron/reengagementOffer";
 import { sendSatisfactionSurveys } from "./cron/satisfactionSurvey";
+import { sendWelcomeFollowUps } from "./cron/welcomeSequence";
 import { pollPayments } from "./cron/pollPayments";
 import { runDailyMaintenance } from "./cron/dailyMaintenance";
 import { monitorSignalsHeartbeat } from "./cron/monitorSignalsHeartbeat";
@@ -77,6 +78,7 @@ export default {
         await checkExpirationReminders(env).catch((err) => console.error("[cron] Erreur checkExpirationReminders:", err));
         await sendReengagementOffers(env).catch((err) => console.error("[cron] Erreur sendReengagementOffers:", err));
         await sendSatisfactionSurveys(env).catch((err) => console.error("[cron] Erreur sendSatisfactionSurveys:", err));
+        await sendWelcomeFollowUps(env).catch((err) => console.error("[cron] Erreur sendWelcomeFollowUps:", err));
         await pollPayments(env).catch((err) => console.error("[cron] Erreur pollPayments:", err));
         await runDailyMaintenance(env).catch((err) => console.error("[cron] Erreur runDailyMaintenance:", err));
         await monitorSignalsHeartbeat(env).catch((err) => console.error("[cron] Erreur monitorSignalsHeartbeat:", err));

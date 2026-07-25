@@ -495,3 +495,13 @@ create index if not exists idx_signals_pending_standard on signals (created_at) 
 create index if not exists idx_users_wallet_address on users (wallet_address);
 
 update promo_codes set active = false where code = 'RELANCE20';
+
+
+-- ----------------------------------------------------------------------------
+-- 21. Audit#21 — séquence de bienvenue en plusieurs messages (voir
+--     cron/welcomeSequence.ts). Un seul message à /start ne rappelait jamais
+--     /demo, /trial ou /referral à quelqu'un qui n'avait rien fait ensuite.
+-- ----------------------------------------------------------------------------
+
+alter table users add column if not exists welcome_1h_sent boolean not null default false;
+alter table users add column if not exists welcome_1d_sent boolean not null default false;

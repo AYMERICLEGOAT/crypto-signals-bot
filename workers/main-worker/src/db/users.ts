@@ -22,6 +22,8 @@ export interface UserRecord {
   discovery_used: boolean;
   cancelled: boolean;
   deleted: boolean;
+  welcome_1h_sent: boolean;
+  welcome_1d_sent: boolean;
 }
 
 export async function getOrCreateUser(db: SupabaseConfig, telegramId: number): Promise<UserRecord> {
@@ -212,6 +214,29 @@ export async function getUsersDueForSurvey(db: SupabaseConfig, days: number): Pr
 
 export async function markSurveySent(db: SupabaseConfig, telegramId: number): Promise<void> {
   await updateRows(db, "users", { telegram_id: `eq.${telegramId}` }, { survey_sent: true });
+}
+
+/** Utilisateurs créés il y a au moins `hoursAfterCreation` heures, message de bienvenue `flagColumn` pas encore envoyé. */
+export async function getUsersDueForWelcomeFollowUp(
+  db: SupabaseConfig,
+  hoursAfterCreation: number,
+  flagColumn: "welcome_1h_sent" | "welcome_1d_sent"
+): Promise<UserRecord[]> {
+  const threshold = new Date(Date.now() - hoursAfterCreation * 60 * 60 * 1000);
+  return selectRows<UserRecord>(db, "users", {
+    created_at: `lte.${threshold.toISOString()}`,
+    [flagColumn]: "eq.false",
+    cancelled: "eq.false",
+    deleted: "eq.false",
+  });
+}
+
+export async function markWelcomeFollowUpSent(
+  db: SupabaseConfig,
+  telegramId: number,
+  flagColumn: "welcome_1h_sent" | "welcome_1d_sent"
+): Promise<void> {
+  await updateRows(db, "users", { telegram_id: `eq.${telegramId}` }, { [flagColumn]: true });
 }
 
 export async function setSurveyResponse(db: SupabaseConfig, telegramId: number, response: "up" | "down"): Promise<void> {
