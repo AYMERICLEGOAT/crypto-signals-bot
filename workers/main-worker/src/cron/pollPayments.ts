@@ -1,7 +1,7 @@
 import { Env, dbConfig } from "../env";
 import { catchUpMissedEvents } from "../blockchain/subscriptionEvents";
 import { catchUpUsdtTransfers } from "../blockchain/usdtTransfers";
-import { findUserByWalletAddress, activateSubscription } from "../db/users";
+import { findUserByWalletAddress, activateSubscription, markDiscoveryUsed } from "../db/users";
 import { getLatestPendingPayment, markPaymentConfirmed, getPendingPayments } from "../db/payments";
 import { sendMessage } from "../telegram";
 import { isWalletRpcAvailable, checkMoneroPayment } from "../payments/monero";
@@ -9,8 +9,22 @@ import { checkLitecoinPayment } from "../payments/litecoin";
 import { addDays } from "../utils/date";
 import { maybeRewardReferral } from "../bot/referral";
 import { consumePendingPromoCode } from "../payments/promoCodes";
+import { SupabaseConfig } from "../supabaseRest";
+import { PLAN_DURATION_DAYS, DISCOVERY_PLAN, isValidPlan } from "../payments/plans";
+import { incrementDiscoverySlotsUsed } from "../db/offerCounter";
 
 const USDT_AMOUNT_TOLERANCE = 0.97; // tolère 3% d'écart (arrondis, frais éventuels)
+
+function durationForPlan(plan: number): number {
+  return isValidPlan(plan) ? PLAN_DURATION_DAYS[plan] : 30;
+}
+
+/** À appeler après TOUTE confirmation de paiement Découverte, peu importe la méthode. */
+async function onPaymentConfirmed(db: SupabaseConfig, telegramId: number, plan: number): Promise<void> {
+  if (plan !== DISCOVERY_PLAN) return;
+  await incrementDiscoverySlotsUsed(db);
+  await markDiscoveryUsed(db, telegramId);
+}
 
 /**
  * Rattrape les événements Subscribed du smart contract — conservé intact
@@ -66,9 +80,10 @@ async function processUsdtTransfers(env: Env): Promise<void> {
     }
 
     await markPaymentConfirmed(db, pending.id);
-    await activateSubscription(db, user.telegram_id, pending.plan, addDays(new Date(), 30));
+    await activateSubscription(db, user.telegram_id, pending.plan, addDays(new Date(), durationForPlan(pending.plan)));
     await maybeRewardReferral(env, user.telegram_id);
     await consumePendingPromoCode(db, user.telegram_id);
+    await onPaymentConfirmed(db, user.telegram_id, pending.plan);
 
     await sendMessage(env.TELEGRAM_BOT_TOKEN, user.telegram_id, "✅ Paiement USDT confirmé sur la blockchain ! Ton abonnement est actif.");
   }
@@ -89,9 +104,10 @@ async function processMoneroPayments(env: Env): Promise<void> {
       if (!paid) continue;
 
       await markPaymentConfirmed(db, payment.id);
-      await activateSubscription(db, payment.telegram_id, payment.plan, addDays(new Date(), 30));
+      await activateSubscription(db, payment.telegram_id, payment.plan, addDays(new Date(), durationForPlan(payment.plan)));
       await maybeRewardReferral(env, payment.telegram_id);
       await consumePendingPromoCode(db, payment.telegram_id);
+      await onPaymentConfirmed(db, payment.telegram_id, payment.plan);
       await sendMessage(env.TELEGRAM_BOT_TOKEN, payment.telegram_id, "✅ Paiement Monero confirmé ! Ton abonnement est actif.");
     } catch (err) {
       console.error(`[monero] Erreur de vérification pour le paiement #${payment.id}:`, err);
@@ -109,9 +125,10 @@ async function processLitecoinPayments(env: Env): Promise<void> {
       if (!paid) continue;
 
       await markPaymentConfirmed(db, payment.id);
-      await activateSubscription(db, payment.telegram_id, payment.plan, addDays(new Date(), 30));
+      await activateSubscription(db, payment.telegram_id, payment.plan, addDays(new Date(), durationForPlan(payment.plan)));
       await maybeRewardReferral(env, payment.telegram_id);
       await consumePendingPromoCode(db, payment.telegram_id);
+      await onPaymentConfirmed(db, payment.telegram_id, payment.plan);
       await sendMessage(env.TELEGRAM_BOT_TOKEN, payment.telegram_id, "✅ Paiement Litecoin confirmé ! Ton abonnement est actif.");
     } catch (err) {
       console.error(`[litecoin] Erreur de vérification pour le paiement #${payment.id}:`, err);

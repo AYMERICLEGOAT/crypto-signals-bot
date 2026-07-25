@@ -1,6 +1,7 @@
 import { Env, dbConfig } from "../../env";
 import { sendMessage } from "../../telegram";
 import { getOrCreateUser, isSubscriptionActive } from "../../db/users";
+import { PLAN_NAMES, isValidPlan } from "../../payments/plans";
 
 export async function handleStatusCommand(env: Env, telegramId: number): Promise<void> {
   const user = await getOrCreateUser(dbConfig(env), telegramId);
@@ -11,7 +12,7 @@ export async function handleStatusCommand(env: Env, telegramId: number): Promise
   }
 
   const expirationDate = new Date(user.expiration as string);
-  const planLabel = user.plan === 0 ? "Essai gratuit" : `Plan ${user.plan}`;
+  const planLabel = user.plan === 0 ? "Essai gratuit" : isValidPlan(user.plan as number) ? PLAN_NAMES[user.plan as 1 | 2 | 3] : `Plan ${user.plan}`;
   await sendMessage(
     env.TELEGRAM_BOT_TOKEN,
     telegramId,

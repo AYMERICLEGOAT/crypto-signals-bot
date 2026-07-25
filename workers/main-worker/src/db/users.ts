@@ -18,6 +18,9 @@ export interface UserRecord {
   paid_referral_count: number;
   vip_until: string | null;
   pending_promo_code: string | null;
+  discovery_used: boolean;
+  cancelled: boolean;
+  deleted: boolean;
 }
 
 export async function getOrCreateUser(db: SupabaseConfig, telegramId: number): Promise<UserRecord> {
@@ -61,6 +64,25 @@ export async function hasWalletClaimedTrial(db: SupabaseConfig, address: string)
     limit: "1",
   });
   return rows.length > 0;
+}
+
+/**
+ * Même principe que hasWalletClaimedTrial, pour le Pack Découverte (5 USDT
+ * /14j, "une seule fois par wallet" — voir payments/plans.ts). Ne couvre
+ * que le paiement USDT (seule méthode où l'adresse de l'acheteur est
+ * connue à l'avance) — limitation assumée, comme pour /trial.
+ */
+export async function hasWalletClaimedDiscovery(db: SupabaseConfig, address: string): Promise<boolean> {
+  const rows = await selectRows<UserRecord>(db, "users", {
+    wallet_address: `eq.${address.toLowerCase()}`,
+    discovery_used: "eq.true",
+    limit: "1",
+  });
+  return rows.length > 0;
+}
+
+export async function markDiscoveryUsed(db: SupabaseConfig, telegramId: number): Promise<void> {
+  await updateRows(db, "users", { telegram_id: `eq.${telegramId}` }, { discovery_used: true });
 }
 
 /**

@@ -2,6 +2,7 @@ import { Env } from "./env";
 import { TelegramUpdate } from "./telegram";
 import { routeUpdate } from "./bot/router";
 import { dispatchSignals } from "./cron/dispatchSignals";
+import { dispatchStandardTier } from "./cron/dispatchStandardTier";
 import { dispatchPublicChannel } from "./cron/dispatchPublicChannel";
 import { announceSignalPause } from "./cron/announceSignalPause";
 import { dispatchEducationalPost } from "./cron/dispatchEducationalPost";
@@ -55,6 +56,7 @@ export default {
     ctx.waitUntil(
       (async () => {
         await dispatchSignals(env).catch((err) => console.error("[cron] Erreur dispatchSignals:", err));
+        await dispatchStandardTier(env).catch((err) => console.error("[cron] Erreur dispatchStandardTier:", err));
         await dispatchPublicChannel(env).catch((err) => console.error("[cron] Erreur dispatchPublicChannel:", err));
         await announceSignalPause(env).catch((err) => console.error("[cron] Erreur announceSignalPause:", err));
         await dispatchEducationalPost(env).catch((err) => console.error("[cron] Erreur dispatchEducationalPost:", err));

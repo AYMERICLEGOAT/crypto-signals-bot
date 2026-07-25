@@ -11,6 +11,7 @@ export interface SignalRecord {
   sent: boolean;
   chart_url: string | null;
   sent_to_channel: boolean;
+  sent_to_standard: boolean;
 }
 
 export async function getUnsentSignals(db: SupabaseConfig): Promise<SignalRecord[]> {
@@ -19,6 +20,29 @@ export async function getUnsentSignals(db: SupabaseConfig): Promise<SignalRecord
 
 export async function markSignalSent(db: SupabaseConfig, id: number): Promise<void> {
   await updateRows(db, "signals", { id: `eq.${id}` }, { sent: true });
+}
+
+/**
+ * Signaux déjà envoyés à la vitesse "Pro" (immédiate), plus vieux que
+ * `olderThanMinutes` (délai de l'Effet Sniper — Bloc 2.2), pas encore
+ * diffusés aux abonnés Standard/Découverte.
+ */
+export async function getSignalsDueForStandardTier(
+  db: SupabaseConfig,
+  olderThanMinutes: number,
+  limit = 20
+): Promise<SignalRecord[]> {
+  const cutoff = new Date(Date.now() - olderThanMinutes * 60 * 1000).toISOString();
+  return selectRows<SignalRecord>(db, "signals", {
+    sent_to_standard: "eq.false",
+    created_at: `lte.${cutoff}`,
+    order: "created_at.asc",
+    limit: String(limit),
+  });
+}
+
+export async function markSentToStandard(db: SupabaseConfig, id: number): Promise<void> {
+  await updateRows(db, "signals", { id: `eq.${id}` }, { sent_to_standard: true });
 }
 
 /**

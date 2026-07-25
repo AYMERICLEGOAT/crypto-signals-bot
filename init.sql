@@ -20,6 +20,7 @@
 --   11. workers/main-worker/schema_update_bloc1to10.sql
 --   12. signals/schema_signal_pause.sql
 --   13. traffic/schema_nullable_signal_id.sql
+--   14. workers/main-worker/schema_update_pricing.sql
 -- ============================================================================
 
 
@@ -384,3 +385,12 @@ create index if not exists idx_signal_pause_active on signal_pause (resumes_at d
 -- ----------------------------------------------------------------------------
 
 alter table posted_content alter column signal_id drop not null;
+
+
+-- ----------------------------------------------------------------------------
+-- 14. workers/main-worker/schema_update_pricing.sql — grille tarifaire
+--     Découverte/Standard/Pro + Effet Sniper
+-- ----------------------------------------------------------------------------
+
+alter table users add column if not exists discovery_used boolean not null default false;
+alter table signals add column if not exists sent_to_standard boolean not null default false;

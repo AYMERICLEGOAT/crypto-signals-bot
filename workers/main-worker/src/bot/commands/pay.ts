@@ -1,6 +1,7 @@
 import { Env, dbConfig } from "../../env";
 import { sendMessage, sendPhoto } from "../../telegram";
 import { getLatestPendingPaymentAnyMethod } from "../../db/payments";
+import { PLAN_NAMES, isValidPlan } from "../../payments/plans";
 
 const METHOD_LABEL: Record<string, string> = { USDT: "USDT (Polygon)", XMR: "Monero", LTC: "Litecoin" };
 
@@ -29,7 +30,8 @@ export async function handlePayCommand(env: Env, telegramId: number): Promise<vo
   }
 
   const label = METHOD_LABEL[pending.method] ?? pending.method;
-  const lines = [`Paiement en attente — Plan ${pending.plan}, ${label}`];
+  const planLabel = isValidPlan(pending.plan) ? PLAN_NAMES[pending.plan] : `Plan ${pending.plan}`;
+  const lines = [`Paiement en attente — ${planLabel}, ${label}`];
   if (pending.pay_address) lines.push(`Adresse : \`${pending.pay_address}\``);
   if (pending.amount_expected !== null) lines.push(`Montant exact : ${pending.amount_expected}`);
   lines.push("Confirmation automatique dès réception (vérifiée toutes les 5 minutes).");

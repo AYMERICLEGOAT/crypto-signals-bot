@@ -6,8 +6,9 @@
  */
 
 import { SupabaseConfig, selectOne, upsertRow, deleteRows } from "../supabaseRest";
+import { PaidPlan } from "../payments/plans";
 
-export type PendingAction = { type: "awaiting_wallet_usdt"; plan: 1 | 2 } | { type: "awaiting_wallet_trial" };
+export type PendingAction = { type: "awaiting_wallet_usdt"; plan: PaidPlan } | { type: "awaiting_wallet_trial" };
 
 interface PendingActionRow {
   telegram_id: number;

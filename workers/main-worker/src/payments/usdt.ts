@@ -13,28 +13,35 @@
 import { Env } from "../env";
 import { SupabaseConfig } from "../supabaseRest";
 import { createPendingPayment } from "../db/payments";
-import { setWalletAddress } from "../db/users";
+import { setWalletAddress, hasWalletClaimedDiscovery } from "../db/users";
 import { getEffectivePriceUsd } from "./promoCodes";
+import { PaidPlan, PLAN_PRICES_USD, PLAN_DURATION_DAYS, PLAN_NAMES, DISCOVERY_PLAN } from "./plans";
 
 const USDT_TOKEN_ADDRESS = "0xc2132D05D31c914a87C6611C10748AEb04B58e8F";
-
-// Prix fixes (alignés sur les constantes PLAN1_PRICE/PLAN2_PRICE du contrat,
-// pour rester cohérent si le contrat est réactivé plus tard).
-export const USDT_PLAN_PRICES: Record<1 | 2, number> = { 1: 10, 2: 25 };
 
 export async function startUsdtPayment(
   env: Env,
   db: SupabaseConfig,
   telegramId: number,
-  plan: 1 | 2,
+  plan: PaidPlan,
   walletAddress: string
 ): Promise<string> {
+  // Anti-abus Pack Découverte (Bloc 2.2, "une seule fois par wallet") : seule
+  // méthode où l'adresse de l'acheteur est connue avant paiement, voir
+  // db/users.ts hasWalletClaimedDiscovery.
+  if (plan === DISCOVERY_PLAN && (await hasWalletClaimedDiscovery(db, walletAddress))) {
+    return (
+      "⚠️ Cette adresse a déjà utilisé le Pack Découverte (offre valable une seule fois par wallet).\n\n" +
+      "Choisis le plan Standard ou Pro avec /subscribe pour continuer."
+    );
+  }
+
   await setWalletAddress(db, telegramId, walletAddress);
-  const price = await getEffectivePriceUsd(db, telegramId, USDT_PLAN_PRICES[plan]);
+  const price = await getEffectivePriceUsd(db, telegramId, PLAN_PRICES_USD[plan]);
   await createPendingPayment(db, { telegramId, method: "USDT", plan, amountExpected: price });
 
   return [
-    `💳 *Paiement USDT (Polygon) — Plan ${plan} : ${price} USDT / 30 jours*`,
+    `💳 *Paiement USDT (Polygon) — ${PLAN_NAMES[plan]} : ${price} USDT / ${PLAN_DURATION_DAYS[plan]} jours*`,
     "",
     `Envoie *exactement ${price} USDT* (réseau Polygon) depuis l'adresse `,
     `\`${walletAddress}\` vers :`,

@@ -24,7 +24,7 @@ OUTPUT_PATH = os.path.join(os.path.dirname(__file__), "data", "payment-guide.png
 REMOTE_FILENAME = "payment-guide.png"
 
 STEPS = [
-    ("1", "Choisis ton plan", "Plan 1 ou Plan 2 via /subscribe"),
+    ("1", "Choisis ton plan", "Standard, Pro ou Découverte via /subscribe"),
     ("2", "Choisis ta crypto", "USDT (Polygon), Litecoin ou Monero"),
     ("3", "Envoie le montant exact", "À l'adresse unique fournie par le bot\n— jamais une adresse trouvée ailleurs"),
     ("4", "Patiente ~5 minutes", "Détection automatique sur la blockchain,\naucune action supplémentaire requise"),

@@ -9,6 +9,7 @@
 import { Env } from "../env";
 import { digestAuthFetch } from "./httpDigestClient";
 import { usdToCoinAmount } from "./priceConversion";
+import { PaidPlan } from "./plans";
 
 const ATOMIC_UNITS_PER_XMR = 1e12;
 const AMOUNT_TOLERANCE = 0.97;
@@ -56,7 +57,7 @@ export interface MoneroInvoice {
   amountXmr: number;
 }
 
-export async function createMoneroInvoice(env: Env, telegramId: number, plan: 1 | 2, amountUsd: number): Promise<MoneroInvoice> {
+export async function createMoneroInvoice(env: Env, telegramId: number, plan: PaidPlan, amountUsd: number): Promise<MoneroInvoice> {
   const amountXmr = await usdToCoinAmount(amountUsd, "monero");
   const created = await moneroRpcCall<{ address: string; address_index: number }>(env, "create_address", {
     account_index: 0,

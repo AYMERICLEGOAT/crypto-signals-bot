@@ -2,6 +2,9 @@ import { Env, dbConfig } from "../env";
 import { getUnsentSignals, markSignalSent, SignalRecord } from "../db/signals";
 import { getActiveUsers } from "../db/users";
 import { sendMessage, sendPhoto } from "../telegram";
+import { PRO_PLAN } from "../payments/plans";
+
+const TRIAL_PLAN = 0;
 
 function formatSignalMessage(signal: SignalRecord): string {
   const emoji = signal.type === "BUY" ? "🟢" : "🔴";
@@ -25,8 +28,11 @@ export async function dispatchSignals(env: Env): Promise<void> {
   const unsent = await getUnsentSignals(db);
   if (unsent.length === 0) return;
 
+  // Effet Sniper (Bloc 2.2) : Pro (et essai gratuit, déjà instantané avant ce
+  // bloc) reçoivent les signaux en premier ; Standard/Découverte suivent 15
+  // minutes plus tard via cron/dispatchStandardTier.ts.
   const activeUsers = await getActiveUsers(db);
-  const activeIds = activeUsers.map((u) => u.telegram_id);
+  const activeIds = activeUsers.filter((u) => u.plan === PRO_PLAN || u.plan === TRIAL_PLAN).map((u) => u.telegram_id);
 
   for (const signal of unsent) {
     const text = formatSignalMessage(signal);

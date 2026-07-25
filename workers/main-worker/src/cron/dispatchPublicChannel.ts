@@ -1,14 +1,19 @@
 /**
  * Diffuse les signaux déjà envoyés aux abonnés vers le canal Telegram public
- * gratuit, avec un délai (15 minutes par défaut) — c'est le canal "vitrine"
- * qui sert à attirer des membres vers l'abonnement payant (temps réel + VIP).
+ * gratuit, avec un délai — c'est le canal "vitrine" qui sert à attirer des
+ * membres vers l'abonnement payant (temps réel + VIP).
+ *
+ * Le délai (30 min) est volontairement supérieur à celui du palier
+ * Standard/Découverte (15 min, voir cron/dispatchStandardTier.ts,
+ * SNIPER_DELAY_MINUTES) : même les plans payants les moins chers gardent une
+ * longueur d'avance sur le canal gratuit.
  */
 
 import { Env, dbConfig } from "../env";
 import { getSignalsDueForPublicChannel, markSentToChannel, SignalRecord } from "../db/signals";
 import { sendMessage, sendPhoto } from "../telegram";
 
-const CHANNEL_DELAY_MINUTES = 15;
+const CHANNEL_DELAY_MINUTES = 30;
 
 function formatPublicChannelMessage(signal: SignalRecord, botUsername: string): string {
   const emoji = signal.type === "BUY" ? "🟢" : "🔴";
