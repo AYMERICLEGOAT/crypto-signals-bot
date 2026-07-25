@@ -4,6 +4,7 @@ import { routeUpdate } from "./bot/router";
 import { dispatchSignals } from "./cron/dispatchSignals";
 import { dispatchStandardTier } from "./cron/dispatchStandardTier";
 import { dispatchPublicChannel } from "./cron/dispatchPublicChannel";
+import { dispatchMomentumAlerts } from "./cron/dispatchMomentumAlerts";
 import { announceSignalPause } from "./cron/announceSignalPause";
 import { dispatchEducationalPost } from "./cron/dispatchEducationalPost";
 import { runLuckyVipDay } from "./cron/luckyVipDay";
@@ -58,6 +59,7 @@ export default {
         await dispatchSignals(env).catch((err) => console.error("[cron] Erreur dispatchSignals:", err));
         await dispatchStandardTier(env).catch((err) => console.error("[cron] Erreur dispatchStandardTier:", err));
         await dispatchPublicChannel(env).catch((err) => console.error("[cron] Erreur dispatchPublicChannel:", err));
+        await dispatchMomentumAlerts(env).catch((err) => console.error("[cron] Erreur dispatchMomentumAlerts:", err));
         await announceSignalPause(env).catch((err) => console.error("[cron] Erreur announceSignalPause:", err));
         await dispatchEducationalPost(env).catch((err) => console.error("[cron] Erreur dispatchEducationalPost:", err));
         await runLuckyVipDay(env).catch((err) => console.error("[cron] Erreur luckyVipDay:", err));

@@ -36,6 +36,22 @@ def insert_signal(signal: dict) -> None:
         logger.exception("Échec de l'insertion du signal dans Supabase: %s", signal)
 
 
+def insert_momentum_alerts(alerts: list) -> None:
+    """
+    Insère les Alertes Momentum (Bloc 3) détectées ce cycle. Échec non
+    bloquant (comme insert_signal) : une alerte momentum manquante ne doit
+    jamais faire échouer la génération des vrais signaux.
+    """
+    if not alerts:
+        return
+    payload = [{**alert, "sent_to_channel": False} for alert in alerts]
+    try:
+        get_client().table("momentum_alerts").insert(payload).execute()
+        logger.info("%d alerte(s) momentum enregistrée(s).", len(payload))
+    except Exception:
+        logger.exception("Échec de l'insertion des alertes momentum dans Supabase: %s", payload)
+
+
 def upload_chart(local_path: str, remote_filename: str) -> str | None:
     """
     Envoie le PNG généré par chart_generator.py vers Supabase Storage et

@@ -33,6 +33,7 @@ import params_store
 import binance_client
 import coingecko_client
 import correlation_guard
+import momentum
 from indicators import compute_all_indicators
 from strategy import detect_signal
 from chart_generator import generate_chart
@@ -70,16 +71,22 @@ def load_active_params() -> dict:
 def fetch_recent_prices(pair: str, coin_id: str):
     """
     Historique récent d'une paire sous forme de DataFrame (colonnes ts_ms,
-    price). Binance en priorité (bougies horaires réelles), repli CoinGecko
-    en cas d'échec. Retourne None si les deux échouent.
+    price, high, low). Binance en priorité (bougies horaires réelles, avec
+    high/low pour l'ATR des Alertes Momentum — voir momentum.py), repli
+    CoinGecko en cas d'échec. Retourne None si les deux échouent.
+
+    Le repli CoinGecko ne fournit que des prix de clôture : high/low sont
+    alors égaux à price, ce qui dégrade l'ATR calculé (indicators.atr) en un
+    simple écart de clôture à clôture — moins précis qu'un vrai ATR, mais
+    reste une mesure honnête de volatilité réelle, pas une donnée inventée.
     """
     symbol = binance_client.pair_to_symbol(pair)
     try:
         candles = binance_client.get_klines(symbol, interval="1h", limit=KLINES_LOOKBACK)
         if candles:
             return pd.DataFrame(
-                [(ts, close) for ts, _open, _high, _low, close, _vol in candles],
-                columns=["ts_ms", "price"],
+                [(ts, high, low, close) for ts, _open, high, low, close, _vol in candles],
+                columns=["ts_ms", "high", "low", "price"],
             )
     except Exception:
         logger.warning("Binance indisponible pour %s, repli sur CoinGecko.", pair, exc_info=True)
@@ -87,7 +94,10 @@ def fetch_recent_prices(pair: str, coin_id: str):
     try:
         points = coingecko_client.get_intraday_history(coin_id, days=COINGECKO_FALLBACK_DAYS)
         if points:
-            return pd.DataFrame(points, columns=["ts_ms", "price"])
+            df = pd.DataFrame(points, columns=["ts_ms", "price"])
+            df["high"] = df["price"]
+            df["low"] = df["price"]
+            return df
     except Exception:
         logger.exception("Échec du repli CoinGecko pour %s.", pair)
 
@@ -127,9 +137,16 @@ def run_once(params: dict) -> int:
     écriture : si plus de 50% des paires signalent la même direction en
     moins de 4h, AUCUN de ces signaux n'est inséré et la génération est
     mise en pause 24h. Retourne le nombre de signaux effectivement insérés.
+
+    Les Alertes Momentum (Bloc 3, voir momentum.py) sont calculées à part,
+    uniquement pour les paires n'ayant PAS produit de vrai signal ce cycle
+    (un vrai signal est déjà plus informatif que l'alerte sur le même
+    mouvement) — et ne dépendent pas du filtre anti-corrélation, qui ne
+    s'applique qu'aux vrais trades.
     """
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
     candidates = []
+    momentum_alerts = []
 
     for pair, coin_id in config.PAIRS.items():
         df = fetch_recent_prices(pair, coin_id)
@@ -146,6 +163,14 @@ def run_once(params: dict) -> int:
         )
         if signal_dict:
             candidates.append((signal_dict, enriched))
+        else:
+            momentum_alerts.extend(
+                momentum.detect_momentum_alerts(enriched, pair, params["rsi_buy_threshold"], params["rsi_sell_threshold"])
+            )
+
+    if momentum_alerts:
+        storage.insert_momentum_alerts(momentum_alerts)
+        logger.info("%d alerte(s) momentum détectée(s) ce cycle.", len(momentum_alerts))
 
     if not candidates:
         return 0
