@@ -78,6 +78,19 @@ export async function maybeRewardReferral(env: Env, referredTelegramId: number):
   const referrer = await getUserIfExists(db, user.referred_by);
   if (!referrer) return;
 
+  // Anti-abus (Bloc 10) : la même personne payant sur un second compte
+  // Telegram avec le MÊME wallet pour se "parrainer" elle-même toucherait
+  // +7 jours (voire plus avec palier/Joker) pour le prix d'un Pack
+  // Découverte (5 USDT) — rentable sans qu'aucun vrai parrainage n'ait eu
+  // lieu. Un wallet identique des deux côtés est un signal fort de
+  // self-referral : on désactive définitivement CE parrainage (jamais
+  // retenté aux paiements suivants) sans pénaliser le filleul lui-même.
+  if (user.wallet_address && referrer.wallet_address && user.wallet_address === referrer.wallet_address) {
+    console.warn(`[referral] Parrainage ignoré (même wallet des deux côtés) : parrain ${referrer.telegram_id}, filleul ${referredTelegramId}.`);
+    await markReferralRewarded(db, referredTelegramId);
+    return;
+  }
+
   const newPaidReferralCount = (referrer.paid_referral_count ?? 0) + 1;
   const hitMilestone = newPaidReferralCount % MILESTONE_REFERRALS === 0;
 

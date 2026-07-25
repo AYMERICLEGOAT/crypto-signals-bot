@@ -244,3 +244,74 @@ describe("maybeRewardReferral — bonus Joker (Bloc 6)", () => {
     expect(recordedReward.joker_hit).toBe(false);
   });
 });
+
+describe("maybeRewardReferral — anti-abus même wallet (Bloc 10)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("refuse la récompense si le filleul et le parrain ont la même adresse wallet (auto-parrainage)", async () => {
+    const sameWallet = "0xabcabcabcabcabcabcabcabcabcabcabcabcabc";
+    const referred = makeUser({ telegram_id: 80, referred_by: 8, referral_rewarded: false, wallet_address: sameWallet });
+    const referrer = makeUser({ telegram_id: 8, paid_referral_count: 0, wallet_address: sameWallet });
+
+    let referrerActivated = false;
+    let markedRewarded = false;
+    let notified = false;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const isGet = !init || init.method === undefined;
+        if (url.includes("telegram_id=eq.80") && isGet) return jsonResponse([referred]);
+        if (url.includes("telegram_id=eq.8") && isGet) return jsonResponse([referrer]);
+        if (url.includes("telegram_id=eq.8") && init?.method === "PATCH") {
+          const body = JSON.parse(init.body as string);
+          if ("plan" in body || "expiration" in body) referrerActivated = true;
+          if (body.referral_rewarded === true) markedRewarded = true;
+          return jsonResponse([]);
+        }
+        if (url.includes("telegram_id=eq.80") && init?.method === "PATCH") {
+          if (JSON.parse(init.body as string).referral_rewarded === true) markedRewarded = true;
+          return jsonResponse([]);
+        }
+        if (url.includes("api.telegram.org")) {
+          notified = true;
+          return jsonResponse({ ok: true, result: {} });
+        }
+        throw new Error(`URL inattendue: ${url} ${init?.method}`);
+      })
+    );
+
+    await maybeRewardReferral(env, 80);
+
+    expect(referrerActivated).toBe(false); // aucun bonus de jours accordé
+    expect(markedRewarded).toBe(true); // mais ce parrainage ne sera jamais retenté
+    expect(notified).toBe(false); // aucune notification "tu as gagné des jours"
+  });
+
+  it("récompense normalement si les wallets sont différents", async () => {
+    const referred = makeUser({ telegram_id: 90, referred_by: 9, referral_rewarded: false, wallet_address: "0x1111111111111111111111111111111111aaaa" });
+    const referrer = makeUser({ telegram_id: 9, paid_referral_count: 0, wallet_address: "0x2222222222222222222222222222222222bbbb" });
+
+    let notified = false;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const isGet = !init || init.method === undefined;
+        if (url.includes("telegram_id=eq.90") && isGet) return jsonResponse([referred]);
+        if (url.includes("telegram_id=eq.9") && isGet) return jsonResponse([referrer]);
+        if (url.includes("telegram_id=eq.9") && init?.method === "PATCH") return jsonResponse([]);
+        if (url.includes("telegram_id=eq.90") && init?.method === "PATCH") return jsonResponse([]);
+        if (url.includes("referral_rewards") && init?.method === "POST") return jsonResponse([]);
+        if (url.includes("api.telegram.org")) {
+          notified = true;
+          return jsonResponse({ ok: true, result: {} });
+        }
+        throw new Error(`URL inattendue: ${url} ${init?.method}`);
+      })
+    );
+
+    await maybeRewardReferral(env, 90);
+    expect(notified).toBe(true);
+  });
+});

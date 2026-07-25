@@ -27,6 +27,8 @@ function formatPublicChannelMessage(signal: SignalRecord, botUsername: string): 
     `Stop loss : ${signal.stop_loss}`,
     `Take profit : ${signal.take_profit}`,
     "",
+    "⚠️ Pas un conseil financier — risque de perte en capital.",
+    "",
     `📡 Signaux en temps réel + alertes VIP : rejoins @${escapedUsername}`,
   ].join("\n");
 }

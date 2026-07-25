@@ -10,6 +10,7 @@ import { announceSignalPause } from "./cron/announceSignalPause";
 import { dispatchEducationalPost } from "./cron/dispatchEducationalPost";
 import { dispatchNoSignalStatus } from "./cron/dispatchNoSignalStatus";
 import { runLuckyVipDay } from "./cron/luckyVipDay";
+import { revertLuckyVip } from "./cron/revertLuckyVip";
 import { postLeaderboard } from "./cron/postLeaderboard";
 import { checkExpirationReminders } from "./cron/expirationReminders";
 import { sendReengagementOffers } from "./cron/reengagementOffer";
@@ -71,6 +72,7 @@ export default {
         await dispatchEducationalPost(env).catch((err) => console.error("[cron] Erreur dispatchEducationalPost:", err));
         await dispatchNoSignalStatus(env).catch((err) => console.error("[cron] Erreur dispatchNoSignalStatus:", err));
         await runLuckyVipDay(env).catch((err) => console.error("[cron] Erreur luckyVipDay:", err));
+        await revertLuckyVip(env).catch((err) => console.error("[cron] Erreur revertLuckyVip:", err));
         await postLeaderboard(env).catch((err) => console.error("[cron] Erreur postLeaderboard:", err));
         await checkExpirationReminders(env).catch((err) => console.error("[cron] Erreur checkExpirationReminders:", err));
         await sendReengagementOffers(env).catch((err) => console.error("[cron] Erreur sendReengagementOffers:", err));

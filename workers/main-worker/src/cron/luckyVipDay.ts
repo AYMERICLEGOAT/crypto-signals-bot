@@ -37,7 +37,7 @@ export async function runLuckyVipDay(env: Env): Promise<void> {
     { telegram_id: `eq.${winner.telegram_id}` },
     { plan: VIP_PLAN, expiration: newExpiration.toISOString(), vip_until: vipUntil.toISOString() }
   );
-  await recordVipDraw(db, winner.telegram_id, vipUntil);
+  await recordVipDraw(db, winner.telegram_id, vipUntil, winner.plan ?? 0);
 
   await sendMessage(
     env.TELEGRAM_BOT_TOKEN,
