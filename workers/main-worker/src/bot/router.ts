@@ -15,6 +15,7 @@ import { handleHistoryCommand } from "./commands/history";
 import { handleSurveyResponse } from "./commands/surveyResponse";
 import { handleCancelCommand } from "./commands/cancel";
 import { handleDeleteMyDataCommand } from "./commands/deleteMyData";
+import { handleHelpCommand } from "./commands/help";
 import { handleTextMessage } from "./walletAddressHandler";
 
 /**
@@ -64,6 +65,8 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
       await handleCancelCommand(env, chatId, text.slice("/cancel".length).trim());
     } else if (text === "/delete_my_data" || text.startsWith("/delete_my_data ")) {
       await handleDeleteMyDataCommand(env, chatId, text.slice("/delete_my_data".length).trim());
+    } else if (text === "/help") {
+      await handleHelpCommand(env, chatId);
     } else if (text && !text.startsWith("/")) {
       await handleTextMessage(env, chatId, text);
     }

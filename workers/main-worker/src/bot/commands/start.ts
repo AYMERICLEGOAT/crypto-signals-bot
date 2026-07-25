@@ -18,7 +18,8 @@ export async function handleStart(env: Env, telegramId: number, referralPayload?
       "📊 Stratégie backtestée sur 6 mois de données historiques – performances réelles suivies et publiées chaque semaine.\n\n" +
       "• /subscribe — voir les offres et s'abonner\n" +
       "• /trial — essai gratuit de 3 jours (une fois par wallet)\n" +
-      "• /status — vérifier ton abonnement\n\n" +
+      "• /status — vérifier ton abonnement\n" +
+      "• /help — toutes les commandes\n\n" +
       `🎁 Parraine un ami avec ton lien et gagne ${REFERRAL_BONUS_DAYS} jours gratuits dès son premier ` +
       `abonnement payant :\n${referralLink}`,
     { keyboard: startKeyboard }
