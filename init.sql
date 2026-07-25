@@ -24,6 +24,7 @@
 --   15. signals/schema_momentum_alerts.sql
 --   16. workers/main-worker/schema_update_referral_gamification.sql
 --   17. workers/main-worker/schema_update_bloc7_rgpd.sql
+--   18. workers/main-worker/schema_update_bloc8_robustness.sql
 -- ============================================================================
 
 
@@ -445,3 +446,15 @@ create index if not exists idx_leaderboard_posts_date on leaderboard_posts (post
 insert into promo_codes (code, discount_pct)
 values ('RELANCE50', 50)
 on conflict (code) do nothing;
+
+
+-- ----------------------------------------------------------------------------
+-- 18. workers/main-worker/schema_update_bloc8_robustness.sql — Bloc 8
+--     payment_cache existe déjà (section 11)
+-- ----------------------------------------------------------------------------
+
+create table if not exists system_heartbeats (
+  job_name     text primary key,
+  last_run_at  timestamptz not null default now(),
+  alerted      boolean not null default false
+);

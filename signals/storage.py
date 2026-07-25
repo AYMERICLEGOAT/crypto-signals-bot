@@ -52,6 +52,29 @@ def insert_momentum_alerts(alerts: list) -> None:
         logger.exception("Échec de l'insertion des alertes momentum dans Supabase: %s", payload)
 
 
+def record_heartbeat(job_name: str) -> None:
+    """
+    Bloc 8 — surveillance de fraîcheur GitHub Actions : marque que ce job a
+    tourné jusqu'au bout avec succès. Le Worker (cron/monitorSignalsHeartbeat.ts)
+    alerte l'administrateur si ce timestamp devient trop vieux (le workflow
+    GitHub Actions horaire a dû s'arrêter silencieusement). `alerted` est
+    remis à False à chaque heartbeat réussi, pour permettre une nouvelle
+    alerte si une panne future survient après une reprise.
+    """
+    try:
+        get_client().table("system_heartbeats").upsert(
+            {"job_name": job_name, "last_run_at": _now_iso(), "alerted": False}, on_conflict="job_name"
+        ).execute()
+    except Exception:
+        logger.exception("Échec de l'enregistrement du heartbeat pour %s.", job_name)
+
+
+def _now_iso() -> str:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).isoformat()
+
+
 def upload_chart(local_path: str, remote_filename: str) -> str | None:
     """
     Envoie le PNG généré par chart_generator.py vers Supabase Storage et

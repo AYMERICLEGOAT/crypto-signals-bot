@@ -15,8 +15,10 @@ import { sendReengagementOffers } from "./cron/reengagementOffer";
 import { sendSatisfactionSurveys } from "./cron/satisfactionSurvey";
 import { pollPayments } from "./cron/pollPayments";
 import { runDailyMaintenance } from "./cron/dailyMaintenance";
+import { monitorSignalsHeartbeat } from "./cron/monitorSignalsHeartbeat";
 import { pingSupabase } from "./supabaseRest";
 import { dbConfig } from "./env";
+import { timingSafeEqual } from "./utils/timingSafeEqual";
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -36,7 +38,7 @@ export default {
       // /trial, qui dépense du gas depuis le wallet admin) : seul Telegram,
       // qui renvoie ce secret configuré via setWebhook, passe ce contrôle.
       const secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token");
-      if (secret !== env.TELEGRAM_WEBHOOK_SECRET) {
+      if (!secret || !timingSafeEqual(secret, env.TELEGRAM_WEBHOOK_SECRET)) {
         return new Response("unauthorized", { status: 401 });
       }
 
@@ -73,6 +75,7 @@ export default {
         await sendSatisfactionSurveys(env).catch((err) => console.error("[cron] Erreur sendSatisfactionSurveys:", err));
         await pollPayments(env).catch((err) => console.error("[cron] Erreur pollPayments:", err));
         await runDailyMaintenance(env).catch((err) => console.error("[cron] Erreur runDailyMaintenance:", err));
+        await monitorSignalsHeartbeat(env).catch((err) => console.error("[cron] Erreur monitorSignalsHeartbeat:", err));
       })()
     );
   },

@@ -198,11 +198,13 @@ def main():
             "⏸️ Génération de signaux en pause jusqu'à %s (%s).",
             active_pause["resumes_at"], active_pause["reason"],
         )
+        storage.record_heartbeat("signals")  # la pause est un état normal, pas une panne
         return
 
     params = load_active_params()
     signals_found = run_once(params)
     logger.info("Terminé : %d signal(aux) détecté(s) sur ce cycle.", signals_found)
+    storage.record_heartbeat("signals")
 
 
 if __name__ == "__main__":

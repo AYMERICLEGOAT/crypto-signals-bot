@@ -11,16 +11,45 @@ export interface JsonRpcConfig {
 
 let idCounter = 0;
 
+// Retry (Bloc 8) : POLYGON_RPC_URL est un nœud public gratuit, plus sujet aux
+// erreurs transitoires (429, 5xx, coupure réseau) qu'un endpoint dédié. Ne
+// réessaie QUE les échecs de transport/HTTP, jamais une erreur JSON-RPC
+// applicative (params invalides, etc.) — celle-là ne se corrigera pas en
+// réessayant la même requête.
+const RPC_MAX_ATTEMPTS = 3;
+const RPC_RETRY_BASE_DELAY_MS = 400;
+
 async function rpcCall<T>(rpc: JsonRpcConfig, method: string, params: unknown[]): Promise<T> {
-  const res = await fetch(rpc.url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: ++idCounter, method, params }),
-  });
-  if (!res.ok) throw new Error(`RPC Polygon (${method}) a répondu ${res.status}`);
-  const json = (await res.json()) as { result?: T; error?: { message: string } };
-  if (json.error) throw new Error(`RPC Polygon (${method}): ${json.error.message}`);
-  return json.result as T;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= RPC_MAX_ATTEMPTS; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(rpc.url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: ++idCounter, method, params }),
+      });
+    } catch (err) {
+      lastError = err;
+      if (attempt === RPC_MAX_ATTEMPTS) throw lastError;
+      await new Promise((resolve) => setTimeout(resolve, RPC_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1)));
+      continue;
+    }
+
+    if (!res.ok) {
+      lastError = new Error(`RPC Polygon (${method}) a répondu ${res.status}`);
+      if (attempt === RPC_MAX_ATTEMPTS) throw lastError;
+      await new Promise((resolve) => setTimeout(resolve, RPC_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1)));
+      continue;
+    }
+
+    const json = (await res.json()) as { result?: T; error?: { message: string } };
+    if (json.error) throw new Error(`RPC Polygon (${method}): ${json.error.message}`);
+    return json.result as T;
+  }
+
+  throw lastError;
 }
 
 export interface RpcLog {

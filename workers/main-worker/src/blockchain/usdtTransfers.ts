@@ -10,6 +10,7 @@ import { Env } from "../env";
 import { getBlockNumber, getLogs } from "./rpc";
 import { TRANSFER_TOPIC0, decodeAddressFromTopic, decodeUint256, encodeAddressArg } from "./abi";
 import { getLastProcessedBlock, setLastProcessedBlock } from "../db/chainState";
+import { isTxCached, cacheTxResult } from "../db/paymentCache";
 import { SupabaseConfig } from "../supabaseRest";
 
 const CHAIN_STATE_KEY = "last_processed_block_usdt_transfers";
@@ -48,9 +49,12 @@ export async function catchUpUsdtTransfers(env: Env, db: SupabaseConfig): Promis
     });
 
     for (const log of logs) {
+      if (await isTxCached(db, log.transactionHash)) continue; // déjà traité (voir db/paymentCache.ts)
+
       const from = decodeAddressFromTopic(log.topics[1]);
       const amountRaw = decodeUint256(log.data);
       events.push({ from, amount: Number(amountRaw) / 10 ** USDT_DECIMALS });
+      await cacheTxResult(db, log.transactionHash, true);
     }
 
     await setLastProcessedBlock(db, toBlock, CHAIN_STATE_KEY);

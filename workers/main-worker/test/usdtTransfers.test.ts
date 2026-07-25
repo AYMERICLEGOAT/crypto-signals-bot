@@ -46,6 +46,12 @@ describe("catchUpUsdtTransfers", () => {
         }
 
         if (url.startsWith("https://fake-supabase.test")) {
+          if (url.includes("payment_cache") && (!init || init.method === undefined)) {
+            return jsonResponse([]); // pas encore vu ce tx_hash
+          }
+          if (url.includes("payment_cache") && init?.method === "POST") {
+            return jsonResponse([{ tx_hash: "0xdeadbeef", verified_result: true }]);
+          }
           if (!init || init.method === undefined) {
             return jsonResponse([]); // getLastProcessedBlock: aucun checkpoint existant
           }
@@ -69,6 +75,45 @@ describe("catchUpUsdtTransfers", () => {
     expect(events).toHaveLength(1);
     expect(events[0].from.toLowerCase()).toBe(SENDER_ADDRESS.toLowerCase());
     expect(events[0].amount).toBe(25);
+  });
+
+  it("ignore un transfert dont le tx_hash est déjà dans payment_cache (Bloc 8, idempotence)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.startsWith("https://fake-rpc.test")) {
+          const body = JSON.parse(init!.body as string) as { method: string };
+          if (body.method === "eth_blockNumber") return jsonRpcResult("0x64");
+          if (body.method === "eth_getLogs") {
+            const amountHex = (25_000_000n).toString(16).padStart(64, "0");
+            return jsonRpcResult([
+              {
+                address: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+                topics: [TRANSFER_TOPIC0, "0x" + encodeAddressArg(SENDER_ADDRESS), "0x" + encodeAddressArg(PAYMENT_ADDRESS)],
+                data: "0x" + amountHex,
+                blockNumber: "0x64",
+                transactionHash: "0xalreadyseen",
+              },
+            ]);
+          }
+          throw new Error(`Appel RPC inattendu: ${body.method}`);
+        }
+
+        if (url.startsWith("https://fake-supabase.test")) {
+          if (url.includes("payment_cache")) return jsonResponse([{ tx_hash: "0xalreadyseen", verified_result: true }]); // déjà vu
+          if (!init || init.method === undefined) return jsonResponse([]);
+          if (init.method === "POST") return jsonResponse([{ key: "last_processed_block_usdt_transfers", value: "100" }]);
+        }
+
+        throw new Error(`URL inattendue dans ce test: ${url}`);
+      })
+    );
+
+    const env = { PAYMENT_ADDRESS_USDT: PAYMENT_ADDRESS, POLYGON_RPC_URL: "https://fake-rpc.test" } as any;
+    const db = { url: "https://fake-supabase.test", key: "fake-key" };
+
+    const events = await catchUpUsdtTransfers(env, db);
+    expect(events).toEqual([]);
   });
 
   it("ne fait rien si PAYMENT_ADDRESS_USDT n'est pas configuré", async () => {

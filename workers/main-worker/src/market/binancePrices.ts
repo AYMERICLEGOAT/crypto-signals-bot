@@ -7,6 +7,12 @@
 
 const BASE_URL = "https://api.binance.com";
 
+// Retry (Bloc 8) : un blip transitoire de l'API publique Binance ne doit pas
+// faire sauter tout un cycle de suivi post-trade (5 min avant la prochaine
+// tentative sinon) — même logique que blockchain/rpc.ts pour Polygon.
+const MAX_ATTEMPTS = 3;
+const RETRY_BASE_DELAY_MS = 400;
+
 export function pairToSymbol(pair: string): string {
   return pair.replace("/", "");
 }
@@ -15,11 +21,23 @@ export function pairToSymbol(pair: string): string {
 export async function getCurrentPrices(symbols: string[]): Promise<Record<string, number>> {
   if (symbols.length === 0) return {};
   const url = `${BASE_URL}/api/v3/ticker/price?symbols=${encodeURIComponent(JSON.stringify(symbols))}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Binance ticker/price a répondu ${res.status}`);
-  const data = (await res.json()) as { symbol: string; price: string }[];
 
-  const prices: Record<string, number> = {};
-  for (const row of data) prices[row.symbol] = Number(row.price);
-  return prices;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Binance ticker/price a répondu ${res.status}`);
+      const data = (await res.json()) as { symbol: string; price: string }[];
+
+      const prices: Record<string, number> = {};
+      for (const row of data) prices[row.symbol] = Number(row.price);
+      return prices;
+    } catch (err) {
+      lastError = err;
+      if (attempt === MAX_ATTEMPTS) throw lastError;
+      await new Promise((resolve) => setTimeout(resolve, RETRY_BASE_DELAY_MS * 2 ** (attempt - 1)));
+    }
+  }
+
+  throw lastError;
 }

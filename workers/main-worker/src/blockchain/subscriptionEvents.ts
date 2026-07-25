@@ -11,6 +11,7 @@ import { Env } from "../env";
 import { getBlockNumber, getLogs } from "./rpc";
 import { SUBSCRIBED_TOPIC0, decodeAddressFromTopic, decodeSubscribedData } from "./abi";
 import { getLastProcessedBlock, setLastProcessedBlock } from "../db/chainState";
+import { isTxCached, cacheTxResult } from "../db/paymentCache";
 import { SupabaseConfig } from "../supabaseRest";
 
 const CHUNK_SIZE = 2000; // limite prudente pour eth_getLogs sur un RPC public gratuit
@@ -42,6 +43,8 @@ export async function catchUpMissedEvents(env: Env, db: SupabaseConfig): Promise
     });
 
     for (const log of logs) {
+      if (await isTxCached(db, log.transactionHash)) continue; // déjà traité (voir db/paymentCache.ts)
+
       const { plan, amount, newExpiration } = decodeSubscribedData(log.data);
       events.push({
         user: decodeAddressFromTopic(log.topics[1]),
@@ -49,6 +52,7 @@ export async function catchUpMissedEvents(env: Env, db: SupabaseConfig): Promise
         amount,
         newExpirationMs: Number(newExpiration) * 1000,
       });
+      await cacheTxResult(db, log.transactionHash, true);
     }
 
     await setLastProcessedBlock(db, toBlock);
