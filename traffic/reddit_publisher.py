@@ -117,5 +117,10 @@ def publish_to_reddit(signal):
         except Exception:
             logger.exception("Reddit: échec inattendu sur r/%s — on essaie le suivant.", subreddit_name)
 
+    # Audit#3/#6 : contrairement à un rejet sur UN subreddit (normal, on tourne
+    # sur le suivant), échouer sur TOUS les subreddits configurés est une vraie
+    # panne (identifiants invalides, API Reddit indisponible, etc.) — elle doit
+    # faire échouer le job GitHub Actions, pas rester invisible derrière un
+    # simple False comme pour Twitter avant ce correctif.
     logger.error("Reddit: aucun des subreddits configurés n'a accepté le post aujourd'hui.")
-    return False
+    raise RuntimeError("Reddit: échec de publication sur l'ensemble des subreddits configurés.")
