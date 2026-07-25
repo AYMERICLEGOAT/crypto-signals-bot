@@ -1,12 +1,22 @@
 name: Site SEO (quotidien)
 
+# Audit#11 : le site ne se régénérait qu'une fois par jour alors que les
+# signaux sont générés toutes les heures (signals.yml) — un nouveau signal
+# pouvait donc rester invisible sur le site jusqu'à 23h. On se déclenche
+# désormais aussi juste après chaque exécution réussie de "Signaux crypto
+# (horaire)", en gardant le cron quotidien comme filet de sécurité (stats
+# de performance à jour même sans nouveau signal ce jour-là).
 on:
   schedule:
     - cron: "0 6 * * *"
+  workflow_run:
+    workflows: ["Signaux crypto (horaire)"]
+    types: [completed]
   workflow_dispatch: {}
 
 jobs:
   publish-website:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
