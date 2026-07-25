@@ -11,7 +11,26 @@ from datetime import datetime, timezone
 
 from config import SITE_NAME, SITE_BASE_URL
 
-BACKTEST_WINDOW_DAYS = 180  # doit rester synchronisé avec signals/config.py (BACKTEST_DAYS)
+BACKTEST_WINDOW_DAYS = 730  # doit rester synchronisé avec signals/config.py (BACKTEST_DAYS)
+_BACKTEST_WINDOW_MONTHS = round(BACKTEST_WINDOW_DAYS / 30)
+
+# Audit#4 : doit rester synchronisé avec signals/backtest.py (MIN_SIGNIFICANT_TRADES).
+# En dessous de ce seuil, un taux de réussite (même 0% ou 100%) n'est pas fiable
+# statistiquement — l'afficher tel quel serait trompeur (positif comme négatif).
+MIN_SIGNIFICANT_TRADES = 15
+
+
+def _backtest_stat_html(win_rate_pct, trade_count):
+    if trade_count < MIN_SIGNIFICANT_TRADES:
+        return (
+            f'<p class="archive-stats">Échantillon encore trop petit pour être significatif '
+            f'({trade_count} trades sur {_BACKTEST_WINDOW_MONTHS} mois) — taux de réussite non affiché '
+            f"tant que le seuil de {MIN_SIGNIFICANT_TRADES} trades n'est pas atteint.</p>"
+        )
+    return (
+        f'<p class="archive-stats">{win_rate_pct:.1f}% de réussite sur {trade_count} trades '
+        f"(backtest {_BACKTEST_WINDOW_MONTHS} mois, in-sample).</p>"
+    )
 
 _OUTCOME_LABEL = {"WIN": "Take profit atteint ✅", "LOSS": "Stop loss touché ❌", "TIMEOUT": "Clôturé (délai)"}
 _OUTCOME_COLOR = {"WIN": "#16a34a", "LOSS": "#dc2626", "TIMEOUT": "#6b7280"}
@@ -86,7 +105,7 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
     if backtest_stats:
         win_rate_pct = float(backtest_stats["win_rate"]) * 100
         trade_count = int(backtest_stats["trade_count"])
-        stats_html = f'<p class="archive-stats">{win_rate_pct:.1f}% de réussite sur {trade_count} trades (backtest 6 mois, in-sample).</p>'
+        stats_html = _backtest_stat_html(win_rate_pct, trade_count)
     else:
         stats_html = ""
 
@@ -166,7 +185,7 @@ def build_archives_page(trades, backtest_stats, canonical_path="/archives.html")
             next_signal_line = f"<p class=\"next-signal\">📡 Fréquence historique : environ un signal toutes les {avg_days * 24:.0f} heures (moyenne sur le backtest).</p>"
         else:
             next_signal_line = f"<p class=\"next-signal\">📡 Fréquence historique : environ un signal tous les {avg_days:.1f} jours (moyenne sur le backtest, pas une garantie de timing).</p>"
-        stats_line = f"<p class=\"archive-stats\">{win_rate_pct:.1f}% de réussite sur {trade_count} trades (backtest 6 mois, in-sample).</p>"
+        stats_line = _backtest_stat_html(win_rate_pct, trade_count)
     else:
         stats_line = ""
         next_signal_line = ""

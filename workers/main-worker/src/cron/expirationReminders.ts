@@ -11,7 +11,7 @@ import { getActiveStrategyParams } from "../db/strategyParams";
 // à en faire un argument commercial instable, ce qu'on a explicitement décidé
 // d'éviter.
 const HONEST_PERFORMANCE_PHRASE =
-  "\n📊 Stratégie backtestée sur 6 mois de données historiques – performances réelles suivies et publiées chaque semaine.\n";
+  "\n📊 Stratégie backtestée sur 24 mois de données historiques – performances réelles suivies et publiées chaque semaine.\n";
 
 async function getPerformanceLine(env: Env): Promise<string> {
   if (env.DISPLAY_WINRATE !== "true") return HONEST_PERFORMANCE_PHRASE;

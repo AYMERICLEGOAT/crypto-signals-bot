@@ -71,7 +71,20 @@ CHART_LOOKBACK_POINTS = 60  # nombre de points de prix affichés sur le graphiqu
 CHART_TMP_DIR = os.path.join(os.path.dirname(__file__), "data", "charts_tmp")
 
 # --- Backtest ---
-BACKTEST_DAYS = 180  # ~6 mois
+# Audit#4 : porté de 180 (~6 mois) à 730 (~24 mois), seuil de corrélation
+# aussi relevé à 70%/2h (voir backtest.py). Résultat final sur 24 mois : 10
+# trades indépendants (contre 3 sur 6 mois) — en progrès, mais toujours sous
+# MIN_SIGNIFICANT_TRADES (15). Le nombre BRUT de trades avant filtrage n'est
+# déjà que d'environ 16-20/an sur ces 20 paires, et la majorité sont corrélés
+# entre eux (mouvements de marché larges) : la stratégie EMA/RSI par défaut
+# est intrinsèquement peu fréquente sur cet univers de paires. Ce n'est pas
+# corrigible en repoussant encore la fenêtre (Binance ne propose de toute
+# façon pas 24 mois d'historique pour certaines paires récentes comme
+# SOL/ARB/OP) — le code le signale déjà honnêtement (voir MIN_SIGNIFICANT_TRADES
+# ci-dessous et le WARNING loggé quand l'échantillon est insuffisant) plutôt
+# que d'afficher un taux de réussite trompeur. 730 est retenu comme valeur
+# finale.
+BACKTEST_DAYS = 730
 # Nombre de jours max pendant lesquels on suit un trade simulé avant de
 # le clôturer au marché si ni le SL ni le TP n'ont été touchés.
 BACKTEST_TRADE_TIMEOUT_DAYS = 10

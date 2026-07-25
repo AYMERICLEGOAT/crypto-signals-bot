@@ -14,7 +14,7 @@ export async function handleStatsCommand(env: Env, telegramId: number): Promise<
   const [stats, backtest] = await Promise.all([getAdminStats(db), getActiveStrategyParams(db)]);
 
   const backtestLine = backtest
-    ? `${(backtest.win_rate * 100).toFixed(1)}% sur ${backtest.trade_count} trades (backtest 6 mois, in-sample)`
+    ? `${(backtest.win_rate * 100).toFixed(1)}% sur ${backtest.trade_count} trades (backtest 24 mois, in-sample)`
     : "n/a (aucun backtest enregistré)";
 
   await sendMessage(

@@ -13,6 +13,11 @@ from content_templates import generate_analysis, format_price
 
 TELEGRAM_URL = f"https://t.me/{TELEGRAM_BOT_USERNAME}"
 
+# Audit#4 : doit rester synchronisé avec signals/backtest.py (MIN_SIGNIFICANT_TRADES).
+# En dessous de ce seuil, un taux de réussite (même 0% ou 100%) n'est pas fiable
+# statistiquement — l'afficher tel quel serait trompeur (positif comme négatif).
+MIN_SIGNIFICANT_TRADES = 15
+
 _STRINGS = {
     "fr": {
         "html_lang": "fr",
@@ -43,9 +48,13 @@ _STRINGS = {
         "signal à son stop loss et son take profit (pas une analyse tick par tick de l'historique intrabar).",
         "backtest_heading": "🧪 Backtest de la stratégie",
         "backtest_stat": lambda win_rate, trades: (
-            f"{win_rate:.1f}% de réussite sur {trades} trades en 6 mois"
+            f"{win_rate:.1f}% de réussite sur {trades} trades en 24 mois"
         ),
-        "backtest_detail": "Simulé sur 20 paires, données horaires réelles Binance des 6 derniers mois.",
+        "backtest_insignificant": lambda trades, min_trades: (
+            f"Échantillon encore trop petit pour être significatif ({trades} trades sur 24 mois) "
+            f"— taux de réussite non affiché tant que le seuil de {min_trades} trades n'est pas atteint."
+        ),
+        "backtest_detail": "Simulé sur 20 paires, données horaires réelles Binance des 24 derniers mois.",
         "backtest_note": "⚠️ Résultat d'une optimisation \"in-sample\" (sur les données ayant servi à choisir "
         "les paramètres) : une performance passée ne garantit pas un résultat identique en conditions réelles. "
         "Ce backtest est mis à jour automatiquement à chaque nouvelle exécution.",
@@ -89,9 +98,13 @@ _STRINGS = {
         "its stop loss and take profit (not a tick-by-tick intrabar analysis).",
         "backtest_heading": "🧪 Strategy backtest",
         "backtest_stat": lambda win_rate, trades: (
-            f"{win_rate:.1f}% win rate on {trades} trades over 6 months"
+            f"{win_rate:.1f}% win rate on {trades} trades over 24 months"
         ),
-        "backtest_detail": "Simulated on 20 pairs, real hourly Binance data from the last 6 months.",
+        "backtest_insignificant": lambda trades, min_trades: (
+            f"Sample still too small to be statistically significant ({trades} trades over 24 months) "
+            f"— win rate hidden until the {min_trades}-trade threshold is reached."
+        ),
+        "backtest_detail": "Simulated on 20 pairs, real hourly Binance data from the last 24 months.",
         "backtest_note": "⚠️ Result of an \"in-sample\" optimization (using the same data that chose the "
         "parameters): past performance does not guarantee identical real-world results. This backtest is "
         "updated automatically on every new run.",
@@ -218,11 +231,16 @@ def _backtest_section_html(backtest_stats, s):
 
     win_rate_pct = float(backtest_stats["win_rate"]) * 100
     trades = int(backtest_stats["trade_count"])
+    stat_text = (
+        s["backtest_insignificant"](trades, MIN_SIGNIFICANT_TRADES)
+        if trades < MIN_SIGNIFICANT_TRADES
+        else s["backtest_stat"](win_rate_pct, trades)
+    )
 
     return f"""
     <section class="backtest">
       <h2>{s["backtest_heading"]}</h2>
-      <p class="backtest-stat">{s["backtest_stat"](win_rate_pct, trades)}</p>
+      <p class="backtest-stat">{stat_text}</p>
       <p>{s["backtest_detail"]}</p>
       <p style="font-size:0.85rem;color:#777;">{s["backtest_note"]}</p>
     </section>"""

@@ -2,7 +2,7 @@
 
 Génère des signaux ACHAT/VENTE sur 20 paires USDT à partir de l'API
 publique Binance (repli CoinGecko en cas d'indisponibilité), avec backtest
-sur ~6 mois et stockage dans Supabase. Aucune dépendance payante.
+sur ~24 mois et stockage dans Supabase. Aucune dépendance payante.
 
 Exécuté en production via **GitHub Actions**, une fois par heure (voir
 [`.github/workflows/signals.yml`](../.github/workflows/signals.yml) à la
@@ -47,8 +47,9 @@ python backtest.py
 ```
 
 Ce script :
-- télécharge ~180 jours de bougies **horaires réelles** via l'API Binance
-  (BTC/USDT et ETH/USDT par défaut — voir `BACKTEST_PAIRS` dans `backtest.py`),
+- télécharge ~730 jours (24 mois) de bougies **horaires réelles** via l'API
+  Binance, sur les 20 paires de `config.py` (`BACKTEST_PAIRS` en dérive
+  directement),
 - teste la stratégie active (EMA 9/21, RSI 14, seuils 40/60 par défaut),
 - mesure le taux de réussite, le ratio gain/perte et le drawdown maximum,
 - si l'échantillon est trop petit (< 15 trades) OU le taux de réussite
@@ -59,13 +60,17 @@ Ce script :
   automatiquement à sa prochaine exécution — plus besoin de fichier local
   (les runners GitHub Actions repartent de zéro à chaque fois).
 
-⚠️ **Sur la taille de l'échantillon** : EMA9/21 + confirmation RSI est un
-événement rare. Sur seulement 2 paires et 6 mois de bougies horaires, il
-n'est pas garanti d'atteindre un nombre de trades statistiquement
-significatif (le script le signale clairement si c'est le cas plutôt que
-d'afficher un taux de réussite trompeur calculé sur une poignée de trades).
-Étendre `BACKTEST_PAIRS` aux 20 paires de `config.py` donne un échantillon
-nettement plus robuste.
+⚠️ **Sur la taille de l'échantillon (constat honnête, Audit#4)** : EMA9/21 +
+confirmation RSI est un événement rare sur cet univers de 20 paires — même
+sur 24 mois de bougies horaires et après avoir assoupli le filtre
+anti-corrélation, le dernier run ne produit qu'une dizaine de trades
+indépendants, sous le seuil de significativité (`MIN_SIGNIFICANT_TRADES = 15`).
+Le script le signale clairement (WARNING) plutôt que d'afficher un taux de
+réussite trompeur, et le site/bot masquent le pourcentage tant que ce seuil
+n'est pas atteint. Pousser encore la fenêtre au-delà de 24 mois ne
+résoudrait pas le problème (certaines paires plus récentes n'ont pas cet
+historique sur Binance) — c'est une limite structurelle de la fréquence du
+signal sur cet univers de paires, pas un bug de configuration.
 
 ⚠️ **Sur l'optimisation automatique** : elle se fait *in-sample* (sur les
 mêmes données qui servent à mesurer la performance). Un taux de réussite
@@ -135,7 +140,7 @@ signals/
   params_store.py              # Lecture/écriture des paramètres actifs (Supabase)
   chart_generator.py           # Génère le PNG (prix + EMA + niveaux) d'un signal
   storage.py                   # Insertion des signaux + upload des graphiques dans Supabase
-  backtest.py                  # Backtest 6 mois (Binance) + recherche de paramètres
+  backtest.py                  # Backtest 24 mois (Binance) + recherche de paramètres
   main.py                      # Exécution unique (point d'entrée GitHub Actions)
   schema.sql                   # Schéma de la table `signals`
   schema_update_chart.sql      # Ajoute la colonne chart_url

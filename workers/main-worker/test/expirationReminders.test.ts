@@ -56,7 +56,7 @@ describe("checkExpirationReminders", () => {
 
     expect(sentMessages).toHaveLength(3);
     expect(sentMessages[0]).toContain("48h");
-    expect(sentMessages[0]).toContain("Stratégie backtestée sur 6 mois");
+    expect(sentMessages[0]).toContain("Stratégie backtestée sur 24 mois");
     expect(sentMessages[0]).not.toMatch(/\d+(\.\d+)?%/); // jamais de pourcentage dynamique tant que DISPLAY_WINRATE n'est pas activé
     expect(sentMessages[1]).toContain("24h");
     expect(sentMessages[2]).toContain("2h");

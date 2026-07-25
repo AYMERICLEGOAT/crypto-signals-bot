@@ -1,5 +1,5 @@
 """
-Backtest de la stratégie sur 6 mois de données réelles Binance (bougies
+Backtest de la stratégie sur 24 mois de données réelles Binance (bougies
 horaires), sur les 20 paires de config.py (BACKTEST_PAIRS en dérive
 directement — modifier config.PAIRS suffit à changer le périmètre testé).
 
@@ -57,13 +57,22 @@ RSI_THRESHOLD_CANDIDATES = [(30, 70), (35, 65), (40, 60)]
 MIN_SIGNIFICANT_TRADES = 15
 
 # Filtre anti-corrélation (même logique que signals/correlation_guard.py, en
-# production) : si plus de 50% des paires suivies déclenchent un trade dans
-# la même direction en moins de 4h, c'est un mouvement de marché systémique
+# production) : si plus de 70% des paires suivies déclenchent un trade dans
+# la même direction en moins de 2h, c'est un mouvement de marché systémique
 # (tout corrélé), pas un edge de la stratégie — ces trades sont exclus du
 # calcul de performance pour ne pas laisser un seul événement de marché
 # dominer artificiellement (à la hausse ou à la baisse) le win rate affiché.
-CORRELATION_THRESHOLD = 0.5
-CORRELATION_WINDOW_MS = 4 * 60 * 60 * 1000
+#
+# Audit#4 : seuil relevé de 50%->70% et fenêtre réduite de 4h->2h. Avec 50%/4h,
+# le filtre excluait la quasi-totalité des trades sur 6 mois (les cryptos
+# bougeant naturellement ensemble à un certain degré, même sans événement
+# systémique) : sur 27 combinaisons de paramètres testées, AUCUNE n'atteignait
+# le seuil de signification (voir MIN_SIGNIFICANT_TRADES). Un seuil plus élevé
+# sur une fenêtre plus courte ne retient que les mouvements vraiment massifs et
+# quasi simultanés (le cas qu'on cherche réellement à écarter), sans jeter les
+# trades juste "un peu corrélés" comme le sont presque tous les mouvements crypto.
+CORRELATION_THRESHOLD = 0.7
+CORRELATION_WINDOW_MS = 2 * 60 * 60 * 1000
 
 
 def filter_correlated_trades(trades: list, total_pairs: int) -> list:
