@@ -474,4 +474,24 @@ create table if not exists no_signal_status_posts (
 );
 create index if not exists idx_no_signal_status_posts_date on no_signal_status_posts (posted_at desc);
 
+
+-- ----------------------------------------------------------------------------
+-- 20. Audit#14 — index manquants sur deux requêtes qui tournent toutes les
+--     5 minutes (cron Worker) sans jamais avoir eu d'index dédié.
+-- ----------------------------------------------------------------------------
+
+-- getSignalsDueForStandardTier() (src/db/signals.ts) : WHERE sent_to_standard
+-- = false ORDER BY created_at, en boucle toutes les 5 min. sent_to_standard
+-- ne repasse jamais à false une fois à true (voir markSentToStandard) : un
+-- index partiel reste donc petit indéfiniment, contrairement à un index
+-- complet sur toute la table (même principe que idx_momentum_alerts_unsent
+-- ci-dessus, section 15).
+create index if not exists idx_signals_pending_standard on signals (created_at) where sent_to_standard = false;
+
+-- Recherche d'utilisateur par adresse wallet (src/db/users.ts, getUserByWallet
+-- et consorts) : utilisée par le rattachement des transferts USDT entrants
+-- (cron/pollPayments.ts, toutes les 5 min) et l'anti-abus /trial. Egalité
+-- simple sur une colonne jusqu'ici sans index -> scan complet de la table users.
+create index if not exists idx_users_wallet_address on users (wallet_address);
+
 update promo_codes set active = false where code = 'RELANCE20';
