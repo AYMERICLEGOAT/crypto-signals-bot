@@ -24,6 +24,7 @@ import supabase_client
 import outcome_evaluator
 from html_generator import build_daily_page
 from archives_generator import build_archives_page, build_waiting_homepage
+from transparency_generator import build_transparency_page
 from sitemap_generator import build_sitemap, build_robots_txt
 import github_publisher
 
@@ -59,19 +60,23 @@ def main():
     # systèmes se marchent dessus sur les mêmes colonnes Supabase. Ce module
     # ne fait plus que LIRE les résultats déjà connus (compute_performance_stats).
 
-    print("1/6 — Récupération des derniers signaux et du backtest...")
+    print("1/7 — Récupération des derniers signaux et du backtest...")
     signals = supabase_client.get_recent_signals(limit=NUM_SIGNALS_TO_DISPLAY)
     backtest_stats = supabase_client.get_active_backtest_stats()
     backtest_trades = supabase_client.get_backtest_trades()
 
-    print("2/6 — Génération des archives du backtest...")
+    print("2/7 — Génération des archives du backtest...")
     files_to_publish = [("archives.html", build_archives_page(backtest_trades, backtest_stats))]
+
+    print("3/7 — Génération de la page de transparence (Audit#20)...")
+    daily_stats_history = supabase_client.get_daily_stats_history()
+    files_to_publish.append(("transparency.html", build_transparency_page(daily_stats_history)))
 
     fr_home_path = "/"
     en_home_path = "/en/"
 
     if signals:
-        print("3/6 — Signaux réels trouvés : génération des pages du jour (français + anglais)...")
+        print("4/7 — Signaux réels trouvés : génération des pages du jour (français + anglais)...")
         performance = outcome_evaluator.compute_performance_stats()
         fr_archive_path = f"/signaux/{today_str}.html"
         en_archive_path = f"/en/signals/{today_str}.html"
@@ -96,11 +101,11 @@ def main():
                 manifest.append({"path": path, "lastmod": today_str})
         _save_manifest(manifest)
     else:
-        print("3/6 — Aucun signal réel pour le moment : page d'accueil basée sur les archives du backtest.")
+        print("4/7 — Aucun signal réel pour le moment : page d'accueil basée sur les archives du backtest.")
         files_to_publish.append(("index.html", build_waiting_homepage(backtest_stats, TELEGRAM_BOT_USERNAME)))
         manifest = _load_manifest()
 
-    print("4/6 — Mise à jour du sitemap et de robots.txt (toujours publiés, même sans signal)...")
+    print("5/7 — Mise à jour du sitemap et de robots.txt (toujours publiés, même sans signal)...")
     # Audit#10 : /en/index.html n'est généré que si `signals` est non vide (branche
     # ci-dessus) — l'annoncer dans le sitemap avant qu'il existe créait une entrée
     # cassée (404) pour les moteurs de recherche tant qu'aucun signal réel n'existe.
@@ -109,6 +114,7 @@ def main():
         {"path": "/privacy.html", "lastmod": today_str},
         {"path": "/terms.html", "lastmod": today_str},
         {"path": "/archives.html", "lastmod": today_str},
+        {"path": "/transparency.html", "lastmod": today_str},
     ]
     if signals:
         sitemap_pages.append({"path": "/en/", "lastmod": today_str})
@@ -118,11 +124,11 @@ def main():
         ("robots.txt", build_robots_txt()),
     ]
 
-    print("5/6 — Écriture des copies locales...")
+    print("6/7 — Écriture des copies locales...")
     for relative_path, content in files_to_publish:
         _write_local_copy(relative_path, content)
 
-    print("6/6 — Publication sur GitHub...")
+    print("7/7 — Publication sur GitHub...")
     commit_message = f"Contenu SEO du {today_str}"
     github_publisher.publish_files(
         [(path, content, commit_message) for path, content in files_to_publish]

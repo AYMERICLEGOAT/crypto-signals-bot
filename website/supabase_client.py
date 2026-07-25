@@ -71,6 +71,27 @@ def get_backtest_trades(limit=50):
     return resp.json()
 
 
+def get_daily_stats_history(limit=90):
+    """
+    Instantanés quotidiens de croissance (voir workers/main-worker/src/db/dailyStats.ts,
+    computeAndStoreDailyStats — un par jour), du plus récent au plus ancien.
+    N'inclut PAS total_revenue_usdt : donnée interne, pas destinée à la page
+    de transparence publique (voir website/transparency_generator.py).
+    """
+    resp = requests.get(
+        f"{SUPABASE_URL}/rest/v1/daily_stats",
+        headers=_headers(),
+        params={
+            "select": "stat_date,total_users,active_trials,paying_subscribers,winrate_rolling_30d",
+            "order": "stat_date.desc",
+            "limit": str(limit),
+        },
+        timeout=15,
+    )
+    _check(resp, "select daily_stats")
+    return resp.json()
+
+
 def get_performance_window(limit):
     """Les `limit` signaux les plus récents ayant un résultat connu (WIN/LOSS)."""
     resp = requests.get(

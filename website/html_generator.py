@@ -66,6 +66,7 @@ _STRINGS = {
         "footer": lambda ts: f"Page générée automatiquement le {ts}.",
         "privacy_link": "Politique de confidentialité",
         "terms_link": "Conditions générales",
+        "transparency_link": "Transparence",
         "lang_switch": "English version",
         "date_format": "%d/%m/%Y",
         "footer_date_format": "%d/%m/%Y à %H:%M",
@@ -117,6 +118,7 @@ _STRINGS = {
         "footer": lambda ts: f"Page automatically generated on {ts}.",
         "privacy_link": "Privacy Policy",
         "terms_link": "Terms of Service",
+        "transparency_link": "Transparency",
         "lang_switch": "Version française",
         "date_format": "%m/%d/%Y",
         "footer_date_format": "%m/%d/%Y at %H:%M",
@@ -318,7 +320,7 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
   <p class="disclaimer">{s["disclaimer"]}</p>
 
   <footer>
-    <p>{s["footer"](footer_ts)} — <a href="/privacy.html">{s["privacy_link"]}</a> — <a href="/terms.html">{s["terms_link"]}</a></p>
+    <p>{s["footer"](footer_ts)} — <a href="/privacy.html">{s["privacy_link"]}</a> — <a href="/terms.html">{s["terms_link"]}</a> — <a href="/transparency.html">{s["transparency_link"]}</a></p>
   </footer>
 </body>
 </html>"""
