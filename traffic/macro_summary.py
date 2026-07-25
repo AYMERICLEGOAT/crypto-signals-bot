@@ -10,6 +10,8 @@ import logging
 
 import requests
 
+from content_templates import DISCLAIMER_SHORT
+
 logger = logging.getLogger(__name__)
 
 BINANCE_KLINES_URL = "https://api.binance.com/api/v3/klines"
@@ -70,7 +72,7 @@ def format_macro_tweet(summary: dict) -> str:
         f"Prix : {price_str} $ ({summary['change_24h_pct']:+.1f}% / 24h)\n"
         f"Volatilité 24h : {volatility:.1f}%\n"
         f"EMA9 {summary['position']} EMA21 (bougies 1h)\n\n"
-        f"Contenu factuel, pas un conseil en investissement.\n"
+        f"{DISCLAIMER_SHORT}\n"
         f"#Bitcoin #Crypto"
     )
 
@@ -89,6 +91,6 @@ def format_macro_discord_embed(summary: dict) -> dict:
                 {"name": "Volatilité 24h", "value": f"{volatility:.1f}%", "inline": True},
                 {"name": "EMA9 vs EMA21 (1h)", "value": f"EMA9 {summary['position']} EMA21", "inline": False},
             ],
-            "footer": {"text": "Contenu factuel, pas un conseil en investissement."},
+            "footer": {"text": DISCLAIMER_SHORT},
         }],
     }
