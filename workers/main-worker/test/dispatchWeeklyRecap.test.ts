@@ -26,6 +26,7 @@ describe("dispatchWeeklyRecap", () => {
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
         if (url.includes("weekly_recap_posts") && (!init || init.method === undefined)) return jsonResponse([]);
+        if (url.includes("/users") && url.includes("expiration=gt.")) return jsonResponse([]);
         if (url.includes("signals") && url.includes("evaluated_at=gte.")) {
           return jsonResponse([
             { type: "BUY", entry_price: 100, outcome_price: 104, close_reason: "tp_hit" },

@@ -646,3 +646,40 @@ create table if not exists exit_surveys (
     reason       text not null check (reason in ('frequency', 'performance', 'price', 'other')),
     created_at   timestamptz not null default now()
 );
+
+
+-- ----------------------------------------------------------------------------
+-- 28. Bloc 19 — /prefs : préférences de notification par abonné. Les Alertes
+--     Momentum / posts éducatifs / récap hebdo sont diffusés sur le canal
+--     public (voir cron/dispatchMomentumAlerts.ts etc.) ; ces préférences
+--     contrôlent en plus un envoi optionnel en DM aux abonnés actifs, activé
+--     par défaut. Les signaux Haute confiance ne sont PAS ici : ils restent
+--     obligatoires pour un abonné payant (pas de colonne = pas de choix).
+-- ----------------------------------------------------------------------------
+
+create table if not exists user_prefs (
+    telegram_id       bigint primary key references users (telegram_id),
+    momentum_alerts   boolean not null default true,
+    educational_posts boolean not null default true,
+    weekly_recap      boolean not null default true
+);
+
+
+-- ----------------------------------------------------------------------------
+-- 29. ÉTAPE 5 — mécanisme anti-stress : compte les pertes consécutives par
+--     abonné payant (voir cron/trackSignalOutcomes.ts) pour envoyer un
+--     message de réassurance après 2 pertes d'affilée, et une célébration
+--     légère après un take profit. Remis à zéro à chaque gain.
+-- ----------------------------------------------------------------------------
+
+alter table users add column if not exists consecutive_losses smallint not null default 0;
+
+
+-- ----------------------------------------------------------------------------
+-- 30. BLOC 22 — commissions virtuelles de parrainage : 10% du montant payé
+--     par le filleul, créditées au parrain à titre INFORMATIF uniquement
+--     (voir bot/referral.ts, maybeRewardReferral) -- jamais versées
+--     automatiquement, aucun flux d'argent réel associé à cette colonne.
+-- ----------------------------------------------------------------------------
+
+alter table referral_rewards add column if not exists commission_usd numeric not null default 0;

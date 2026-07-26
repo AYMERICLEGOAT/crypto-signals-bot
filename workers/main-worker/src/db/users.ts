@@ -24,6 +24,7 @@ export interface UserRecord {
   deleted: boolean;
   welcome_1h_sent: boolean;
   welcome_1d_sent: boolean;
+  consecutive_losses: number;
 }
 
 export async function getOrCreateUser(db: SupabaseConfig, telegramId: number): Promise<UserRecord> {
@@ -241,6 +242,17 @@ export async function markWelcomeFollowUpSent(
 
 export async function setSurveyResponse(db: SupabaseConfig, telegramId: number, response: "up" | "down"): Promise<void> {
   await updateRows(db, "users", { telegram_id: `eq.${telegramId}` }, { survey_response: response });
+}
+
+/** ÉTAPE 5 (mécanisme anti-stress) — compteur de pertes consécutives, remis à 0 à chaque gain. */
+export async function setConsecutiveLosses(db: SupabaseConfig, telegramId: number, count: number): Promise<void> {
+  await updateRows(db, "users", { telegram_id: `eq.${telegramId}` }, { consecutive_losses: count });
+}
+
+/** ÉTAPE 5 — récupère plusieurs utilisateurs en un seul appel (destinataires d'une clôture de signal). */
+export async function getUsersByIds(db: SupabaseConfig, telegramIds: number[]): Promise<UserRecord[]> {
+  if (telegramIds.length === 0) return [];
+  return selectRows<UserRecord>(db, "users", { telegram_id: `in.(${telegramIds.join(",")})` });
 }
 
 /** /cancel (Bloc 7) — n'affecte jamais l'accès déjà payé, seulement les futures relances/offres. */

@@ -8,7 +8,7 @@ statistiques de performance réelles. Disponible en français et en anglais
 import html
 from datetime import datetime
 
-from config import SITE_NAME, SITE_BASE_URL, TELEGRAM_BOT_USERNAME
+from config import SITE_NAME, SITE_BASE_URL, TELEGRAM_BOT_USERNAME, TELEGRAM_CHANNEL_URL
 from content_templates import generate_analysis, format_price
 from equity_curve import build_live_performance_section
 from testimonials import EXAMPLE_TESTIMONIALS
@@ -71,6 +71,7 @@ _STRINGS = {
         "Ce backtest est mis à jour automatiquement à chaque nouvelle exécution.",
         "cta_text": "📡 Reçois ces signaux en temps réel, dès qu'ils sont détectés :",
         "cta_link": lambda username: f"Rejoindre @{username} sur Telegram",
+        "journal_link": "📖 Journal de trading public — chaque signal ouvert et clôturé, gains comme pertes, sans filtre",
         "disclaimer": "⚠️ Ce contenu est fourni à titre informatif et pédagogique, il ne constitue pas "
         "un conseil en investissement. Le trading de cryptoactifs comporte un risque de perte en "
         "capital. Les performances passées ne préjugent pas des performances futures.",
@@ -132,6 +133,7 @@ _STRINGS = {
         "updated automatically on every new run.",
         "cta_text": "📡 Get these signals in real time, the moment they're detected:",
         "cta_link": lambda username: f"Join @{username} on Telegram",
+        "journal_link": "📖 Public trading journal — every signal opened and closed, wins and losses, no filtering",
         "disclaimer": "⚠️ This content is provided for informational and educational purposes only, "
         "it does not constitute investment advice. Trading cryptoassets carries a risk of capital "
         "loss. Past performance does not guarantee future results.",
@@ -357,6 +359,7 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
   <div class="cta">
     <p>{s["cta_text"]}</p>
     <a href="{TELEGRAM_URL}">{s["cta_link"](TELEGRAM_BOT_USERNAME)}</a>
+    <p><a href="{TELEGRAM_CHANNEL_URL}">{s["journal_link"]}</a></p>
   </div>
 
   <p class="disclaimer">{s["disclaimer"]}</p>

@@ -9,6 +9,10 @@ export async function handleStart(env: Env, telegramId: number, referralPayload?
   await attributeReferralIfNeeded(env, telegramId, referralPayload);
 
   const referralLink = buildReferralLink(env, telegramId);
+  const journalLine = env.TELEGRAM_CHANNEL_URL
+    ? "📖 Journal de trading public — chaque signal ouvert ET clôturé (gains comme pertes, sans filtre) : " +
+      `${env.TELEGRAM_CHANNEL_URL}\n\n`
+    : "";
 
   await sendMessage(
     env.TELEGRAM_BOT_TOKEN,
@@ -20,6 +24,7 @@ export async function handleStart(env: Env, telegramId: number, referralPayload?
       "• /trial — essai gratuit de 3 jours (une fois par wallet)\n" +
       "• /status — vérifier ton abonnement\n" +
       "• /help — toutes les commandes\n\n" +
+      journalLine +
       `🎁 Parraine un ami avec ton lien et gagne ${REFERRAL_BONUS_DAYS} jours gratuits dès son premier ` +
       `abonnement payant :\n${referralLink}`,
     { keyboard: startKeyboard }

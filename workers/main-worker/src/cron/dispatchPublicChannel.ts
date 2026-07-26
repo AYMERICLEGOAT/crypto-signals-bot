@@ -26,6 +26,9 @@ function formatPublicChannelMessage(signal: SignalRecord, botUsername: string): 
     `Entrée : ${signal.entry_price}`,
     `Stop loss : ${signal.stop_loss}`,
     `Take profit : ${signal.take_profit}`,
+    // Bloc 16 : journal de trading public — même score affiché qu'en DM
+    // (purement informatif, voir signals/confidence.py).
+    ...(signal.confidence_score != null ? [`Confiance : ${signal.confidence_score}/100`] : []),
     "",
     "⚠️ Pas un conseil financier — risque de perte en capital.",
     "",

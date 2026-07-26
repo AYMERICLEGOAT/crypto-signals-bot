@@ -54,6 +54,7 @@ describe("trackSignalOutcomes", () => {
         if (url.includes("signal_deliveries") && (!init || init.method === undefined)) {
           return jsonResponse([{ telegram_id: 10 }, { telegram_id: 11 }]);
         }
+        if (url.includes("/users") && url.includes("telegram_id=in.")) return jsonResponse([]);
         if (url.includes("api.telegram.org")) {
           const body = JSON.parse(init!.body as string);
           if (body.chat_id === -100123456) publicText = body.text;

@@ -73,6 +73,16 @@ export async function getLatestPendingPaymentAnyMethod(
   return rows[0] ?? null;
 }
 
+/** /check_payment — le tout dernier paiement quel que soit son statut (pending/confirmed/expired), pour distinguer "jamais tenté" de "confirmé". */
+export async function getLatestPaymentAnyStatus(db: SupabaseConfig, telegramId: number): Promise<PendingPayment | null> {
+  const rows = await selectRows<PendingPayment>(db, "pending_payments", {
+    telegram_id: `eq.${telegramId}`,
+    order: "created_at.desc",
+    limit: "1",
+  });
+  return rows[0] ?? null;
+}
+
 export async function markPaymentConfirmed(db: SupabaseConfig, id: number): Promise<void> {
   await updateRows(
     db,

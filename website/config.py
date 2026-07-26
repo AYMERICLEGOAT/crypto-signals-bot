@@ -22,6 +22,10 @@ SITE_SUBDIR = os.getenv("SITE_SUBDIR", "").strip("/")
 SITE_BASE_URL = os.getenv("SITE_BASE_URL", "https://votre-site.pages.dev").rstrip("/")
 SITE_NAME = os.getenv("SITE_NAME", "Signaux Crypto Gratuits")
 TELEGRAM_BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "ProVIPSignals_bot").lstrip("@")
+# Bloc 16 : journal de trading public (canal Telegram, mêmes valeurs que
+# workers/main-worker/wrangler.toml TELEGRAM_CHANNEL_URL) -- chaque signal
+# ouvert ET clôturé y est publié sans filtre (voir cron/trackSignalOutcomes.ts).
+TELEGRAM_CHANNEL_URL = os.getenv("TELEGRAM_CHANNEL_URL", "https://t.me/ProSignauxPublic")
 
 NUM_SIGNALS_TO_DISPLAY = 5
 

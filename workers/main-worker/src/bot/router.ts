@@ -18,6 +18,10 @@ import { handleDeleteMyDataCommand } from "./commands/deleteMyData";
 import { handleHelpCommand } from "./commands/help";
 import { handleTrustCommand } from "./commands/trust";
 import { handleExitSurveyResponse } from "./commands/exitSurveyResponse";
+import { handlePrefsCommand, handlePrefsToggle } from "./commands/prefs";
+import { handleMyPerformanceCommand } from "./commands/myPerformance";
+import { handleGuideCommand } from "./commands/guide";
+import { handleCheckPaymentCommand } from "./commands/checkPayment";
 import { handleTextMessage } from "./walletAddressHandler";
 
 /**
@@ -71,6 +75,14 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
       await handleHelpCommand(env, chatId);
     } else if (text === "/trust") {
       await handleTrustCommand(env, chatId);
+    } else if (text === "/prefs") {
+      await handlePrefsCommand(env, chatId);
+    } else if (text === "/myperformance") {
+      await handleMyPerformanceCommand(env, chatId);
+    } else if (text === "/guide") {
+      await handleGuideCommand(env, chatId);
+    } else if (text === "/check_payment") {
+      await handleCheckPaymentCommand(env, chatId);
     } else if (text && !text.startsWith("/")) {
       await handleTextMessage(env, chatId, text);
     }
@@ -93,5 +105,6 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
     else if (data.startsWith("pay:")) await handlePaymentMethodSelection(env, chatId, data);
     else if (data.startsWith("survey:")) await handleSurveyResponse(env, chatId, data);
     else if (data.startsWith("exit_survey:")) await handleExitSurveyResponse(env, chatId, data);
+    else if (data.startsWith("prefs:")) await handlePrefsToggle(env, chatId, data);
   }
 }

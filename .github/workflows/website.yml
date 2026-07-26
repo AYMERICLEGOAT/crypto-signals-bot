@@ -44,6 +44,7 @@ jobs:
           SITE_BASE_URL: https://crypto-signals-bot-site.signalytics.workers.dev
           SITE_NAME: "Signaux Crypto Gratuits"
           TELEGRAM_BOT_USERNAME: ProVIPSignals_bot
+          TELEGRAM_CHANNEL_URL: https://t.me/ProSignauxPublic
         run: python main.py
 
       # Audit#13 : voir signals.yml pour le contexte (même secret TELEGRAM_BOT_TOKEN requis).

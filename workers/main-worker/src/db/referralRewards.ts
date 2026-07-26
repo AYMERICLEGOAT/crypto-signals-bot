@@ -11,7 +11,8 @@ export async function recordReferralReward(
   referredTelegramId: number,
   bonusDays: number,
   milestoneHit: boolean,
-  jokerHit: boolean
+  jokerHit: boolean,
+  commissionUsd = 0
 ): Promise<void> {
   await insertRow(db, "referral_rewards", {
     referrer_telegram_id: referrerTelegramId,
@@ -19,7 +20,21 @@ export async function recordReferralReward(
     bonus_days: bonusDays,
     milestone_hit: milestoneHit,
     joker_hit: jokerHit,
+    commission_usd: commissionUsd,
   });
+}
+
+interface CommissionRow {
+  commission_usd: number;
+}
+
+/** BLOC 22 — total des commissions virtuelles créditées à ce parrain (jamais versées automatiquement, voir bot/referral.ts). */
+export async function getTotalCommissions(db: SupabaseConfig, referrerTelegramId: number): Promise<number> {
+  const rows = await selectRows<CommissionRow>(db, "referral_rewards", {
+    referrer_telegram_id: `eq.${referrerTelegramId}`,
+    select: "commission_usd",
+  });
+  return rows.reduce((sum, r) => sum + Number(r.commission_usd), 0);
 }
 
 interface RewardRow {

@@ -12,6 +12,12 @@ import { recordReferralReward } from "../db/referralRewards";
 import { updateRows } from "../supabaseRest";
 import { sendMessage } from "../telegram";
 import { addDays } from "../utils/date";
+import { PLAN_PRICES_USD, isValidPlan } from "../payments/plans";
+
+// BLOC 22 : commission virtuelle du parrain sur le montant payé par le
+// filleul -- purement incitative/psychologique, jamais versée
+// automatiquement (voir README/CGV). Ex: 10% de 19 USDT (Standard) = 1,9 USDT.
+export const REFERRAL_COMMISSION_RATE = 0.1;
 
 // Bonus crédité au PARRAIN quand son filleul confirme son premier
 // abonnement PAYANT (jamais sur un essai gratuit, pour éviter qu'un
@@ -110,17 +116,25 @@ export async function maybeRewardReferral(env: Env, referredTelegramId: number):
   await updateRows(db, "users", { telegram_id: `eq.${referrer.telegram_id}` }, { paid_referral_count: newPaidReferralCount });
   await markReferralRewarded(db, referredTelegramId);
 
+  // BLOC 22 : commission virtuelle sur le plan que le filleul vient de payer
+  // (déjà activé sur `user` par l'appelant avant maybeRewardReferral -- voir
+  // cron/pollPayments.ts). Purement incitative : jamais versée automatiquement.
+  const commissionUsd = isValidPlan(user.plan ?? 0) ? PLAN_PRICES_USD[user.plan as 1 | 2 | 3] * REFERRAL_COMMISSION_RATE : 0;
+
   // Non bloquant : le classement hebdomadaire (Bloc 6) est une fonctionnalité
   // secondaire, elle ne doit jamais faire échouer la récompense elle-même
   // (déjà appliquée ci-dessus) ni les étapes suivantes de la confirmation
   // de paiement appelante (cron/pollPayments.ts, boucle sur plusieurs paiements).
   try {
-    await recordReferralReward(db, referrer.telegram_id, referredTelegramId, bonusDays, hitMilestone, hitJoker);
+    await recordReferralReward(db, referrer.telegram_id, referredTelegramId, bonusDays, hitMilestone, hitJoker, commissionUsd);
   } catch (err) {
     console.error(`[referral] Échec de l'enregistrement pour le leaderboard (parrain ${referrer.telegram_id}):`, err);
   }
 
   let message = `🎁 Un ami que tu as parrainé vient de s'abonner ! +${REFERRAL_BONUS_DAYS} jours ajoutés à ton abonnement.`;
+  if (commissionUsd > 0) {
+    message += `\n\n💰 Commission virtuelle : +${commissionUsd.toFixed(2)} USDT (10% de son abonnement, consultable via /referral — non versée automatiquement).`;
+  }
   if (hitJoker) {
     message += `\n\n🃏 Bonus Joker : tu as parrainé juste avant l'expiration de ton abonnement, +${JOKER_BONUS_DAYS} jours supplémentaires offerts !`;
   }

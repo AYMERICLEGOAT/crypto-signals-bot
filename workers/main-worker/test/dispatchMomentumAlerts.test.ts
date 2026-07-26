@@ -22,6 +22,9 @@ describe("dispatchMomentumAlerts", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("/users") && url.includes("expiration=gt.")) {
+          return jsonResponse([]);
+        }
         if (url.includes("momentum_alerts") && url.includes("sent_to_channel=eq.false") && (!init || init.method === undefined)) {
           return jsonResponse([
             { id: 7, pair: "BTC/USDT", kind: "rsi_neutral_exit", detail: "RSI sort de la zone neutre (74), dynamique haussière", created_at: "2026-01-01T00:00:00Z", sent_to_channel: false },
@@ -66,6 +69,9 @@ describe("dispatchMomentumAlerts", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("/users") && url.includes("expiration=gt.")) {
+          return jsonResponse([]);
+        }
         if (url.includes("momentum_alerts") && url.includes("sent_to_channel=eq.false") && (!init || init.method === undefined)) {
           return jsonResponse([
             { id: 1, pair: "BTC/USDT", kind: "atr_spike", detail: "Volatilité en hausse de 45% sur 4h", created_at: "2026-01-01T00:00:00Z", sent_to_channel: false },

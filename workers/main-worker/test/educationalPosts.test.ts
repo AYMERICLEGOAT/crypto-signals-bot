@@ -70,6 +70,7 @@ describe("dispatchEducationalPost", () => {
           markedSent = true;
           return jsonResponse([]);
         }
+        if (url.includes("/users") && url.includes("expiration=gt.")) return jsonResponse([]);
         throw new Error(`URL inattendue: ${url}`);
       })
     );

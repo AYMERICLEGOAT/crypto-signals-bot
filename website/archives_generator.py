@@ -9,7 +9,7 @@ croire à un historique de signaux réels.
 import html
 from datetime import datetime, timezone
 
-from config import SITE_NAME, SITE_BASE_URL
+from config import SITE_NAME, SITE_BASE_URL, TELEGRAM_CHANNEL_URL
 from testimonials import EXAMPLE_TESTIMONIALS
 
 BACKTEST_WINDOW_DAYS = 730  # doit rester synchronisé avec signals/config.py (BACKTEST_DAYS)
@@ -157,6 +157,7 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
   <div class="cta">
     <p>Essayez gratuitement sur Telegram</p>
     <a href="https://t.me/{telegram_bot_username}">@{telegram_bot_username}</a>
+    <p><a href="{TELEGRAM_CHANNEL_URL}">📖 Journal de trading public — chaque signal ouvert et clôturé, sans filtre</a></p>
   </div>
 
   <p class="pairs"><strong>Paires suivies :</strong> BTC, ETH, SOL, BNB, XRP, ADA, DOGE, AVAX, DOT, LINK, TRX, POL, LTC, SHIB, UNI, ATOM, NEAR, APT, ARB, OP (toutes en /USDT).</p>

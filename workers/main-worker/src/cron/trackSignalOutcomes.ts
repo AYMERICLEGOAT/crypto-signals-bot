@@ -23,6 +23,7 @@ import { getDeliveryRecipients } from "../db/signalDeliveries";
 import { getCurrentPrices, pairToSymbol } from "../market/binancePrices";
 import { evaluateOutcome, computePnlPct, CloseReason } from "../signalMath";
 import { sendMessage } from "../telegram";
+import { handleAntiStress } from "./antiStress";
 
 const SIGNAL_TIMEOUT_DAYS = 10;
 const BATCH_SIZE = 25;
@@ -120,6 +121,9 @@ export async function trackSignalOutcomes(env: Env): Promise<void> {
 
     const recipients = await getDeliveryRecipients(db, signal.id);
     await notifyRecipients(env, recipients, formatSubscriberCloseMessage(closedSignal, pct));
+    await handleAntiStress(env, recipients, outcome).catch((err) =>
+      console.error(`[post-trade] Échec du mécanisme anti-stress pour le signal #${signal.id}:`, err)
+    );
 
     if (signal.sent_to_channel && env.TELEGRAM_CHANNEL_ID) {
       const channelId = Number(env.TELEGRAM_CHANNEL_ID);

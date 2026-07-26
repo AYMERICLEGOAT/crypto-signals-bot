@@ -90,6 +90,12 @@ export async function getOpenSignals(db: SupabaseConfig): Promise<SignalRecord[]
 }
 
 /** Bloc 9 — y a-t-il eu un vrai signal dans les `hours` dernières heures ? (statut "aucun signal aujourd'hui"). */
+/** BLOC 21 (/guide) — le tout dernier signal émis, tous statuts confondus, pour un exemple concret. */
+export async function getLatestSignal(db: SupabaseConfig): Promise<SignalRecord | null> {
+  const rows = await selectRows<SignalRecord>(db, "signals", { order: "created_at.desc", limit: "1" });
+  return rows[0] ?? null;
+}
+
 export async function hasRecentSignal(db: SupabaseConfig, hours: number): Promise<boolean> {
   const threshold = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
   const rows = await selectRows<{ id: number }>(db, "signals", {
