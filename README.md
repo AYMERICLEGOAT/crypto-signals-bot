@@ -83,11 +83,17 @@ un déploiement complet :
 5. [`website/`](website/README.md) — site SEO (GitHub Actions + Cloudflare Pages/Workers).
 6. [`traffic/`](traffic/README.md) — promotion sur les réseaux sociaux (GitHub Actions, optionnel).
 
-⚠️ **Bloc 15.3 — Sauvegardes Supabase** : active les backups quotidiens du
-projet (Dashboard Supabase → Database → Backups). C'est la seule copie de
-secours de toutes les données du bot (utilisateurs, abonnements, signaux,
-paiements) — rien dans ce dépôt ne les recrée en cas de perte. Rien à coder
-ici, juste une case à cocher dans le dashboard.
+✅ **Bloc 15.3 — Sauvegardes Supabase** : le plan gratuit Supabase ne propose
+AUCUN backup automatique (ni quotidien, ni PITR — réservés aux plans payants,
+vérifié directement dans le dashboard). La sauvegarde réelle est donc
+[`signals/backup_db.py`](signals/backup_db.py), exécuté chaque lundi 3h UTC
+par [`.github/workflows/backup.yml`](.github/workflows/backup.yml) : il
+exporte toutes les tables en JSON, en séparant strictement les données sans
+information personnelle (commitées dans `signals/backups/public/`, visibles
+dans ce dépôt public) des tables contenant des identifiants Telegram ou des
+adresses de paiement (`users`, `pending_payments`, etc. — jamais commitées,
+seulement conservées 90 jours en artefact GitHub Actions privé). Rien à
+activer côté Supabase.
 
 ## Principes du projet
 

@@ -1,0 +1,62 @@
+name: Sauvegarde hebdomadaire de la base
+
+# Bloc 15.3 : Supabase ne propose aucun backup automatique sur le plan
+# gratuit (ni quotidien, ni PITR) -- ce workflow est la seule sauvegarde
+# réelle des données du bot.
+#
+# Deux sorties, jamais mélangées (voir signals/backup_db.py pour le detail
+# de la separation table par table) :
+#   - backups/public/  : aucune donnee personnelle -> commitee dans le depot
+#     (public sur GitHub), pour un historique consultable sans risque.
+#   - backups/private/ : telegram_id / wallets / adresses de paiement ->
+#     JAMAIS commitee, seulement uploadee en artefact GitHub Actions prive
+#     (visible uniquement aux collaborateurs du depot, expire automatiquement).
+on:
+  schedule:
+    - cron: "0 3 * * 1" # lundi 3h UTC
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installer les dépendances
+        run: pip install -r signals/requirements.txt
+
+      - name: Exporter les tables Supabase (public + privé)
+        working-directory: signals
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python backup_db.py
+
+      - name: Committer la sauvegarde publique (sans donnée personnelle)
+        working-directory: signals
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add backups/public/
+          git diff --staged --quiet || git commit -m "Sauvegarde hebdomadaire du $(date -u +%Y-%m-%d)"
+          git push
+
+      - name: Envoyer la sauvegarde privée en artefact (jamais commitée)
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-private-${{ github.run_id }}
+          path: signals/backups/private/
+          retention-days: 90
+
+      - name: Alerter l'admin en cas d'échec
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            --data-urlencode "chat_id=8647576528" \
+            --data-urlencode "text=⚠️ Échec du workflow \"Sauvegarde hebdomadaire de la base\" (run #${{ github.run_number }}). Détails : https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"

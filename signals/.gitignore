@@ -5,3 +5,8 @@ __pycache__/
 data/*.db
 data/*.json
 data/*.png
+
+# Bloc 15.3 : backups/private/ contient des donnees personnelles (telegram_id,
+# wallets, adresses de paiement) -- ne doit JAMAIS finir dans un commit, meme
+# via un "git add -A" local. Seul backups/public/ est commite (par le workflow).
+backups/private/
