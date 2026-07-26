@@ -22,6 +22,8 @@ export async function handleHelpCommand(env: Env, telegramId: number): Promise<v
       "/guide — comment suivre un signal pas à pas\n\n" +
       "*Parrainage*\n" +
       "/referral — ton lien de parrainage et ta progression\n\n" +
+      "*Groupe VIP*\n" +
+      "/vip — lien du canal privé (réservé aux abonnés payants)\n\n" +
       "*Confiance*\n" +
       "/trust — nombre réel d'abonnés payants actifs, en direct\n\n" +
       "*Préférences*\n" +

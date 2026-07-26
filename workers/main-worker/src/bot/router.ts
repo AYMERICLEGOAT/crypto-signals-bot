@@ -22,6 +22,7 @@ import { handlePrefsCommand, handlePrefsToggle } from "./commands/prefs";
 import { handleMyPerformanceCommand } from "./commands/myPerformance";
 import { handleGuideCommand } from "./commands/guide";
 import { handleCheckPaymentCommand } from "./commands/checkPayment";
+import { handleVipCommand } from "./commands/vip";
 import { handleTextMessage } from "./walletAddressHandler";
 
 /**
@@ -83,6 +84,8 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
       await handleGuideCommand(env, chatId);
     } else if (text === "/check_payment") {
       await handleCheckPaymentCommand(env, chatId);
+    } else if (text === "/vip") {
+      await handleVipCommand(env, chatId);
     } else if (text && !text.startsWith("/")) {
       await handleTextMessage(env, chatId, text);
     }

@@ -111,3 +111,21 @@ export async function getChatMemberStatus(token: string, chatId: string | number
   const json = (await res.json()) as { ok: boolean; result?: { status: string } };
   return json.ok ? json.result?.status ?? null : null;
 }
+
+/** Canal VIP (abonnés payants) : le bot doit être admin du chat avec le droit "inviter des utilisateurs". */
+export async function createChatInviteLink(token: string, chatId: string | number, name?: string): Promise<string> {
+  const res = await fetch(`${API_BASE}${token}/createChatInviteLink`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, name }),
+  });
+  const json = (await res.json()) as { ok: boolean; result?: { invite_link: string }; description?: string };
+  if (!json.ok || !json.result) {
+    throw new Error(`Telegram API createChatInviteLink a échoué: ${json.description ?? "réponse invalide"}`);
+  }
+  return json.result.invite_link;
+}
+
+export async function revokeChatInviteLink(token: string, chatId: string | number, inviteLink: string): Promise<void> {
+  await callTelegramApi(token, "revokeChatInviteLink", { chat_id: chatId, invite_link: inviteLink });
+}

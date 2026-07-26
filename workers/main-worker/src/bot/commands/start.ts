@@ -23,7 +23,8 @@ export async function handleStart(env: Env, telegramId: number, referralPayload?
       "• /subscribe — voir les offres et s'abonner\n" +
       "• /trial — essai gratuit de 3 jours (une fois par wallet)\n" +
       "• /status — vérifier ton abonnement\n" +
-      "• /help — toutes les commandes\n\n" +
+      "• /help — toutes les commandes\n" +
+      "• /vip — canal privé réservé aux abonnés payants\n\n" +
       journalLine +
       `🎁 Parraine un ami avec ton lien et gagne ${REFERRAL_BONUS_DAYS} jours gratuits dès son premier ` +
       `abonnement payant :\n${referralLink}`,

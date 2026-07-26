@@ -34,6 +34,11 @@ export interface Env {
   // Lien public (https://t.me/...) du même canal, affiché aux utilisateurs (TELEGRAM_CHANNEL_ID
   // est l'identifiant numérique interne, pas cliquable/lisible pour un humain).
   TELEGRAM_CHANNEL_URL?: string;
+  // Canal VIP privé (abonnés Standard/Pro/Découverte, voir /vip) — optionnel :
+  // si absent, /vip explique qu'il n'est pas encore configuré plutôt que
+  // d'échouer silencieusement. Le bot doit être admin de ce chat avec le
+  // droit "inviter des utilisateurs" (voir bot/commands/vip.ts).
+  TELEGRAM_VIP_CHANNEL_ID?: string;
   // Adresse de réception USDT (V2 100% off-chain) — pas un secret, une adresse
   // publique de wallet. Si absent, processUsdtTransfers() ne fait rien.
   PAYMENT_ADDRESS_USDT?: string;
