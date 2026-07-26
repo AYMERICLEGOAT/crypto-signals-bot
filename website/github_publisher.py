@@ -24,10 +24,20 @@ def get_repo():
 
 
 def upsert_file(repo, path, content, commit_message):
-    """Crée le fichier s'il n'existe pas encore sur le dépôt, le met à jour sinon."""
+    """
+    Crée le fichier s'il n'existe pas encore sur le dépôt, le met à jour
+    sinon -- sauf si le contenu est déjà identique (Audit#11 : website.yml
+    se déclenche désormais après chaque run horaire de signals.yml, la
+    plupart du temps sans rien de nouveau à publier ; committer à l'identique
+    à chaque fois ne faisait que polluer l'historique et déclencher un
+    redéploiement Cloudflare Pages pour rien).
+    """
     full_path = _full_path(path)
     try:
         existing = repo.get_contents(full_path, ref=GITHUB_BRANCH)
+        if existing.decoded_content == content.encode("utf-8"):
+            print(f"  Inchangé, pas de commit: {full_path}")
+            return
         repo.update_file(full_path, commit_message, content, existing.sha, branch=GITHUB_BRANCH)
         print(f"  Mis à jour sur GitHub: {full_path}")
     except GithubException as exc:

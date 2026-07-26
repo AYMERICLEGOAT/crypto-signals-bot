@@ -69,7 +69,7 @@ _STRINGS = {
         "transparency_link": "Transparence",
         "lang_switch": "English version",
         "date_format": "%d/%m/%Y",
-        "footer_date_format": "%d/%m/%Y à %H:%M",
+        "footer_date_format": "%d/%m/%Y",  # jour seul, voir Audit#11 (github_publisher.py compare le contenu à l'octet près)
     },
     "en": {
         "html_lang": "en",
@@ -121,7 +121,7 @@ _STRINGS = {
         "transparency_link": "Transparency",
         "lang_switch": "Version française",
         "date_format": "%m/%d/%Y",
-        "footer_date_format": "%m/%d/%Y at %H:%M",
+        "footer_date_format": "%m/%d/%Y",
     },
 }
 

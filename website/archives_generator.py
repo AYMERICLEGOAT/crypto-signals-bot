@@ -109,7 +109,11 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
     else:
         stats_html = ""
 
-    footer_ts = datetime.now(timezone.utc).strftime("%d/%m/%Y à %H:%M UTC")
+    # Précision au jour (pas à la minute) : voir Audit#11, github_publisher.py
+    # compare le contenu généré à l'octet près pour éviter un commit à chaque
+    # exécution horaire sans rien de nouveau -- un timestamp à la minute ici
+    # rendrait cette comparaison inutile (le contenu différerait toujours).
+    footer_ts = datetime.now(timezone.utc).strftime("%d/%m/%Y")
 
     return f"""<!DOCTYPE html>
 <html lang="fr">
@@ -195,7 +199,11 @@ def build_archives_page(trades, backtest_stats, canonical_path="/archives.html")
     else:
         rows_html = "<p>Aucun exemple de trade enregistré pour le moment — reviens après le prochain backtest.</p>"
 
-    footer_ts = datetime.now(timezone.utc).strftime("%d/%m/%Y à %H:%M UTC")
+    # Précision au jour (pas à la minute) : voir Audit#11, github_publisher.py
+    # compare le contenu généré à l'octet près pour éviter un commit à chaque
+    # exécution horaire sans rien de nouveau -- un timestamp à la minute ici
+    # rendrait cette comparaison inutile (le contenu différerait toujours).
+    footer_ts = datetime.now(timezone.utc).strftime("%d/%m/%Y")
 
     return f"""<!DOCTYPE html>
 <html lang="fr">
