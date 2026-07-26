@@ -64,13 +64,14 @@ def main():
     signals = supabase_client.get_recent_signals(limit=NUM_SIGNALS_TO_DISPLAY)
     backtest_stats = supabase_client.get_active_backtest_stats()
     backtest_trades = supabase_client.get_backtest_trades()
+    resolved_signals = supabase_client.get_all_resolved_signals()  # Bloc 11.1 (portefeuille fictif) + 13.3 (transparence)
 
     print("2/7 — Génération des archives du backtest...")
     files_to_publish = [("archives.html", build_archives_page(backtest_trades, backtest_stats))]
 
-    print("3/7 — Génération de la page de transparence (Audit#20)...")
+    print("3/7 — Génération de la page de transparence (Audit#20 + Bloc 13.3)...")
     daily_stats_history = supabase_client.get_daily_stats_history()
-    files_to_publish.append(("transparency.html", build_transparency_page(daily_stats_history)))
+    files_to_publish.append(("transparency.html", build_transparency_page(daily_stats_history, resolved_signals=resolved_signals)))
 
     fr_home_path = "/"
     en_home_path = "/en/"
@@ -78,7 +79,6 @@ def main():
     if signals:
         print("4/7 — Signaux réels trouvés : génération des pages du jour (français + anglais)...")
         performance = outcome_evaluator.compute_performance_stats()
-        resolved_signals = supabase_client.get_all_resolved_signals()  # Bloc 11.1 : portefeuille fictif
         fr_archive_path = f"/signaux/{today_str}.html"
         en_archive_path = f"/en/signals/{today_str}.html"
         home_files = {"index.html", "en/index.html"}

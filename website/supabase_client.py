@@ -103,7 +103,7 @@ def get_all_resolved_signals(limit=500):
         f"{SUPABASE_URL}/rest/v1/signals",
         headers=_headers(),
         params={
-            "select": "type,entry_price,outcome_price,evaluated_at",
+            "select": "pair,type,entry_price,outcome_price,outcome,close_reason,evaluated_at",
             "outcome": "not.is.null",
             "order": "evaluated_at.asc",
             "limit": str(limit),

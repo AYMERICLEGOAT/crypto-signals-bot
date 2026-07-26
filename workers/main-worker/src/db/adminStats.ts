@@ -27,3 +27,13 @@ export async function getAdminStats(db: SupabaseConfig): Promise<AdminStats> {
 
   return { trials, everPaid, activePaying, conversionRatePct };
 }
+
+/** Bloc 13.1 — /trust (preuve sociale publique) : nombre réel d'abonnés payants actifs, sans les stats admin (public, pas de gate). */
+export async function getActivePayingCount(db: SupabaseConfig): Promise<number> {
+  const rows = await selectRows(db, "users", {
+    plan_started_at: "not.is.null",
+    expiration: `gt.${new Date().toISOString()}`,
+    select: "telegram_id",
+  });
+  return rows.length;
+}

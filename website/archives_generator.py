@@ -10,6 +10,7 @@ import html
 from datetime import datetime, timezone
 
 from config import SITE_NAME, SITE_BASE_URL
+from testimonials import EXAMPLE_TESTIMONIALS
 
 BACKTEST_WINDOW_DAYS = 730  # doit rester synchronisé avec signals/config.py (BACKTEST_DAYS)
 _BACKTEST_WINDOW_MONTHS = round(BACKTEST_WINDOW_DAYS / 30)
@@ -159,6 +160,12 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
   </div>
 
   <p class="pairs"><strong>Paires suivies :</strong> BTC, ETH, SOL, BNB, XRP, ADA, DOGE, AVAX, DOT, LINK, TRX, POL, LTC, SHIB, UNI, ATOM, NEAR, APT, ARB, OP (toutes en /USDT).</p>
+
+  <section class="testimonials">
+    <h2>💬 Ce qu'ils en pensent</h2>
+    {"".join(f'<blockquote><p>« {html.escape(t["quote"])} »</p><cite>— {html.escape(t["name"])}</cite></blockquote>' for t in EXAMPLE_TESTIMONIALS)}
+    <p style="font-size:0.82rem;color:#777;">⚠️ Exemples fictifs illustrant le format des retours utilisateurs — pas de vrais témoignages.</p>
+  </section>
 
   <p class="disclaimer">Ceci n'est pas un conseil financier. Le trading de cryptomonnaies comporte des risques de perte en capital. Les performances passées ne préjugent pas des résultats futurs.</p>
 

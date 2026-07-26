@@ -75,6 +75,60 @@ def _curve_svg(curve: list, width: int = 640, height: int = 200) -> str:
     )
 
 
+DISTRIBUTION_BUCKETS = [
+    (-float("inf"), -0.04, "< -4%"),
+    (-0.04, -0.02, "-4% à -2%"),
+    (-0.02, 0, "-2% à 0%"),
+    (0, 0.02, "0% à 2%"),
+    (0.02, 0.04, "2% à 4%"),
+    (0.04, float("inf"), "> 4%"),
+]
+
+
+def build_distribution_svg(signals: list, width: int = 640, height: int = 200) -> str:
+    """
+    Bloc 13.3 : histogramme de distribution des gains/pertes (résultats
+    réels, pas backtest) -- répartit les pnl_pct résolus dans des tranches
+    fixes plutôt qu'un histogramme à pas variable, pour rester lisible même
+    avec peu de points.
+    """
+    resolved = [s for s in signals if s.get("outcome_price") is not None]
+    if not resolved:
+        return ""
+
+    counts = [0] * len(DISTRIBUTION_BUCKETS)
+    for signal in resolved:
+        pct = _pnl_pct(signal)
+        for i, (lo, hi, _label) in enumerate(DISTRIBUTION_BUCKETS):
+            if lo <= pct < hi or (hi == float("inf") and pct >= lo):
+                counts[i] += 1
+                break
+
+    max_count = max(counts) or 1
+    pad = 10
+    bar_gap = 8
+    bar_width = (width - 2 * pad - bar_gap * (len(counts) - 1)) / len(counts)
+    bars = []
+    for i, (count, (lo, _hi, label)) in enumerate(zip(counts, DISTRIBUTION_BUCKETS)):
+        bar_height = (count / max_count) * (height - 50)
+        x = pad + i * (bar_width + bar_gap)
+        y = height - 30 - bar_height
+        color = "#dc2626" if lo < 0 else "#16a34a"
+        bars.append(
+            f'<rect x="{x:.1f}" y="{y:.1f}" width="{bar_width:.1f}" height="{bar_height:.1f}" fill="{color}" rx="2"/>'
+            f'<text x="{x + bar_width / 2:.1f}" y="{y - 4:.1f}" font-size="11" text-anchor="middle" fill="currentColor">{count}</text>'
+            f'<text x="{x + bar_width / 2:.1f}" y="{height - 10}" font-size="9" text-anchor="middle" fill="currentColor">{label}</text>'
+        )
+
+    return (
+        f'<svg viewBox="0 0 {width} {height}" width="100%" height="{height}" '
+        f'xmlns="http://www.w3.org/2000/svg" role="img" '
+        f'aria-label="Distribution des résultats réels par tranche de gain/perte">'
+        f'{"".join(bars)}'
+        f'</svg>'
+    )
+
+
 def build_live_performance_section(signals: list, strings: dict) -> str:
     """
     `signals` : résultat de supabase_client.get_all_resolved_signals()

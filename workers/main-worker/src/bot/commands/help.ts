@@ -19,6 +19,8 @@ export async function handleHelpCommand(env: Env, telegramId: number): Promise<v
       "/history — tes 5 derniers signaux reçus et leur résultat\n\n" +
       "*Parrainage*\n" +
       "/referral — ton lien de parrainage et ta progression\n\n" +
+      "*Confiance*\n" +
+      "/trust — nombre réel d'abonnés payants actifs, en direct\n\n" +
       "*Tes données*\n" +
       "/delete_my_data — supprimer tes données personnelles (RGPD)\n\n" +
       "*Aide*\n" +

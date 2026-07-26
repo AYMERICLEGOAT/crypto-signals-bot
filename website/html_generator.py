@@ -11,6 +11,7 @@ from datetime import datetime
 from config import SITE_NAME, SITE_BASE_URL, TELEGRAM_BOT_USERNAME
 from content_templates import generate_analysis, format_price
 from equity_curve import build_live_performance_section
+from testimonials import EXAMPLE_TESTIMONIALS
 
 TELEGRAM_URL = f"https://t.me/{TELEGRAM_BOT_USERNAME}"
 
@@ -54,6 +55,8 @@ _STRINGS = {
         ),
         "paper_note": "⚠️ Simulation à titre illustratif (sizing fixe, sans réinvestissement des gains) — "
         "ne reflète pas un compte réel ni les frais/slippage. Pas un conseil en investissement.",
+        "testimonials_heading": "💬 Ce qu'ils en pensent",
+        "testimonials_disclaimer": "⚠️ Exemples fictifs illustrant le format des retours utilisateurs — pas de vrais témoignages.",
         "backtest_heading": "🧪 Backtest de la stratégie",
         "backtest_stat": lambda win_rate, trades: (
             f"{win_rate:.1f}% de réussite sur {trades} trades en 24 mois"
@@ -113,6 +116,8 @@ _STRINGS = {
         ),
         "paper_note": "⚠️ Illustrative simulation (fixed position sizing, no compounding of gains) — "
         "does not reflect a real account or fees/slippage. Not investment advice.",
+        "testimonials_heading": "💬 What people say",
+        "testimonials_disclaimer": "⚠️ Fictional examples illustrating the format of user feedback — not real testimonials.",
         "backtest_heading": "🧪 Strategy backtest",
         "backtest_stat": lambda win_rate, trades: (
             f"{win_rate:.1f}% win rate on {trades} trades over 24 months"
@@ -238,6 +243,20 @@ def _performance_section_html(stats, s):
     </section>"""
 
 
+def _testimonials_section_html(s):
+    """Bloc 13.2 : citations d'exemple (voir testimonials.py) -- jamais présentées comme de vrais témoignages."""
+    quotes_html = "".join(
+        f'<blockquote><p>« {html.escape(t["quote"])} »</p><cite>— {html.escape(t["name"])}</cite></blockquote>'
+        for t in EXAMPLE_TESTIMONIALS
+    )
+    return f"""
+    <section class="testimonials">
+      <h2>{s["testimonials_heading"]}</h2>
+      {quotes_html}
+      <p style="font-size:0.82rem;color:#777;">{s["testimonials_disclaimer"]}</p>
+    </section>"""
+
+
 def _backtest_section_html(backtest_stats, s):
     """
     backtest_stats : ligne active de la table strategy_params (win_rate en
@@ -282,6 +301,7 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
     cards_html = "".join(_signal_card_html(sig, s, lang) for sig in signals)
     performance_html = _performance_section_html(performance_stats, s)
     paper_html = build_live_performance_section(resolved_signals or [], s)
+    testimonials_html = _testimonials_section_html(s)
 
     hreflang_tags = ""
     lang_switch_html = ""
@@ -331,6 +351,8 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
   {performance_html}
 
   {paper_html}
+
+  {testimonials_html}
 
   <div class="cta">
     <p>{s["cta_text"]}</p>

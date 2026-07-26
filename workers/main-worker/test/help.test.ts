@@ -25,7 +25,7 @@ describe("handleHelpCommand", () => {
 
     await handleHelpCommand(env, 1);
 
-    for (const cmd of ["/subscribe", "/trial", "/status", "/pay", "/code", "/cancel", "/demo", "/history", "/referral", "/delete_my_data", "/help"]) {
+    for (const cmd of ["/subscribe", "/trial", "/status", "/pay", "/code", "/cancel", "/demo", "/history", "/referral", "/trust", "/delete_my_data", "/help"]) {
       expect(text).toContain(cmd);
     }
   });

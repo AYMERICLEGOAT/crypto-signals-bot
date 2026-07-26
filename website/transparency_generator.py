@@ -13,8 +13,45 @@ import html
 from datetime import datetime, timezone
 
 from config import SITE_NAME, SITE_BASE_URL
+from equity_curve import build_distribution_svg
 
 MIN_DAYS_FOR_PAGE = 3
+_CLOSE_REASON_LABEL = {"tp_hit": "Take profit ✅", "sl_hit": "Stop loss ❌", "expired": "Expiré ⌛"}
+
+
+def _signal_row_html(signal):
+    date_str = signal["evaluated_at"][:10] if signal.get("evaluated_at") else "?"
+    outcome_label = _CLOSE_REASON_LABEL.get(signal.get("close_reason"), signal.get("outcome") or "?")
+    return f"""
+    <tr>
+      <td>{html.escape(date_str)}</td>
+      <td>{html.escape(signal["pair"])}</td>
+      <td>{"ACHAT" if signal["type"] == "BUY" else "VENTE"}</td>
+      <td>{outcome_label}</td>
+    </tr>"""
+
+
+def _all_signals_section_html(resolved_signals):
+    """Bloc 13.3 : TOUS les signaux réels résolus, triés du plus récent au plus ancien, avec leur résultat."""
+    if not resolved_signals:
+        return ""
+    ordered = list(reversed(resolved_signals))  # get_all_resolved_signals trie du plus ancien au plus récent
+    rows_html = "".join(_signal_row_html(s) for s in ordered)
+    distribution = build_distribution_svg(resolved_signals)
+    distribution_html = (
+        f'<h3>Distribution des résultats réels</h3>{distribution}' if distribution else ""
+    )
+    return f"""
+    <section>
+      <h2>Tous les signaux réels envoyés</h2>
+      <p>{len(resolved_signals)} signal(aux) réel(s) résolu(s) au total (ce ne sont pas des exemples de
+      backtest — voir <a href="/archives.html">les archives du backtest</a> pour ceux-là).</p>
+      {distribution_html}
+      <table>
+        <thead><tr><th>Date</th><th>Paire</th><th>Type</th><th>Résultat</th></tr></thead>
+        <tbody>{rows_html}</tbody>
+      </table>
+    </section>"""
 
 
 def _row_html(row):
@@ -31,12 +68,13 @@ def _row_html(row):
     </tr>"""
 
 
-def build_transparency_page(history, canonical_path="/transparency.html"):
+def build_transparency_page(history, canonical_path="/transparency.html", resolved_signals=None):
     """
     `history` : lignes daily_stats (voir supabase_client.get_daily_stats_history),
     du plus récent au plus ancien. Peut être vide ou très courte, notamment
     juste après le lancement — dans ce cas la page le dit honnêtement plutôt
     que d'afficher un historique tronqué qui prêterait à confusion.
+    `resolved_signals` : voir supabase_client.get_all_resolved_signals() -- Bloc 13.3.
     """
     canonical_url = f"{SITE_BASE_URL}{canonical_path}"
     title = f"Transparence — croissance et performance réelle — {SITE_NAME}"
@@ -68,6 +106,7 @@ def build_transparency_page(history, canonical_path="/transparency.html"):
             "Reviens bientôt.</p>"
         )
 
+    all_signals_html = _all_signals_section_html(resolved_signals or [])
     footer_ts = datetime.now(timezone.utc).strftime("%d/%m/%Y à %H:%M UTC")
 
     return f"""<!DOCTYPE html>
@@ -104,6 +143,8 @@ def build_transparency_page(history, canonical_path="/transparency.html"):
   </header>
 
   {summary_html}
+
+  {all_signals_html}
 
   <p class="disclaimer">Le taux de réussite (30 jours glissants) porte sur les signaux réellement envoyés aux abonnés,
   déterminé automatiquement (prix courant comparé au stop loss / take profit) — voir la section performance de
