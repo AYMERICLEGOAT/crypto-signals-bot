@@ -137,12 +137,14 @@ export async function handlePaymentMethodSelection(env: Env, telegramId: number,
     if (env.PAYMENT_GUIDE_IMAGE_URL) {
       await sendPhoto(env.TELEGRAM_BOT_TOKEN, telegramId, env.PAYMENT_GUIDE_IMAGE_URL);
     }
+    const ltcUri = `litecoin:${invoice.address}?amount=${invoice.amountLtc.toFixed(6)}`;
     await sendMessage(
       env.TELEGRAM_BOT_TOKEN,
       telegramId,
       `⚪ *Paiement Litecoin — ${PLAN_NAMES[plan]}*\n\n` +
         `Envoie *exactement ${invoice.amountLtc.toFixed(6)} LTC* à cette adresse (à usage unique) :\n` +
         `\`${invoice.address}\`\n\n` +
+        `📱 [Ouvrir directement dans ton wallet](${ltcUri}) (adresse et montant préremplis).\n\n` +
         `Confirmation automatique après détection sur la blockchain (vérifiée toutes les 5 minutes).`,
       { markdown: true }
     );

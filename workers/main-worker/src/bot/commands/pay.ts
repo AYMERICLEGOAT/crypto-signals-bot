@@ -34,6 +34,10 @@ export async function handlePayCommand(env: Env, telegramId: number): Promise<vo
   const lines = [`Paiement en attente — ${planLabel}, ${label}`];
   if (pending.pay_address) lines.push(`Adresse : \`${pending.pay_address}\``);
   if (pending.amount_expected !== null) lines.push(`Montant exact : ${pending.amount_expected}`);
+  // Bloc 15.2 : lien litecoin: cliquable (adresse + montant préremplis) -- seul ce schéma d'URI a un sens ici (pas de standard équivalent largement supporté pour USDT/Polygon ou Monero).
+  if (pending.method === "LTC" && pending.pay_address && pending.amount_expected !== null) {
+    lines.push(`📱 [Ouvrir directement dans ton wallet](litecoin:${pending.pay_address}?amount=${pending.amount_expected})`);
+  }
   lines.push("Confirmation automatique dès réception (vérifiée toutes les 5 minutes).");
 
   await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, lines.join("\n"), { markdown: true });

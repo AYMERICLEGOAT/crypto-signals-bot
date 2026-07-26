@@ -7,7 +7,7 @@
  */
 
 import { Env } from "../env";
-import { getBlockNumber, getLogs } from "./rpc";
+import { getBlockNumber, getLogs, buildPolygonRpcConfig } from "./rpc";
 import { TRANSFER_TOPIC0, decodeAddressFromTopic, decodeUint256, encodeAddressArg } from "./abi";
 import { getLastProcessedBlock, setLastProcessedBlock } from "../db/chainState";
 import { isTxCached, cacheTxResult } from "../db/paymentCache";
@@ -27,7 +27,7 @@ export interface UsdtTransferEvent {
 export async function catchUpUsdtTransfers(env: Env, db: SupabaseConfig): Promise<UsdtTransferEvent[]> {
   if (!env.PAYMENT_ADDRESS_USDT) return [];
 
-  const rpc = { url: env.POLYGON_RPC_URL };
+  const rpc = buildPolygonRpcConfig(env);
   const currentBlock = await getBlockNumber(rpc);
   const lastProcessed = await getLastProcessedBlock(db, CHAIN_STATE_KEY);
   let fromBlock = lastProcessed !== null ? lastProcessed + 1 : Math.max(0, currentBlock - DEFAULT_LOOKBACK_BLOCKS);

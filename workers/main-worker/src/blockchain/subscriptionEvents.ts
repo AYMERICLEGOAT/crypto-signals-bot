@@ -8,7 +8,7 @@
  */
 
 import { Env } from "../env";
-import { getBlockNumber, getLogs } from "./rpc";
+import { getBlockNumber, getLogs, buildPolygonRpcConfig } from "./rpc";
 import { SUBSCRIBED_TOPIC0, decodeAddressFromTopic, decodeSubscribedData } from "./abi";
 import { getLastProcessedBlock, setLastProcessedBlock } from "../db/chainState";
 import { isTxCached, cacheTxResult } from "../db/paymentCache";
@@ -25,7 +25,7 @@ export interface SubscribedEvent {
 }
 
 export async function catchUpMissedEvents(env: Env, db: SupabaseConfig): Promise<SubscribedEvent[]> {
-  const rpc = { url: env.POLYGON_RPC_URL };
+  const rpc = buildPolygonRpcConfig(env);
   const currentBlock = await getBlockNumber(rpc);
   const lastProcessed = await getLastProcessedBlock(db);
   let fromBlock = lastProcessed !== null ? lastProcessed + 1 : Math.max(0, currentBlock - DEFAULT_LOOKBACK_BLOCKS);

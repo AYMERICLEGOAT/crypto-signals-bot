@@ -83,6 +83,12 @@ un déploiement complet :
 5. [`website/`](website/README.md) — site SEO (GitHub Actions + Cloudflare Pages/Workers).
 6. [`traffic/`](traffic/README.md) — promotion sur les réseaux sociaux (GitHub Actions, optionnel).
 
+⚠️ **Bloc 15.3 — Sauvegardes Supabase** : active les backups quotidiens du
+projet (Dashboard Supabase → Database → Backups). C'est la seule copie de
+secours de toutes les données du bot (utilisateurs, abonnements, signaux,
+paiements) — rien dans ce dépôt ne les recrée en cas de perte. Rien à coder
+ici, juste une case à cocher dans le dashboard.
+
 ## Principes du projet
 
 - **Gratuit à opérer** : tous les services utilisés (GitHub Actions, Cloudflare Workers, Supabase) ont un plan gratuit suffisant pour ce volume — le seul coût réel pour l'opérateur du bot est le gas Polygon des actions ponctuelles côté admin.

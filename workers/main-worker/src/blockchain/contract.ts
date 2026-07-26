@@ -1,5 +1,5 @@
 import { Env } from "../env";
-import { ethCall } from "./rpc";
+import { ethCall, buildPolygonRpcConfig } from "./rpc";
 import { SELECTORS, encodeAddressArg, encodeCall, decodeUint256, decodeBool } from "./abi";
 import { buildAndSignLegacyTx } from "./tx";
 import { sendRawTransaction } from "./rpc";
@@ -7,7 +7,7 @@ import { sendRawTransaction } from "./rpc";
 const USDT_DECIMALS = 6;
 
 function rpcOf(env: Env) {
-  return { url: env.POLYGON_RPC_URL };
+  return buildPolygonRpcConfig(env);
 }
 
 export async function isOnChainActive(env: Env, address: string): Promise<boolean> {

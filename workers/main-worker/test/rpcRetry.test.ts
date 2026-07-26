@@ -56,6 +56,55 @@ describe("blockchain/rpc.ts — retry (Bloc 8)", () => {
     await expect(getBlockNumber({ url: "https://fake-rpc.test" })).rejects.toThrow("invalid params");
     expect(attempts).toBe(1);
   });
+
+  it("Bloc 15.1 : bascule sur le RPC de secours si le principal échoue après tous ses essais", async () => {
+    let fallbackUsed = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "https://primary-rpc.test") return new Response("erreur serveur", { status: 500 });
+        if (url === "https://fallback-rpc.test") return jsonRpcResult("0x64");
+        throw new Error(`URL inattendue: ${url}`);
+      })
+    );
+
+    const blockNumber = await getBlockNumber({
+      url: "https://primary-rpc.test",
+      fallbackUrl: "https://fallback-rpc.test",
+      onFallback: () => {
+        fallbackUsed = true;
+      },
+    });
+
+    expect(blockNumber).toBe(100);
+    expect(fallbackUsed).toBe(true);
+  });
+
+  it("Bloc 15.1 : n'essaie jamais le fallback pour une erreur JSON-RPC applicative", async () => {
+    let fallbackCalled = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "https://primary-rpc.test") {
+          return new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, error: { message: "invalid params" } }), {
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        throw new Error(`Le fallback ne devrait jamais être appelé: ${url}`);
+      })
+    );
+
+    await expect(
+      getBlockNumber({
+        url: "https://primary-rpc.test",
+        fallbackUrl: "https://fallback-rpc.test",
+        onFallback: () => {
+          fallbackCalled = true;
+        },
+      })
+    ).rejects.toThrow("invalid params");
+    expect(fallbackCalled).toBe(false);
+  });
 });
 
 describe("market/binancePrices.ts — retry (Bloc 8)", () => {

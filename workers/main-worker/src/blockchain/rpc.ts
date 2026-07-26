@@ -5,8 +5,38 @@
  * vérifié empiriquement, pas une supposition).
  */
 
+import { Env } from "../env";
+import { sendMessage } from "../telegram";
+
 export interface JsonRpcConfig {
   url: string;
+  /** Bloc 15.1 : second nœud public, essayé seulement si `url` échoue après tous ses essais. */
+  fallbackUrl?: string;
+  /** Appelé (best-effort, jamais bloquant) la première fois que le fallback est réellement utilisé. */
+  onFallback?: (error: unknown) => void;
+}
+
+// Bloc 15.1 : polygon-rpc.com est un nœud public gratuit sans SLA -- un
+// second nœud public gratuit, différent, absorbe une panne/limite de trafic
+// du premier plutôt que de faire échouer tous les paiements USDT le temps
+// que polygon-rpc.com revienne.
+const FALLBACK_POLYGON_RPC_URL = "https://rpc-mainnet.maticvigil.com";
+
+/** Construit la config RPC Polygon standard (nœud principal + fallback + alerte canal admin). */
+export function buildPolygonRpcConfig(env: Env): JsonRpcConfig {
+  return {
+    url: env.POLYGON_RPC_URL,
+    fallbackUrl: FALLBACK_POLYGON_RPC_URL,
+    onFallback: (error) => {
+      console.warn(`[rpc] Bascule sur le RPC Polygon de secours (${FALLBACK_POLYGON_RPC_URL}), primaire en échec:`, error);
+      if (!env.ADMIN_TELEGRAM_ID) return;
+      sendMessage(
+        env.TELEGRAM_BOT_TOKEN,
+        Number(env.ADMIN_TELEGRAM_ID),
+        `⚠️ RPC Polygon principal (${env.POLYGON_RPC_URL}) en échec, bascule sur le nœud de secours.`
+      ).catch((err) => console.error("[rpc] Échec de la notification admin de bascule RPC:", err));
+    },
+  };
 }
 
 let idCounter = 0;
@@ -19,13 +49,16 @@ let idCounter = 0;
 const RPC_MAX_ATTEMPTS = 3;
 const RPC_RETRY_BASE_DELAY_MS = 400;
 
-async function rpcCall<T>(rpc: JsonRpcConfig, method: string, params: unknown[]): Promise<T> {
+/** Erreur JSON-RPC applicative (params invalides, etc.) : ne se corrige jamais en réessayant ou en changeant de nœud. */
+class RpcApplicationError extends Error {}
+
+async function attemptUrl<T>(url: string, method: string, params: unknown[]): Promise<T> {
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= RPC_MAX_ATTEMPTS; attempt++) {
     let res: Response;
     try {
-      res = await fetch(rpc.url, {
+      res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: ++idCounter, method, params }),
@@ -45,11 +78,27 @@ async function rpcCall<T>(rpc: JsonRpcConfig, method: string, params: unknown[])
     }
 
     const json = (await res.json()) as { result?: T; error?: { message: string } };
-    if (json.error) throw new Error(`RPC Polygon (${method}): ${json.error.message}`);
+    if (json.error) throw new RpcApplicationError(`RPC Polygon (${method}): ${json.error.message}`);
     return json.result as T;
   }
 
   throw lastError;
+}
+
+/**
+ * Bloc 15.1 : si `rpc.fallbackUrl` est fourni, un échec de transport/HTTP du
+ * nœud principal (jamais une erreur JSON-RPC applicative, qui échouerait
+ * pareil sur n'importe quel nœud) déclenche un essai sur le nœud de secours
+ * avant d'abandonner définitivement.
+ */
+async function rpcCall<T>(rpc: JsonRpcConfig, method: string, params: unknown[]): Promise<T> {
+  try {
+    return await attemptUrl<T>(rpc.url, method, params);
+  } catch (err) {
+    if (err instanceof RpcApplicationError || !rpc.fallbackUrl) throw err;
+    rpc.onFallback?.(err);
+    return attemptUrl<T>(rpc.fallbackUrl, method, params);
+  }
 }
 
 export interface RpcLog {
