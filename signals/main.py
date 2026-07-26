@@ -175,6 +175,7 @@ def run_once(params: dict) -> int:
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
     candidates = []
     momentum_alerts = []
+    volatility_suspensions = []
 
     for pair, coin_id in config.PAIRS.items():
         df = fetch_recent_prices(pair, coin_id)
@@ -186,6 +187,20 @@ def run_once(params: dict) -> int:
             df, params["ema_fast"], params["ema_slow"],
             config.RSI_PERIOD, config.BOLLINGER_PERIOD, config.BOLLINGER_STD,
         )
+
+        # Bloc 11.3 : marché trop erratique pour émettre un signal ce cycle
+        # (un stop/target fixé à l'avance n'a plus vraiment de sens).
+        curr_atr, curr_price = enriched.iloc[-1].get("atr"), enriched.iloc[-1]["price"]
+        if curr_atr is not None and not pd.isna(curr_atr) and curr_price > 0:
+            atr_pct = curr_atr / curr_price
+            if atr_pct > config.VOLATILITY_SUSPENSION_ATR_PCT:
+                logger.warning(
+                    "⏸️ %s : signaux suspendus ce cycle (ATR = %.1f%% du prix > seuil %.0f%%).",
+                    pair, atr_pct * 100, config.VOLATILITY_SUSPENSION_ATR_PCT * 100,
+                )
+                volatility_suspensions.append({"pair": pair, "atr_pct": round(atr_pct, 4)})
+                continue
+
         htf_ema50 = fetch_htf_ema50(pair) if config.ENABLE_HTF_FILTER else None
         signal_dict = detect_signal(
             enriched, pair, params["rsi_buy_threshold"], params["rsi_sell_threshold"],
@@ -206,6 +221,9 @@ def run_once(params: dict) -> int:
     if momentum_alerts:
         storage.insert_momentum_alerts(momentum_alerts)
         logger.info("%d alerte(s) momentum détectée(s) ce cycle.", len(momentum_alerts))
+
+    if volatility_suspensions:
+        storage.insert_volatility_suspensions(volatility_suspensions)
 
     if not candidates:
         return 0

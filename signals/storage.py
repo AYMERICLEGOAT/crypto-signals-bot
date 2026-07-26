@@ -36,6 +36,22 @@ def insert_signal(signal: dict) -> None:
         logger.exception("Échec de l'insertion du signal dans Supabase: %s", signal)
 
 
+def insert_volatility_suspensions(events: list) -> None:
+    """
+    Bloc 11.3 : enregistre les suspensions de signal pour volatilité
+    anormale (ATR > VOLATILITY_SUSPENSION_ATR_PCT du prix). Échec non
+    bloquant, comme insert_momentum_alerts.
+    """
+    if not events:
+        return
+    payload = [{**event, "sent_to_channel": False} for event in events]
+    try:
+        get_client().table("volatility_suspensions").insert(payload).execute()
+        logger.info("%d suspension(s) pour volatilité enregistrée(s).", len(payload))
+    except Exception:
+        logger.exception("Échec de l'enregistrement des suspensions de volatilité dans Supabase: %s", payload)
+
+
 def insert_momentum_alerts(alerts: list) -> None:
     """
     Insère les Alertes Momentum (Bloc 3) détectées ce cycle. Échec non

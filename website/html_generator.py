@@ -10,6 +10,7 @@ from datetime import datetime
 
 from config import SITE_NAME, SITE_BASE_URL, TELEGRAM_BOT_USERNAME
 from content_templates import generate_analysis, format_price
+from equity_curve import build_live_performance_section
 
 TELEGRAM_URL = f"https://t.me/{TELEGRAM_BOT_USERNAME}"
 
@@ -46,6 +47,13 @@ _STRINGS = {
         "perf_table_result": "Résultat",
         "perf_note": "Résultat déterminé automatiquement en comparant le prix courant de chaque "
         "signal à son stop loss et son take profit (pas une analyse tick par tick de l'historique intrabar).",
+        "paper_heading": "💼 Performance en direct (portefeuille fictif)",
+        "paper_detail": lambda n, pct: (
+            f"Si un portefeuille fictif avait engagé {pct:.0f}% de son capital sur chacun des "
+            f"{n} derniers signaux résolus (envoyés ou non), voici son évolution cumulée :"
+        ),
+        "paper_note": "⚠️ Simulation à titre illustratif (sizing fixe, sans réinvestissement des gains) — "
+        "ne reflète pas un compte réel ni les frais/slippage. Pas un conseil en investissement.",
         "backtest_heading": "🧪 Backtest de la stratégie",
         "backtest_stat": lambda win_rate, trades: (
             f"{win_rate:.1f}% de réussite sur {trades} trades en 24 mois"
@@ -98,6 +106,13 @@ _STRINGS = {
         "perf_table_result": "Result",
         "perf_note": "Result determined automatically by comparing each signal's current price to "
         "its stop loss and take profit (not a tick-by-tick intrabar analysis).",
+        "paper_heading": "💼 Live performance (paper portfolio)",
+        "paper_detail": lambda n, pct: (
+            f"If a paper portfolio had allocated {pct:.0f}% of its capital to each of the last "
+            f"{n} resolved signals (sent or not), here is its cumulative track record:"
+        ),
+        "paper_note": "⚠️ Illustrative simulation (fixed position sizing, no compounding of gains) — "
+        "does not reflect a real account or fees/slippage. Not investment advice.",
         "backtest_heading": "🧪 Strategy backtest",
         "backtest_stat": lambda win_rate, trades: (
             f"{win_rate:.1f}% win rate on {trades} trades over 24 months"
@@ -250,10 +265,12 @@ def _backtest_section_html(backtest_stats, s):
     </section>"""
 
 
-def build_daily_page(signals, performance_stats, page_date, canonical_path, lang="fr", alternate_path=None, backtest_stats=None):
+def build_daily_page(signals, performance_stats, page_date, canonical_path, lang="fr", alternate_path=None,
+                      backtest_stats=None, resolved_signals=None):
     """
     Construit la page HTML complète pour une date donnée, dans la langue `lang` ("fr"/"en").
     `alternate_path` : chemin de la page équivalente dans l'autre langue (pour hreflang + lien de bascule).
+    `resolved_signals` : voir supabase_client.get_all_resolved_signals() -- portefeuille fictif (Bloc 11.1).
     """
     s = _STRINGS[lang]
     date_str = page_date.strftime(s["date_format"])
@@ -264,6 +281,7 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
 
     cards_html = "".join(_signal_card_html(sig, s, lang) for sig in signals)
     performance_html = _performance_section_html(performance_stats, s)
+    paper_html = build_live_performance_section(resolved_signals or [], s)
 
     hreflang_tags = ""
     lang_switch_html = ""
@@ -311,6 +329,8 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
   </section>
 
   {performance_html}
+
+  {paper_html}
 
   <div class="cta">
     <p>{s["cta_text"]}</p>

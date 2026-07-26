@@ -78,6 +78,7 @@ def main():
     if signals:
         print("4/7 — Signaux réels trouvés : génération des pages du jour (français + anglais)...")
         performance = outcome_evaluator.compute_performance_stats()
+        resolved_signals = supabase_client.get_all_resolved_signals()  # Bloc 11.1 : portefeuille fictif
         fr_archive_path = f"/signaux/{today_str}.html"
         en_archive_path = f"/en/signals/{today_str}.html"
         home_files = {"index.html", "en/index.html"}
@@ -92,6 +93,7 @@ def main():
             content = build_daily_page(
                 signals, performance, today, canonical_path, lang=lang, alternate_path=alternate_path,
                 backtest_stats=backtest_stats if relative_path in home_files else None,
+                resolved_signals=resolved_signals,
             )
             files_to_publish.append((relative_path, content))
 

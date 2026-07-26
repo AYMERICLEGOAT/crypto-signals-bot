@@ -92,6 +92,28 @@ def get_daily_stats_history(limit=90):
     return resp.json()
 
 
+def get_all_resolved_signals(limit=500):
+    """
+    Amélioration Bloc 11.1 : TOUS les signaux résolus (pas seulement les
+    `limit` plus récents comme get_performance_window), triés du plus ANCIEN
+    au plus récent -- nécessaire pour reconstituer une courbe d'équité
+    chronologique (portefeuille fictif), pas juste un instantané.
+    """
+    resp = requests.get(
+        f"{SUPABASE_URL}/rest/v1/signals",
+        headers=_headers(),
+        params={
+            "select": "type,entry_price,outcome_price,evaluated_at",
+            "outcome": "not.is.null",
+            "order": "evaluated_at.asc",
+            "limit": str(limit),
+        },
+        timeout=15,
+    )
+    _check(resp, "select signals (courbe d'équité)")
+    return resp.json()
+
+
 def get_performance_window(limit):
     """Les `limit` signaux les plus récents ayant un résultat connu (WIN/LOSS)."""
     resp = requests.get(

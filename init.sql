@@ -514,3 +514,21 @@ alter table users add column if not exists welcome_1d_sent boolean not null defa
 -- ----------------------------------------------------------------------------
 
 alter table signals add column if not exists confidence_score smallint;
+
+
+-- ----------------------------------------------------------------------------
+-- 23. Bloc 11.3 — suspension automatique en cas de volatilité extrême (voir
+--     signals/main.py, ATR intraday > VOLATILITY_SUSPENSION_ATR_PCT du prix).
+--     Même pattern que momentum_alerts (section 15) : Python écrit l'événement,
+--     le Worker le relaie sur le canal public puis le marque envoyé.
+-- ----------------------------------------------------------------------------
+
+create table if not exists volatility_suspensions (
+    id             bigserial primary key,
+    pair           text not null,
+    atr_pct        numeric not null,
+    created_at     timestamptz not null default now(),
+    sent_to_channel boolean not null default false
+);
+
+create index if not exists idx_volatility_suspensions_unsent on volatility_suspensions (created_at) where sent_to_channel = false;

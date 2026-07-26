@@ -110,6 +110,12 @@ BTC_CRASH_DROP_PCT = 0.03
 BTC_CRASH_WINDOW_MS = 2 * 60 * 60 * 1000
 BTC_CRASH_SUSPEND_MS = 4 * 60 * 60 * 1000
 
+# Bloc 11.3 : si l'ATR (volatilité) dépasse cette fraction du prix, aucun
+# signal n'est émis pour la paire ce cycle (marché trop erratique pour que
+# des niveaux de stop/target fixés à l'avance restent pertinents), et un
+# message est publié sur le canal public via volatility_suspensions.
+VOLATILITY_SUSPENSION_ATR_PCT = 0.05
+
 # --- Paramètres de la stratégie (valeurs par défaut, ajustables par le backtest) ---
 EMA_FAST_PERIOD = 9
 EMA_SLOW_PERIOD = 21
