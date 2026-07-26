@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from config import (
     STOP_LOSS_PCT, TAKE_PROFIT_PCT, RSI_CROSS_WINDOW,
     ENABLE_ATR_STOPS, ATR_STOP_MULTIPLIER, ATR_TARGET_MULTIPLIER,
+    ENABLE_ADX_REGIME_FILTER, ADX_TREND_THRESHOLD,
 )
 
 
@@ -83,17 +84,35 @@ def detect_signal(df, pair: str, rsi_buy_threshold: float, rsi_sell_threshold: f
 
     recent_rsi = df["rsi"].iloc[-(rsi_window + 1):]
 
+    side = None
     if crossed_up and (recent_rsi < rsi_buy_threshold).any():
-        if htf_ema50 is not None and not (curr["price"] > htf_ema50):
-            return None
-        return _build_signal(pair, "BUY", curr["price"], atr=curr.get("atr"))
+        side = "BUY"
+    elif crossed_down and (recent_rsi > rsi_sell_threshold).any():
+        side = "SELL"
+    if side is None:
+        return None
 
-    if crossed_down and (recent_rsi > rsi_sell_threshold).any():
-        if htf_ema50 is not None and not (curr["price"] < htf_ema50):
+    # Piste 3 (validée par backtest, voir config.ENABLE_ADX_REGIME_FILTER) :
+    # en tendance forte confirmée (ADX > seuil), un signal à contre-tendance
+    # (+DI/-DI) est écarté plutôt que pris malgré tout.
+    if ENABLE_ADX_REGIME_FILTER:
+        adx_val = curr.get("adx")
+        if pd_isna(adx_val):
             return None
-        return _build_signal(pair, "SELL", curr["price"], atr=curr.get("atr"))
+        if adx_val > ADX_TREND_THRESHOLD:
+            trend_up = curr["plus_di"] > curr["minus_di"]
+            if side == "BUY" and not trend_up:
+                return None
+            if side == "SELL" and trend_up:
+                return None
 
-    return None
+    if htf_ema50 is not None:
+        if side == "BUY" and not (curr["price"] > htf_ema50):
+            return None
+        if side == "SELL" and not (curr["price"] < htf_ema50):
+            return None
+
+    return _build_signal(pair, side, curr["price"], atr=curr.get("atr"))
 
 
 def pd_isna(value) -> bool:

@@ -110,6 +110,14 @@ BTC_CRASH_DROP_PCT = 0.03
 BTC_CRASH_WINDOW_MS = 2 * 60 * 60 * 1000
 BTC_CRASH_SUSPEND_MS = 4 * 60 * 60 * 1000
 
+# Piste 3 (régime de marché, ADX14) : testé sur 12 mois/20 paires. En période
+# de tendance forte (ADX > seuil), ne garder que les signaux dans le sens de
+# la tendance (+DI/-DI) élimine les signaux à contre-tendance les plus
+# fragiles. Résultat : 1138->654 trades (-43%), win rate 35.6%->38.5%,
+# ratio 2.03->2.05, drawdown 81.4%->54.5% (espérance/trade x2.2) -> CONSERVÉ.
+ENABLE_ADX_REGIME_FILTER = True
+ADX_TREND_THRESHOLD = 25
+
 # Bloc 11.3 : si l'ATR (volatilité) dépasse cette fraction du prix, aucun
 # signal n'est émis pour la paire ce cycle (marché trop erratique pour que
 # des niveaux de stop/target fixés à l'avance restent pertinents), et un

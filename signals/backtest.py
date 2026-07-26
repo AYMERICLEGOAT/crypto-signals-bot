@@ -204,7 +204,8 @@ def simulate_trades(df: pd.DataFrame, ema_fast: int, ema_slow: int, rsi_buy: int
                      rsi_cross_window: int = config.RSI_CROSS_WINDOW,
                      use_macd_filter: bool = config.ENABLE_MACD_FILTER,
                      use_trading_hours_filter: bool = config.ENABLE_TRADING_HOURS_FILTER,
-                     use_continuation: bool = config.ENABLE_CONTINUATION_SIGNALS) -> list:
+                     use_continuation: bool = config.ENABLE_CONTINUATION_SIGNALS,
+                     use_adx_regime_filter: bool = config.ENABLE_ADX_REGIME_FILTER) -> list:
     """
     Détecte les signaux sur le DataFrame enrichi puis simule chaque trade
     bougie par bougie jusqu'à toucher le stop loss, le take profit, ou
@@ -244,6 +245,11 @@ def simulate_trades(df: pd.DataFrame, ema_fast: int, ema_slow: int, rsi_buy: int
     (nuit) ni le week-end (samedi/dimanche), sauf volatilité anormalement
     élevée (ATR courant > ATR_ANOMALY_MULTIPLIER x sa moyenne mobile sur
     ATR_ANOMALY_LOOKBACK bougies).
+
+    `use_adx_regime_filter` (Piste 3, VALIDÉ par backtest — actif par défaut) :
+    si l'ADX14 dépasse ADX_TREND_THRESHOLD (tendance forte confirmée), un
+    signal ACHAT n'est retenu que si +DI > -DI (tendance haussière), VENTE
+    que si -DI > +DI. Sous ce seuil (range), aucun filtre supplémentaire.
     """
     enriched = compute_all_indicators(
         df, ema_fast, ema_slow, config.RSI_PERIOD, config.BOLLINGER_PERIOD, config.BOLLINGER_STD
@@ -277,6 +283,15 @@ def simulate_trades(df: pd.DataFrame, ema_fast: int, ema_slow: int, rsi_buy: int
             side = "SELL"
         if side is None:
             continue
+
+        if use_adx_regime_filter:
+            adx_val = curr.get("adx")
+            if pd.notna(adx_val) and adx_val > config.ADX_TREND_THRESHOLD:
+                trend_up = curr["plus_di"] > curr["minus_di"]
+                if side == "BUY" and not trend_up:
+                    continue
+                if side == "SELL" and trend_up:
+                    continue
 
         if use_macd_filter:
             hist, prev_hist = curr["macd_hist"], prev["macd_hist"]

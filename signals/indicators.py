@@ -54,6 +54,32 @@ def atr(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> 
     return true_range.ewm(alpha=1 / period, min_periods=period, adjust=False).mean()
 
 
+def adx(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> tuple:
+    """
+    ADX (Average Directional Index) + +DI/-DI, lissage de Wilder. ADX mesure
+    la FORCE d'une tendance (peu importe le sens) ; +DI/-DI indiquent son
+    SENS. Validé empiriquement (Piste 3, 12 mois/20 paires) : filtrer les
+    signaux à contre-tendance quand ADX>25 améliore win rate, ratio ET
+    drawdown -- voir config.ENABLE_ADX_REGIME_FILTER.
+    """
+    up_move = high.diff()
+    down_move = -low.diff()
+    plus_dm = ((up_move > down_move) & (up_move > 0)) * up_move
+    minus_dm = ((down_move > up_move) & (down_move > 0)) * down_move
+
+    prev_close = close.shift(1)
+    true_range = pd.concat(
+        [high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1
+    ).max(axis=1)
+
+    smoothed_tr = true_range.ewm(alpha=1 / period, min_periods=period, adjust=False).mean()
+    plus_di = 100 * plus_dm.ewm(alpha=1 / period, min_periods=period, adjust=False).mean() / smoothed_tr
+    minus_di = 100 * minus_dm.ewm(alpha=1 / period, min_periods=period, adjust=False).mean() / smoothed_tr
+    dx = 100 * (plus_di - minus_di).abs() / (plus_di + minus_di)
+    adx_val = dx.ewm(alpha=1 / period, min_periods=period, adjust=False).mean()
+    return adx_val, plus_di, minus_di
+
+
 def macd(series: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> tuple:
     """MACD standard : (ligne MACD, ligne de signal, histogramme)."""
     macd_line = ema(series, fast) - ema(series, slow)
@@ -115,4 +141,5 @@ def compute_all_indicators(df: pd.DataFrame, ema_fast: int, ema_slow: int,
     out["bb_upper"], out["bb_mid"], out["bb_lower"] = bollinger_bands(out["price"], bb_period, bb_std)
     if "high" in out.columns and "low" in out.columns:
         out["atr"] = atr(out["high"], out["low"], out["price"], atr_period)
+        out["adx"], out["plus_di"], out["minus_di"] = adx(out["high"], out["low"], out["price"])
     return out
