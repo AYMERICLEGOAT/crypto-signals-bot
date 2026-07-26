@@ -75,22 +75,23 @@ def load_active_params() -> dict:
 def fetch_recent_prices(pair: str, coin_id: str):
     """
     Historique récent d'une paire sous forme de DataFrame (colonnes ts_ms,
-    price, high, low). Binance en priorité (bougies horaires réelles, avec
-    high/low pour l'ATR des Alertes Momentum — voir momentum.py), repli
-    CoinGecko en cas d'échec. Retourne None si les deux échouent.
+    price, high, low, volume). Binance en priorité (bougies horaires
+    réelles, avec high/low pour l'ATR des Alertes Momentum — voir
+    momentum.py — et volume pour le score de confiance, voir confidence.py),
+    repli CoinGecko en cas d'échec. Retourne None si les deux échouent.
 
     Le repli CoinGecko ne fournit que des prix de clôture : high/low sont
-    alors égaux à price, ce qui dégrade l'ATR calculé (indicators.atr) en un
-    simple écart de clôture à clôture — moins précis qu'un vrai ATR, mais
-    reste une mesure honnête de volatilité réelle, pas une donnée inventée.
+    alors égaux à price (dégrade l'ATR en simple écart clôture-à-clôture,
+    honnête mais moins précis) et volume vaut 0 (composante volume du score
+    de confiance neutralisée, pas de donnée inventée).
     """
     symbol = binance_client.pair_to_symbol(pair)
     try:
         candles = binance_client.get_klines(symbol, interval="1h", limit=KLINES_LOOKBACK)
         if candles:
             return pd.DataFrame(
-                [(ts, high, low, close) for ts, _open, high, low, close, _vol in candles],
-                columns=["ts_ms", "high", "low", "price"],
+                [(ts, high, low, close, vol) for ts, _open, high, low, close, vol in candles],
+                columns=["ts_ms", "high", "low", "price", "volume"],
             )
     except Exception:
         logger.warning("Binance indisponible pour %s, repli sur CoinGecko.", pair, exc_info=True)
@@ -101,6 +102,7 @@ def fetch_recent_prices(pair: str, coin_id: str):
             df = pd.DataFrame(points, columns=["ts_ms", "price"])
             df["high"] = df["price"]
             df["low"] = df["price"]
+            df["volume"] = 0.0
             return df
     except Exception:
         logger.exception("Échec du repli CoinGecko pour %s.", pair)
