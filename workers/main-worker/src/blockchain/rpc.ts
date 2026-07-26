@@ -5,8 +5,9 @@
  * vérifié empiriquement, pas une supposition).
  */
 
-import { Env } from "../env";
+import { Env, dbConfig } from "../env";
 import { sendMessage } from "../telegram";
+import { shouldAlertRpcFallback, recordRpcFallbackAlert } from "../db/rpcHealthAlerts";
 
 export interface JsonRpcConfig {
   url: string;
@@ -22,7 +23,13 @@ export interface JsonRpcConfig {
 // que polygon-rpc.com revienne.
 const FALLBACK_POLYGON_RPC_URL = "https://rpc-mainnet.maticvigil.com";
 
-/** Construit la config RPC Polygon standard (nœud principal + fallback + alerte canal admin). */
+/**
+ * Construit la config RPC Polygon standard (nœud principal + fallback +
+ * alerte canal admin). L'alerte est déduplique (voir db/rpcHealthAlerts.ts)
+ * -- observé en production : sans ça, le cron de 5 minutes renvoyait une
+ * alerte identique à chaque cycle tant que le nœud principal restait en
+ * panne (7+ messages en 30 minutes pour la même panne, jamais résolue).
+ */
 export function buildPolygonRpcConfig(env: Env): JsonRpcConfig {
   return {
     url: env.POLYGON_RPC_URL,
@@ -30,11 +37,19 @@ export function buildPolygonRpcConfig(env: Env): JsonRpcConfig {
     onFallback: (error) => {
       console.warn(`[rpc] Bascule sur le RPC Polygon de secours (${FALLBACK_POLYGON_RPC_URL}), primaire en échec:`, error);
       if (!env.ADMIN_TELEGRAM_ID) return;
-      sendMessage(
-        env.TELEGRAM_BOT_TOKEN,
-        Number(env.ADMIN_TELEGRAM_ID),
-        `⚠️ RPC Polygon principal (${env.POLYGON_RPC_URL}) en échec, bascule sur le nœud de secours.`
-      ).catch((err) => console.error("[rpc] Échec de la notification admin de bascule RPC:", err));
+
+      const db = dbConfig(env);
+      shouldAlertRpcFallback(db)
+        .then((shouldAlert) => {
+          if (!shouldAlert) return;
+          return sendMessage(
+            env.TELEGRAM_BOT_TOKEN,
+            Number(env.ADMIN_TELEGRAM_ID),
+            `⚠️ RPC Polygon principal (${env.POLYGON_RPC_URL}) en échec, bascule sur le nœud de secours. ` +
+              "(prochain rappel dans au moins 1h si la panne persiste, pas à chaque cycle)"
+          ).then(() => recordRpcFallbackAlert(db));
+        })
+        .catch((err) => console.error("[rpc] Échec de la vérification/notification de bascule RPC:", err));
     },
   };
 }
