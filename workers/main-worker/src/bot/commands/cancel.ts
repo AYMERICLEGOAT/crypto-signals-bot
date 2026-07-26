@@ -1,6 +1,7 @@
 import { Env, dbConfig } from "../../env";
 import { sendMessage } from "../../telegram";
 import { getOrCreateUser, markUserCancelled, isSubscriptionActive } from "../../db/users";
+import { exitSurveyKeyboard } from "../keyboards";
 
 const RETENTION_PROMO_CODE = "RELANCE50";
 
@@ -46,4 +47,9 @@ export async function handleCancelCommand(env: Env, telegramId: number, rawArgs:
       `Si tu changes d'avis, /subscribe avec le code \`${RETENTION_PROMO_CODE}\` (-50%) t'attend.`,
     { markdown: true }
   );
+
+  // Bloc 14.2 : enquête de départ, en message séparé pour ne pas surcharger la confirmation ci-dessus.
+  await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, "Une dernière chose, si tu as 2 secondes : qu'est-ce qui t'a le plus déçu ?", {
+    keyboard: exitSurveyKeyboard,
+  });
 }

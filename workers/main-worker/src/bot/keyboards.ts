@@ -48,3 +48,11 @@ export const surveyKeyboard: InlineKeyboard = [
     { text: "👎", callback_data: "survey:down" },
   ],
 ];
+
+/** Bloc 14.2 : enquête de départ, envoyée après confirmation de /cancel. */
+export const exitSurveyKeyboard: InlineKeyboard = [
+  [{ text: "Signaux pas assez fréquents", callback_data: "exit_survey:frequency" }],
+  [{ text: "Pas assez performants", callback_data: "exit_survey:performance" }],
+  [{ text: "Trop cher", callback_data: "exit_survey:price" }],
+  [{ text: "Autre", callback_data: "exit_survey:other" }],
+];

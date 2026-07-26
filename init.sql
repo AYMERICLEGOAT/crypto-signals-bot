@@ -301,6 +301,11 @@ insert into offer_counter (offer_name, slots_total, slots_used)
 values ('decouverte', 50, 0)
 on conflict (offer_name) do nothing;
 
+-- Bloc 14.3 : mois offert aux 10 premiers abonnés Standard (voir cron/pollPayments.ts, onPaymentConfirmed).
+insert into offer_counter (offer_name, slots_total, slots_used)
+values ('early_adopter', 10, 0)
+on conflict (offer_name) do nothing;
+
 create table if not exists signal_deliveries (
     id           bigserial primary key,
     signal_id    bigint not null references signals (id),
@@ -627,4 +632,17 @@ create index if not exists idx_fear_greed_posts_posted_at on fear_greed_posts (p
 create table if not exists weekly_recap_posts (
     id          bigserial primary key,
     posted_at   timestamptz not null default now()
+);
+
+
+-- ----------------------------------------------------------------------------
+-- 27. Bloc 14.2 — enquête de départ à /cancel (voir
+--     bot/commands/exitSurveyResponse.ts). Consultable via /stats admin.
+-- ----------------------------------------------------------------------------
+
+create table if not exists exit_surveys (
+    id           bigserial primary key,
+    telegram_id  bigint not null references users (telegram_id),
+    reason       text not null check (reason in ('frequency', 'performance', 'price', 'other')),
+    created_at   timestamptz not null default now()
 );

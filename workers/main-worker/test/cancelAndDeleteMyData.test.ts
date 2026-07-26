@@ -57,9 +57,9 @@ describe("handleCancelCommand", () => {
     expect(patched).toBe(false);
   });
 
-  it("/cancel confirm : marque cancelled=true et confirme", async () => {
+  it("/cancel confirm : marque cancelled=true, confirme, et envoie l'enquête de départ (Bloc 14.2)", async () => {
     let cancelledPatch: any = null;
-    let sentText = "";
+    const sentTexts: string[] = [];
 
     vi.stubGlobal(
       "fetch",
@@ -71,7 +71,7 @@ describe("handleCancelCommand", () => {
           return jsonResponse([]);
         }
         if (url.includes("api.telegram.org")) {
-          sentText = JSON.parse(init!.body as string).text;
+          sentTexts.push(JSON.parse(init!.body as string).text);
           return jsonResponse({ ok: true, result: {} });
         }
         throw new Error(`URL inattendue: ${url}`);
@@ -81,7 +81,8 @@ describe("handleCancelCommand", () => {
     await handleCancelCommand(env, 1, "confirm");
 
     expect(cancelledPatch).toEqual({ cancelled: true });
-    expect(sentText).toContain("on ne te relancera plus");
+    expect(sentTexts[0]).toContain("on ne te relancera plus");
+    expect(sentTexts[1]).toContain("déçu");
   });
 
   it("ne fait rien de plus si déjà annulé", async () => {

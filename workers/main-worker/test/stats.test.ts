@@ -66,6 +66,7 @@ describe("handleStatsCommand", () => {
         if (url.includes("plan_started_at=not.is.null") && url.includes("expiration=gt.")) return jsonResponse([]);
         if (url.includes("plan_started_at=not.is.null")) return jsonResponse([]);
         if (url.includes("strategy_params")) return jsonResponse([{ win_rate: 0.7931, trade_count: 29 }]);
+        if (url.includes("exit_surveys")) return jsonResponse([{ reason: "price" }, { reason: "price" }, { reason: "other" }]);
         if (url.includes("api.telegram.org")) {
           sentText = JSON.parse(init!.body as string).text;
           return jsonResponse({ ok: true, result: {} });
@@ -78,5 +79,6 @@ describe("handleStatsCommand", () => {
     await handleStatsCommand(env, 999);
     expect(sentText).toContain("Dashboard");
     expect(sentText).toContain("79.3%");
+    expect(sentText).toContain("Trop cher : 2");
   });
 });

@@ -78,6 +78,7 @@ describe("handleHistoryCommand", () => {
             },
           ]);
         }
+        if (url.includes("users")) return jsonResponse([{ telegram_id: 42, plan_started_at: null }]);
         if (url.includes("api.telegram.org")) {
           sentText = JSON.parse(init!.body as string).text;
           return jsonResponse({ ok: true, result: {} });

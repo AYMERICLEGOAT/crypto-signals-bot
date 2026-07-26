@@ -17,6 +17,7 @@ import { handleCancelCommand } from "./commands/cancel";
 import { handleDeleteMyDataCommand } from "./commands/deleteMyData";
 import { handleHelpCommand } from "./commands/help";
 import { handleTrustCommand } from "./commands/trust";
+import { handleExitSurveyResponse } from "./commands/exitSurveyResponse";
 import { handleTextMessage } from "./walletAddressHandler";
 
 /**
@@ -91,5 +92,6 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
     else if (data.startsWith("plan:")) await handlePlanSelection(env, chatId, data);
     else if (data.startsWith("pay:")) await handlePaymentMethodSelection(env, chatId, data);
     else if (data.startsWith("survey:")) await handleSurveyResponse(env, chatId, data);
+    else if (data.startsWith("exit_survey:")) await handleExitSurveyResponse(env, chatId, data);
   }
 }

@@ -10,8 +10,11 @@ import { addDays } from "../utils/date";
 import { maybeRewardReferral } from "../bot/referral";
 import { consumePendingPromoCode } from "../payments/promoCodes";
 import { SupabaseConfig } from "../supabaseRest";
-import { PLAN_DURATION_DAYS, DISCOVERY_PLAN, isValidPlan } from "../payments/plans";
-import { incrementDiscoverySlotsUsed } from "../db/offerCounter";
+import { PLAN_DURATION_DAYS, DISCOVERY_PLAN, STANDARD_PLAN, isValidPlan } from "../payments/plans";
+import { incrementDiscoverySlotsUsed, getRemainingEarlyAdopterSlots, incrementEarlyAdopterSlotsUsed } from "../db/offerCounter";
+import { getUserIfExists } from "../db/users";
+
+const EARLY_ADOPTER_BONUS_DAYS = 30;
 
 const USDT_AMOUNT_TOLERANCE = 0.97; // tolère 3% d'écart (arrondis, frais éventuels)
 
@@ -19,11 +22,31 @@ function durationForPlan(plan: number): number {
   return isValidPlan(plan) ? PLAN_DURATION_DAYS[plan] : 30;
 }
 
-/** À appeler après TOUTE confirmation de paiement Découverte, peu importe la méthode. */
-async function onPaymentConfirmed(db: SupabaseConfig, telegramId: number, plan: number): Promise<void> {
-  if (plan !== DISCOVERY_PLAN) return;
-  await incrementDiscoverySlotsUsed(db);
-  await markDiscoveryUsed(db, telegramId);
+/** À appeler après TOUTE confirmation de paiement (Découverte ou Standard), peu importe la méthode. Exporté pour tests unitaires ciblés. */
+export async function onPaymentConfirmed(env: Env, db: SupabaseConfig, telegramId: number, plan: number): Promise<void> {
+  if (plan === DISCOVERY_PLAN) {
+    await incrementDiscoverySlotsUsed(db);
+    await markDiscoveryUsed(db, telegramId);
+    return;
+  }
+
+  // Bloc 14.3 : mois offert aux 10 premiers abonnés Standard (compteur réel,
+  // jamais décoratif -- même principe que le Pack Découverte ci-dessus).
+  if (plan === STANDARD_PLAN) {
+    const remaining = await getRemainingEarlyAdopterSlots(db);
+    if (remaining <= 0) return;
+
+    await incrementEarlyAdopterSlotsUsed(db);
+    const user = await getUserIfExists(db, telegramId);
+    if (!user?.expiration) return;
+
+    await activateSubscription(db, telegramId, STANDARD_PLAN, addDays(new Date(user.expiration), EARLY_ADOPTER_BONUS_DAYS));
+    await sendMessage(
+      env.TELEGRAM_BOT_TOKEN,
+      telegramId,
+      "🎉 Tu fais partie des 10 premiers abonnés Standard ! Un mois supplémentaire t'a été offert automatiquement."
+    );
+  }
 }
 
 /**
@@ -89,7 +112,7 @@ async function processUsdtTransfers(env: Env): Promise<void> {
     await activateSubscription(db, user.telegram_id, pending.plan, addDays(new Date(), durationForPlan(pending.plan)));
     await maybeRewardReferral(env, user.telegram_id);
     await consumePendingPromoCode(db, user.telegram_id);
-    await onPaymentConfirmed(db, user.telegram_id, pending.plan);
+    await onPaymentConfirmed(env, db, user.telegram_id, pending.plan);
 
     await sendMessage(env.TELEGRAM_BOT_TOKEN, user.telegram_id, "✅ Paiement USDT confirmé sur la blockchain ! Ton abonnement est actif.");
   }
@@ -113,7 +136,7 @@ async function processMoneroPayments(env: Env): Promise<void> {
       await activateSubscription(db, payment.telegram_id, payment.plan, addDays(new Date(), durationForPlan(payment.plan)));
       await maybeRewardReferral(env, payment.telegram_id);
       await consumePendingPromoCode(db, payment.telegram_id);
-      await onPaymentConfirmed(db, payment.telegram_id, payment.plan);
+      await onPaymentConfirmed(env, db, payment.telegram_id, payment.plan);
       await sendMessage(env.TELEGRAM_BOT_TOKEN, payment.telegram_id, "✅ Paiement Monero confirmé ! Ton abonnement est actif.");
     } catch (err) {
       console.error(`[monero] Erreur de vérification pour le paiement #${payment.id}:`, err);
@@ -134,7 +157,7 @@ async function processLitecoinPayments(env: Env): Promise<void> {
       await activateSubscription(db, payment.telegram_id, payment.plan, addDays(new Date(), durationForPlan(payment.plan)));
       await maybeRewardReferral(env, payment.telegram_id);
       await consumePendingPromoCode(db, payment.telegram_id);
-      await onPaymentConfirmed(db, payment.telegram_id, payment.plan);
+      await onPaymentConfirmed(env, db, payment.telegram_id, payment.plan);
       await sendMessage(env.TELEGRAM_BOT_TOKEN, payment.telegram_id, "✅ Paiement Litecoin confirmé ! Ton abonnement est actif.");
     } catch (err) {
       console.error(`[litecoin] Erreur de vérification pour le paiement #${payment.id}:`, err);

@@ -1,6 +1,8 @@
 import { Env, dbConfig } from "../../env";
 import { sendMessage } from "../../telegram";
 import { getUserSignalHistory, SignalDeliveryWithSignal } from "../../db/history";
+import { getOrCreateUser } from "../../db/users";
+import { getLoyaltyBadge } from "../loyaltyBadge";
 import { computePnlPct } from "../../signalMath";
 
 function statusLabel(signal: SignalDeliveryWithSignal["signals"]): string {
@@ -58,6 +60,11 @@ export async function handleHistoryCommand(env: Env, telegramId: number): Promis
   if (closedCount > 0) {
     lines.push(`\n📊 Cumul sur ${closedCount} signal(aux) clôturé(s) : ${cumulativePct >= 0 ? "+" : ""}${cumulativePct.toFixed(1)}%`);
   }
+
+  const user = await getOrCreateUser(db, telegramId);
+  const badge = getLoyaltyBadge(user);
+  if (badge) lines.push(`\n${badge}`);
+
   lines.push("\n⚠️ Performance passée ne garantit pas les performances futures.");
 
   await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, lines.join("\n"), { markdown: true });
