@@ -15,6 +15,7 @@ export interface SignalRecord {
   outcome: "WIN" | "LOSS" | null;
   outcome_price: number | null;
   close_reason: "tp_hit" | "sl_hit" | "expired" | null;
+  confidence_score: number | null;
 }
 
 export async function getUnsentSignals(db: SupabaseConfig): Promise<SignalRecord[]> {

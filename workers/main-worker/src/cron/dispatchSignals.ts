@@ -15,6 +15,9 @@ function formatSignalMessage(signal: SignalRecord): string {
     `Stop loss : ${signal.stop_loss}`,
     `Take profit : ${signal.take_profit}`,
     `_${new Date(signal.created_at).toLocaleString("fr-FR")}_`,
+    // Amélioration 9 : purement informatif (convergence d'indicateurs
+    // techniques), jamais une probabilité de gain — voir signals/confidence.py.
+    ...(signal.confidence_score != null ? [`Confiance : ${signal.confidence_score}/100`] : []),
     "",
     "⚠️ Pas un conseil financier — risque de perte en capital.",
   ].join("\n");

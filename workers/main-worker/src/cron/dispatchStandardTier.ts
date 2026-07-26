@@ -23,6 +23,7 @@ function formatSignalMessage(signal: SignalRecord): string {
     `Stop loss : ${signal.stop_loss}`,
     `Take profit : ${signal.take_profit}`,
     `_${new Date(signal.created_at).toLocaleString("fr-FR")}_`,
+    ...(signal.confidence_score != null ? [`Confiance : ${signal.confidence_score}/100`] : []),
     "",
     "⚠️ Pas un conseil financier — risque de perte en capital.",
   ].join("\n");

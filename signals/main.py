@@ -34,14 +34,18 @@ import binance_client
 import coingecko_client
 import correlation_guard
 import momentum
-from indicators import compute_all_indicators
+from indicators import compute_all_indicators, ema
 from strategy import detect_signal
+from confidence import compute_confidence_score
 from chart_generator import generate_chart
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-KLINES_LOOKBACK = 100  # bougies horaires Binance (largement > MIN_HISTORY_POINTS)
+# Amélioration 9 : porté de 100 à 250 pour que l'EMA200 (composante du score
+# de confiance, voir confidence.py) dispose d'assez d'historique pour être
+# significative — 100 bougies ne suffisaient qu'à EMA21/RSI14.
+KLINES_LOOKBACK = 250
 COINGECKO_FALLBACK_DAYS = 6  # granularité horaire chez CoinGecko sur cette fenêtre, ~144 points
 
 
@@ -104,6 +108,30 @@ def fetch_recent_prices(pair: str, coin_id: str):
     return None
 
 
+def fetch_htf_ema50(pair: str) -> float | None:
+    """
+    Amélioration 1 (expérimentale, voir config.ENABLE_HTF_FILTER) : EMA50 sur
+    le timeframe HTF (4h par défaut), pour confirmer l'alignement de tendance
+    avant d'émettre un signal 1h. Retourne None si les données HTF ne sont
+    pas disponibles (dégradation silencieuse : le filtre est alors ignoré
+    pour cette paire ce cycle plutôt que de bloquer la détection).
+    """
+    try:
+        symbol = binance_client.pair_to_symbol(pair)
+        candles = binance_client.get_klines(symbol, interval=config.HTF_INTERVAL, limit=100)
+        if len(candles) < config.HTF_EMA_PERIOD:
+            return None
+        closes = pd.Series([c[4] for c in candles])
+        # Dernière bougie 4h déjà CLÔTURÉE (get_klines peut inclure la bougie en
+        # cours) : on écarte la plus récente pour ne jamais juger sur un 4h
+        # encore incomplet, cohérent avec l'alignement utilisé en backtest.
+        return float(ema(closes, config.HTF_EMA_PERIOD).iloc[-2])
+    except Exception:
+        logger.warning("Échec de récupération de l'EMA%d %s pour %s, filtre HTF ignoré ce cycle.",
+                        config.HTF_EMA_PERIOD, config.HTF_INTERVAL, pair, exc_info=True)
+        return None
+
+
 def _generate_and_upload_chart(enriched_df, signal_dict: dict, now_ms: int) -> str | None:
     """
     Génère le graphique du signal et l'envoie vers Supabase Storage.
@@ -158,10 +186,17 @@ def run_once(params: dict) -> int:
             df, params["ema_fast"], params["ema_slow"],
             config.RSI_PERIOD, config.BOLLINGER_PERIOD, config.BOLLINGER_STD,
         )
+        htf_ema50 = fetch_htf_ema50(pair) if config.ENABLE_HTF_FILTER else None
         signal_dict = detect_signal(
-            enriched, pair, params["rsi_buy_threshold"], params["rsi_sell_threshold"]
+            enriched, pair, params["rsi_buy_threshold"], params["rsi_sell_threshold"],
+            htf_ema50=htf_ema50,
         )
         if signal_dict:
+            # Amélioration 9 : score de confiance (0-100), purement informatif
+            # (voir confidence.py — jamais présenté comme une probabilité de gain).
+            signal_dict["confidence_score"] = compute_confidence_score(
+                enriched, signal_dict["type"], params["rsi_buy_threshold"], params["rsi_sell_threshold"],
+            )
             candidates.append((signal_dict, enriched))
         else:
             momentum_alerts.extend(

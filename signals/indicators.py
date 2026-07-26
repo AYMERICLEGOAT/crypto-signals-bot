@@ -54,6 +54,48 @@ def atr(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> 
     return true_range.ewm(alpha=1 / period, min_periods=period, adjust=False).mean()
 
 
+def macd(series: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> tuple:
+    """MACD standard : (ligne MACD, ligne de signal, histogramme)."""
+    macd_line = ema(series, fast) - ema(series, slow)
+    signal_line = ema(macd_line, signal)
+    histogram = macd_line - signal_line
+    return macd_line, signal_line, histogram
+
+
+def pivot_levels(df: pd.DataFrame, lookback: int = 50, order: int = 5) -> tuple:
+    """
+    Amélioration 4 : détecte les pivots (plus hauts/plus bas locaux) sur les
+    `lookback` dernières bougies. Une bougie i est un pivot haut si son
+    "high" est le maximum sur la fenêtre centrée [i-order, i+order] (pivot
+    bas : symétrique avec "low"). Retourne (pivot_highs, pivot_lows), deux
+    listes de prix — les niveaux de résistance / support candidats.
+
+    Ignore délibérément les `order` dernières bougies : un pivot doit être
+    confirmé par des bougies des DEUX côtés, donc les tout derniers points
+    ne peuvent pas encore être jugés pivots (pas de triche avec le futur).
+    """
+    window = df.iloc[-lookback:] if len(df) > lookback else df
+    highs, lows = window["high"].reset_index(drop=True), window["low"].reset_index(drop=True)
+    n = len(window)
+
+    pivot_highs, pivot_lows = [], []
+    for i in range(order, n - order):
+        segment_high = highs.iloc[i - order:i + order + 1]
+        segment_low = lows.iloc[i - order:i + order + 1]
+        if highs.iloc[i] == segment_high.max():
+            pivot_highs.append(highs.iloc[i])
+        if lows.iloc[i] == segment_low.min():
+            pivot_lows.append(lows.iloc[i])
+    return pivot_highs, pivot_lows
+
+
+def nearest_level_distance_pct(price: float, levels: list) -> float | None:
+    """Distance relative (valeur absolue, en fraction du prix) au niveau le plus proche, ou None si `levels` est vide."""
+    if not levels:
+        return None
+    return min(abs(price - lvl) for lvl in levels) / price
+
+
 def compute_all_indicators(df: pd.DataFrame, ema_fast: int, ema_slow: int,
                             rsi_period: int, bb_period: int, bb_std: float,
                             atr_period: int = 14) -> pd.DataFrame:

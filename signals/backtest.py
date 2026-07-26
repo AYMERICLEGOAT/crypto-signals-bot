@@ -35,7 +35,7 @@ import pandas as pd
 import config
 import binance_client
 import params_store
-from indicators import compute_all_indicators
+from indicators import compute_all_indicators, macd
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -46,6 +46,25 @@ INTERVAL = "1h"
 # du backtest sont désormais horaires, donc il faut 24x plus de bougies pour
 # représenter la même durée réelle.
 TIMEOUT_PERIODS = config.BACKTEST_TRADE_TIMEOUT_DAYS * 24
+
+# Bug critique découvert lors de la validation des "Améliorations 1-9" (pas
+# la stratégie elle-même, la MESURE) : ema()/ewm() initialise ema_fast et
+# ema_slow au premier prix de la fenêtre téléchargée (les deux DÉMARRENT
+# égales). Pendant qu'elles divergent depuis ce point de départ commun, un
+# "croisement" quasi garanti se produit dans les toutes premières bougies —
+# un artefact numérique de démarrage à froid, pas un vrai signal de marché.
+# Vérifié empiriquement : sur un run de 365 jours/20 paires, 100% des 47
+# trades bruts détectés tombaient dans les 30 premières bougies de CHAQUE
+# paire, et zéro sur les ~8700 bougies suivantes -- la totalité des chiffres
+# de win rate produits par ce module avant cette correction (y compris ceux
+# déjà enregistrés dans Supabase) reposaient donc sur cet artefact, pas sur
+# un vrai comportement de la stratégie. main.py (production) n'est PAS
+# affecté : il ne vérifie que les deux dernières bougies d'une fenêtre de
+# 100, où l'EMA21 a largement eu le temps de converger (poids résiduel du
+# démarrage à froid négligeable après ~3x la période). WARMUP_CANDLES aligne
+# le backtest sur cette même marge de convergence avant de compter le moindre
+# signal.
+WARMUP_CANDLES = 100
 
 # Grille de recherche (volontairement restreinte pour rester rapide).
 EMA_FAST_CANDIDATES = [8, 9, 12]
@@ -107,6 +126,39 @@ def filter_correlated_trades(trades: list, total_pairs: int) -> list:
     return [t for i, t in enumerate(sorted_trades) if i not in excluded]
 
 
+def detect_btc_crash_windows(btc_df: pd.DataFrame) -> list:
+    """
+    Amélioration 8 : détecte chaque instant où BTC/USDT chute de plus de
+    BTC_CRASH_DROP_PCT par rapport à son plus haut des BTC_CRASH_WINDOW_MS
+    précédentes (2h = 2 bougies horaires), et retourne la liste des fenêtres
+    de suspension (start_ms, end_ms) de BTC_CRASH_SUSPEND_MS (4h) qui en
+    découlent, pour les paires autres que BTC.
+    """
+    window_candles = max(1, config.BTC_CRASH_WINDOW_MS // (60 * 60 * 1000))
+    rolling_max = btc_df["price"].rolling(window_candles + 1, min_periods=1).max()
+    drop_pct = (rolling_max - btc_df["price"]) / rolling_max
+
+    windows = []
+    for ts_ms, drop in zip(btc_df["ts_ms"], drop_pct):
+        if drop > config.BTC_CRASH_DROP_PCT:
+            windows.append((int(ts_ms), int(ts_ms) + config.BTC_CRASH_SUSPEND_MS))
+    return windows
+
+
+def apply_btc_crash_filter(trades: list, crash_windows: list) -> list:
+    """Retire les signaux ACHAT sur les paires autres que BTC pendant une fenêtre de suspension (Amélioration 8)."""
+    if not crash_windows:
+        return trades
+    kept = []
+    for t in trades:
+        if t["pair"] != "BTC/USDT" and t["side"] == "BUY" and any(
+            start <= t["entered_at"] <= end for start, end in crash_windows
+        ):
+            continue
+        kept.append(t)
+    return kept
+
+
 def fetch_all_klines(pairs=BACKTEST_PAIRS, days=config.BACKTEST_DAYS) -> dict:
     """Récupère l'historique horaire Binance de chaque paire (~180 jours)."""
     pair_dfs = {}
@@ -123,8 +175,36 @@ def fetch_all_klines(pairs=BACKTEST_PAIRS, days=config.BACKTEST_DAYS) -> dict:
     return pair_dfs
 
 
+def _simulate_exit(enriched: pd.DataFrame, entry_idx: int, side: str, entry_price: float,
+                    stop_loss: float, take_profit: float, timeout_periods: int) -> tuple:
+    """
+    Factorisé de simulate_trades (utilisé aussi par les signaux de
+    continuation, Amélioration 7) : avance bougie par bougie jusqu'au stop,
+    au take profit, ou au timeout. Retourne (outcome, exit_price, exit_idx).
+    """
+    for j in range(entry_idx + 1, min(entry_idx + 1 + timeout_periods, len(enriched))):
+        candle = enriched.iloc[j]
+        if side == "BUY":
+            if candle["low"] <= stop_loss:
+                return "LOSS", stop_loss, j
+            if candle["high"] >= take_profit:
+                return "WIN", take_profit, j
+        else:
+            if candle["high"] >= stop_loss:
+                return "LOSS", stop_loss, j
+            if candle["low"] <= take_profit:
+                return "WIN", take_profit, j
+    exit_idx = min(entry_idx + timeout_periods, len(enriched) - 1)
+    return "TIMEOUT", enriched.iloc[exit_idx]["price"], exit_idx
+
+
 def simulate_trades(df: pd.DataFrame, ema_fast: int, ema_slow: int, rsi_buy: int, rsi_sell: int,
-                     pair: str = "", timeout_periods: int = TIMEOUT_PERIODS) -> list:
+                     pair: str = "", timeout_periods: int = TIMEOUT_PERIODS, htf_ema50=None,
+                     volume_sma_period: int | None = None, use_atr_stops: bool = config.ENABLE_ATR_STOPS,
+                     rsi_cross_window: int = config.RSI_CROSS_WINDOW,
+                     use_macd_filter: bool = config.ENABLE_MACD_FILTER,
+                     use_trading_hours_filter: bool = config.ENABLE_TRADING_HOURS_FILTER,
+                     use_continuation: bool = config.ENABLE_CONTINUATION_SIGNALS) -> list:
     """
     Détecte les signaux sur le DataFrame enrichi puis simule chaque trade
     bougie par bougie jusqu'à toucher le stop loss, le take profit, ou
@@ -134,13 +214,49 @@ def simulate_trades(df: pd.DataFrame, ema_fast: int, ema_slow: int, rsi_buy: int
     des bougies Binance utilisées) et exit_price — nécessaires pour
     persister des exemples de trades avec de VRAIES dates historiques
     (voir save_backtest_trades), jamais des dates inventées.
+
+    `htf_ema50` (Amélioration 1, expérimental) : Series optionnelle, alignée
+    sur l'index de `df`, donnant l'EMA50 4h la plus récente déjà CLÔTURÉE à
+    chaque bougie 1h (voir filter_lab.py pour l'alignement — jamais de 4h en
+    cours, pour ne pas tricher avec des données futures). Si fournie, un
+    signal ACHAT n'est retenu que si le prix 1h est au-dessus, un signal
+    VENTE que s'il est en dessous ; sinon comportement inchangé (None).
+
+    `volume_sma_period` (Amélioration 2, expérimental) : si fourni, le signal
+    n'est retenu que si le volume de la bougie courante dépasse la moyenne
+    mobile du volume sur les `volume_sma_period` bougies précédentes
+    (nécessite une colonne "volume" dans `df`).
+
+    `use_atr_stops` (Amélioration 3, expérimental) : si True, remplace les
+    pourcentages fixes config.STOP_LOSS_PCT/TAKE_PROFIT_PCT par
+    ATR_STOP_MULTIPLIER x ATR / ATR_TARGET_MULTIPLIER x ATR (ATR14, déjà
+    calculé par compute_all_indicators si high/low sont présentes). Si l'ATR
+    n'est pas encore disponible (période de warm-up), le trade est ignoré
+    plutôt que de retomber silencieusement sur les pourcentages fixes.
+
+    `use_macd_filter` (Amélioration 5, expérimental) : si True, un signal
+    ACHAT n'est retenu que si l'histogramme MACD(12,26,9) est positif OU en
+    train de remonter (curr > prev) ; VENTE que s'il est négatif OU en train
+    de redescendre.
+
+    `use_trading_hours_filter` (Amélioration 6, expérimental) : si True,
+    aucun signal entre config.QUIET_HOURS_START_UTC et QUIET_HOURS_END_UTC
+    (nuit) ni le week-end (samedi/dimanche), sauf volatilité anormalement
+    élevée (ATR courant > ATR_ANOMALY_MULTIPLIER x sa moyenne mobile sur
+    ATR_ANOMALY_LOOKBACK bougies).
     """
     enriched = compute_all_indicators(
         df, ema_fast, ema_slow, config.RSI_PERIOD, config.BOLLINGER_PERIOD, config.BOLLINGER_STD
     )
+    if volume_sma_period is not None:
+        enriched["volume_sma"] = enriched["volume"].rolling(volume_sma_period).mean()
+    if use_macd_filter:
+        _, _, enriched["macd_hist"] = macd(enriched["price"])
+    if use_trading_hours_filter:
+        enriched["atr_anomaly_avg"] = enriched["atr"].rolling(config.ATR_ANOMALY_LOOKBACK).mean()
     trades = []
 
-    for i in range(1, len(enriched) - 1):
+    for i in range(WARMUP_CANDLES, len(enriched) - 1):
         prev, curr = enriched.iloc[i - 1], enriched.iloc[i]
         if pd.isna(curr["ema_slow"]) or pd.isna(curr["rsi"]):
             continue
@@ -148,43 +264,76 @@ def simulate_trades(df: pd.DataFrame, ema_fast: int, ema_slow: int, rsi_buy: int
         crossed_up = prev["price"] <= prev["ema_slow"] and curr["price"] > curr["ema_slow"]
         crossed_down = prev["price"] >= prev["ema_slow"] and curr["price"] < curr["ema_slow"]
 
+        # Correctif fondamental (voir config.RSI_CROSS_WINDOW) : RSI en zone
+        # extrême dans les rsi_cross_window bougies précédant ET incluant le
+        # croisement (jamais après -- uniquement des données déjà connues à
+        # l'instant i, pour rester valide en backtest comme en production).
+        recent_rsi = enriched["rsi"].iloc[max(0, i - rsi_cross_window):i + 1]
+
         side = None
-        if crossed_up and curr["rsi"] < rsi_buy:
+        if crossed_up and (recent_rsi < rsi_buy).any():
             side = "BUY"
-        elif crossed_down and curr["rsi"] > rsi_sell:
+        elif crossed_down and (recent_rsi > rsi_sell).any():
             side = "SELL"
         if side is None:
             continue
 
+        if use_macd_filter:
+            hist, prev_hist = curr["macd_hist"], prev["macd_hist"]
+            if pd.isna(hist) or pd.isna(prev_hist):
+                continue
+            if side == "BUY" and not (hist > 0 or hist > prev_hist):
+                continue
+            if side == "SELL" and not (hist < 0 or hist < prev_hist):
+                continue
+
+        if use_trading_hours_filter:
+            ts = pd.Timestamp(int(curr["ts_ms"]), unit="ms", tz="UTC")
+            is_quiet_hour = ts.hour >= config.QUIET_HOURS_START_UTC or ts.hour < config.QUIET_HOURS_END_UTC
+            is_weekend = ts.weekday() >= 5  # 5=samedi, 6=dimanche
+            if is_quiet_hour or is_weekend:
+                atr_avg = curr["atr_anomaly_avg"]
+                is_anomaly = not pd.isna(atr_avg) and atr_avg > 0 and curr["atr"] > config.ATR_ANOMALY_MULTIPLIER * atr_avg
+                if not is_anomaly:
+                    continue
+
+        if htf_ema50 is not None:
+            htf_val = htf_ema50.iloc[i]
+            if pd.isna(htf_val):
+                continue
+            if side == "BUY" and not (curr["price"] > htf_val):
+                continue
+            if side == "SELL" and not (curr["price"] < htf_val):
+                continue
+
+        if volume_sma_period is not None:
+            vol_sma = curr["volume_sma"]
+            if pd.isna(vol_sma) or not (curr["volume"] > vol_sma):
+                continue
+
         entry_price = curr["price"]
-        if side == "BUY":
+        if use_atr_stops:
+            atr_val = curr.get("atr")
+            if atr_val is None or pd.isna(atr_val):
+                continue
+            stop_dist = config.ATR_STOP_MULTIPLIER * atr_val
+            target_dist = config.ATR_TARGET_MULTIPLIER * atr_val
+            if side == "BUY":
+                stop_loss = entry_price - stop_dist
+                take_profit = entry_price + target_dist
+            else:
+                stop_loss = entry_price + stop_dist
+                take_profit = entry_price - target_dist
+        elif side == "BUY":
             stop_loss = entry_price * (1 - config.STOP_LOSS_PCT)
             take_profit = entry_price * (1 + config.TAKE_PROFIT_PCT)
         else:
             stop_loss = entry_price * (1 + config.STOP_LOSS_PCT)
             take_profit = entry_price * (1 - config.TAKE_PROFIT_PCT)
 
-        outcome, exit_price, exit_idx = "TIMEOUT", None, None
-        for j in range(i + 1, min(i + 1 + timeout_periods, len(enriched))):
-            candle = enriched.iloc[j]
-            if side == "BUY":
-                if candle["low"] <= stop_loss:
-                    outcome, exit_price, exit_idx = "LOSS", stop_loss, j
-                    break
-                if candle["high"] >= take_profit:
-                    outcome, exit_price, exit_idx = "WIN", take_profit, j
-                    break
-            else:
-                if candle["high"] >= stop_loss:
-                    outcome, exit_price, exit_idx = "LOSS", stop_loss, j
-                    break
-                if candle["low"] <= take_profit:
-                    outcome, exit_price, exit_idx = "WIN", take_profit, j
-                    break
-
-        if exit_price is None:
-            exit_idx = min(i + timeout_periods, len(enriched) - 1)
-            exit_price = enriched.iloc[exit_idx]["price"]
+        outcome, exit_price, exit_idx = _simulate_exit(
+            enriched, i, side, entry_price, stop_loss, take_profit, timeout_periods
+        )
 
         pnl_pct = ((exit_price - entry_price) / entry_price if side == "BUY"
                    else (entry_price - exit_price) / entry_price)
@@ -199,6 +348,49 @@ def simulate_trades(df: pd.DataFrame, ema_fast: int, ema_slow: int, rsi_buy: int
             "entered_at": int(curr["ts_ms"]),
             "exited_at": int(enriched.iloc[exit_idx]["ts_ms"]),
         })
+
+        # Amélioration 7 (expérimental) : après un TP touché, surveille la
+        # même tendance pendant CONTINUATION_WINDOW_HOURS ; si le prix reste
+        # du bon côté de l'EMA lente sur TOUTE la fenêtre, émet un signal de
+        # continuation (SL/TP réduits de moitié) à l'issue de cette fenêtre.
+        # Jamais plus d'une continuation par trade gagnant (pas de chaîne
+        # infinie) et jamais de données futures utilisées avant l'instant
+        # où elles seraient réellement connues.
+        if use_continuation and outcome == "WIN":
+            window_end = min(exit_idx + config.CONTINUATION_WINDOW_HOURS, len(enriched) - 1)
+            if window_end > exit_idx:
+                window = enriched.iloc[exit_idx:window_end + 1]
+                aligned = (
+                    (window["price"] > window["ema_slow"]).all() if side == "BUY"
+                    else (window["price"] < window["ema_slow"]).all()
+                )
+                if aligned and not pd.isna(window.iloc[-1]["ema_slow"]):
+                    cont_entry_idx = window_end
+                    cont_entry_price = enriched.iloc[cont_entry_idx]["price"]
+                    cont_stop_dist = (stop_loss - entry_price if side == "SELL" else entry_price - stop_loss)
+                    cont_target_dist = (take_profit - entry_price if side == "BUY" else entry_price - take_profit)
+                    half_stop, half_target = abs(cont_stop_dist) / 2, abs(cont_target_dist) / 2
+                    if side == "BUY":
+                        cont_stop_loss, cont_take_profit = cont_entry_price - half_stop, cont_entry_price + half_target
+                    else:
+                        cont_stop_loss, cont_take_profit = cont_entry_price + half_stop, cont_entry_price - half_target
+
+                    cont_outcome, cont_exit_price, cont_exit_idx = _simulate_exit(
+                        enriched, cont_entry_idx, side, cont_entry_price, cont_stop_loss, cont_take_profit, timeout_periods
+                    )
+                    cont_pnl_pct = ((cont_exit_price - cont_entry_price) / cont_entry_price if side == "BUY"
+                                    else (cont_entry_price - cont_exit_price) / cont_entry_price)
+                    trades.append({
+                        "pair": pair,
+                        "side": side,
+                        "entry_price": cont_entry_price,
+                        "exit_price": cont_exit_price,
+                        "outcome": cont_outcome,
+                        "pnl_pct": cont_pnl_pct,
+                        "entered_at": int(enriched.iloc[cont_entry_idx]["ts_ms"]),
+                        "exited_at": int(enriched.iloc[cont_exit_idx]["ts_ms"]),
+                        "is_continuation": True,
+                    })
 
     return trades
 

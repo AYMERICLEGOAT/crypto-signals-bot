@@ -505,3 +505,12 @@ update promo_codes set active = false where code = 'RELANCE20';
 
 alter table users add column if not exists welcome_1h_sent boolean not null default false;
 alter table users add column if not exists welcome_1d_sent boolean not null default false;
+
+
+-- ----------------------------------------------------------------------------
+-- 22. Amélioration 9 — score de confiance (0-100) affiché avec chaque signal
+--     (voir signals/confidence.py). Purement informatif, ne prédit pas le
+--     résultat du trade (vérifié empiriquement, voir docstring du module).
+-- ----------------------------------------------------------------------------
+
+alter table signals add column if not exists confidence_score smallint;

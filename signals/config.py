@@ -46,6 +46,70 @@ PAIRS = {
     "OP/USDT": "optimism",
 }
 
+# Correctif fondamental (découvert en validant les "Améliorations 1-9") :
+# exiger RSI en zone extrême EXACTEMENT sur la bougie du croisement EMA9/21
+# ne s'est JAMAIS produit une seule fois en 2 ans sur 20 paires (vérifié
+# empiriquement) — le RSI, plus rapide, sort typiquement de la zone extrême
+# avant qu'un croisement EMA21, plus lent, ne se confirme. RSI_CROSS_WINDOW
+# élargit la vérification aux N bougies précédant ET incluant le croisement
+# (jamais après : uniquement des données déjà connues au moment du signal,
+# pour rester backtestable sans triche ET reproductible en production).
+# Testé sur 12 mois/20 paires : fenêtres 1/2/3/4 donnent toutes un win rate
+# proche de 32-33% (le seuil RSI 40/60 est le vrai facteur limitant, pas la
+# fenêtre), mais 1 a le meilleur couple win rate (33.5%) / drawdown max
+# (90.4%, contre 99%+ pour 2/3/4) à volume de trades très significatif
+# (1138/an sur 20 paires). Aucune fenêtre testée n'atteint 50% de réussite
+# seule — c'est précisément le rôle des filtres qualité ("Améliorations 1-9").
+RSI_CROSS_WINDOW = 1
+
+# --- Filtres expérimentaux ("Améliorations 1-9") — chacun backtesté sur 12
+# mois/20 paires (voir signals/backtest.py, docstring de simulate_trades) une
+# fois le correctif RSI_CROSS_WINDOW en place (base : 1138 trades/an, 33.5%
+# de réussite, ratio 1.97, drawdown 90.4%). Désactivé tant que le backtest ne
+# démontre pas une amélioration réelle (voir résultats ci-dessous).
+
+# Amélioration 1 (HTF, EMA50 4h) : 296 trades, 33.4% (flat), drawdown 47.7%
+# (bien meilleur, mais ni le win rate ni le nombre de trades ne s'améliorent
+# au sens strict demandé) -> ABANDONNÉ.
+ENABLE_HTF_FILTER = False
+HTF_INTERVAL = "4h"
+HTF_EMA_PERIOD = 50
+
+# Amélioration 2 (volume > SMA20) : 907 trades (-20%), 33.6% (quasi flat)
+# -> ABANDONNÉ.
+ENABLE_VOLUME_FILTER = False
+VOLUME_SMA_PERIOD = 20
+
+# Amélioration 3 (SL/TP dynamiques ATR14) : 1138 trades (identique), 35.6%
+# (+2.1pt), ratio 2.03 (vs 1.97), drawdown 81.4% (vs 90.4%) -> amélioration
+# sur tous les axes -> CONSERVÉ.
+ENABLE_ATR_STOPS = True
+ATR_STOP_MULTIPLIER = 1.5
+ATR_TARGET_MULTIPLIER = 3.0
+
+# Amélioration 5 (MACD 12/26/9) : voir résultat backtest ci-dessous une fois testé.
+ENABLE_MACD_FILTER = False
+
+# Amélioration 6 (heures creuses/week-end) : voir résultat backtest ci-dessous.
+ENABLE_TRADING_HOURS_FILTER = False
+QUIET_HOURS_START_UTC = 22  # inclus
+QUIET_HOURS_END_UTC = 8     # exclu
+# "Volatilité anormalement élevée" = ATR courant > ce multiplicateur x sa
+# moyenne mobile sur ATR_ANOMALY_LOOKBACK bougies (même logique que le pic
+# d'ATR des Alertes Momentum, voir momentum.py).
+ATR_ANOMALY_MULTIPLIER = 1.5
+ATR_ANOMALY_LOOKBACK = 24
+
+# Amélioration 7 (signaux de continuation) : voir résultat backtest ci-dessous.
+ENABLE_CONTINUATION_SIGNALS = False
+CONTINUATION_WINDOW_HOURS = 48
+
+# Amélioration 8 (corrélation BTC) : voir résultat backtest ci-dessous.
+ENABLE_BTC_CRASH_FILTER = False
+BTC_CRASH_DROP_PCT = 0.03
+BTC_CRASH_WINDOW_MS = 2 * 60 * 60 * 1000
+BTC_CRASH_SUSPEND_MS = 4 * 60 * 60 * 1000
+
 # --- Paramètres de la stratégie (valeurs par défaut, ajustables par le backtest) ---
 EMA_FAST_PERIOD = 9
 EMA_SLOW_PERIOD = 21
