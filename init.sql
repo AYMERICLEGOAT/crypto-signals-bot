@@ -532,3 +532,99 @@ create table if not exists volatility_suspensions (
 );
 
 create index if not exists idx_volatility_suspensions_unsent on volatility_suspensions (created_at) where sent_to_channel = false;
+
+
+-- ----------------------------------------------------------------------------
+-- 24. Bloc 12.2 — "Le saviez-vous ?" : anecdotes crypto en rotation sans
+--     répétition, même mécanisme que educational_posts (section 19).
+-- ----------------------------------------------------------------------------
+
+create table if not exists crypto_facts (
+    id            bigserial primary key,
+    content       text not null unique,
+    last_sent_at  timestamptz
+);
+
+create index if not exists idx_crypto_facts_rotation on crypto_facts (last_sent_at nulls first, id);
+
+insert into crypto_facts (content) values
+('Le premier achat concret en Bitcoin : 10 000 BTC contre deux pizzas, le 22 mai 2010, désormais célébré comme le "Bitcoin Pizza Day".'),
+('Le bloc genesis de Bitcoin, miné le 3 janvier 2009, contient un message caché : le titre d''un article du Times sur un plan de sauvetage bancaire.'),
+('"Satoshi Nakamoto", le ou les créateurs de Bitcoin, n''ont jamais révélé leur identité réelle.'),
+('Il n''y aura jamais plus de 21 millions de bitcoins en circulation : la limite est inscrite dans le protocole.'),
+('Le plus petit fragment de bitcoin s''appelle un "satoshi" : un cent-millionième de BTC.'),
+('Ethereum a introduit les "smart contracts", des programmes qui s''exécutent automatiquement sur la blockchain.'),
+('La blockchain Bitcoin fonctionne en continu depuis 2009, sans interruption majeure.'),
+('"HODL" vient d''une faute de frappe sur un forum en 2013 ("I AM HODLING") devenue une expression culte.'),
+('Chaque bloc miné avant 2020 rapportait 50 BTC de récompense ; ce montant est divisé par deux tous les ~4 ans ("halving").'),
+('Le dernier bitcoin ne sera miné que vers l''année 2140, selon le rythme du halving.'),
+('En 2021, le Salvador est devenu le premier pays à adopter le bitcoin comme monnaie légale.'),
+('Le terme "blockchain" désigne littéralement une chaîne de blocs de données liés cryptographiquement.'),
+('Perdre la clé privée d''un portefeuille crypto signifie perdre l''accès à ses fonds, définitivement — il n''y a pas de "mot de passe oublié".'),
+('On estime que plusieurs millions de bitcoins sont définitivement inaccessibles, clés privées perdues.'),
+('La preuve de travail (proof of work) de Bitcoin consomme de l''énergie pour sécuriser le réseau contre la fraude.'),
+('Ethereum est passé de la preuve de travail à la preuve d''enjeu (proof of stake) en 2022, lors de "The Merge".'),
+('Le mot "crypto" dans cryptomonnaie fait référence à la cryptographie utilisée pour sécuriser les transactions, pas à un secret.'),
+('Le Bitcoin Whitepaper, publié par Satoshi Nakamoto en octobre 2008, tient sur seulement 9 pages.'),
+('Une adresse Bitcoin peut recevoir des fonds même vide de toute activité — elle est générée mathématiquement, pas allouée par un tiers.'),
+('Les "NFT" (jetons non fongibles) permettent de représenter la propriété d''un objet numérique unique sur une blockchain.'),
+('DogeCoin, créé en 2013 comme une blague basée sur un mème de chien Shiba Inu, reste l''une des cryptomonnaies les plus connues.'),
+('Une transaction Bitcoin ne peut pas être annulée une fois confirmée sur la blockchain.'),
+('Les "stablecoins" comme l''USDT visent à maintenir une valeur stable, généralement indexée sur le dollar.'),
+('Binance, fondée en 2017, est devenue en quelques années l''une des plus grandes plateformes d''échange de cryptomonnaies au monde.'),
+('Le "gas" sur Ethereum désigne les frais payés pour exécuter une transaction ou un smart contract.'),
+('Un "wallet" (portefeuille) crypto ne stocke pas vraiment les pièces : il conserve les clés qui prouvent qu''on les possède sur la blockchain.'),
+('La capitalisation totale du marché crypto a dépassé les 1 000 milliards de dollars pour la première fois en 2021.'),
+('Un mineur qui valide un bloc Bitcoin doit résoudre un calcul cryptographique complexe, vérifié ensuite facilement par les autres nœuds.'),
+('Solana, lancée en 2020, met en avant des temps de confirmation de transaction très rapides comparés à Bitcoin.'),
+('Ethereum a été proposé par Vitalik Buterin en 2013, alors qu''il avait 19 ans.'),
+('Le mot "altcoin" désigne toute cryptomonnaie autre que le Bitcoin.'),
+('La blockchain Bitcoin ajoute un nouveau bloc environ toutes les 10 minutes, en moyenne.'),
+('Certains gouvernements ont interdit ou fortement restreint l''usage des cryptomonnaies, quand d''autres les ont pleinement intégrées.'),
+('Le "cold wallet" (portefeuille froid) stocke les clés hors ligne, à l''abri du piratage à distance.'),
+('L''"airdrop" désigne la distribution gratuite de jetons à des utilisateurs, souvent pour promouvoir un nouveau projet.'),
+('Une "fork" (bifurcation) de blockchain crée une nouvelle version du protocole — Bitcoin Cash est ainsi né d''un fork de Bitcoin en 2017.'),
+('Litecoin, lancé en 2011, est souvent présenté comme "l''argent" à côté de "l''or" que représenterait le Bitcoin.'),
+('Le trading de cryptomonnaies fonctionne 24h/24 et 7j/7, contrairement aux marchés boursiers traditionnels.'),
+('Une seed phrase (phrase de récupération) de 12 ou 24 mots permet de restaurer un portefeuille crypto sur n''importe quel appareil.'),
+('Chaque bloc Bitcoin doit être validé par consensus du réseau : aucun mineur ne peut valider un bloc invalide à lui seul.'),
+('Le "DeFi" (finance décentralisée) vise à recréer des services financiers (prêts, échanges) sans intermédiaire bancaire traditionnel.'),
+('XRP, la cryptomonnaie associée à Ripple, cible en priorité les transferts internationaux rapides entre institutions financières.'),
+('La volatilité des cryptomonnaies peut dépasser 10% de variation en une seule journée, bien plus que la plupart des actifs traditionnels.'),
+('Le premier guichet automatique Bitcoin (ATM) a été installé au Canada en 2013.'),
+('Chaque transaction Bitcoin est publique et consultable sur la blockchain, mais les identités réelles derrière les adresses ne le sont pas directement (pseudonymat, pas anonymat total).'),
+('Le terme "whale" (baleine) désigne un détenteur possédant une quantité très importante d''une cryptomonnaie, capable d''influencer son marché.'),
+('La Chine a interdit le minage de cryptomonnaies sur son territoire en 2021, provoquant une migration massive des mineurs vers d''autres pays.'),
+('Le champ "OP_RETURN" permet d''inscrire une petite quantité de données arbitraires dans une transaction Bitcoin.'),
+('Le mot "testnet" désigne un réseau blockchain parallèle utilisé pour tester du code sans risquer de vrais fonds.'),
+('Une "adresse multisig" exige plusieurs signatures différentes avant qu''une transaction puisse être validée — utile pour sécuriser des fonds partagés.'),
+('Le symbole ₿ pour le Bitcoin n''est pas officiel : il n''existe aucune norme Unicode universellement adoptée pour le représenter.')
+on conflict (content) do nothing;
+
+
+-- ----------------------------------------------------------------------------
+-- 25. Bloc 12.1 — Fear & Greed Index quotidien (voir cron/dispatchFearGreed.ts,
+--     API publique alternative.me). Table journal (pas de "state" générique
+--     dans le projet) : sert aussi de gate "déjà publié aujourd'hui".
+-- ----------------------------------------------------------------------------
+
+create table if not exists fear_greed_posts (
+    id            bigserial primary key,
+    value         smallint not null,
+    classification text not null,
+    posted_at     timestamptz not null default now()
+);
+
+create index if not exists idx_fear_greed_posts_posted_at on fear_greed_posts (posted_at desc);
+
+
+-- ----------------------------------------------------------------------------
+-- 26. Bloc 12.3 — récap hebdomadaire (dimanche 18h UTC, voir
+--     cron/dispatchWeeklyRecap.ts). Table journal, même rôle que
+--     fear_greed_posts : gate "déjà publié cette semaine".
+-- ----------------------------------------------------------------------------
+
+create table if not exists weekly_recap_posts (
+    id          bigserial primary key,
+    posted_at   timestamptz not null default now()
+);

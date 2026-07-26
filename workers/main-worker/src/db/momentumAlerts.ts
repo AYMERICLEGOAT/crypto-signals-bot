@@ -23,6 +23,11 @@ export async function markMomentumAlertSent(db: SupabaseConfig, id: number): Pro
   await updateRows(db, "momentum_alerts", { id: `eq.${id}` }, { sent_to_channel: true });
 }
 
+/** Bloc 12.3 — récap hebdomadaire : alertes momentum envoyées depuis `sinceIso`. */
+export async function getMomentumAlertsSince(db: SupabaseConfig, sinceIso: string): Promise<{ id: number }[]> {
+  return selectRows<{ id: number }>(db, "momentum_alerts", { created_at: `gte.${sinceIso}`, select: "id" });
+}
+
 /** Purge (Bloc 7) : alertes déjà diffusées, sans valeur une fois postées — évite une croissance illimitée de la table. */
 export async function purgeOldSentMomentumAlerts(db: SupabaseConfig, olderThanDays: number): Promise<void> {
   const threshold = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString();

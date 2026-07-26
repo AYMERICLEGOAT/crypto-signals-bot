@@ -100,6 +100,20 @@ export async function hasRecentSignal(db: SupabaseConfig, hours: number): Promis
   return rows.length > 0;
 }
 
+/** Bloc 12.3 — récap hebdomadaire : signaux émis depuis `sinceIso`. */
+export async function getSignalsCreatedSince(db: SupabaseConfig, sinceIso: string): Promise<SignalRecord[]> {
+  return selectRows<SignalRecord>(db, "signals", { created_at: `gte.${sinceIso}`, select: "id" });
+}
+
+/** Bloc 12.3 — récap hebdomadaire : signaux résolus (TP/SL/expiré) depuis `sinceIso`. */
+export async function getSignalsResolvedSince(db: SupabaseConfig, sinceIso: string): Promise<SignalRecord[]> {
+  return selectRows<SignalRecord>(db, "signals", {
+    evaluated_at: `gte.${sinceIso}`,
+    outcome: "not.is.null",
+    select: "type,entry_price,outcome_price,close_reason",
+  });
+}
+
 export async function markSignalClosed(
   db: SupabaseConfig,
   id: number,
