@@ -36,6 +36,11 @@ TELEGRAM_CHANNEL_ID = "-1004450068761"
 # Même canal, lien public affiché aux utilisateurs (getChatMember veut l'ID numérique,
 # les humains veulent un lien cliquable) — voir bot/commands/trial.ts (boucle virale).
 TELEGRAM_CHANNEL_URL = "https://t.me/ProSignauxPublic"
+# Canal VIP prive (abonnes payants, voir /vip) -- le bot doit etre admin de
+# ce chat avec le droit "inviter des utilisateurs". Prefixe -100 ajoute par
+# coherence avec TELEGRAM_CHANNEL_ID ci-dessus (format standard des canaux/
+# supergroupes dans l'API Bot Telegram) -- a verifier via un test reel de /vip.
+TELEGRAM_VIP_CHANNEL_ID = "-1003935938125"
 # Adresse de réception USDT (V2 100% off-chain) — wallet OWNER, adresse publique.
 PAYMENT_ADDRESS_USDT = "0x71367B5f4519700a63c2564b754cF959317E1f61"
 # Guide visuel de paiement (signals/generate_payment_guide.py) — Storage public,
