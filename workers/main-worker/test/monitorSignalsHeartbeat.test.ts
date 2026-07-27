@@ -70,6 +70,37 @@ describe("monitorSignalsHeartbeat", () => {
     expect(markedAlerted).toBe(true);
   });
 
+  it("redéclenche le workflow via l'API GitHub si GITHUB_ACTIONS_TOKEN est configuré", async () => {
+    let dispatchCalled = false;
+    let alertText = "";
+    const staleTimestamp = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("system_heartbeats") && (!init || init.method === undefined)) {
+          return jsonResponse([{ job_name: "signals", last_run_at: staleTimestamp, alerted: false }]);
+        }
+        if (url.includes("api.github.com") && url.includes("signals.yml/dispatches")) {
+          dispatchCalled = true;
+          expect(init?.headers).toMatchObject({ Authorization: "Bearer fake-gh-token" });
+          return new Response(null, { status: 204 });
+        }
+        if (url.includes("api.telegram.org")) {
+          alertText = JSON.parse(init!.body as string).text;
+          return jsonResponse({ ok: true, result: {} });
+        }
+        if (url.includes("system_heartbeats") && init?.method === "PATCH") return jsonResponse([]);
+        throw new Error(`URL inattendue: ${url}`);
+      })
+    );
+
+    await monitorSignalsHeartbeat({ ...env, GITHUB_ACTIONS_TOKEN: "fake-gh-token" });
+
+    expect(dispatchCalled).toBe(true);
+    expect(alertText).toContain("Relance automatique déclenchée");
+  });
+
   it("ne ré-alerte pas si déjà alerté pour cette panne", async () => {
     const staleTimestamp = new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString();
     const fetchSpy = vi.fn(async (url: string) => {

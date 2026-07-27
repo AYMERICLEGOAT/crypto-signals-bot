@@ -51,6 +51,13 @@ export interface Env {
   // voir Bloc 4) pour afficher un taux de réussite EN CONDITIONS RÉELLES
   // plutôt que le backtest in-sample. Scaffold pour l'instant, pas encore lu.
   DISPLAY_WINRATE?: string;
+  // Personal Access Token GitHub (fine-grained, scope "Actions: write" sur ce
+  // dépôt uniquement) — permet à cron/monitorSignalsHeartbeat.ts de
+  // redéclencher automatiquement le workflow signals.yml si le déclencheur
+  // schedule: de GitHub Actions saute (limitation documentée de la
+  // plateforme, observée en production). Optionnel : sans lui, seule
+  // l'alerte Telegram est envoyée, sans relance automatique.
+  GITHUB_ACTIONS_TOKEN?: string;
   // Audit#16 : le flux de paiement actif est 100% off-chain (V2, voir
   // processUsdtTransfers). CONTRACT_ADDRESS pointe sur Amoy (testnet) alors
   // que POLYGON_RPC_URL interroge le mainnet -- ça désactivait déjà
