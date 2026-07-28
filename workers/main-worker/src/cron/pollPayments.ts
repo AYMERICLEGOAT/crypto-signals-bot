@@ -108,8 +108,12 @@ async function processUsdtTransfers(env: Env): Promise<void> {
       continue;
     }
 
-    await markPaymentConfirmed(db, pending.id);
+    // Active D'ABORD, ne marque confirmé qu'ensuite : si activateSubscription
+    // échoue (hoquet Supabase transitoire), le paiement reste "pending" et sera
+    // retenté au cycle suivant, au lieu d'être marqué confirmé puis perdu sans
+    // qu'aucun code ne le retente jamais (l'utilisateur aurait payé sans accès).
     await activateSubscription(db, user.telegram_id, pending.plan, addDays(new Date(), durationForPlan(pending.plan)));
+    await markPaymentConfirmed(db, pending.id);
     await maybeRewardReferral(env, user.telegram_id);
     await consumePendingPromoCode(db, user.telegram_id);
     await onPaymentConfirmed(env, db, user.telegram_id, pending.plan);
@@ -132,8 +136,10 @@ async function processMoneroPayments(env: Env): Promise<void> {
       const paid = await checkMoneroPayment(env, payment.address_index, payment.amount_expected);
       if (!paid) continue;
 
-      await markPaymentConfirmed(db, payment.id);
+      // Voir commentaire équivalent dans processUsdtTransfers : active avant de
+      // marquer confirmé, pour qu'un échec d'activation reste retentable.
       await activateSubscription(db, payment.telegram_id, payment.plan, addDays(new Date(), durationForPlan(payment.plan)));
+      await markPaymentConfirmed(db, payment.id);
       await maybeRewardReferral(env, payment.telegram_id);
       await consumePendingPromoCode(db, payment.telegram_id);
       await onPaymentConfirmed(env, db, payment.telegram_id, payment.plan);
@@ -153,8 +159,10 @@ async function processLitecoinPayments(env: Env): Promise<void> {
       const paid = await checkLitecoinPayment(env, payment.pay_address, payment.amount_expected);
       if (!paid) continue;
 
-      await markPaymentConfirmed(db, payment.id);
+      // Voir commentaire équivalent dans processUsdtTransfers : active avant de
+      // marquer confirmé, pour qu'un échec d'activation reste retentable.
       await activateSubscription(db, payment.telegram_id, payment.plan, addDays(new Date(), durationForPlan(payment.plan)));
+      await markPaymentConfirmed(db, payment.id);
       await maybeRewardReferral(env, payment.telegram_id);
       await consumePendingPromoCode(db, payment.telegram_id);
       await onPaymentConfirmed(env, db, payment.telegram_id, payment.plan);

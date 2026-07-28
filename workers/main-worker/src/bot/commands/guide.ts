@@ -39,6 +39,7 @@ export async function handleGuideCommand(env: Env, telegramId: number): Promise<
       `6. Ne risque jamais plus de ${SUGGESTED_RISK_PCT}% de ton capital total sur un seul trade — chaque signal indique la taille de position correspondante (voir "Risque conseillé" ci-dessous).\n\n` +
       `📎 Exemple concret${exampleNote} :\n\n` +
       buildSignalMessage(example) +
-      "\n\n💡 Astuce : active le trailing stop dans /prefs pour recevoir un rappel dès qu'un trade progresse suffisamment pour sécuriser une partie du gain."
+      "\n\n💡 Astuce : active le trailing stop dans /prefs pour recevoir un rappel dès qu'un trade progresse suffisamment pour sécuriser une partie du gain.",
+    { markdown: true }
   );
 }

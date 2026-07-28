@@ -25,6 +25,7 @@ import { getCurrentPrices, pairToSymbol } from "../market/binancePrices";
 import { evaluateOutcome, computePnlPct, computeTrailingStop, evaluateMultiTpProgress, CloseReason } from "../signalMath";
 import { sendMessage } from "../telegram";
 import { handleAntiStress } from "./antiStress";
+import { typeLabel } from "../signalFormat";
 
 const SIGNAL_TIMEOUT_DAYS = 10;
 const BATCH_SIZE = 25;
@@ -35,7 +36,26 @@ function pctLabel(pct: number): string {
 }
 
 function formatSubscriberCloseMessage(signal: SignalRecord, pct: number): string {
-  const base = `${signal.type} ${signal.pair} — entrée ${signal.entry_price}, clôturé à ${signal.outcome_price} (${pctLabel(pct)}).`;
+  const base = `${typeLabel(signal.type)} ${signal.pair} — entrée ${signal.entry_price}, clôturé à ${signal.outcome_price} (${pctLabel(pct)}).`;
+
+  // Mission "grille d'excellence" : un signal peut se clôturer à 0% après
+  // avoir déjà sécurisé TP1 (retour au break-even) ou sur le runner TP3 —
+  // deux cas que le message générique "Take profit atteint" rendait confus
+  // (0.0% affiché à côté d'un "take profit atteint", ou TP3 traité comme un
+  // gain quelconque sans reconnaître le runner).
+  const isTp3Win = signal.close_reason === "tp_hit" && signal.tp3_price != null && signal.outcome_price === signal.tp3_price;
+  if (isTp3Win) {
+    return ["🥉 *TP3 atteint — le runner est allé au bout !* 🚀", base].join("\n");
+  }
+  const isBreakevenAfterTp1 = signal.close_reason === "tp_hit" && signal.tp1_hit_at != null && signal.outcome_price === signal.entry_price;
+  if (isBreakevenAfterTp1) {
+    return [
+      "🔒 *Clôturé au point mort — TP1 déjà sécurisé*",
+      base,
+      "Le prix est revenu à l'entrée après ton premier objectif : le gain de TP1 reste acquis, ce trade compte comme un succès.",
+    ].join("\n");
+  }
+
   switch (signal.close_reason) {
     case "tp_hit":
       return [`✅ *Take profit atteint*`, base].join("\n");
@@ -54,7 +74,7 @@ function formatSubscriberCloseMessage(signal: SignalRecord, pct: number): string
 
 function formatPublicCloseMessage(signal: SignalRecord, pct: number, botUsername: string): string {
   const escapedUsername = botUsername.replace(/_/g, "\\_");
-  const base = `${signal.type} ${signal.pair} — entrée ${signal.entry_price} → sortie ${signal.outcome_price} (${pctLabel(pct)}).`;
+  const base = `${typeLabel(signal.type)} ${signal.pair} — entrée ${signal.entry_price} → sortie ${signal.outcome_price} (${pctLabel(pct)}).`;
   if (signal.close_reason === "tp_hit") {
     return [`🎉 *Objectif atteint !*`, base, "", `Envie de ne rater aucun signal comme celui-ci ? Rejoins @${escapedUsername}`].join("\n");
   }
@@ -70,15 +90,15 @@ function formatTrailingStopUpdate(signal: SignalRecord, newTrailingStop: number)
   const direction = signal.type === "BUY" ? "remonte" : "baisse";
   return [
     "🔒 *Trailing stop* — mets à jour ton stop",
-    `${signal.type} ${signal.pair} progresse en ta faveur : ${direction} ton stop de ${previous} à ${newTrailingStop} pour sécuriser une partie du gain.`,
+    `${typeLabel(signal.type)} ${signal.pair} progresse en ta faveur : ${direction} ton stop de ${previous} à ${newTrailingStop} pour sécuriser une partie du gain.`,
     "Purement indicatif — n'affecte pas le stop loss officiel de ce signal.",
   ].join("\n");
 }
 
 function formatTp1HitMessage(signal: SignalRecord): string {
   return [
-    "🟢 *TP1 sécurisé !*",
-    `${signal.type} ${signal.pair} a atteint son premier objectif (${signal.tp1_price}).`,
+    "🥇 *TP1 sécurisé !*",
+    `${typeLabel(signal.type)} ${signal.pair} a atteint son premier objectif (${signal.tp1_price}).`,
     `${signal.stop_loss !== signal.entry_price ? "Le stop passe automatiquement au break-even (prix d'entrée)" : "Stop déjà au break-even"} — ce signal ne peut plus finir perdant.`,
     `Objectif suivant : TP2 (${signal.tp2_price}).`,
   ].join("\n");
@@ -86,16 +106,16 @@ function formatTp1HitMessage(signal: SignalRecord): string {
 
 function formatTp2HitMessage(signal: SignalRecord): string {
   return [
-    "🟢🟢 *TP2 atteint — objectif principal !*",
-    `${signal.type} ${signal.pair} a atteint son objectif principal (${signal.tp2_price}).`,
+    "🥈 *TP2 atteint — objectif principal !*",
+    `${typeLabel(signal.type)} ${signal.pair} a atteint son objectif principal (${signal.tp2_price}).`,
     `Le reste de la position vise maintenant le runner TP3 (${signal.tp3_price}), stop toujours au break-even.`,
   ].join("\n");
 }
 
 /** Étape 2 (célébrations) : message festif diffusé sur le canal VIP quand TP2 ou TP3 est atteint. */
 function formatCelebrationMessage(signal: SignalRecord, level: "TP2" | "TP3", pct: number): string {
-  const emoji = level === "TP2" ? "🎯" : "🚀";
-  return `${emoji} *${level} ATTEINT sur ${signal.pair} !* ${pctLabel(pct)} sécurisés. Félicitations aux abonnés Pro !`;
+  const medal = level === "TP2" ? "🥈" : "🥉";
+  return `${medal} *${level} ATTEINT sur ${signal.pair} !* ${pctLabel(pct)} sécurisés. Félicitations aux abonnés !`;
 }
 
 /** Étape 2 : texte simple (pas d'image) que l'abonné peut copier-coller sur ses réseaux. */

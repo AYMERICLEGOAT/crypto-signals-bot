@@ -4,6 +4,7 @@ import { getUserSignalHistory, SignalDeliveryWithSignal } from "../../db/history
 import { getOrCreateUser } from "../../db/users";
 import { getLoyaltyBadge } from "../loyaltyBadge";
 import { computePnlPct } from "../../signalMath";
+import { typeLabel } from "../../signalFormat";
 
 function statusLabel(signal: SignalDeliveryWithSignal["signals"]): string {
   if (!signal) return "Inconnu";
@@ -54,7 +55,7 @@ export async function handleHistoryCommand(env: Env, telegramId: number): Promis
     }
     const pctLabel = pct !== null ? ` (${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%)` : "";
 
-    lines.push(`${signal.type} ${signal.pair} — ${status}${pctLabel}`);
+    lines.push(`${typeLabel(signal.type)} ${signal.pair} — ${status}${pctLabel}`);
   }
 
   if (closedCount > 0) {

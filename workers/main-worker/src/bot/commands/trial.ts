@@ -68,8 +68,17 @@ export async function activateTrialForWallet(env: Env, telegramId: number, walle
   const db = dbConfig(env);
 
   if (await hasWalletClaimedTrial(db, walletAddress)) {
-    await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, "Cette adresse a déjà utilisé son essai gratuit.");
-    await markTrialUsed(db, telegramId);
+    // Ne PAS marquer trial_used ici : cette adresse a déjà servi (ailleurs),
+    // mais CE compte Telegram n'a encore reçu aucun essai. Le marquer utilisé
+    // condamnerait définitivement un utilisateur honnête qui aurait juste
+    // collé la mauvaise adresse (copier-coller, adresse recyclée) — il
+    // suffit de le laisser réessayer avec une autre adresse.
+    await setPendingAction(db, telegramId, { type: "awaiting_wallet_trial" });
+    await sendMessage(
+      env.TELEGRAM_BOT_TOKEN,
+      telegramId,
+      "Cette adresse a déjà utilisé son essai gratuit. Envoie une autre adresse de wallet Polygon (0x...) pour activer le tien."
+    );
     return;
   }
 

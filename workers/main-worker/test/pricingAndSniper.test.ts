@@ -143,7 +143,7 @@ describe("Effet Sniper — dispatchSignals (vitesse Pro/essai)", () => {
 describe("Effet Sniper — dispatchStandardTier (délai Standard/Découverte)", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("n'envoie qu'aux abonnés Standard et Découverte, pour les signaux dus, marque sent_to_standard et trace les livraisons (Bloc 4)", async () => {
+  it("n'envoie qu'aux abonnés pas encore livrés (le Pro déjà notifié en immédiat est exclu), marque sent_to_standard et trace les livraisons (Bloc 4)", async () => {
     const notified: number[] = [];
     let marked = false;
     let recordedDeliveries: any[] | null = null;
@@ -166,6 +166,13 @@ describe("Effet Sniper — dispatchStandardTier (délai Standard/Découverte)", 
         if (url.includes("api.telegram.org")) {
           notified.push(JSON.parse(init!.body as string).chat_id);
           return jsonResponse({ ok: true, result: {} });
+        }
+        // Effet Sniper (nouvelle cible "pas encore livré" plutôt que par plan
+        // figé) : le Pro (telegram_id 1) a déjà reçu ce signal via le lot
+        // immédiat (dispatchSignals.ts) -- reproduit ici pour vérifier qu'il
+        // n'est bien PAS renotifié par ce lot différé.
+        if (url.includes("signal_deliveries") && url.includes("select=telegram_id")) {
+          return jsonResponse([{ telegram_id: 1 }]);
         }
         if (url.includes("signal_deliveries") && init?.method === "POST") {
           recordedDeliveries = JSON.parse(init.body as string);

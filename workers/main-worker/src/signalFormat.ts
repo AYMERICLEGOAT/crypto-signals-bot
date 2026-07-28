@@ -31,6 +31,11 @@ function pct(value: number): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
+/** Libellé FR pour un côté de signal — à utiliser partout au lieu du "BUY"/"SELL" brut, qui fuitait en anglais dans plusieurs messages de suivi. */
+export function typeLabel(type: SignalSide): string {
+  return type === "BUY" ? "ACHAT" : "VENTE";
+}
+
 function buildContext(type: SignalSide): string {
   return type === "BUY"
     ? "📈 Signal Haute Confiance : la tendance vient de basculer haussière (EMA + RSI + ADX alignés)."
@@ -53,7 +58,7 @@ function buildRiskSizingLine(entryPrice: number, stopLoss: number): string | nul
  * Mission "grille d'excellence" — gestion Multi-TP avec sécurisation
  * Break-Even (voir signals/config.py::ENABLE_MULTI_TP_EXITS). Les
  * multiplicateurs ATR sont fixes en production (validés par backtest sur 24
- * mois/20 paires) donc affichés en dur ici plutôt que transmis dynamiquement.
+ * mois/28 paires) donc affichés en dur ici plutôt que transmis dynamiquement.
  */
 function buildMultiTpLines(signal: SignalLike): string[] {
   const pctOf = (level: number) =>
@@ -87,7 +92,7 @@ export function buildSignalMessage(
   opts: { trailingEnabled?: boolean; delayNote?: string; ctaUsername?: string } = {}
 ): string {
   const emoji = signal.type === "BUY" ? "🟢" : "🔴";
-  const label = signal.type === "BUY" ? "ACHAT" : "VENTE";
+  const label = typeLabel(signal.type);
   const rewardPct = signal.type === "BUY"
     ? ((signal.take_profit - signal.entry_price) / signal.entry_price) * 100
     : ((signal.entry_price - signal.take_profit) / signal.entry_price) * 100;

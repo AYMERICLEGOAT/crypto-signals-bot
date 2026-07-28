@@ -1,5 +1,5 @@
 import { InlineKeyboard } from "../telegram";
-import { PaidPlan } from "../payments/plans";
+import { PaidPlan, PLAN_PRICES_USD, PLAN_DURATION_DAYS, STANDARD_PLAN, PRO_PLAN, DISCOVERY_PLAN } from "../payments/plans";
 
 export const startKeyboard: InlineKeyboard = [
   [{ text: "📅 S'abonner", callback_data: "start:subscribe" }],
@@ -22,13 +22,23 @@ export const startKeyboard: InlineKeyboard = [
  * le flag à "true".
  */
 export function buildPlanKeyboard(remainingDiscoverySlots: number, proPlanVisible = true): InlineKeyboard {
-  const keyboard: InlineKeyboard = [[{ text: "⭐ Standard — 19 USDT / mois", callback_data: "plan:1" }]];
+  // Prix/durées dérivés de payments/plans.ts (source unique) au lieu de
+  // valeurs recopiées à la main : un changement de prix ne pouvait sinon
+  // toucher que le message texte de subscribe.ts, pas ces boutons, et
+  // l'utilisateur cliquait sur un montant qui ne correspondait plus à celui
+  // réellement facturé.
+  const keyboard: InlineKeyboard = [
+    [{ text: `⭐ Standard — ${PLAN_PRICES_USD[STANDARD_PLAN]} USDT / ${PLAN_DURATION_DAYS[STANDARD_PLAN]}j`, callback_data: "plan:1" }],
+  ];
   if (proPlanVisible) {
-    keyboard.push([{ text: "🎯 Pro — 39 USDT / mois", callback_data: "plan:2" }]);
+    keyboard.push([{ text: `🎯 Pro — ${PLAN_PRICES_USD[PRO_PLAN]} USDT / ${PLAN_DURATION_DAYS[PRO_PLAN]}j`, callback_data: "plan:2" }]);
   }
   if (remainingDiscoverySlots > 0) {
     keyboard.push([
-      { text: `🚀 Découverte — 5 USDT / 14j (Offre de lancement, ${remainingDiscoverySlots} places restantes)`, callback_data: "plan:3" },
+      {
+        text: `🚀 Découverte — ${PLAN_PRICES_USD[DISCOVERY_PLAN]} USDT / ${PLAN_DURATION_DAYS[DISCOVERY_PLAN]}j (Offre de lancement, ${remainingDiscoverySlots} places restantes)`,
+        callback_data: "plan:3",
+      },
     ]);
   }
   return keyboard;

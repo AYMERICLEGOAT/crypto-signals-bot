@@ -10,9 +10,8 @@ import { Env, dbConfig } from "../env";
 import { getSignalsDueForStandardTier, markSentToStandard } from "../db/signals";
 import { getActiveUsers } from "../db/users";
 import { filterByPrefEnabled } from "../db/userPrefs";
-import { recordDeliveries } from "../db/signalDeliveries";
+import { recordDeliveries, getDeliveryRecipients } from "../db/signalDeliveries";
 import { sendMessage, sendPhoto } from "../telegram";
-import { STANDARD_PLAN, DISCOVERY_PLAN } from "../payments/plans";
 import { buildSignalMessage } from "../signalFormat";
 
 export const SNIPER_DELAY_MINUTES = 15;
@@ -26,13 +25,20 @@ export async function dispatchStandardTier(env: Env): Promise<void> {
   if (due.length === 0) return;
 
   const activeUsers = await getActiveUsers(db);
-  const targetIds = activeUsers
-    .filter((u) => u.plan === STANDARD_PLAN || u.plan === DISCOVERY_PLAN)
-    .map((u) => u.telegram_id);
-
-  const trailingEnabledIds = new Set(await filterByPrefEnabled(db, targetIds, "trailing_stop"));
 
   for (const signal of due) {
+    // Cible "pas encore livré CE signal" plutôt qu'un filtre par plan figé :
+    // un abonné qui change de plan (ex. Standard -> Pro) entre l'envoi
+    // immédiat (dispatchSignals.ts) et ce lot différé ne doit ni être oublié
+    // ni recevoir le signal deux fois.
+    const alreadyDelivered = new Set(await getDeliveryRecipients(db, signal.id));
+    const targetIds = activeUsers.filter((u) => !alreadyDelivered.has(u.telegram_id)).map((u) => u.telegram_id);
+    if (targetIds.length === 0) {
+      await markSentToStandard(db, signal.id);
+      continue;
+    }
+    const trailingEnabledIds = new Set(await filterByPrefEnabled(db, targetIds, "trailing_stop"));
+
     const textDefault = buildSignalMessage(signal);
     const textWithTrailing = trailingEnabledIds.size > 0 ? buildSignalMessage(signal, { trailingEnabled: true }) : textDefault;
     const send = (id: number) => {

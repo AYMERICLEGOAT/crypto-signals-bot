@@ -16,7 +16,7 @@ const LOOKBACK_HOURS = 24;
 
 const STATUS_MESSAGE = [
   "📡 *Aucun signal généré aujourd'hui.*",
-  "La stratégie surveille 20 paires en continu et n'agit que lorsque ses critères sont réunis — pas de signal forcé pour faire du volume.",
+  "La stratégie surveille 28 paires en continu et n'agit que lorsque ses critères sont réunis — pas de signal forcé pour faire du volume.",
   "",
   "Reste connecté, le prochain signal arrivera dès qu'une vraie opportunité se présente.",
 ].join("\n");
