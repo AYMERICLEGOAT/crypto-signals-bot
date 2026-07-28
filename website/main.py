@@ -15,11 +15,10 @@ tiennent lieu de contenu, et sitemap.xml/robots.txt sont toujours publiés
 (un sitemap absent pénaliserait le référencement pendant toute cette période).
 """
 
-import json
 import os
 from datetime import datetime, timezone
 
-from config import NUM_SIGNALS_TO_DISPLAY, DATA_DIR, PAGES_MANIFEST_PATH, OUTPUT_DIR, SITE_BASE_URL, TELEGRAM_BOT_USERNAME
+from config import NUM_SIGNALS_TO_DISPLAY, OUTPUT_DIR, SITE_BASE_URL, TELEGRAM_BOT_USERNAME
 import supabase_client
 import outcome_evaluator
 from html_generator import build_daily_page
@@ -30,16 +29,35 @@ import github_publisher
 
 
 def _load_manifest():
-    if os.path.exists(PAGES_MANIFEST_PATH):
-        with open(PAGES_MANIFEST_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return []
+    """
+    Reconstruit l'historique des pages archivées (pour sitemap.xml) en
+    scannant directement public/signaux/ et public/en/signals/ dans le dépôt
+    fraîchement checkouté, au lieu d'un fichier JSON local
+    (website/data/pages_manifest.json, désormais abandonné).
 
-
-def _save_manifest(manifest):
-    os.makedirs(DATA_DIR, exist_ok=True)
-    with open(PAGES_MANIFEST_PATH, "w", encoding="utf-8") as f:
-        json.dump(manifest, f, ensure_ascii=False, indent=2)
+    Ce fichier local ne survivait JAMAIS d'un run GitHub Actions à l'autre :
+    website/.gitignore l'excluait du dépôt et chaque run repart d'un
+    `actions/checkout` propre. Résultat avant ce correctif : sitemap.xml ne
+    listait jamais que les pages du jour même ; chaque jour précédent devenait
+    orphelin du sitemap (page toujours accessible, mais invisible pour les
+    moteurs de recherche) dès qu'un nouveau jour était publié. Les pages HTML
+    elles-mêmes, elles, sont bien commitées sur GitHub à chaque run (voir
+    github_publisher.publish_files) donc réellement présentes après checkout
+    -- les scanner directement rend l'historique correct sans dépendre d'un
+    état local à faire persister.
+    """
+    site_root = os.path.join(os.path.dirname(__file__), "..", "public")
+    manifest = []
+    for subdir, path_prefix in (("signaux", "/signaux/"), (os.path.join("en", "signals"), "/en/signals/")):
+        dir_path = os.path.join(site_root, subdir)
+        if not os.path.isdir(dir_path):
+            continue
+        for filename in sorted(os.listdir(dir_path)):
+            if not filename.endswith(".html"):
+                continue
+            date_part = filename[: -len(".html")]
+            manifest.append({"path": f"{path_prefix}{date_part}.html", "lastmod": date_part})
+    return manifest
 
 
 def _write_local_copy(relative_path, content):
@@ -99,11 +117,12 @@ def main():
             )
             files_to_publish.append((relative_path, content))
 
+        # Le scan de _load_manifest() ne peut pas voir les pages du jour même
+        # (pas encore commitées à ce stade du run) : on les ajoute à la main.
         manifest = _load_manifest()
         for path in (fr_archive_path, en_archive_path):
             if not any(p["path"] == path for p in manifest):
                 manifest.append({"path": path, "lastmod": today_str})
-        _save_manifest(manifest)
     else:
         print("4/7 — Aucun signal réel pour le moment : page d'accueil basée sur les archives du backtest.")
         files_to_publish.append(("index.html", build_waiting_homepage(backtest_stats, TELEGRAM_BOT_USERNAME)))

@@ -33,7 +33,9 @@ NUM_SIGNALS_TO_DISPLAY = 5
 COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3"
 COINGECKO_MAX_CALLS_PER_MINUTE = 10
 
-# Mapping paire -> identifiant CoinGecko (mêmes 20 paires que le module signals/).
+# Mapping paire -> identifiant CoinGecko (mêmes 28 paires que le module signals/,
+# voir signals/config.py::PAIRS - tenu manuellement en synchro, ce module n'importe
+# pas signals/ pour rester déployable indépendamment).
 PAIRS = {
     "BTC/USDT": "bitcoin",
     "ETH/USDT": "ethereum",
@@ -45,8 +47,7 @@ PAIRS = {
     "AVAX/USDT": "avalanche-2",
     "DOT/USDT": "polkadot",
     "LINK/USDT": "chainlink",
-    "TRX/USDT": "tron",
-    "MATIC/USDT": "matic-network",
+    "POL/USDT": "polygon-ecosystem-token",
     "LTC/USDT": "litecoin",
     "SHIB/USDT": "shiba-inu",
     "UNI/USDT": "uniswap",
@@ -55,6 +56,15 @@ PAIRS = {
     "APT/USDT": "aptos",
     "ARB/USDT": "arbitrum",
     "OP/USDT": "optimism",
+    "SUI/USDT": "sui",
+    "FET/USDT": "fetch-ai",
+    "PEPE/USDT": "pepe",
+    "RENDER/USDT": "render-token",
+    "INJ/USDT": "injective-protocol",
+    "TIA/USDT": "celestia",
+    "TAO/USDT": "bittensor",
+    "STX/USDT": "blockstack",
+    "FIL/USDT": "filecoin",
 }
 
 # --- Évaluation des performances passées ---
@@ -64,10 +74,6 @@ PAIRS = {
 EVAL_TIMEOUT_DAYS = 10
 # Fenêtre de signaux considérés pour les statistiques de performance affichées.
 PERFORMANCE_WINDOW_SIZE = 200
-
-# --- Fichiers locaux ---
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
-PAGES_MANIFEST_PATH = os.path.join(DATA_DIR, "pages_manifest.json")
 
 # --- Sortie locale (avant publication sur GitHub) ---
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")

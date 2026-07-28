@@ -99,7 +99,7 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
     canonical_url = f"{SITE_BASE_URL}/"
     title = f"{SITE_NAME} — Analyses techniques automatisées sur Telegram"
     description = (
-        "Signaux crypto générés automatiquement (croisement EMA9/21 + RSI) sur 20 paires, "
+        "Signaux crypto générés automatiquement (croisement EMA9/21 + RSI) sur 28 paires, "
         "diffusés sur Telegram. Essai gratuit, sans engagement."
     )
 
@@ -146,7 +146,7 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
 <body>
   <span class="status">🟢 Bot en ligne</span>
   <h1>Signaux Crypto Gratuits</h1>
-  <p class="subtitle">Analyses techniques automatisées (EMA, RSI, Bandes de Bollinger) sur 20 paires, diffusées sur Telegram.</p>
+  <p class="subtitle">Analyses techniques automatisées (EMA, RSI, Bandes de Bollinger) sur 28 paires, diffusées sur Telegram.</p>
 
   {stats_html}
 
@@ -160,7 +160,7 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
     <p><a href="{TELEGRAM_CHANNEL_URL}">📖 Journal de trading public — chaque signal ouvert et clôturé, sans filtre</a></p>
   </div>
 
-  <p class="pairs"><strong>Paires suivies :</strong> BTC, ETH, SOL, BNB, XRP, ADA, DOGE, AVAX, DOT, LINK, TRX, POL, LTC, SHIB, UNI, ATOM, NEAR, APT, ARB, OP (toutes en /USDT).</p>
+  <p class="pairs"><strong>Paires suivies :</strong> BTC, ETH, SOL, BNB, XRP, ADA, DOGE, AVAX, DOT, LINK, POL, LTC, SHIB, UNI, ATOM, NEAR, APT, ARB, OP, SUI, FET, PEPE, RENDER, INJ, TIA, TAO, STX, FIL (toutes en /USDT).</p>
 
   <section class="testimonials">
     <h2>💬 Ce qu'ils en pensent</h2>

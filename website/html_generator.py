@@ -11,7 +11,7 @@ from datetime import datetime
 from config import SITE_NAME, SITE_BASE_URL, TELEGRAM_BOT_USERNAME, TELEGRAM_CHANNEL_URL
 from content_templates import generate_analysis, format_price
 from equity_curve import build_live_performance_section
-from testimonials import EXAMPLE_TESTIMONIALS
+from testimonials import EXAMPLE_TESTIMONIALS, EXAMPLE_TESTIMONIALS_EN
 
 TELEGRAM_URL = f"https://t.me/{TELEGRAM_BOT_USERNAME}"
 
@@ -70,7 +70,7 @@ _STRINGS = {
             f"Échantillon encore trop petit pour être significatif ({trades} trades sur 24 mois) "
             f"— taux de réussite non affiché tant que le seuil de {min_trades} trades n'est pas atteint."
         ),
-        "backtest_detail": "Simulé sur 20 paires, données horaires réelles Binance des 24 derniers mois.",
+        "backtest_detail": "Simulé sur 28 paires, données horaires réelles Binance des 24 derniers mois.",
         "backtest_note": "⚠️ Résultat d'une optimisation \"in-sample\" (sur les données ayant servi à choisir "
         "les paramètres) : une performance passée ne garantit pas un résultat identique en conditions réelles. "
         "Ce backtest est mis à jour automatiquement à chaque nouvelle exécution.",
@@ -137,7 +137,7 @@ _STRINGS = {
             f"Sample still too small to be statistically significant ({trades} trades over 24 months) "
             f"— win rate hidden until the {min_trades}-trade threshold is reached."
         ),
-        "backtest_detail": "Simulated on 20 pairs, real hourly Binance data from the last 24 months.",
+        "backtest_detail": "Simulated on 28 pairs, real hourly Binance data from the last 24 months.",
         "backtest_note": "⚠️ Result of an \"in-sample\" optimization (using the same data that chose the "
         "parameters): past performance does not guarantee identical real-world results. This backtest is "
         "updated automatically on every new run.",
@@ -260,7 +260,7 @@ def _performance_section_html(stats, s):
     </section>"""
 
 
-def _testimonials_section_html(s, reviews=None):
+def _testimonials_section_html(s, lang, reviews=None):
     """
     Étape 3 (preuve sociale) : si des avis réels avec commentaire existent
     (voir supabase_client.get_recent_reviews, table `reviews` alimentée par
@@ -276,9 +276,12 @@ def _testimonials_section_html(s, reviews=None):
         )
         disclaimer = s["testimonials_real_disclaimer"]
     else:
+        examples = EXAMPLE_TESTIMONIALS if lang == "fr" else EXAMPLE_TESTIMONIALS_EN
+        quote_mark = "«" if lang == "fr" else "“"
+        quote_close = "»" if lang == "fr" else "”"
         quotes_html = "".join(
-            f'<blockquote><p>« {html.escape(t["quote"])} »</p><cite>— {html.escape(t["name"])}</cite></blockquote>'
-            for t in EXAMPLE_TESTIMONIALS
+            f'<blockquote><p>{quote_mark} {html.escape(t["quote"])} {quote_close}</p><cite>— {html.escape(t["name"])}</cite></blockquote>'
+            for t in examples
         )
         disclaimer = s["testimonials_disclaimer"]
 
@@ -335,7 +338,7 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
     cards_html = "".join(_signal_card_html(sig, s, lang) for sig in signals)
     performance_html = _performance_section_html(performance_stats, s)
     paper_html = build_live_performance_section(resolved_signals or [], s)
-    testimonials_html = _testimonials_section_html(s, reviews=reviews)
+    testimonials_html = _testimonials_section_html(s, lang, reviews=reviews)
 
     hreflang_tags = ""
     lang_switch_html = ""
