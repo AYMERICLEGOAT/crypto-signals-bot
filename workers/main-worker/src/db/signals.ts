@@ -17,6 +17,16 @@ export interface SignalRecord {
   close_reason: "tp_hit" | "sl_hit" | "expired" | null;
   confidence_score: number | null;
   trailing_stop_price: number | null;
+  // Mission "grille d'excellence" — optionnels pour rester compatibles avec
+  // les signaux/fixtures de test créés avant l'ajout du Multi-TP (absence =
+  // signal classique SL/TP unique, voir signalMath.ts::evaluateMultiTpProgress).
+  tp1_price?: number | null;
+  tp2_price?: number | null;
+  tp3_price?: number | null;
+  tp1_hit_at?: string | null;
+  tp2_hit_at?: string | null;
+  tp3_hit_at?: string | null;
+  breakeven_active?: boolean;
 }
 
 export async function getUnsentSignals(db: SupabaseConfig): Promise<SignalRecord[]> {
@@ -129,6 +139,31 @@ export async function getSignalsResolvedSince(db: SupabaseConfig, sinceIso: stri
  */
 export async function updateTrailingStop(db: SupabaseConfig, id: number, trailingStopPrice: number): Promise<void> {
   await updateRows(db, "signals", { id: `eq.${id}` }, { trailing_stop_price: trailingStopPrice });
+}
+
+/**
+ * Mission "grille d'excellence" — TP1 atteint : sécurise
+ * MULTI_TP_TP1_WEIGHT de la position (voir signals/config.py) et remonte le
+ * stop au prix d'entrée. À partir de là, ce signal ne peut plus se clôturer
+ * en perte (voir signalMath.ts::evaluateMultiTpProgress).
+ */
+export async function markTp1Hit(db: SupabaseConfig, id: number): Promise<void> {
+  await updateRows(
+    db,
+    "signals",
+    { id: `eq.${id}` },
+    { tp1_hit_at: new Date().toISOString(), breakeven_active: true, last_status_update_at: new Date().toISOString() }
+  );
+}
+
+/** TP2 atteint : sécurise une tranche supplémentaire, le stop reste au break-even (inchangé depuis TP1). */
+export async function markTp2Hit(db: SupabaseConfig, id: number): Promise<void> {
+  await updateRows(
+    db,
+    "signals",
+    { id: `eq.${id}` },
+    { tp2_hit_at: new Date().toISOString(), last_status_update_at: new Date().toISOString() }
+  );
 }
 
 export async function markSignalClosed(

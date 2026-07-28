@@ -18,6 +18,8 @@ from config import (
     STOP_LOSS_PCT, TAKE_PROFIT_PCT, RSI_CROSS_WINDOW,
     ENABLE_ATR_STOPS, ATR_STOP_MULTIPLIER, ATR_TARGET_MULTIPLIER,
     ENABLE_ADX_REGIME_FILTER, ADX_TREND_THRESHOLD,
+    ENABLE_MULTI_TP_EXITS, MULTI_TP_SL_MULTIPLIER,
+    MULTI_TP_TP1_MULTIPLIER, MULTI_TP_TP2_MULTIPLIER, MULTI_TP_TP3_MULTIPLIER,
 )
 
 
@@ -27,15 +29,37 @@ def _build_signal(pair: str, side: str, entry_price: float, timestamp=None, atr:
     # l'ATR est disponible ; sinon repli sur les pourcentages fixes plutôt
     # que de bloquer le signal (dégradation silencieuse, cohérent avec le
     # reste du module).
+    #
+    # Mission "grille d'excellence" (validée par backtest, voir
+    # config.ENABLE_MULTI_TP_EXITS) : si l'ATR est disponible, la sortie
+    # SL/TP unique est remplacée par 3 niveaux (TP1 sécurisation + passage à
+    # break-even, TP2 objectif principal, TP3 runner). tp1_price/tp2_price/
+    # tp3_price sont ajoutés au signal ; take_profit reste égal à tp2 (les
+    # consommateurs existants qui ne connaissent que take_profit continuent
+    # de fonctionner sans modification, avec le niveau "objectif principal").
+    tp1_price = tp2_price = tp3_price = None
     if ENABLE_ATR_STOPS and atr is not None:
-        stop_dist = ATR_STOP_MULTIPLIER * atr
-        target_dist = ATR_TARGET_MULTIPLIER * atr
-        if side == "BUY":
-            stop_loss = entry_price - stop_dist
-            take_profit = entry_price + target_dist
+        if ENABLE_MULTI_TP_EXITS:
+            stop_dist = MULTI_TP_SL_MULTIPLIER * atr
+            tp1_dist = MULTI_TP_TP1_MULTIPLIER * atr
+            tp2_dist = MULTI_TP_TP2_MULTIPLIER * atr
+            tp3_dist = MULTI_TP_TP3_MULTIPLIER * atr
+            if side == "BUY":
+                stop_loss = entry_price - stop_dist
+                tp1_price, tp2_price, tp3_price = entry_price + tp1_dist, entry_price + tp2_dist, entry_price + tp3_dist
+            else:
+                stop_loss = entry_price + stop_dist
+                tp1_price, tp2_price, tp3_price = entry_price - tp1_dist, entry_price - tp2_dist, entry_price - tp3_dist
+            take_profit = tp2_price
         else:
-            stop_loss = entry_price + stop_dist
-            take_profit = entry_price - target_dist
+            stop_dist = ATR_STOP_MULTIPLIER * atr
+            target_dist = ATR_TARGET_MULTIPLIER * atr
+            if side == "BUY":
+                stop_loss = entry_price - stop_dist
+                take_profit = entry_price + target_dist
+            else:
+                stop_loss = entry_price + stop_dist
+                take_profit = entry_price - target_dist
     elif side == "BUY":
         stop_loss = entry_price * (1 - STOP_LOSS_PCT)
         take_profit = entry_price * (1 + TAKE_PROFIT_PCT)
@@ -43,7 +67,7 @@ def _build_signal(pair: str, side: str, entry_price: float, timestamp=None, atr:
         stop_loss = entry_price * (1 + STOP_LOSS_PCT)
         take_profit = entry_price * (1 - TAKE_PROFIT_PCT)
 
-    return {
+    signal = {
         "pair": pair,
         "type": side,
         "entry_price": round(entry_price, 8),
@@ -51,6 +75,11 @@ def _build_signal(pair: str, side: str, entry_price: float, timestamp=None, atr:
         "take_profit": round(take_profit, 8),
         "created_at": (timestamp or datetime.now(timezone.utc)).isoformat(),
     }
+    if tp1_price is not None:
+        signal["tp1_price"] = round(tp1_price, 8)
+        signal["tp2_price"] = round(tp2_price, 8)
+        signal["tp3_price"] = round(tp3_price, 8)
+    return signal
 
 
 def detect_signal(df, pair: str, rsi_buy_threshold: float, rsi_sell_threshold: float,

@@ -93,6 +93,17 @@ def save_params(result: dict, pairs_tested: list[str]) -> None:
             "win_rate": result["global_win_rate"],
             "trade_count": result["total_trades"],
             "is_active": True,
+            # Mission "grille d'excellence" : trace la config Multi-TP active
+            # au moment de ce backtest (pilotée par config.py, pas par cette
+            # table -- purement informatif/historique ici).
+            "multi_tp_enabled": config.ENABLE_MULTI_TP_EXITS,
+            "sl_atr_mult": config.MULTI_TP_SL_MULTIPLIER,
+            "tp1_atr_mult": config.MULTI_TP_TP1_MULTIPLIER,
+            "tp2_atr_mult": config.MULTI_TP_TP2_MULTIPLIER,
+            "tp3_atr_mult": config.MULTI_TP_TP3_MULTIPLIER,
+            "tp1_weight": config.MULTI_TP_TP1_WEIGHT,
+            "tp2_weight": config.MULTI_TP_TP2_WEIGHT,
+            "tp3_weight": config.MULTI_TP_TP3_WEIGHT,
         }).execute()
         logger.info("Paramètres enregistrés comme actifs dans Supabase (strategy_params: %s).", param_set)
     except Exception:

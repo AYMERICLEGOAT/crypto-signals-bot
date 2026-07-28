@@ -65,6 +65,7 @@ def main():
     backtest_stats = supabase_client.get_active_backtest_stats()
     backtest_trades = supabase_client.get_backtest_trades()
     resolved_signals = supabase_client.get_all_resolved_signals()  # Bloc 11.1 (portefeuille fictif) + 13.3 (transparence)
+    reviews = supabase_client.get_recent_reviews()  # Étape 3 (preuve sociale) : avis réels /review, sinon [] (exemples fictifs affichés à la place)
 
     print("2/7 — Génération des archives du backtest...")
     files_to_publish = [("archives.html", build_archives_page(backtest_trades, backtest_stats))]
@@ -94,6 +95,7 @@ def main():
                 signals, performance, today, canonical_path, lang=lang, alternate_path=alternate_path,
                 backtest_stats=backtest_stats if relative_path in home_files else None,
                 resolved_signals=resolved_signals,
+                reviews=reviews,
             )
             files_to_publish.append((relative_path, content))
 

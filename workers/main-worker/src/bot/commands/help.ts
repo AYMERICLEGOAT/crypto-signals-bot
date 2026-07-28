@@ -25,7 +25,8 @@ export async function handleHelpCommand(env: Env, telegramId: number): Promise<v
       "*Groupe VIP*\n" +
       "/vip — lien du canal privé (réservé aux abonnés payants)\n\n" +
       "*Confiance*\n" +
-      "/trust — nombre réel d'abonnés payants actifs, en direct\n\n" +
+      "/trust — nombre réel d'abonnés payants actifs, en direct\n" +
+      "/review — laisser une note rapide (👍/👎) et un commentaire anonyme\n\n" +
       "*Préférences*\n" +
       "/prefs — choisir les notifications reçues en plus des signaux\n\n" +
       "*Tes données*\n" +

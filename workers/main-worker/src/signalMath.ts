@@ -64,3 +64,62 @@ export function evaluateOutcome(
   }
   return null;
 }
+
+/**
+ * Mission "grille d'excellence" — gestion Multi-TP avec sécurisation
+ * Break-Even (voir signals/strategy.py::_build_signal, signals/config.py::
+ * ENABLE_MULTI_TP_EXITS). Un signal Multi-TP a tp1_price/tp2_price/tp3_price
+ * renseignés (null pour les anciens signaux générés avant ce changement,
+ * ou si ENABLE_MULTI_TP_EXITS venait à être désactivé côté Python — ces
+ * signaux continuent de suivre evaluateOutcome ci-dessus, inchangé).
+ *
+ * close_reason garde EXACTEMENT sa sémantique d'origine ("tp_hit" pour
+ * toute sortie gagnante, "sl_hit" pour une perte réelle, "expired" pour un
+ * timeout sans TP1 sécurisé) : /myperformance, le récap hebdo et la page
+ * transparence n'ont donc RIEN à changer pour continuer à fonctionner. Le
+ * détail TP1/TP2/TP3 (win rate "perçu" vs "final") vit uniquement dans les
+ * colonnes tp1_hit_at/tp2_hit_at/tp3_hit_at, consommées séparément.
+ */
+export interface MultiTpState {
+  type: SignalSide;
+  entryPrice: number;
+  stopLoss: number;
+  tp1Price: number | null;
+  tp2Price: number | null;
+  tp3Price: number | null;
+  tp1HitAt: string | null;
+  tp2HitAt: string | null;
+  tp3HitAt: string | null;
+  breakevenActive: boolean;
+}
+
+export type MultiTpEvent =
+  | { kind: "tp1_hit" }
+  | { kind: "tp2_hit" }
+  | { kind: "closed"; outcome: "WIN" | "LOSS"; closeReason: CloseReason; exitPrice: number }
+  | { kind: "none" };
+
+export function evaluateMultiTpProgress(state: MultiTpState, currentPrice: number): MultiTpEvent {
+  const isBuy = state.type === "BUY";
+  const effectiveStop = state.breakevenActive ? state.entryPrice : state.stopLoss;
+  const stopHit = isBuy ? currentPrice <= effectiveStop : currentPrice >= effectiveStop;
+  if (stopHit) {
+    // Break-even déjà actif (TP1 sécurisé) -> le trade reste gagnant même si
+    // le reste de la position se referme sans progresser davantage.
+    return state.breakevenActive
+      ? { kind: "closed", outcome: "WIN", closeReason: "tp_hit", exitPrice: effectiveStop }
+      : { kind: "closed", outcome: "LOSS", closeReason: "sl_hit", exitPrice: effectiveStop };
+  }
+
+  if (!state.tp1HitAt && state.tp1Price != null) {
+    const reached = isBuy ? currentPrice >= state.tp1Price : currentPrice <= state.tp1Price;
+    if (reached) return { kind: "tp1_hit" };
+  } else if (state.tp1HitAt && !state.tp2HitAt && state.tp2Price != null) {
+    const reached = isBuy ? currentPrice >= state.tp2Price : currentPrice <= state.tp2Price;
+    if (reached) return { kind: "tp2_hit" };
+  } else if (state.tp2HitAt && !state.tp3HitAt && state.tp3Price != null) {
+    const reached = isBuy ? currentPrice >= state.tp3Price : currentPrice <= state.tp3Price;
+    if (reached) return { kind: "closed", outcome: "WIN", closeReason: "tp_hit", exitPrice: state.tp3Price };
+  }
+  return { kind: "none" };
+}

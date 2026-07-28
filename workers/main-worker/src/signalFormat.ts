@@ -22,6 +22,9 @@ export interface SignalLike {
   take_profit: number;
   created_at: string;
   confidence_score?: number | null;
+  tp1_price?: number | null;
+  tp2_price?: number | null;
+  tp3_price?: number | null;
 }
 
 function pct(value: number): string {
@@ -44,6 +47,30 @@ function buildRiskSizingLine(entryPrice: number, stopLoss: number): string | nul
     `Avec un stop à ${riskPct.toFixed(1)}% de l'entrée, cela correspond à une position d'environ ` +
     `${positionPct.toFixed(0)}% de ton capital alloué à ce trade${capNote} (${SUGGESTED_RISK_PCT}% ÷ ${riskPct.toFixed(1)}%).`
   );
+}
+
+/**
+ * Mission "grille d'excellence" — gestion Multi-TP avec sécurisation
+ * Break-Even (voir signals/config.py::ENABLE_MULTI_TP_EXITS). Les
+ * multiplicateurs ATR sont fixes en production (validés par backtest sur 24
+ * mois/20 paires) donc affichés en dur ici plutôt que transmis dynamiquement.
+ */
+function buildMultiTpLines(signal: SignalLike): string[] {
+  const pctOf = (level: number) =>
+    signal.type === "BUY" ? ((level - signal.entry_price) / signal.entry_price) * 100 : ((signal.entry_price - level) / signal.entry_price) * 100;
+  const lines = [`🛑 Stop-Loss : ${signal.stop_loss} (-1.5x ATR, ${pct(-Math.abs(pctOf(signal.stop_loss)))})`];
+  if (signal.tp1_price != null) {
+    lines.push(
+      `🥇 TP1 : ${signal.tp1_price} (+1.0x ATR, ${pct(pctOf(signal.tp1_price))}) — Sécurisation rapide + passage automatique au Break-Even`
+    );
+  }
+  if (signal.tp2_price != null) {
+    lines.push(`🥈 TP2 : ${signal.tp2_price} (+3.3x ATR, ${pct(pctOf(signal.tp2_price))}) — Objectif principal (Ratio 1:2.2)`);
+  }
+  if (signal.tp3_price != null) {
+    lines.push(`🥉 TP3 : ${signal.tp3_price} (+5.0x ATR, ${pct(pctOf(signal.tp3_price))}) — Runner (Ratio 1:3.3)`);
+  }
+  return lines;
 }
 
 function buildTrailingStopLine(signal: SignalLike): string {
@@ -70,14 +97,16 @@ export function buildSignalMessage(
 
   const escapedUsername = opts.ctaUsername?.replace(/_/g, "\\_");
   const riskSizingLine = buildRiskSizingLine(signal.entry_price, signal.stop_loss);
+  const isMultiTp = signal.tp1_price != null;
 
   const lines: Array<string | null> = [
     `${emoji} *${label} ${signal.pair}*${opts.delayNote ? ` _(${opts.delayNote})_` : ""}`,
     buildContext(signal.type),
     "",
-    `💵 Entrée : ${signal.entry_price}`,
-    `🎯 Take profit : ${signal.take_profit} (${pct(rewardPct)})`,
-    `🛑 Stop loss : ${signal.stop_loss} (${pct(-riskPct)})`,
+    `💵 Zone d'entrée : ${signal.entry_price}`,
+    ...(isMultiTp
+      ? buildMultiTpLines(signal)
+      : [`🎯 Take profit : ${signal.take_profit} (${pct(rewardPct)})`, `🛑 Stop loss : ${signal.stop_loss} (${pct(-riskPct)})`]),
     "",
     riskSizingLine,
     opts.trailingEnabled ? buildTrailingStopLine(signal) : null,

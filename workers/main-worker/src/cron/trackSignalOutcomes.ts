@@ -18,11 +18,11 @@
  */
 
 import { Env, dbConfig } from "../env";
-import { getOpenSignals, markSignalClosed, updateTrailingStop, SignalRecord } from "../db/signals";
+import { getOpenSignals, markSignalClosed, updateTrailingStop, markTp1Hit, markTp2Hit, SignalRecord } from "../db/signals";
 import { getDeliveryRecipients } from "../db/signalDeliveries";
 import { filterByPrefEnabled } from "../db/userPrefs";
 import { getCurrentPrices, pairToSymbol } from "../market/binancePrices";
-import { evaluateOutcome, computePnlPct, computeTrailingStop, CloseReason } from "../signalMath";
+import { evaluateOutcome, computePnlPct, computeTrailingStop, evaluateMultiTpProgress, CloseReason } from "../signalMath";
 import { sendMessage } from "../telegram";
 import { handleAntiStress } from "./antiStress";
 
@@ -75,6 +75,73 @@ function formatTrailingStopUpdate(signal: SignalRecord, newTrailingStop: number)
   ].join("\n");
 }
 
+function formatTp1HitMessage(signal: SignalRecord): string {
+  return [
+    "🟢 *TP1 sécurisé !*",
+    `${signal.type} ${signal.pair} a atteint son premier objectif (${signal.tp1_price}).`,
+    `${signal.stop_loss !== signal.entry_price ? "Le stop passe automatiquement au break-even (prix d'entrée)" : "Stop déjà au break-even"} — ce signal ne peut plus finir perdant.`,
+    `Objectif suivant : TP2 (${signal.tp2_price}).`,
+  ].join("\n");
+}
+
+function formatTp2HitMessage(signal: SignalRecord): string {
+  return [
+    "🟢🟢 *TP2 atteint — objectif principal !*",
+    `${signal.type} ${signal.pair} a atteint son objectif principal (${signal.tp2_price}).`,
+    `Le reste de la position vise maintenant le runner TP3 (${signal.tp3_price}), stop toujours au break-even.`,
+  ].join("\n");
+}
+
+/** Étape 2 (célébrations) : message festif diffusé sur le canal VIP quand TP2 ou TP3 est atteint. */
+function formatCelebrationMessage(signal: SignalRecord, level: "TP2" | "TP3", pct: number): string {
+  const emoji = level === "TP2" ? "🎯" : "🚀";
+  return `${emoji} *${level} ATTEINT sur ${signal.pair} !* ${pctLabel(pct)} sécurisés. Félicitations aux abonnés Pro !`;
+}
+
+/** Étape 2 : texte simple (pas d'image) que l'abonné peut copier-coller sur ses réseaux. */
+function formatShareableVictory(signal: SignalRecord, pct: number, botUsername: string): string {
+  const escapedUsername = botUsername.replace(/_/g, "\\_");
+  return [
+    "📣 *À partager si tu veux :*",
+    `\`🎯 ${pctLabel(pct)} sur ${signal.pair} avec @${escapedUsername} ! Trade sécurisé automatiquement. Rejoignez l'essai gratuit.\``,
+  ].join("\n");
+}
+
+async function broadcastCelebration(env: Env, signal: SignalRecord, level: "TP2" | "TP3", pct: number): Promise<void> {
+  if (!env.TELEGRAM_VIP_CHANNEL_ID) return;
+  const channelId = Number(env.TELEGRAM_VIP_CHANNEL_ID);
+  await sendMessage(env.TELEGRAM_BOT_TOKEN, channelId, formatCelebrationMessage(signal, level, pct), { markdown: true }).catch((err) =>
+    console.error(`[post-trade] Échec de la célébration VIP pour le signal #${signal.id} (${level}):`, err)
+  );
+}
+
+async function closeSignal(
+  env: Env,
+  db: ReturnType<typeof dbConfig>,
+  signal: SignalRecord,
+  outcome: "WIN" | "LOSS",
+  outcomePrice: number | null,
+  closeReason: CloseReason
+): Promise<void> {
+  await markSignalClosed(db, signal.id, { outcome, outcomePrice, closeReason });
+
+  const closedSignal: SignalRecord = { ...signal, outcome, outcome_price: outcomePrice, close_reason: closeReason };
+  const pct = outcomePrice !== null ? computePnlPct(signal.type, signal.entry_price, outcomePrice) : 0;
+
+  const recipients = await getDeliveryRecipients(db, signal.id);
+  await notifyRecipients(env, recipients, formatSubscriberCloseMessage(closedSignal, pct));
+  await handleAntiStress(env, recipients, outcome).catch((err) =>
+    console.error(`[post-trade] Échec du mécanisme anti-stress pour le signal #${signal.id}:`, err)
+  );
+
+  if (signal.sent_to_channel && env.TELEGRAM_CHANNEL_ID) {
+    const channelId = Number(env.TELEGRAM_CHANNEL_ID);
+    await sendMessage(env.TELEGRAM_BOT_TOKEN, channelId, formatPublicCloseMessage(closedSignal, pct, env.TELEGRAM_BOT_USERNAME), {
+      markdown: true,
+    }).catch((err) => console.error(`[post-trade] Échec de la célébration publique pour le signal #${signal.id}:`, err));
+  }
+}
+
 async function notifyRecipients(env: Env, telegramIds: number[], text: string): Promise<void> {
   for (let i = 0; i < telegramIds.length; i += BATCH_SIZE) {
     const batch = telegramIds.slice(i, i + BATCH_SIZE);
@@ -109,7 +176,63 @@ export async function trackSignalOutcomes(env: Env): Promise<void> {
 
   for (const signal of open) {
     const currentPrice = prices[pairToSymbol(signal.pair)];
-    const hit = currentPrice !== undefined ? evaluateOutcome(signal.type, signal.stop_loss, signal.take_profit, currentPrice) : null;
+    const isMultiTp = signal.tp1_price != null;
+
+    // Mission "grille d'excellence" : progression TP1 (sécurisation +
+    // break-even) -> TP2 -> TP3, au lieu d'un SL/TP binaire. Les signaux
+    // générés avant ce changement (tp1_price absent) suivent l'ancienne
+    // logique evaluateOutcome, inchangée.
+    if (isMultiTp && currentPrice !== undefined) {
+      const progress = evaluateMultiTpProgress(
+        {
+          type: signal.type,
+          entryPrice: signal.entry_price,
+          stopLoss: signal.stop_loss,
+          tp1Price: signal.tp1_price ?? null,
+          tp2Price: signal.tp2_price ?? null,
+          tp3Price: signal.tp3_price ?? null,
+          tp1HitAt: signal.tp1_hit_at ?? null,
+          tp2HitAt: signal.tp2_hit_at ?? null,
+          tp3HitAt: signal.tp3_hit_at ?? null,
+          breakevenActive: signal.breakeven_active ?? false,
+        },
+        currentPrice
+      );
+
+      if (progress.kind === "tp1_hit") {
+        await markTp1Hit(db, signal.id);
+        const recipients = await getDeliveryRecipients(db, signal.id);
+        await notifyRecipients(env, recipients, formatTp1HitMessage(signal));
+        continue;
+      }
+      if (progress.kind === "tp2_hit") {
+        await markTp2Hit(db, signal.id);
+        const recipients = await getDeliveryRecipients(db, signal.id);
+        const pctAtTp2 = computePnlPct(signal.type, signal.entry_price, signal.tp2_price ?? signal.entry_price);
+        await notifyRecipients(env, recipients, formatTp2HitMessage(signal));
+        await notifyRecipients(env, recipients, formatShareableVictory(signal, pctAtTp2, env.TELEGRAM_BOT_USERNAME));
+        await broadcastCelebration(env, signal, "TP2", pctAtTp2);
+        continue;
+      }
+      if (progress.kind === "closed") {
+        // TP3 (le runner) est le seul cas de "closed" qui merite une
+        // celebration -- une sortie via break-even ou stop initial est deja
+        // couverte par formatSubscriberCloseMessage, pas de doublon festif.
+        const isTp3Win = signal.tp3_price != null && progress.outcome === "WIN" && progress.exitPrice === signal.tp3_price;
+        if (isTp3Win) {
+          const recipients = await getDeliveryRecipients(db, signal.id);
+          const pctAtTp3 = computePnlPct(signal.type, signal.entry_price, progress.exitPrice);
+          await notifyRecipients(env, recipients, formatShareableVictory(signal, pctAtTp3, env.TELEGRAM_BOT_USERNAME));
+          await broadcastCelebration(env, signal, "TP3", pctAtTp3);
+        }
+        await closeSignal(env, db, signal, progress.outcome, progress.exitPrice, progress.closeReason);
+        continue;
+      }
+      // "none" : ni niveau franchi ni stop touché -> vérifie le timeout ci-dessous.
+    }
+
+    const hit =
+      !isMultiTp && currentPrice !== undefined ? evaluateOutcome(signal.type, signal.stop_loss, signal.take_profit, currentPrice) : null;
 
     const ageDays = (now - new Date(signal.created_at).getTime()) / (24 * 60 * 60 * 1000);
     let outcome: "WIN" | "LOSS";
@@ -118,8 +241,17 @@ export async function trackSignalOutcomes(env: Env): Promise<void> {
       outcome = hit.outcome;
       closeReason = hit.closeReason;
     } else if (ageDays >= SIGNAL_TIMEOUT_DAYS) {
-      outcome = "LOSS";
-      closeReason = "expired";
+      // Un signal Multi-TP qui a déjà sécurisé TP1 avant d'expirer reste un
+      // succès (voir signals/backtest.py::_simulate_multi_tp_exit, même
+      // convention) : on ne pénalise jamais un trade déjà passé au
+      // break-even, contrairement à un signal classique jamais sécurisé.
+      if (isMultiTp && signal.tp1_hit_at) {
+        outcome = "WIN";
+        closeReason = "tp_hit";
+      } else {
+        outcome = "LOSS";
+        closeReason = "expired";
+      }
     } else {
       // UX — trailing stop optionnel (/prefs, opt-in) : toujours ouvert, mais
       // le prix a peut-être assez progressé pour remonter le niveau indicatif.
@@ -137,22 +269,6 @@ export async function trackSignalOutcomes(env: Env): Promise<void> {
     }
 
     const outcomePrice = currentPrice ?? null;
-    await markSignalClosed(db, signal.id, { outcome, outcomePrice, closeReason });
-
-    const closedSignal: SignalRecord = { ...signal, outcome, outcome_price: outcomePrice, close_reason: closeReason };
-    const pct = outcomePrice !== null ? computePnlPct(signal.type, signal.entry_price, outcomePrice) : 0;
-
-    const recipients = await getDeliveryRecipients(db, signal.id);
-    await notifyRecipients(env, recipients, formatSubscriberCloseMessage(closedSignal, pct));
-    await handleAntiStress(env, recipients, outcome).catch((err) =>
-      console.error(`[post-trade] Échec du mécanisme anti-stress pour le signal #${signal.id}:`, err)
-    );
-
-    if (signal.sent_to_channel && env.TELEGRAM_CHANNEL_ID) {
-      const channelId = Number(env.TELEGRAM_CHANNEL_ID);
-      await sendMessage(env.TELEGRAM_BOT_TOKEN, channelId, formatPublicCloseMessage(closedSignal, pct, env.TELEGRAM_BOT_USERNAME), {
-        markdown: true,
-      }).catch((err) => console.error(`[post-trade] Échec de la célébration publique pour le signal #${signal.id}:`, err));
-    }
+    await closeSignal(env, db, signal, outcome, outcomePrice, closeReason);
   }
 }

@@ -8,12 +8,16 @@
 import { SupabaseConfig, selectOne, upsertRow, deleteRows } from "../supabaseRest";
 import { PaidPlan } from "../payments/plans";
 
-export type PendingAction = { type: "awaiting_wallet_usdt"; plan: PaidPlan } | { type: "awaiting_wallet_trial" };
+export type PendingAction =
+  | { type: "awaiting_wallet_usdt"; plan: PaidPlan }
+  | { type: "awaiting_wallet_trial" }
+  | { type: "awaiting_review_comment"; reviewId: number };
 
 interface PendingActionRow {
   telegram_id: number;
   action_type: string;
   plan: number | null;
+  review_id: number | null;
 }
 
 export async function setPendingAction(db: SupabaseConfig, telegramId: number, action: PendingAction): Promise<void> {
@@ -24,6 +28,7 @@ export async function setPendingAction(db: SupabaseConfig, telegramId: number, a
       telegram_id: telegramId,
       action_type: action.type,
       plan: action.type === "awaiting_wallet_usdt" ? action.plan : null,
+      review_id: action.type === "awaiting_review_comment" ? action.reviewId : null,
     },
     "telegram_id"
   );
@@ -36,6 +41,9 @@ export async function consumePendingAction(db: SupabaseConfig, telegramId: numbe
 
   if (row.action_type === "awaiting_wallet_usdt") {
     return { type: "awaiting_wallet_usdt", plan: (row.plan as 1 | 2) ?? 1 };
+  }
+  if (row.action_type === "awaiting_review_comment" && row.review_id != null) {
+    return { type: "awaiting_review_comment", reviewId: row.review_id };
   }
   return { type: "awaiting_wallet_trial" };
 }

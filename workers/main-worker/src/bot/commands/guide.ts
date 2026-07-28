@@ -3,12 +3,18 @@ import { sendMessage } from "../../telegram";
 import { getLatestSignal, SignalRecord } from "../../db/signals";
 import { buildSignalMessage, SUGGESTED_RISK_PCT } from "../../signalFormat";
 
-const FALLBACK_EXAMPLE: Pick<SignalRecord, "type" | "pair" | "entry_price" | "stop_loss" | "take_profit" | "created_at"> = {
+const FALLBACK_EXAMPLE: Pick<
+  SignalRecord,
+  "type" | "pair" | "entry_price" | "stop_loss" | "take_profit" | "created_at" | "tp1_price" | "tp2_price" | "tp3_price"
+> = {
   type: "BUY",
   pair: "BTC/USDT",
   entry_price: 60000,
   stop_loss: 58800,
-  take_profit: 62400,
+  take_profit: 62640,
+  tp1_price: 60800,
+  tp2_price: 62640,
+  tp3_price: 64000,
   created_at: new Date().toISOString(),
 };
 

@@ -33,11 +33,18 @@ def compute_performance_stats():
     total = len(resolved)
     wins = sum(1 for s in resolved if s["outcome"] == "WIN")
     losses = total - wins
+    # Étape 3 (preuve sociale) : trades ayant atteint TP1 (sécurisé au moins
+    # au break-even, voir workers/main-worker/src/cron/trackSignalOutcomes.ts)
+    # -- compté sur la même fenêtre que le reste, colonne déjà présente sur
+    # `signals` (get_performance_window fait un select * implicite).
+    secured_count = sum(1 for s in resolved if s.get("tp1_hit_at"))
 
     return {
         "total": total,
         "wins": wins,
         "losses": losses,
         "win_rate": round(100 * wins / total, 1) if total > 0 else None,
+        "secured_count": secured_count,
+        "secured_pct": round(100 * secured_count / total, 1) if total > 0 else None,
         "recent": resolved[:10],
     }

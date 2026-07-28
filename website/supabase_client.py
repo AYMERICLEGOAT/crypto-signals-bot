@@ -114,6 +114,29 @@ def get_all_resolved_signals(limit=500):
     return resp.json()
 
 
+def get_recent_reviews(limit=10):
+    """
+    Étape 3 (preuve sociale) : derniers avis /review ayant un commentaire non
+    vide (voir workers/main-worker/src/db/reviews.ts) -- jamais le
+    telegram_id (anonymisé côté select). Retourne [] si aucun avis avec
+    commentaire n'existe encore (le site retombe alors sur les exemples
+    fictifs explicitement étiquetés comme tels, voir testimonials.py).
+    """
+    resp = requests.get(
+        f"{SUPABASE_URL}/rest/v1/reviews",
+        headers=_headers(),
+        params={
+            "select": "rating,comment,created_at",
+            "comment": "not.is.null",
+            "order": "created_at.desc",
+            "limit": str(limit),
+        },
+        timeout=15,
+    )
+    _check(resp, "select reviews")
+    return resp.json()
+
+
 def get_performance_window(limit):
     """Les `limit` signaux les plus récents ayant un résultat connu (WIN/LOSS)."""
     resp = requests.get(

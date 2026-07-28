@@ -699,3 +699,51 @@ alter table referral_rewards add column if not exists commission_usd numeric not
 
 alter table user_prefs add column if not exists trailing_stop boolean not null default false;
 alter table signals add column if not exists trailing_stop_price numeric;
+
+
+-- ----------------------------------------------------------------------------
+-- 32. Mission "grille d'excellence" — gestion Multi-TP avec sécurisation
+--     Break-Even (voir signals/strategy.py::_build_signal,
+--     signals/config.py::ENABLE_MULTI_TP_EXITS, cron/trackSignalOutcomes.ts).
+--     take_profit reste égal à tp2_price (objectif principal) pour que tout
+--     code existant qui ne connaît que take_profit continue de fonctionner
+--     sans modification. breakeven_active passe à true dès que TP1 est
+--     touché : à partir de là, le stop_loss OFFICIEL n'est plus le SL
+--     d'origine mais le prix d'entrée (voir trackSignalOutcomes.ts, jamais
+--     recalculé côté client pour éviter toute divergence d'affichage).
+-- ----------------------------------------------------------------------------
+
+alter table signals add column if not exists tp1_price numeric;
+alter table signals add column if not exists tp2_price numeric;
+alter table signals add column if not exists tp3_price numeric;
+alter table signals add column if not exists tp1_hit_at timestamptz;
+alter table signals add column if not exists tp2_hit_at timestamptz;
+alter table signals add column if not exists tp3_hit_at timestamptz;
+alter table signals add column if not exists breakeven_active boolean not null default false;
+
+alter table strategy_params add column if not exists multi_tp_enabled boolean not null default false;
+alter table strategy_params add column if not exists sl_atr_mult numeric;
+alter table strategy_params add column if not exists tp1_atr_mult numeric;
+alter table strategy_params add column if not exists tp2_atr_mult numeric;
+alter table strategy_params add column if not exists tp3_atr_mult numeric;
+alter table strategy_params add column if not exists tp1_weight numeric;
+alter table strategy_params add column if not exists tp2_weight numeric;
+alter table strategy_params add column if not exists tp3_weight numeric;
+
+-- ----------------------------------------------------------------------------
+-- 33. Étape 3 (preuve sociale) — /review : note rapide (pouce haut/bas) +
+--     commentaire optionnel envoyé en réponse libre juste après (voir
+--     pendingActions.ts). Anonymisé côté site (jamais le telegram_id publié).
+-- ----------------------------------------------------------------------------
+
+create table if not exists reviews (
+  id bigint generated always as identity primary key,
+  telegram_id bigint not null,
+  rating text not null check (rating in ('up', 'down')),
+  comment text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_reviews_created_at on reviews (created_at desc);
+
+alter table pending_actions add column if not exists review_id bigint;

@@ -198,6 +198,80 @@ def _simulate_exit(enriched: pd.DataFrame, entry_idx: int, side: str, entry_pric
     return "TIMEOUT", enriched.iloc[exit_idx]["price"], exit_idx
 
 
+def _simulate_multi_tp_exit(enriched: pd.DataFrame, entry_idx: int, side: str, entry_price: float, atr_val: float,
+                             timeout_periods: int) -> tuple:
+    """
+    Mission "grille d'excellence" (validée par backtest sur 24 mois/20 paires,
+    voir config.ENABLE_MULTI_TP_EXITS) : remplace le SL/TP unique par 3
+    niveaux avec sécurisation Break-Even. TP1 touché -> ferme
+    MULTI_TP_TP1_WEIGHT de la position et remonte le stop au prix d'entrée
+    (le reste ne peut plus finir perdant, au pire à 0). TP2/TP3 ferment le
+    reste par tranches. Retourne (outcome, exit_price_effectif, exit_idx,
+    pnl_pct, tp1_hit, tp2_hit, tp3_hit) -- exit_price_effectif est un prix
+    d'équivalence (pour rester compatible avec le format de trade existant),
+    pnl_pct est le PnL réel mélangé sur les sorties partielles.
+
+    outcome = "WIN" si TP1 a été atteint (le trade ne peut alors plus finir
+    négatif) ou si le PnL final est positif ; "LOSS" si le stop d'origine
+    est touché avant TP1 ; "TIMEOUT" si aucun niveau n'est jamais touché.
+    """
+    sl_dist = config.MULTI_TP_SL_MULTIPLIER * atr_val
+    tp1_dist = config.MULTI_TP_TP1_MULTIPLIER * atr_val
+    tp2_dist = config.MULTI_TP_TP2_MULTIPLIER * atr_val
+    tp3_dist = config.MULTI_TP_TP3_MULTIPLIER * atr_val
+    if side == "BUY":
+        sl = entry_price - sl_dist
+        tp1, tp2, tp3 = entry_price + tp1_dist, entry_price + tp2_dist, entry_price + tp3_dist
+    else:
+        sl = entry_price + sl_dist
+        tp1, tp2, tp3 = entry_price - tp1_dist, entry_price - tp2_dist, entry_price - tp3_dist
+
+    tp1_hit = tp2_hit = tp3_hit = False
+    weight_remaining, pnl_pct, current_stop = 1.0, 0.0, sl
+
+    def ret(level):
+        return (level - entry_price) / entry_price if side == "BUY" else (entry_price - level) / entry_price
+
+    for j in range(entry_idx + 1, min(entry_idx + 1 + timeout_periods, len(enriched))):
+        candle = enriched.iloc[j]
+        lo, hi = candle["low"], candle["high"]
+        hit_stop = (lo <= current_stop) if side == "BUY" else (hi >= current_stop)
+
+        if not tp1_hit:
+            hit_tp1 = (hi >= tp1) if side == "BUY" else (lo <= tp1)
+            if hit_stop:
+                pnl_pct = weight_remaining * ret(current_stop)
+                return "LOSS", current_stop, j, pnl_pct, False, False, False
+            if hit_tp1:
+                pnl_pct += config.MULTI_TP_TP1_WEIGHT * ret(tp1)
+                weight_remaining -= config.MULTI_TP_TP1_WEIGHT
+                tp1_hit, current_stop = True, entry_price
+        else:
+            if hit_stop:  # break-even touché : le trade reste WIN (TP1 déjà sécurisé)
+                pnl_pct += weight_remaining * ret(current_stop)
+                return "WIN", current_stop, j, pnl_pct, True, tp2_hit, tp3_hit
+
+        if tp1_hit and not tp2_hit:
+            hit_tp2 = (hi >= tp2) if side == "BUY" else (lo <= tp2)
+            if hit_tp2:
+                pnl_pct += config.MULTI_TP_TP2_WEIGHT * ret(tp2)
+                weight_remaining -= config.MULTI_TP_TP2_WEIGHT
+                tp2_hit = True
+
+        if tp1_hit and tp2_hit and not tp3_hit:
+            hit_tp3 = (hi >= tp3) if side == "BUY" else (lo <= tp3)
+            if hit_tp3:
+                pnl_pct += config.MULTI_TP_TP3_WEIGHT * ret(tp3)
+                tp3_hit = True
+                return "WIN", tp3, j, pnl_pct, True, True, True
+
+    exit_idx = min(entry_idx + timeout_periods, len(enriched) - 1)
+    exit_price = enriched.iloc[exit_idx]["price"]
+    pnl_pct += weight_remaining * ret(exit_price)
+    outcome = "WIN" if tp1_hit else "TIMEOUT"
+    return outcome, exit_price, exit_idx, pnl_pct, tp1_hit, tp2_hit, tp3_hit
+
+
 def simulate_trades(df: pd.DataFrame, ema_fast: int, ema_slow: int, rsi_buy: int, rsi_sell: int,
                      pair: str = "", timeout_periods: int = TIMEOUT_PERIODS, htf_ema50=None,
                      volume_sma_period: int | None = None, use_atr_stops: bool = config.ENABLE_ATR_STOPS,
@@ -327,7 +401,20 @@ def simulate_trades(df: pd.DataFrame, ema_fast: int, ema_slow: int, rsi_buy: int
                 continue
 
         entry_price = curr["price"]
-        if use_atr_stops:
+        multi_tp_used = False
+        if use_atr_stops and config.ENABLE_MULTI_TP_EXITS:
+            atr_val = curr.get("atr")
+            if atr_val is None or pd.isna(atr_val):
+                continue
+            outcome, exit_price, exit_idx, pnl_pct, tp1_hit, tp2_hit, tp3_hit = _simulate_multi_tp_exit(
+                enriched, i, side, entry_price, atr_val, timeout_periods
+            )
+            multi_tp_used = True
+            # Conservés pour la logique de continuation ci-dessous (désactivée
+            # par défaut en prod, mais garde une valeur cohérente si activée) :
+            stop_loss = entry_price - config.MULTI_TP_SL_MULTIPLIER * atr_val if side == "BUY" else entry_price + config.MULTI_TP_SL_MULTIPLIER * atr_val
+            take_profit = entry_price + config.MULTI_TP_TP2_MULTIPLIER * atr_val if side == "BUY" else entry_price - config.MULTI_TP_TP2_MULTIPLIER * atr_val
+        elif use_atr_stops:
             atr_val = curr.get("atr")
             if atr_val is None or pd.isna(atr_val):
                 continue
@@ -339,21 +426,25 @@ def simulate_trades(df: pd.DataFrame, ema_fast: int, ema_slow: int, rsi_buy: int
             else:
                 stop_loss = entry_price + stop_dist
                 take_profit = entry_price - target_dist
-        elif side == "BUY":
-            stop_loss = entry_price * (1 - config.STOP_LOSS_PCT)
-            take_profit = entry_price * (1 + config.TAKE_PROFIT_PCT)
+            outcome, exit_price, exit_idx = _simulate_exit(
+                enriched, i, side, entry_price, stop_loss, take_profit, timeout_periods
+            )
+            pnl_pct = ((exit_price - entry_price) / entry_price if side == "BUY"
+                       else (entry_price - exit_price) / entry_price)
         else:
-            stop_loss = entry_price * (1 + config.STOP_LOSS_PCT)
-            take_profit = entry_price * (1 - config.TAKE_PROFIT_PCT)
+            if side == "BUY":
+                stop_loss = entry_price * (1 - config.STOP_LOSS_PCT)
+                take_profit = entry_price * (1 + config.TAKE_PROFIT_PCT)
+            else:
+                stop_loss = entry_price * (1 + config.STOP_LOSS_PCT)
+                take_profit = entry_price * (1 - config.TAKE_PROFIT_PCT)
+            outcome, exit_price, exit_idx = _simulate_exit(
+                enriched, i, side, entry_price, stop_loss, take_profit, timeout_periods
+            )
+            pnl_pct = ((exit_price - entry_price) / entry_price if side == "BUY"
+                       else (entry_price - exit_price) / entry_price)
 
-        outcome, exit_price, exit_idx = _simulate_exit(
-            enriched, i, side, entry_price, stop_loss, take_profit, timeout_periods
-        )
-
-        pnl_pct = ((exit_price - entry_price) / entry_price if side == "BUY"
-                   else (entry_price - exit_price) / entry_price)
-
-        trades.append({
+        trade_record = {
             "pair": pair,
             "side": side,
             "entry_price": entry_price,
@@ -362,7 +453,10 @@ def simulate_trades(df: pd.DataFrame, ema_fast: int, ema_slow: int, rsi_buy: int
             "pnl_pct": pnl_pct,
             "entered_at": int(curr["ts_ms"]),
             "exited_at": int(enriched.iloc[exit_idx]["ts_ms"]),
-        })
+        }
+        if multi_tp_used:
+            trade_record.update({"tp1_hit": tp1_hit, "tp2_hit": tp2_hit, "tp3_hit": tp3_hit})
+        trades.append(trade_record)
 
         # Amélioration 7 (expérimental) : après un TP touché, surveille la
         # même tendance pendant CONTINUATION_WINDOW_HOURS ; si le prix reste
@@ -370,8 +464,9 @@ def simulate_trades(df: pd.DataFrame, ema_fast: int, ema_slow: int, rsi_buy: int
         # continuation (SL/TP réduits de moitié) à l'issue de cette fenêtre.
         # Jamais plus d'une continuation par trade gagnant (pas de chaîne
         # infinie) et jamais de données futures utilisées avant l'instant
-        # où elles seraient réellement connues.
-        if use_continuation and outcome == "WIN":
+        # où elles seraient réellement connues. Non compatible avec le mode
+        # Multi-TP (désactivé en prod : ENABLE_CONTINUATION_SIGNALS=False).
+        if use_continuation and outcome == "WIN" and not multi_tp_used:
             window_end = min(exit_idx + config.CONTINUATION_WINDOW_HOURS, len(enriched) - 1)
             if window_end > exit_idx:
                 window = enriched.iloc[exit_idx:window_end + 1]

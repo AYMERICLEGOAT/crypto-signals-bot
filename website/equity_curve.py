@@ -42,6 +42,21 @@ def compute_equity_curve(signals: list) -> list:
     return curve
 
 
+def compute_max_drawdown_pct(curve: list) -> float:
+    """
+    Étape 3 (preuve sociale) : pire chute cumulée de la courbe du
+    portefeuille fictif ci-dessus (même simulation, même hypothèses
+    assumées) -- 0 si la courbe n'a jamais reculé sous un sommet précédent.
+    """
+    peak = curve[0] if curve else 100.0
+    max_dd = 0.0
+    for value in curve:
+        peak = max(peak, value)
+        if peak > 0:
+            max_dd = max(max_dd, (peak - value) / peak * 100)
+    return round(max_dd, 1)
+
+
 def _curve_svg(curve: list, width: int = 640, height: int = 200) -> str:
     if len(curve) < 2:
         return ""
@@ -144,6 +159,7 @@ def build_live_performance_section(signals: list, strings: dict) -> str:
     change_pct = final - 100
     sign = "+" if change_pct >= 0 else ""
     color = "#16a34a" if change_pct >= 0 else "#dc2626"
+    max_dd = compute_max_drawdown_pct(curve)
 
     return f"""
     <section class="paper-trading">
@@ -151,5 +167,6 @@ def build_live_performance_section(signals: list, strings: dict) -> str:
       <p>{strings["paper_detail"](len(signals) - 1, POSITION_SIZE_PCT * 100)}</p>
       {_curve_svg(curve)}
       <p class="paper-result" style="color:{color};font-weight:700;">{sign}{change_pct:.1f}%</p>
+      <p>{strings["paper_drawdown"](max_dd)}</p>
       <p style="font-size:0.82rem;color:#777;">{strings["paper_note"]}</p>
     </section>"""

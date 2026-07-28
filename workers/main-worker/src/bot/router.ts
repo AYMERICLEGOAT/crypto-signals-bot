@@ -23,6 +23,7 @@ import { handleMyPerformanceCommand } from "./commands/myPerformance";
 import { handleGuideCommand } from "./commands/guide";
 import { handleCheckPaymentCommand } from "./commands/checkPayment";
 import { handleVipCommand } from "./commands/vip";
+import { handleReviewCommand, handleReviewRating } from "./commands/review";
 import { handleTextMessage } from "./walletAddressHandler";
 
 /**
@@ -86,6 +87,8 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
       await handleCheckPaymentCommand(env, chatId);
     } else if (text === "/vip") {
       await handleVipCommand(env, chatId);
+    } else if (text === "/review") {
+      await handleReviewCommand(env, chatId);
     } else if (text && !text.startsWith("/")) {
       await handleTextMessage(env, chatId, text);
     }
@@ -109,5 +112,6 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
     else if (data.startsWith("survey:")) await handleSurveyResponse(env, chatId, data);
     else if (data.startsWith("exit_survey:")) await handleExitSurveyResponse(env, chatId, data);
     else if (data.startsWith("prefs:")) await handlePrefsToggle(env, chatId, data);
+    else if (data.startsWith("review:")) await handleReviewRating(env, chatId, data);
   }
 }

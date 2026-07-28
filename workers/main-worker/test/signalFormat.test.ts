@@ -68,3 +68,31 @@ describe("buildSignalMessage (UX — format de signal plus clair)", () => {
     expect(text).toContain("-5.0%"); // (100-105)/100 pour le stop loss
   });
 });
+
+describe("buildSignalMessage — Multi-TP (mission grille d'excellence)", () => {
+  const multiTpSignal = {
+    ...buySignal,
+    stop_loss: 97,
+    tp1_price: 103,
+    tp2_price: 106.3,
+    tp3_price: 110,
+  };
+
+  it("affiche les 3 niveaux TP avec leurs labels et ratios quand tp1_price est présent", () => {
+    const text = buildSignalMessage(multiTpSignal);
+    expect(text).toContain("🥇 TP1");
+    expect(text).toContain("Sécurisation rapide");
+    expect(text).toContain("Break-Even");
+    expect(text).toContain("🥈 TP2");
+    expect(text).toContain("Objectif principal (Ratio 1:2.2)");
+    expect(text).toContain("🥉 TP3");
+    expect(text).toContain("Runner (Ratio 1:3.3)");
+    expect(text).toContain("-1.5x ATR");
+  });
+
+  it("revient à l'ancien format simple (take profit / stop loss uniques) si tp1_price est absent", () => {
+    const text = buildSignalMessage(buySignal);
+    expect(text).not.toContain("TP1");
+    expect(text).toContain("🎯 Take profit");
+  });
+});

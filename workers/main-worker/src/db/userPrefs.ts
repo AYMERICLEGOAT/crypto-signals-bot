@@ -8,7 +8,11 @@ export interface UserPrefsRow {
   trailing_stop: boolean;
 }
 
-const DEFAULT_PREFS = { momentum_alerts: true, educational_posts: true, weekly_recap: true, trailing_stop: false };
+// trailing_stop activé par défaut (Étape 2, sécurisation automatique) : les
+// nouveaux abonnés (aucune ligne user_prefs) reçoivent la suggestion de
+// break-even/sécurisation sans avoir à l'activer eux-mêmes ; ils gardent la
+// liberté de le désactiver via /prefs.
+const DEFAULT_PREFS = { momentum_alerts: true, educational_posts: true, weekly_recap: true, trailing_stop: true };
 
 /** Toujours une valeur (défauts si l'utilisateur n'a jamais touché à /prefs — pas de ligne = tout activé). */
 export async function getUserPrefs(db: SupabaseConfig, telegramId: number): Promise<UserPrefsRow> {

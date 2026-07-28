@@ -11,7 +11,7 @@ const env = { TELEGRAM_BOT_TOKEN: "fake-token", SUPABASE_URL: "https://fake-supa
 describe("handlePrefsCommand", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("affiche les préférences de notification activées par défaut, le trailing stop désactivé (opt-in)", async () => {
+  it("affiche toutes les préférences activées par défaut (Étape 2 : sécurisation automatique incluse)", async () => {
     let keyboard: any;
     vi.stubGlobal(
       "fetch",
@@ -27,10 +27,7 @@ describe("handlePrefsCommand", () => {
 
     await handlePrefsCommand(env, 111);
     const labels = keyboard.map((row: any) => row[0].text);
-    const trailingLabel = labels.find((l: string) => l.includes("Trailing stop"));
-    const notificationLabels = labels.filter((l: string) => !l.includes("Trailing stop"));
-    expect(notificationLabels.every((l: string) => l.startsWith("✅"))).toBe(true);
-    expect(trailingLabel.startsWith("⬜")).toBe(true);
+    expect(labels.every((l: string) => l.startsWith("✅"))).toBe(true);
   });
 });
 
@@ -61,7 +58,7 @@ describe("handlePrefsToggle", () => {
     expect(confirmText).toContain("désactivé");
   });
 
-  it("active le trailing stop (opt-in)", async () => {
+  it("active le trailing stop pour un utilisateur qui l'avait désactivé", async () => {
     let upserted: any;
     let confirmText = "";
     vi.stubGlobal(

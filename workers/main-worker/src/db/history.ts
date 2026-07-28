@@ -12,6 +12,7 @@ export interface SignalDeliveryWithSignal {
     outcome: "WIN" | "LOSS" | null;
     outcome_price: number | null;
     close_reason: "tp_hit" | "sl_hit" | "expired" | null;
+    tp1_hit_at: string | null;
   } | null;
 }
 
@@ -27,7 +28,7 @@ export async function getUserSignalHistory(
 ): Promise<SignalDeliveryWithSignal[]> {
   return selectRows<SignalDeliveryWithSignal>(db, "signal_deliveries", {
     telegram_id: `eq.${telegramId}`,
-    select: "delivered_at,tier,signals(pair,type,entry_price,stop_loss,take_profit,outcome,outcome_price,close_reason)",
+    select: "delivered_at,tier,signals(pair,type,entry_price,stop_loss,take_profit,outcome,outcome_price,close_reason,tp1_hit_at)",
     order: "delivered_at.desc",
     limit: String(limit),
   });

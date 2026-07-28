@@ -34,10 +34,13 @@ export async function handleMyPerformanceCommand(env: Env, telegramId: number): 
   let openCount = 0;
   let cumulativePct = 0;
   let closedCount = 0;
+  let securedCount = 0;
 
   for (const delivery of deliveries) {
     const signal = delivery.signals;
     if (!signal) continue;
+
+    if (signal.tp1_hit_at) securedCount += 1;
 
     switch (signal.close_reason) {
       case "tp_hit":
@@ -70,6 +73,7 @@ export async function handleMyPerformanceCommand(env: Env, telegramId: number): 
 
   const lines = [
     "📊 *Ton bilan personnel*\n",
+    `🔒 Trades sécurisés (TP1 atteint, break-even ou mieux) : ${securedCount}/${deliveries.length}\n`,
     `Signaux reçus : ${deliveries.length}`,
     `✅ Take profit : ${tpCount} — ❌ Stop loss : ${slCount} — ⌛ Expiré : ${expiredCount} — 🔵 En cours : ${openCount}`,
     `Taux de réussite personnel : ${winRateStr}`,

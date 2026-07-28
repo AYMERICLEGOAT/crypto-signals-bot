@@ -48,15 +48,20 @@ _STRINGS = {
         "perf_table_result": "Résultat",
         "perf_note": "Résultat déterminé automatiquement en comparant le prix courant de chaque "
         "signal à son stop loss et son take profit (pas une analyse tick par tick de l'historique intrabar).",
+        "perf_secured": lambda count, pct: f"🔒 {count} ({pct:.0f}%) trades sécurisés (TP1 atteint, break-even ou mieux)",
         "paper_heading": "💼 Performance en direct (portefeuille fictif)",
         "paper_detail": lambda n, pct: (
             f"Si un portefeuille fictif avait engagé {pct:.0f}% de son capital sur chacun des "
             f"{n} derniers signaux résolus (envoyés ou non), voici son évolution cumulée :"
         ),
+        "paper_drawdown": lambda dd: f"📉 Pire chute cumulée observée (drawdown max) : {dd:.1f}%",
         "paper_note": "⚠️ Simulation à titre illustratif (sizing fixe, sans réinvestissement des gains) — "
         "ne reflète pas un compte réel ni les frais/slippage. Pas un conseil en investissement.",
         "testimonials_heading": "💬 Ce qu'ils en pensent",
         "testimonials_disclaimer": "⚠️ Exemples fictifs illustrant le format des retours utilisateurs — pas de vrais témoignages.",
+        "testimonials_real_disclaimer": "✅ Avis réels laissés via /review par des abonnés (anonymisés).",
+        "review_up": "👍",
+        "review_down": "👎",
         "backtest_heading": "🧪 Backtest de la stratégie",
         "backtest_stat": lambda win_rate, trades: (
             f"{win_rate:.1f}% de réussite sur {trades} trades en 24 mois"
@@ -110,15 +115,20 @@ _STRINGS = {
         "perf_table_result": "Result",
         "perf_note": "Result determined automatically by comparing each signal's current price to "
         "its stop loss and take profit (not a tick-by-tick intrabar analysis).",
+        "perf_secured": lambda count, pct: f"🔒 {count} ({pct:.0f}%) secured trades (TP1 reached, break-even or better)",
         "paper_heading": "💼 Live performance (paper portfolio)",
         "paper_detail": lambda n, pct: (
             f"If a paper portfolio had allocated {pct:.0f}% of its capital to each of the last "
             f"{n} resolved signals (sent or not), here is its cumulative track record:"
         ),
+        "paper_drawdown": lambda dd: f"📉 Worst cumulative drop observed (max drawdown): {dd:.1f}%",
         "paper_note": "⚠️ Illustrative simulation (fixed position sizing, no compounding of gains) — "
         "does not reflect a real account or fees/slippage. Not investment advice.",
         "testimonials_heading": "💬 What people say",
         "testimonials_disclaimer": "⚠️ Fictional examples illustrating the format of user feedback — not real testimonials.",
+        "testimonials_real_disclaimer": "✅ Real reviews left via /review by subscribers (anonymized).",
+        "review_up": "👍",
+        "review_down": "👎",
         "backtest_heading": "🧪 Strategy backtest",
         "backtest_stat": lambda win_rate, trades: (
             f"{win_rate:.1f}% win rate on {trades} trades over 24 months"
@@ -225,6 +235,10 @@ def _performance_section_html(stats, s):
                 </tr>"""
             for row in stats["recent"]
         )
+        secured_html = (
+            f'<p class="perf-secured">{s["perf_secured"](stats["secured_count"], stats["secured_pct"])}</p>'
+            if stats.get("secured_pct") is not None else ""
+        )
         body = f"""
         <div class="perf-stats">
           <div class="perf-stat"><b>{stats["total"]}</b>{s["perf_closed"]}</div>
@@ -232,6 +246,7 @@ def _performance_section_html(stats, s):
           <div class="perf-stat"><b>{stats["wins"]}</b>{s["perf_wins"]}</div>
           <div class="perf-stat"><b>{stats["losses"]}</b>{s["perf_losses"]}</div>
         </div>
+        {secured_html}
         <table class="recent">
           <thead><tr><th>{s["perf_table_pair"]}</th><th>{s["perf_table_type"]}</th><th>{s["perf_table_result"]}</th></tr></thead>
           <tbody>{rows}</tbody>
@@ -245,17 +260,33 @@ def _performance_section_html(stats, s):
     </section>"""
 
 
-def _testimonials_section_html(s):
-    """Bloc 13.2 : citations d'exemple (voir testimonials.py) -- jamais présentées comme de vrais témoignages."""
-    quotes_html = "".join(
-        f'<blockquote><p>« {html.escape(t["quote"])} »</p><cite>— {html.escape(t["name"])}</cite></blockquote>'
-        for t in EXAMPLE_TESTIMONIALS
-    )
+def _testimonials_section_html(s, reviews=None):
+    """
+    Étape 3 (preuve sociale) : si des avis réels avec commentaire existent
+    (voir supabase_client.get_recent_reviews, table `reviews` alimentée par
+    /review), on les affiche à la place des exemples fictifs -- jamais les
+    deux mélangés, pour ne jamais laisser un vrai avis se noyer parmi des
+    exemples ni l'inverse. Sans avis réel, on retombe sur EXEMPLE_TESTIMONIALS
+    (voir testimonials.py), toujours explicitement étiqueté comme fictif.
+    """
+    if reviews:
+        quotes_html = "".join(
+            f'<blockquote><p>{s["review_up"] if r["rating"] == "up" else s["review_down"]} « {html.escape(r["comment"])} »</p></blockquote>'
+            for r in reviews
+        )
+        disclaimer = s["testimonials_real_disclaimer"]
+    else:
+        quotes_html = "".join(
+            f'<blockquote><p>« {html.escape(t["quote"])} »</p><cite>— {html.escape(t["name"])}</cite></blockquote>'
+            for t in EXAMPLE_TESTIMONIALS
+        )
+        disclaimer = s["testimonials_disclaimer"]
+
     return f"""
     <section class="testimonials">
       <h2>{s["testimonials_heading"]}</h2>
       {quotes_html}
-      <p style="font-size:0.82rem;color:#777;">{s["testimonials_disclaimer"]}</p>
+      <p style="font-size:0.82rem;color:#777;">{disclaimer}</p>
     </section>"""
 
 
@@ -287,11 +318,12 @@ def _backtest_section_html(backtest_stats, s):
 
 
 def build_daily_page(signals, performance_stats, page_date, canonical_path, lang="fr", alternate_path=None,
-                      backtest_stats=None, resolved_signals=None):
+                      backtest_stats=None, resolved_signals=None, reviews=None):
     """
     Construit la page HTML complète pour une date donnée, dans la langue `lang` ("fr"/"en").
     `alternate_path` : chemin de la page équivalente dans l'autre langue (pour hreflang + lien de bascule).
     `resolved_signals` : voir supabase_client.get_all_resolved_signals() -- portefeuille fictif (Bloc 11.1).
+    `reviews` : voir supabase_client.get_recent_reviews() -- Étape 3, avis réels /review.
     """
     s = _STRINGS[lang]
     date_str = page_date.strftime(s["date_format"])
@@ -303,7 +335,7 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
     cards_html = "".join(_signal_card_html(sig, s, lang) for sig in signals)
     performance_html = _performance_section_html(performance_stats, s)
     paper_html = build_live_performance_section(resolved_signals or [], s)
-    testimonials_html = _testimonials_section_html(s)
+    testimonials_html = _testimonials_section_html(s, reviews=reviews)
 
     hreflang_tags = ""
     lang_switch_html = ""

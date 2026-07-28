@@ -87,6 +87,30 @@ ENABLE_ATR_STOPS = True
 ATR_STOP_MULTIPLIER = 1.5
 ATR_TARGET_MULTIPLIER = 3.0
 
+# Mission "grille d'excellence" (validée par backtest sur 24 mois/20 paires) :
+# remplace la sortie SL/TP unique par une gestion Multi-TP avec sécurisation
+# Break-Even. TP1 atteint -> ferme MULTI_TP_TP1_WEIGHT de la position et
+# remonte le stop au prix d'entrée (le reste ne peut plus finir perdant).
+# TP2/TP3 ferment le reste par tranches. Testé avec/sans filtre de tendance
+# HTF EMA200 4h (retiré : coûtait 58% du volume de signaux pour un gain de
+# win rate nul), avec/sans déclencheur Liquidity Sweep/Squeeze (retiré :
+# coûtait 87% du volume), avec/sans confirmation Taker Ratio/Funding Rate
+# (retirées : aucune amélioration, coûtaient 19-50% du volume).
+# Résultat retenu : 1.66 signal/jour, win rate perçu (TP1 sécurisé) 61.1%,
+# win rate strict (TP2/TP3 atteint) 19.1%, ratio réel 0.68 (vs 2.04 pour le
+# SL/TP unique), drawdown 40.0% (vs 54.5%). Décision produit assumée :
+# l'espérance brute par trade est plus faible qu'avec le SL/TP unique
+# (+0.026 à +0.039 vs +0.103 en unités de risque), mais le win rate perçu et
+# le drawdown réduit sont jugés prioritaires pour la rétention abonnés.
+ENABLE_MULTI_TP_EXITS = True
+MULTI_TP_SL_MULTIPLIER = 1.5    # identique à ATR_STOP_MULTIPLIER
+MULTI_TP_TP1_MULTIPLIER = 1.0   # sécurisation rapide + passage à break-even
+MULTI_TP_TP2_MULTIPLIER = 3.3   # objectif principal, ratio réel 3.3/1.5 = 1:2.2
+MULTI_TP_TP3_MULTIPLIER = 5.0   # runner, ratio réel 5.0/1.5 = 1:3.3
+MULTI_TP_TP1_WEIGHT = 0.5
+MULTI_TP_TP2_WEIGHT = 0.3
+MULTI_TP_TP3_WEIGHT = 0.2
+
 # Amélioration 5 (MACD 12/26/9) : voir résultat backtest ci-dessous une fois testé.
 ENABLE_MACD_FILTER = False
 

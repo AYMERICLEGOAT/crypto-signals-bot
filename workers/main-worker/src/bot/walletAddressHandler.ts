@@ -3,17 +3,24 @@ import { sendMessage, sendPhoto } from "../telegram";
 import { consumePendingAction, setPendingAction } from "../db/pendingActions";
 import { startUsdtPayment } from "../payments/usdt";
 import { activateTrialForWallet } from "./commands/trial";
+import { handleReviewComment } from "./commands/review";
 import { isValidEthereumAddress } from "../utils/address";
 
 /**
  * Catch-all texte libre : ne fait quelque chose que si on attend une adresse
- * wallet de cet utilisateur (cf. db/pendingActions.ts). Sinon, ignore
- * silencieusement (évite de répondre n'importe quoi à une conversation normale).
+ * wallet ou un commentaire de review de cet utilisateur (cf.
+ * db/pendingActions.ts). Sinon, ignore silencieusement (évite de répondre
+ * n'importe quoi à une conversation normale).
  */
 export async function handleTextMessage(env: Env, telegramId: number, text: string): Promise<void> {
   const db = dbConfig(env);
   const action = await consumePendingAction(db, telegramId);
   if (!action) return;
+
+  if (action.type === "awaiting_review_comment") {
+    await handleReviewComment(env, telegramId, action.reviewId, text.trim());
+    return;
+  }
 
   const trimmed = text.trim();
   if (!isValidEthereumAddress(trimmed)) {
