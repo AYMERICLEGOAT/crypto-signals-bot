@@ -12,28 +12,15 @@
 import { Env, dbConfig } from "../env";
 import { getSignalsDueForPublicChannel, markSentToChannel, SignalRecord } from "../db/signals";
 import { sendMessage, sendPhoto } from "../telegram";
+import { buildSignalMessage } from "../signalFormat";
 
 const CHANNEL_DELAY_MINUTES = 30;
 
 function formatPublicChannelMessage(signal: SignalRecord, botUsername: string): string {
-  const emoji = signal.type === "BUY" ? "🟢" : "🔴";
-  // Le parse_mode "Markdown" de Telegram traite "_" comme un marqueur d'italique
-  // non échappé : un nom d'utilisateur contenant "_" (ex. ProVIPSignals_bot) fait
-  // échouer l'envoi ("can't parse entities") s'il n'est pas échappé.
-  const escapedUsername = botUsername.replace(/_/g, "\\_");
-  return [
-    `${emoji} *${signal.type} ${signal.pair}* _(signal différé de ${CHANNEL_DELAY_MINUTES} min)_`,
-    `Entrée : ${signal.entry_price}`,
-    `Stop loss : ${signal.stop_loss}`,
-    `Take profit : ${signal.take_profit}`,
-    // Bloc 16 : journal de trading public — même score affiché qu'en DM
-    // (purement informatif, voir signals/confidence.py).
-    ...(signal.confidence_score != null ? [`Confiance : ${signal.confidence_score}/100`] : []),
-    "",
-    "⚠️ Pas un conseil financier — risque de perte en capital.",
-    "",
-    `📡 Signaux en temps réel + alertes VIP : rejoins @${escapedUsername}`,
-  ].join("\n");
+  return buildSignalMessage(signal, {
+    delayNote: `signal différé de ${CHANNEL_DELAY_MINUTES} min`,
+    ctaUsername: botUsername,
+  });
 }
 
 export async function dispatchPublicChannel(env: Env): Promise<void> {

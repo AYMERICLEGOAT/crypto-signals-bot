@@ -11,7 +11,7 @@ const env = { TELEGRAM_BOT_TOKEN: "fake-token", SUPABASE_URL: "https://fake-supa
 describe("handlePrefsCommand", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("affiche tout activé par défaut si l'utilisateur n'a jamais touché à /prefs", async () => {
+  it("affiche les préférences de notification activées par défaut, le trailing stop désactivé (opt-in)", async () => {
     let keyboard: any;
     vi.stubGlobal(
       "fetch",
@@ -27,7 +27,10 @@ describe("handlePrefsCommand", () => {
 
     await handlePrefsCommand(env, 111);
     const labels = keyboard.map((row: any) => row[0].text);
-    expect(labels.every((l: string) => l.startsWith("✅"))).toBe(true);
+    const trailingLabel = labels.find((l: string) => l.includes("Trailing stop"));
+    const notificationLabels = labels.filter((l: string) => !l.includes("Trailing stop"));
+    expect(notificationLabels.every((l: string) => l.startsWith("✅"))).toBe(true);
+    expect(trailingLabel.startsWith("⬜")).toBe(true);
   });
 });
 
@@ -56,6 +59,30 @@ describe("handlePrefsToggle", () => {
     await handlePrefsToggle(env, 111, "prefs:momentum_alerts:off");
     expect(upserted.momentum_alerts).toBe(false);
     expect(confirmText).toContain("désactivé");
+  });
+
+  it("active le trailing stop (opt-in)", async () => {
+    let upserted: any;
+    let confirmText = "";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("user_prefs") && init?.method === "POST") {
+          upserted = JSON.parse(init.body as string);
+          return jsonResponse([upserted]);
+        }
+        if (url.includes("user_prefs")) return jsonResponse([upserted].filter(Boolean));
+        if (url.includes("api.telegram.org")) {
+          confirmText = JSON.parse(init!.body as string).text;
+          return jsonResponse({ ok: true, result: {} });
+        }
+        throw new Error(`URL inattendue: ${url}`);
+      })
+    );
+
+    await handlePrefsToggle(env, 111, "prefs:trailing_stop:on");
+    expect(upserted.trailing_stop).toBe(true);
+    expect(confirmText).toContain("activé");
   });
 });
 

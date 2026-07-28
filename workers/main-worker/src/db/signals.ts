@@ -16,6 +16,7 @@ export interface SignalRecord {
   outcome_price: number | null;
   close_reason: "tp_hit" | "sl_hit" | "expired" | null;
   confidence_score: number | null;
+  trailing_stop_price: number | null;
 }
 
 export async function getUnsentSignals(db: SupabaseConfig): Promise<SignalRecord[]> {
@@ -118,6 +119,16 @@ export async function getSignalsResolvedSince(db: SupabaseConfig, sinceIso: stri
     outcome: "not.is.null",
     select: "type,entry_price,outcome_price,close_reason",
   });
+}
+
+/**
+ * UX — trailing stop optionnel (voir signalMath.ts::computeTrailingStop) :
+ * met à jour UNIQUEMENT le niveau indicatif affiché aux abonnés ayant activé
+ * la préférence. Ne touche jamais stop_loss/take_profit/outcome (voir note
+ * section 31 d'init.sql).
+ */
+export async function updateTrailingStop(db: SupabaseConfig, id: number, trailingStopPrice: number): Promise<void> {
+  await updateRows(db, "signals", { id: `eq.${id}` }, { trailing_stop_price: trailingStopPrice });
 }
 
 export async function markSignalClosed(

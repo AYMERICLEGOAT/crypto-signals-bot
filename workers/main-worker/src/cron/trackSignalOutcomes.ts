@@ -18,10 +18,11 @@
  */
 
 import { Env, dbConfig } from "../env";
-import { getOpenSignals, markSignalClosed, SignalRecord } from "../db/signals";
+import { getOpenSignals, markSignalClosed, updateTrailingStop, SignalRecord } from "../db/signals";
 import { getDeliveryRecipients } from "../db/signalDeliveries";
+import { filterByPrefEnabled } from "../db/userPrefs";
 import { getCurrentPrices, pairToSymbol } from "../market/binancePrices";
-import { evaluateOutcome, computePnlPct, CloseReason } from "../signalMath";
+import { evaluateOutcome, computePnlPct, computeTrailingStop, CloseReason } from "../signalMath";
 import { sendMessage } from "../telegram";
 import { handleAntiStress } from "./antiStress";
 
@@ -61,6 +62,16 @@ function formatPublicCloseMessage(signal: SignalRecord, pct: number, botUsername
     `📉 *Signal clôturé*`,
     base,
     "La gestion du risque fait partie de la stratégie : chaque signal a un stop loss défini à l'avance.",
+  ].join("\n");
+}
+
+function formatTrailingStopUpdate(signal: SignalRecord, newTrailingStop: number): string {
+  const previous = signal.trailing_stop_price ?? signal.stop_loss;
+  const direction = signal.type === "BUY" ? "remonte" : "baisse";
+  return [
+    "🔒 *Trailing stop* — mets à jour ton stop",
+    `${signal.type} ${signal.pair} progresse en ta faveur : ${direction} ton stop de ${previous} à ${newTrailingStop} pour sécuriser une partie du gain.`,
+    "Purement indicatif — n'affecte pas le stop loss officiel de ce signal.",
   ].join("\n");
 }
 
@@ -110,6 +121,18 @@ export async function trackSignalOutcomes(env: Env): Promise<void> {
       outcome = "LOSS";
       closeReason = "expired";
     } else {
+      // UX — trailing stop optionnel (/prefs, opt-in) : toujours ouvert, mais
+      // le prix a peut-être assez progressé pour remonter le niveau indicatif.
+      // Aucun impact sur stop_loss/take_profit/outcome (voir signalMath.ts).
+      if (currentPrice !== undefined) {
+        const newTrailingStop = computeTrailingStop(signal.type, signal.entry_price, signal.stop_loss, signal.trailing_stop_price, currentPrice);
+        if (newTrailingStop !== null) {
+          await updateTrailingStop(db, signal.id, newTrailingStop);
+          const recipients = await getDeliveryRecipients(db, signal.id);
+          const trailingRecipients = await filterByPrefEnabled(db, recipients, "trailing_stop");
+          await notifyRecipients(env, trailingRecipients, formatTrailingStopUpdate(signal, newTrailingStop));
+        }
+      }
       continue; // toujours ouvert
     }
 

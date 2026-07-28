@@ -1,27 +1,13 @@
 import { Env, dbConfig } from "../env";
 import { getUnsentSignals, markSignalSent, SignalRecord } from "../db/signals";
 import { getActiveUsers } from "../db/users";
+import { filterByPrefEnabled } from "../db/userPrefs";
 import { recordDeliveries } from "../db/signalDeliveries";
 import { sendMessage, sendPhoto } from "../telegram";
 import { PRO_PLAN } from "../payments/plans";
+import { buildSignalMessage } from "../signalFormat";
 
 const TRIAL_PLAN = 0;
-
-function formatSignalMessage(signal: SignalRecord): string {
-  const emoji = signal.type === "BUY" ? "🟢" : "🔴";
-  return [
-    `${emoji} *${signal.type} ${signal.pair}*`,
-    `Entrée : ${signal.entry_price}`,
-    `Stop loss : ${signal.stop_loss}`,
-    `Take profit : ${signal.take_profit}`,
-    `_${new Date(signal.created_at).toLocaleString("fr-FR")}_`,
-    // Amélioration 9 : purement informatif (convergence d'indicateurs
-    // techniques), jamais une probabilité de gain — voir signals/confidence.py.
-    ...(signal.confidence_score != null ? [`Confiance : ${signal.confidence_score}/100`] : []),
-    "",
-    "⚠️ Pas un conseil financier — risque de perte en capital.",
-  ].join("\n");
-}
 
 // Sous-lots envoyés en parallèle, avec une pause entre chaque lot : reste
 // sous la limite globale de l'API Telegram (~30 messages/seconde) même avec
@@ -40,12 +26,20 @@ export async function dispatchSignals(env: Env): Promise<void> {
   const activeUsers = await getActiveUsers(db);
   const activeIds = activeUsers.filter((u) => u.plan === PRO_PLAN || u.plan === TRIAL_PLAN).map((u) => u.telegram_id);
 
+  // UX — trailing stop (préférence /prefs, opt-in) : calculé une fois pour
+  // tout le lot plutôt que par signal, le sous-ensemble d'abonnés concerné
+  // ne change pas pendant l'exécution de ce cron.
+  const trailingEnabledIds = new Set(await filterByPrefEnabled(db, activeIds, "trailing_stop"));
+
   for (const signal of unsent) {
-    const text = formatSignalMessage(signal);
-    const send = (id: number) =>
-      signal.chart_url
+    const textDefault = buildSignalMessage(signal);
+    const textWithTrailing = trailingEnabledIds.size > 0 ? buildSignalMessage(signal, { trailingEnabled: true }) : textDefault;
+    const send = (id: number) => {
+      const text = trailingEnabledIds.has(id) ? textWithTrailing : textDefault;
+      return signal.chart_url
         ? sendPhoto(env.TELEGRAM_BOT_TOKEN, id, signal.chart_url as string, { caption: text, markdown: true })
         : sendMessage(env.TELEGRAM_BOT_TOKEN, id, text, { markdown: true });
+    };
 
     // Destinataires réellement livrés (Bloc 4) : sert au suivi post-trade
     // (cron/trackSignalOutcomes.ts) pour notifier précisément qui a reçu ce

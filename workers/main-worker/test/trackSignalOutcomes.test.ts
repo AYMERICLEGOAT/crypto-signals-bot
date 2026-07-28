@@ -189,6 +189,43 @@ describe("trackSignalOutcomes", () => {
     await trackSignalOutcomes(env);
   });
 
+  it("UX — remonte le trailing stop et ne notifie que les abonnés l'ayant activé (/prefs), sans clôturer le signal", async () => {
+    let trailingPatch: any = null;
+    const dmSentTo: number[] = [];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("signals") && url.includes("outcome=is.null") && (!init || init.method === undefined)) {
+          return jsonResponse([recentSignal]); // entrée 100, stop 95 -> R=5
+        }
+        if (url.includes("binance.com")) {
+          return jsonResponse([{ symbol: "BTCUSDT", price: "106.00" }]); // +1R, ni TP (110) ni SL
+        }
+        if (url.includes("signals") && init?.method === "PATCH") {
+          trailingPatch = JSON.parse(init.body as string);
+          return jsonResponse([]);
+        }
+        if (url.includes("signal_deliveries") && (!init || init.method === undefined)) {
+          return jsonResponse([{ telegram_id: 10 }, { telegram_id: 11 }]);
+        }
+        if (url.includes("user_prefs") && url.includes("telegram_id=in.")) {
+          return jsonResponse([{ telegram_id: 10, trailing_stop: true }, { telegram_id: 11, trailing_stop: false }]);
+        }
+        if (url.includes("api.telegram.org")) {
+          dmSentTo.push(JSON.parse(init!.body as string).chat_id);
+          return jsonResponse({ ok: true, result: {} });
+        }
+        throw new Error(`URL inattendue: ${url}`);
+      })
+    );
+
+    await trackSignalOutcomes(env);
+
+    expect(trailingPatch.trailing_stop_price).toBe(100); // point mort (entrée)
+    expect(dmSentTo).toEqual([10]); // seul l'abonné ayant activé la préférence est notifié
+  });
+
   it("échoue proprement (sans planter) si Binance est indisponible", async () => {
     vi.stubGlobal(
       "fetch",

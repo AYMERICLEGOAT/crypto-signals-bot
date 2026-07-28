@@ -2,10 +2,11 @@ import { Env, dbConfig } from "../../env";
 import { sendMessage, InlineKeyboard } from "../../telegram";
 import { getUserPrefs, setUserPref, UserPrefsRow } from "../../db/userPrefs";
 
-const LABELS: Record<"momentum_alerts" | "educational_posts" | "weekly_recap", string> = {
+const LABELS: Record<"momentum_alerts" | "educational_posts" | "weekly_recap" | "trailing_stop", string> = {
   momentum_alerts: "Alertes Momentum",
   educational_posts: "Posts éducatifs",
   weekly_recap: "Récap hebdomadaire",
+  trailing_stop: "Trailing stop (suivi de stop)",
 };
 
 function buildKeyboard(prefs: UserPrefsRow): InlineKeyboard {
@@ -27,7 +28,9 @@ export async function handlePrefsCommand(env: Env, telegramId: number): Promise<
     telegramId,
     "🔔 *Tes préférences de notification*\n\n" +
       "🟢 Signaux Haute confiance — toujours activés (inclus dans ton abonnement)\n\n" +
-      "Les options ci-dessous sont en plus des signaux, diffusés aussi sur le canal public. Appuie pour activer/désactiver :",
+      "Les 3 premières options sont en plus des signaux, diffusés aussi sur le canal public.\n\n" +
+      "🔒 *Trailing stop* : une fois activé, tu reçois un message dès que le prix progresse en ta faveur, te suggérant de remonter (ou baisser) ton stop pour sécuriser une partie du gain. Purement indicatif — n'affecte jamais le stop loss officiel du signal.\n\n" +
+      "Appuie pour activer/désactiver :",
     { markdown: true, keyboard: buildKeyboard(prefs) }
   );
 }
@@ -35,7 +38,7 @@ export async function handlePrefsCommand(env: Env, telegramId: number): Promise<
 /** data au format "prefs:<cle>:on" ou "prefs:<cle>:off". */
 export async function handlePrefsToggle(env: Env, telegramId: number, data: string): Promise<void> {
   const [, key, action] = data.split(":");
-  if (key !== "momentum_alerts" && key !== "educational_posts" && key !== "weekly_recap") return;
+  if (key !== "momentum_alerts" && key !== "educational_posts" && key !== "weekly_recap" && key !== "trailing_stop") return;
 
   const db = dbConfig(env);
   await setUserPref(db, telegramId, key, action === "on");

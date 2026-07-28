@@ -41,6 +41,7 @@ describe("Bloc 10 — disclaimer de risque sur les vrais signaux", () => {
       vi.fn(async (url: string, init?: RequestInit) => {
         if (url.includes("signals") && url.includes("sent=eq.false")) return jsonResponse([{ ...baseSignal, sent: false }]);
         if (url.includes("users") && url.includes("expiration=gt")) return jsonResponse([{ telegram_id: 1, plan: 2, expiration: "2099-01-01T00:00:00Z" }]);
+        if (url.includes("user_prefs")) return jsonResponse([]);
         if (url.includes("api.telegram.org")) {
           text = JSON.parse(init!.body as string).text;
           return jsonResponse({ ok: true, result: {} });
@@ -63,6 +64,7 @@ describe("Bloc 10 — disclaimer de risque sur les vrais signaux", () => {
           return jsonResponse([{ ...baseSignal, sent: true, created_at: "2020-01-01T00:00:00Z" }]);
         }
         if (url.includes("users") && url.includes("expiration=gt")) return jsonResponse([{ telegram_id: 3, plan: 1, expiration: "2099-01-01T00:00:00Z" }]);
+        if (url.includes("user_prefs")) return jsonResponse([]);
         if (url.includes("api.telegram.org")) {
           text = JSON.parse(init!.body as string).text;
           return jsonResponse({ ok: true, result: {} });

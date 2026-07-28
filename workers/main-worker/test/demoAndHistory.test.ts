@@ -36,7 +36,7 @@ describe("handleDemoCommand", () => {
     await handleDemoCommand(env, 42);
     expect(sentText).toContain("EXEMPLE");
     expect(sentText).toContain("TRX/USDT");
-    expect(sentText).toContain("SELL");
+    expect(sentText).toContain("VENTE");
   });
 
   it("répond proprement si aucun trade de backtest n'existe encore", async () => {

@@ -683,3 +683,19 @@ alter table users add column if not exists consecutive_losses smallint not null 
 -- ----------------------------------------------------------------------------
 
 alter table referral_rewards add column if not exists commission_usd numeric not null default 0;
+
+
+-- ----------------------------------------------------------------------------
+-- 31. UX signaux — trailing stop optionnel (voir cron/trackSignalOutcomes.ts,
+--     signalMath.ts::computeTrailingStop) : opt-in (défaut false, contrairement
+--     aux préférences de notification de la section 28 qui sont opt-out), donc
+--     colonne séparée plutôt qu'ajoutée à la logique existante de /prefs.
+--     trailing_stop_price est purement indicatif — ne modifie JAMAIS le
+--     stop_loss/take_profit officiels ni le calcul du win rate affiché
+--     publiquement (transparence, /myperformance, backtest) : deux abonnés
+--     avec des préférences différentes doivent voir le même résultat officiel
+--     pour un même signal.
+-- ----------------------------------------------------------------------------
+
+alter table user_prefs add column if not exists trailing_stop boolean not null default false;
+alter table signals add column if not exists trailing_stop_price numeric;

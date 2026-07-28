@@ -5,9 +5,10 @@ export interface UserPrefsRow {
   momentum_alerts: boolean;
   educational_posts: boolean;
   weekly_recap: boolean;
+  trailing_stop: boolean;
 }
 
-const DEFAULT_PREFS = { momentum_alerts: true, educational_posts: true, weekly_recap: true };
+const DEFAULT_PREFS = { momentum_alerts: true, educational_posts: true, weekly_recap: true, trailing_stop: false };
 
 /** Toujours une valeur (défauts si l'utilisateur n'a jamais touché à /prefs — pas de ligne = tout activé). */
 export async function getUserPrefs(db: SupabaseConfig, telegramId: number): Promise<UserPrefsRow> {
@@ -29,4 +30,16 @@ export async function filterByPref(db: SupabaseConfig, telegramIds: number[], ke
   const rows = await selectRows<UserPrefsRow>(db, "user_prefs", { telegram_id: `in.(${telegramIds.join(",")})` });
   const disabled = new Set(rows.filter((r) => r[key] === false).map((r) => r.telegram_id));
   return telegramIds.filter((id) => !disabled.has(id));
+}
+
+/**
+ * Sous-ensemble de `telegramIds` ayant ACTIVÉ `key` (opt-in : par défaut
+ * personne, tant qu'aucune ligne user_prefs n'existe pour eux — contrairement
+ * à `filterByPref` qui suppose l'inverse pour les préférences opt-out).
+ */
+export async function filterByPrefEnabled(db: SupabaseConfig, telegramIds: number[], key: keyof typeof DEFAULT_PREFS): Promise<number[]> {
+  if (telegramIds.length === 0) return [];
+  const rows = await selectRows<UserPrefsRow>(db, "user_prefs", { telegram_id: `in.(${telegramIds.join(",")})` });
+  const enabled = new Set(rows.filter((r) => r[key] === true).map((r) => r.telegram_id));
+  return telegramIds.filter((id) => enabled.has(id));
 }

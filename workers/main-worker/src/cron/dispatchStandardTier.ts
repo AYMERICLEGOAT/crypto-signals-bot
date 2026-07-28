@@ -7,27 +7,15 @@
  */
 
 import { Env, dbConfig } from "../env";
-import { getSignalsDueForStandardTier, markSentToStandard, SignalRecord } from "../db/signals";
+import { getSignalsDueForStandardTier, markSentToStandard } from "../db/signals";
 import { getActiveUsers } from "../db/users";
+import { filterByPrefEnabled } from "../db/userPrefs";
 import { recordDeliveries } from "../db/signalDeliveries";
 import { sendMessage, sendPhoto } from "../telegram";
 import { STANDARD_PLAN, DISCOVERY_PLAN } from "../payments/plans";
+import { buildSignalMessage } from "../signalFormat";
 
 export const SNIPER_DELAY_MINUTES = 15;
-
-function formatSignalMessage(signal: SignalRecord): string {
-  const emoji = signal.type === "BUY" ? "🟢" : "🔴";
-  return [
-    `${emoji} *${signal.type} ${signal.pair}*`,
-    `Entrée : ${signal.entry_price}`,
-    `Stop loss : ${signal.stop_loss}`,
-    `Take profit : ${signal.take_profit}`,
-    `_${new Date(signal.created_at).toLocaleString("fr-FR")}_`,
-    ...(signal.confidence_score != null ? [`Confiance : ${signal.confidence_score}/100`] : []),
-    "",
-    "⚠️ Pas un conseil financier — risque de perte en capital.",
-  ].join("\n");
-}
 
 const BATCH_SIZE = 25;
 const DELAY_BETWEEN_BATCHES_MS = 1200;
@@ -42,12 +30,17 @@ export async function dispatchStandardTier(env: Env): Promise<void> {
     .filter((u) => u.plan === STANDARD_PLAN || u.plan === DISCOVERY_PLAN)
     .map((u) => u.telegram_id);
 
+  const trailingEnabledIds = new Set(await filterByPrefEnabled(db, targetIds, "trailing_stop"));
+
   for (const signal of due) {
-    const text = formatSignalMessage(signal);
-    const send = (id: number) =>
-      signal.chart_url
+    const textDefault = buildSignalMessage(signal);
+    const textWithTrailing = trailingEnabledIds.size > 0 ? buildSignalMessage(signal, { trailingEnabled: true }) : textDefault;
+    const send = (id: number) => {
+      const text = trailingEnabledIds.has(id) ? textWithTrailing : textDefault;
+      return signal.chart_url
         ? sendPhoto(env.TELEGRAM_BOT_TOKEN, id, signal.chart_url as string, { caption: text, markdown: true })
         : sendMessage(env.TELEGRAM_BOT_TOKEN, id, text, { markdown: true });
+    };
 
     const delivered: number[] = [];
 

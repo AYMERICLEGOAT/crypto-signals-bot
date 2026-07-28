@@ -114,6 +114,7 @@ describe("Effet Sniper — dispatchSignals (vitesse Pro/essai)", () => {
             { telegram_id: 4, plan: 3, expiration: "2099-01-01T00:00:00Z" }, // Découverte
           ]);
         }
+        if (url.includes("user_prefs")) return jsonResponse([]);
         if (url.includes("api.telegram.org")) {
           notified.push(JSON.parse(init!.body as string).chat_id);
           return jsonResponse({ ok: true, result: {} });
@@ -161,6 +162,7 @@ describe("Effet Sniper — dispatchStandardTier (délai Standard/Découverte)", 
             { telegram_id: 4, plan: 3, expiration: "2099-01-01T00:00:00Z" }, // Découverte
           ]);
         }
+        if (url.includes("user_prefs")) return jsonResponse([]);
         if (url.includes("api.telegram.org")) {
           notified.push(JSON.parse(init!.body as string).chat_id);
           return jsonResponse({ ok: true, result: {} });

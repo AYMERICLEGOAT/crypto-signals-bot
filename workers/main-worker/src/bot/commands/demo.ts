@@ -2,6 +2,7 @@ import { Env, dbConfig } from "../../env";
 import { sendMessage } from "../../telegram";
 import { getSampleBacktestTrade } from "../../db/backtestTrades";
 import { getActiveStrategyParams } from "../../db/strategyParams";
+import { buildSignalMessage } from "../../signalFormat";
 
 interface StrategyParamsFull {
   win_rate: number;
@@ -38,8 +39,6 @@ export async function handleDemoCommand(env: Env, telegramId: number): Promise<v
   const entry = Number(trade.entry_price);
   const stopLoss = trade.side === "BUY" ? entry * (1 - slPct) : entry * (1 + slPct);
   const takeProfit = trade.side === "BUY" ? entry * (1 + tpPct) : entry * (1 - tpPct);
-  const emoji = trade.side === "BUY" ? "🟢" : "🔴";
-  const enteredDate = new Date(trade.entered_at).toLocaleString("fr-FR");
 
   const outcomeNote =
     trade.outcome === "WIN"
@@ -48,19 +47,23 @@ export async function handleDemoCommand(env: Env, telegramId: number): Promise<v
         ? "Dans le backtest, ce trade a touché son stop loss (la gestion du risque limite la perte à un niveau connu à l'avance)."
         : "Dans le backtest, ce trade a été clôturé au marché après expiration du délai.";
 
+  const exampleMessage = buildSignalMessage({
+    type: trade.side,
+    pair: trade.pair,
+    entry_price: entry,
+    stop_loss: stopLoss,
+    take_profit: takeProfit,
+    created_at: trade.entered_at,
+  });
+
   await sendMessage(
     env.TELEGRAM_BOT_TOKEN,
     telegramId,
     "🎭 *EXEMPLE — voici ce que vous recevrez*\n\n" +
-      `${emoji} *${trade.side} ${trade.pair}*\n` +
-      `Entrée : ${entry}\n` +
-      `Stop loss : ${stopLoss.toFixed(8)}\n` +
-      `Take profit : ${takeProfit.toFixed(8)}\n` +
-      `_${enteredDate}_\n\n` +
+      `${exampleMessage}\n\n` +
       `📎 ${outcomeNote}\n\n` +
-      "⚠️ Ceci est un exemple basé sur un trade réel du backtest (pas un conseil en investissement, " +
-      "performance passée ne garantit pas les performances futures). Utilise /trial pour recevoir de " +
-      "vrais signaux en direct.",
+      "Ceci est un exemple basé sur un trade réel du backtest (performance passée ne garantit pas les " +
+      "performances futures). Utilise /trial pour recevoir de vrais signaux en direct.",
     { markdown: true }
   );
 }

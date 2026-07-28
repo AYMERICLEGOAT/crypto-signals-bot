@@ -1,13 +1,15 @@
 import { Env, dbConfig } from "../../env";
 import { sendMessage } from "../../telegram";
 import { getLatestSignal, SignalRecord } from "../../db/signals";
+import { buildSignalMessage, SUGGESTED_RISK_PCT } from "../../signalFormat";
 
-const FALLBACK_EXAMPLE: Pick<SignalRecord, "type" | "pair" | "entry_price" | "stop_loss" | "take_profit"> = {
+const FALLBACK_EXAMPLE: Pick<SignalRecord, "type" | "pair" | "entry_price" | "stop_loss" | "take_profit" | "created_at"> = {
   type: "BUY",
   pair: "BTC/USDT",
   entry_price: 60000,
   stop_loss: 58800,
   take_profit: 62400,
+  created_at: new Date().toISOString(),
 };
 
 /** BLOC 21 — tutoriel pas à pas pour placer un ordre en suivant un signal, exemple avec le dernier signal réel émis. */
@@ -28,12 +30,9 @@ export async function handleGuideCommand(env: Env, telegramId: number): Promise<
       `3. Passe un ordre ${side === "ACHAT" ? "d'ACHAT" : "de VENTE"} au prix d'entrée indiqué (ordre au marché si le prix est déjà proche, ou ordre limite au prix exact).\n` +
       "4. Place IMMÉDIATEMENT un ordre stop loss au niveau indiqué — c'est ce qui limite ta perte si le marché va contre toi.\n" +
       "5. Place un ordre take profit (ou surveille manuellement) au niveau indiqué pour sécuriser le gain si l'objectif est atteint.\n" +
-      "6. N'investis jamais plus que ce que tu es prêt à perdre sur un seul trade.\n\n" +
-      `📎 Exemple concret${exampleNote} :\n` +
-      `${side} ${example.pair}\n` +
-      `Entrée : ${example.entry_price}\n` +
-      `Stop loss : ${example.stop_loss}\n` +
-      `Take profit : ${example.take_profit}\n\n` +
-      "⚠️ Ceci est un guide pédagogique, pas un conseil en investissement. Le trading de cryptomonnaies comporte un risque de perte en capital."
+      `6. Ne risque jamais plus de ${SUGGESTED_RISK_PCT}% de ton capital total sur un seul trade — chaque signal indique la taille de position correspondante (voir "Risque conseillé" ci-dessous).\n\n` +
+      `📎 Exemple concret${exampleNote} :\n\n` +
+      buildSignalMessage(example) +
+      "\n\n💡 Astuce : active le trailing stop dans /prefs pour recevoir un rappel dès qu'un trade progresse suffisamment pour sécuriser une partie du gain."
   );
 }
