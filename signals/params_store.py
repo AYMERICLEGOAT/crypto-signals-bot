@@ -104,6 +104,9 @@ def save_params(result: dict, pairs_tested: list[str]) -> None:
             "tp1_weight": config.MULTI_TP_TP1_WEIGHT,
             "tp2_weight": config.MULTI_TP_TP2_WEIGHT,
             "tp3_weight": config.MULTI_TP_TP3_WEIGHT,
+            "portfolio_lock_enabled": config.ENABLE_PORTFOLIO_LOCK,
+            "max_active_trades": config.MAX_ACTIVE_TRADES,
+            "pairs_count": len(pairs_tested),
         }).execute()
         logger.info("Paramètres enregistrés comme actifs dans Supabase (strategy_params: %s).", param_set)
     except Exception:

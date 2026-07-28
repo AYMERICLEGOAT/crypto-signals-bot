@@ -36,6 +36,32 @@ def insert_signal(signal: dict) -> None:
         logger.exception("Échec de l'insertion du signal dans Supabase: %s", signal)
 
 
+def count_open_at_risk_trades() -> int:
+    """
+    Verrou de portefeuille (voir config.MAX_ACTIVE_TRADES) : nombre de
+    signaux encore ouverts ET pas encore sécurisés à TP1 (outcome NULL,
+    breakeven_active=false). Un signal qui a atteint TP1 ne compte plus
+    comme "à risque" — il ne peut plus finir perdant (voir
+    workers/main-worker/src/cron/trackSignalOutcomes.ts, même règle côté
+    Worker). Retourne 0 en cas d'échec (dégradation prudente : mieux vaut
+    sous-compter et risquer un slot en trop qu'empêcher toute génération de
+    signal si Supabase est temporairement indisponible).
+    """
+    try:
+        resp = (
+            get_client()
+            .table("signals")
+            .select("id", count="exact")
+            .is_("outcome", "null")
+            .eq("breakeven_active", False)
+            .execute()
+        )
+        return resp.count or 0
+    except Exception:
+        logger.exception("Échec du comptage des positions à risque (verrou de portefeuille), traité comme 0.")
+        return 0
+
+
 def insert_volatility_suspensions(events: list) -> None:
     """
     Bloc 11.3 : enregistre les suspensions de signal pour volatilité

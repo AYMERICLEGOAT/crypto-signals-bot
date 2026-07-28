@@ -747,3 +747,13 @@ create table if not exists reviews (
 create index if not exists idx_reviews_created_at on reviews (created_at desc);
 
 alter table pending_actions add column if not exists review_id bigint;
+
+-- ----------------------------------------------------------------------------
+-- 34. Verrou de portefeuille (MAX_ACTIVE_TRADES, voir signals/config.py et
+--     signals/main.py::run_once) -- trace la config active, purement
+--     informatif/historique comme les colonnes multi_tp_* ci-dessus.
+-- ----------------------------------------------------------------------------
+
+alter table strategy_params add column if not exists portfolio_lock_enabled boolean not null default false;
+alter table strategy_params add column if not exists max_active_trades integer;
+alter table strategy_params add column if not exists pairs_count integer;

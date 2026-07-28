@@ -237,6 +237,24 @@ def run_once(params: dict) -> int:
         )
         return 0
 
+    # Verrou de portefeuille (mission "grille d'excellence", voir
+    # config.MAX_ACTIVE_TRADES) : ne jamais dépasser N positions à risque
+    # (pas encore sécurisées à TP1) simultanément. Priorité aux candidats du
+    # score de confiance le plus élevé si plusieurs se présentent au même
+    # cycle et qu'il ne reste pas assez de slots pour tous.
+    if config.ENABLE_PORTFOLIO_LOCK:
+        open_at_risk = storage.count_open_at_risk_trades()
+        available_slots = max(0, config.MAX_ACTIVE_TRADES - open_at_risk)
+        if available_slots < len(candidates):
+            candidates.sort(key=lambda c: c[0].get("confidence_score", 0), reverse=True)
+            skipped = len(candidates) - available_slots
+            candidates = candidates[:available_slots]
+            logger.info(
+                "🔒 Verrou de portefeuille : %d position(s) à risque déjà ouverte(s) (max %d) -> "
+                "%d slot(s) disponible(s), %d candidat(s) ignoré(s) ce cycle.",
+                open_at_risk, config.MAX_ACTIVE_TRADES, available_slots, skipped,
+            )
+
     for signal_dict, enriched in candidates:
         signal_dict["chart_url"] = _generate_and_upload_chart(enriched, signal_dict, now_ms)
         storage.insert_signal(signal_dict)

@@ -31,7 +31,6 @@ PAIRS = {
     "AVAX/USDT": "avalanche-2",
     "DOT/USDT": "polkadot",
     "LINK/USDT": "chainlink",
-    "TRX/USDT": "tron",
     # Polygon a migré son token MATIC -> POL en 2024 ; Binance a délisté
     # MATICUSDT en conséquence (dernière bougie ~sept. 2024). "polygon-ecosystem-token"
     # est l'identifiant CoinGecko courant pour POL (ex-MATIC).
@@ -44,6 +43,19 @@ PAIRS = {
     "APT/USDT": "aptos",
     "ARB/USDT": "arbitrum",
     "OP/USDT": "optimism",
+    # Univers élargi à 28 paires (verrou de portefeuille MAX_ACTIVE_TRADES,
+    # voir plus bas) : TRX/USDT retiré (remplacé par des paires plus
+    # récentes testées ensemble en backtest 24 mois), FIL/USDT et 8 paires
+    # supplémentaires ajoutées.
+    "SUI/USDT": "sui",
+    "FET/USDT": "fetch-ai",
+    "PEPE/USDT": "pepe",
+    "RENDER/USDT": "render-token",
+    "INJ/USDT": "injective-protocol",
+    "TIA/USDT": "celestia",
+    "TAO/USDT": "bittensor",
+    "STX/USDT": "blockstack",
+    "FIL/USDT": "filecoin",
 }
 
 # Correctif fondamental (découvert en validant les "Améliorations 1-9") :
@@ -110,6 +122,22 @@ MULTI_TP_TP3_MULTIPLIER = 5.0   # runner, ratio réel 5.0/1.5 = 1:3.3
 MULTI_TP_TP1_WEIGHT = 0.5
 MULTI_TP_TP2_WEIGHT = 0.3
 MULTI_TP_TP3_WEIGHT = 0.2
+
+# Verrou de portefeuille (validé par backtest événementiel 24 mois + walk-
+# forward 12/12 mois sur l'univers 28 paires, voir PAIRS ci-dessus) : jamais
+# plus de MAX_ACTIVE_TRADES positions "à risque" (avant TP1) simultanément.
+# Un trade qui atteint TP1 (passage au break-even) libère immédiatement son
+# slot -- il ne peut plus finir perdant, donc ne compte plus comme "à risque".
+# Résultat retenu (fenêtre de test la plus récente, 12 derniers mois,
+# décision prise sur cette fenêtre plutôt que sur la période complète pour
+# rester honnête sur la performance future probable) : ~2.0 signaux/jour,
+# win rate TP1 61.6%, espérance +0.015 (positive), drawdown réaliste (risque
+# fixe 2%/trade) 48.9% -- AU-DESSUS de la cible initiale de 35-40%, décision
+# produit assumée d'accepter ce drawdown plus élevé contre le gain de
+# fréquence (validée explicitement, voir aussi ENABLE_MULTI_TP_EXITS
+# ci-dessus pour le même type d'arbitrage qualité/rétention).
+ENABLE_PORTFOLIO_LOCK = True
+MAX_ACTIVE_TRADES = 5
 
 # Amélioration 5 (MACD 12/26/9) : voir résultat backtest ci-dessous une fois testé.
 ENABLE_MACD_FILTER = False

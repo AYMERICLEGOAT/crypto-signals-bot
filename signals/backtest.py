@@ -272,6 +272,168 @@ def _simulate_multi_tp_exit(enriched: pd.DataFrame, entry_idx: int, side: str, e
     return outcome, exit_price, exit_idx, pnl_pct, tp1_hit, tp2_hit, tp3_hit
 
 
+def simulate_portfolio_capped(pair_dfs: dict, ema_fast: int, ema_slow: int, rsi_buy: int, rsi_sell: int,
+                               max_active_trades: int, rsi_cross_window: int = config.RSI_CROSS_WINDOW,
+                               use_adx_regime_filter: bool = config.ENABLE_ADX_REGIME_FILTER,
+                               timeout_periods: int = TIMEOUT_PERIODS) -> list:
+    """
+    Verrou de portefeuille (voir config.MAX_ACTIVE_TRADES) : simulation
+    ÉVÉNEMENTIELLE sur TOUTES les paires EN MÊME TEMPS (pas indépendante
+    paire par paire comme simulate_trades) — nécessaire ici car la règle
+    ("jamais plus de N positions à risque simultanées, TP1 libère un slot")
+    est une contrainte de PORTEFEUILLE PARTAGÉ. Validée par backtest 24 mois
+    + walk-forward 12/12 mois avant intégration ici (voir config.py,
+    commentaire au-dessus de MAX_ACTIVE_TRADES).
+
+    Reproduit exactement la même détection de signal que simulate_trades
+    (croisement EMA + RSI fenêtré + filtre ADX) et la même sortie Multi-TP
+    que _simulate_multi_tp_exit (TP1 sécurise au break-even et libère le
+    slot, TP2/TP3 ferment le reste par tranches), mais en gérant un état de
+    portefeuille partagé entre toutes les paires plutôt qu'indépendant.
+    """
+    enriched = {
+        pair: compute_all_indicators(df, ema_fast, ema_slow, config.RSI_PERIOD, config.BOLLINGER_PERIOD, config.BOLLINGER_STD).reset_index(drop=True)
+        for pair, df in pair_dfs.items()
+    }
+    ts_to_idx = {pair: {ts: i for i, ts in enumerate(e["ts_ms"].values)} for pair, e in enriched.items()}
+    all_ts = sorted(set().union(*[set(e["ts_ms"].values) for e in enriched.values()])) if enriched else []
+
+    open_positions: dict = {}
+    closed_trades: list = []
+    n_active_pre_tp1 = 0
+
+    def ret(side, entry, level):
+        return (level - entry) / entry if side == "BUY" else (entry - level) / entry
+
+    for ts in all_ts:
+        for pair in list(open_positions.keys()):
+            idx = ts_to_idx[pair].get(ts)
+            if idx is None:
+                continue
+            pos = open_positions[pair]
+            candle = enriched[pair].iloc[idx]
+            lo, hi, side = candle["low"], candle["high"], pos["side"]
+            hit_stop = (lo <= pos["stop"]) if side == "BUY" else (hi >= pos["stop"])
+
+            def _close(outcome, exit_price, exit_idx):
+                closed_trades.append({
+                    "pair": pair, "side": side, "entry_price": pos["entry_price"], "exit_price": exit_price,
+                    "outcome": outcome, "pnl_pct": pos["pnl_pct_acc"],
+                    "entered_at": pos["entered_at"], "exited_at": int(candle["ts_ms"]),
+                    "tp1_hit": pos["tp1_hit"],
+                })
+                del open_positions[pair]
+
+            if not pos["tp1_hit"]:
+                hit_tp1 = (hi >= pos["tp1"]) if side == "BUY" else (lo <= pos["tp1"])
+                if hit_stop:
+                    pos["pnl_pct_acc"] += pos["weight_remaining"] * ret(side, pos["entry_price"], pos["stop"])
+                    _close("LOSS", pos["stop"], idx)
+                    n_active_pre_tp1 -= 1
+                    continue
+                if hit_tp1:
+                    pos["pnl_pct_acc"] += config.MULTI_TP_TP1_WEIGHT * ret(side, pos["entry_price"], pos["tp1"])
+                    pos["weight_remaining"] -= config.MULTI_TP_TP1_WEIGHT
+                    pos["tp1_hit"], pos["stop"] = True, pos["entry_price"]
+                    n_active_pre_tp1 -= 1  # sécurisé : ne compte plus comme "à risque"
+                    hit_tp2 = (hi >= pos["tp2"]) if side == "BUY" else (lo <= pos["tp2"])
+                    if hit_tp2:
+                        pos["pnl_pct_acc"] += config.MULTI_TP_TP2_WEIGHT * ret(side, pos["entry_price"], pos["tp2"])
+                        pos["weight_remaining"] -= config.MULTI_TP_TP2_WEIGHT
+                        pos["tp2_hit"] = True
+                        hit_tp3 = (hi >= pos["tp3"]) if side == "BUY" else (lo <= pos["tp3"])
+                        if hit_tp3:
+                            pos["pnl_pct_acc"] += pos["weight_remaining"] * ret(side, pos["entry_price"], pos["tp3"])
+                            _close("WIN", pos["tp3"], idx)
+                    continue
+            else:
+                if not pos["tp2_hit"]:
+                    hit_tp2 = (hi >= pos["tp2"]) if side == "BUY" else (lo <= pos["tp2"])
+                    if hit_stop:
+                        pos["pnl_pct_acc"] += pos["weight_remaining"] * ret(side, pos["entry_price"], pos["stop"])
+                        _close("WIN", pos["stop"], idx)
+                        continue
+                    if hit_tp2:
+                        pos["pnl_pct_acc"] += config.MULTI_TP_TP2_WEIGHT * ret(side, pos["entry_price"], pos["tp2"])
+                        pos["weight_remaining"] -= config.MULTI_TP_TP2_WEIGHT
+                        pos["tp2_hit"] = True
+                        hit_tp3 = (hi >= pos["tp3"]) if side == "BUY" else (lo <= pos["tp3"])
+                        if hit_tp3:
+                            pos["pnl_pct_acc"] += pos["weight_remaining"] * ret(side, pos["entry_price"], pos["tp3"])
+                            _close("WIN", pos["tp3"], idx)
+                else:
+                    hit_tp3 = (hi >= pos["tp3"]) if side == "BUY" else (lo <= pos["tp3"])
+                    if hit_stop:
+                        pos["pnl_pct_acc"] += pos["weight_remaining"] * ret(side, pos["entry_price"], pos["stop"])
+                        _close("WIN", pos["stop"], idx)
+                        continue
+                    if hit_tp3:
+                        pos["pnl_pct_acc"] += pos["weight_remaining"] * ret(side, pos["entry_price"], pos["tp3"])
+                        _close("WIN", pos["tp3"], idx)
+
+            if pair in open_positions:
+                held = idx - pos["entry_idx"]
+                if held >= timeout_periods:
+                    exit_price = candle["price"]
+                    pos["pnl_pct_acc"] += pos["weight_remaining"] * ret(side, pos["entry_price"], exit_price)
+                    outcome = "WIN" if pos["tp1_hit"] else "TIMEOUT"
+                    if not pos["tp1_hit"]:
+                        n_active_pre_tp1 -= 1
+                    _close(outcome, exit_price, idx)
+
+        if n_active_pre_tp1 >= max_active_trades:
+            continue
+        for pair, e in enriched.items():
+            if n_active_pre_tp1 >= max_active_trades:
+                break
+            if pair in open_positions:
+                continue
+            idx = ts_to_idx[pair].get(ts)
+            if idx is None or idx < WARMUP_CANDLES or idx >= len(e) - 1:
+                continue
+            prev, curr = e.iloc[idx - 1], e.iloc[idx]
+            if pd.isna(curr["ema_slow"]) or pd.isna(curr["rsi"]) or pd.isna(curr.get("atr")):
+                continue
+            crossed_up = prev["price"] <= prev["ema_slow"] and curr["price"] > curr["ema_slow"]
+            crossed_down = prev["price"] >= prev["ema_slow"] and curr["price"] < curr["ema_slow"]
+            recent_rsi = e["rsi"].iloc[max(0, idx - rsi_cross_window):idx + 1]
+            side = None
+            if crossed_up and (recent_rsi < rsi_buy).any():
+                side = "BUY"
+            elif crossed_down and (recent_rsi > rsi_sell).any():
+                side = "SELL"
+            if side is None:
+                continue
+            if use_adx_regime_filter:
+                adx_val = curr.get("adx")
+                if pd.notna(adx_val) and adx_val > config.ADX_TREND_THRESHOLD:
+                    trend_up = curr["plus_di"] > curr["minus_di"]
+                    if side == "BUY" and not trend_up:
+                        continue
+                    if side == "SELL" and trend_up:
+                        continue
+            atr_val = curr.get("atr")
+            if pd.isna(atr_val) or atr_val <= 0:
+                continue
+            entry_price = curr["price"]
+            sl_dist, tp1_dist = config.MULTI_TP_SL_MULTIPLIER * atr_val, config.MULTI_TP_TP1_MULTIPLIER * atr_val
+            tp2_dist, tp3_dist = config.MULTI_TP_TP2_MULTIPLIER * atr_val, config.MULTI_TP_TP3_MULTIPLIER * atr_val
+            if side == "BUY":
+                stop = entry_price - sl_dist
+                tp1, tp2, tp3 = entry_price + tp1_dist, entry_price + tp2_dist, entry_price + tp3_dist
+            else:
+                stop = entry_price + sl_dist
+                tp1, tp2, tp3 = entry_price - tp1_dist, entry_price - tp2_dist, entry_price - tp3_dist
+            open_positions[pair] = {
+                "side": side, "entry_price": entry_price, "entry_idx": idx, "stop": stop,
+                "tp1": tp1, "tp2": tp2, "tp3": tp3, "tp1_hit": False, "tp2_hit": False,
+                "weight_remaining": 1.0, "pnl_pct_acc": 0.0, "entered_at": int(curr["ts_ms"]),
+            }
+            n_active_pre_tp1 += 1
+
+    return closed_trades
+
+
 def simulate_trades(df: pd.DataFrame, ema_fast: int, ema_slow: int, rsi_buy: int, rsi_sell: int,
                      pair: str = "", timeout_periods: int = TIMEOUT_PERIODS, htf_ema50=None,
                      volume_sma_period: int | None = None, use_atr_stops: bool = config.ENABLE_ATR_STOPS,
@@ -662,6 +824,39 @@ def main():
                 "Aucune combinaison de la grille n'améliore sur les paramètres par défaut "
                 "(ou n'atteint un échantillon significatif) — conservation des paramètres par défaut."
             )
+
+    # Mission "grille d'excellence" (verrou de portefeuille, voir
+    # config.ENABLE_PORTFOLIO_LOCK/MAX_ACTIVE_TRADES) : les statistiques
+    # ci-dessus (result) viennent d'une simulation PAR PAIRE INDÉPENDANTE
+    # (simulate_trades), qui ne reflète PAS le comportement réel de
+    # production une fois le verrou de portefeuille actif (celui-ci limite
+    # le nombre de positions à risque simultanées sur TOUT l'univers, une
+    # contrainte partagée entre paires). Si le verrou est actif, on écrase
+    # les stats de `result` par celles de la simulation événementielle
+    # equivalente (simulate_portfolio_capped) pour que strategy_params (et
+    # donc le site/la transparence publique) reflètent ce qui tournera
+    # vraiment, pas un chiffre optimiste qui ignore le plafond.
+    if config.ENABLE_PORTFOLIO_LOCK:
+        portfolio_trades = simulate_portfolio_capped(
+            pair_dfs, result["ema_fast"], result["ema_slow"],
+            result["rsi_buy_threshold"], result["rsi_sell_threshold"],
+            max_active_trades=config.MAX_ACTIVE_TRADES,
+        )
+        portfolio_trades = filter_correlated_trades(portfolio_trades, total_pairs=len(pair_dfs))
+        portfolio_win_rate = win_rate_of(portfolio_trades)
+        portfolio_gl_ratio = gain_loss_ratio_of(portfolio_trades)
+        portfolio_drawdown = max_drawdown_of(portfolio_trades)
+        logger.info(
+            "🔒 Verrou de portefeuille (MAX_ACTIVE_TRADES=%d) -> %d trades (%.2f/jour), "
+            "win rate TP1 = %.1f%%, ratio gain/perte = %s, drawdown max = %.1f%%",
+            config.MAX_ACTIVE_TRADES, len(portfolio_trades), len(portfolio_trades) / config.BACKTEST_DAYS,
+            portfolio_win_rate * 100, f"{portfolio_gl_ratio:.2f}" if portfolio_gl_ratio else "n/a", portfolio_drawdown,
+        )
+        result["total_trades"] = len(portfolio_trades)
+        result["global_win_rate"] = round(portfolio_win_rate, 4)
+        result["gain_loss_ratio"] = round(portfolio_gl_ratio, 4) if portfolio_gl_ratio else None
+        result["max_drawdown_pct"] = round(portfolio_drawdown, 2)
+        result["max_active_trades"] = config.MAX_ACTIVE_TRADES
 
     if result["total_trades"] < MIN_SIGNIFICANT_TRADES:
         logger.warning(
