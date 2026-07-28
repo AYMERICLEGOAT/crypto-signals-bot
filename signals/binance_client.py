@@ -36,6 +36,12 @@ def _get(path, params=None, max_retries=3, timeout=15):
                 logger.warning("Binance %s (rate limit), attente %ss avant retry", resp.status_code, backoff)
                 time.sleep(backoff)
                 continue
+            if resp.status_code == 451:
+                # Blocage géographique permanent (observé systématiquement depuis les
+                # runners GitHub Actions) : retenter n'aide jamais, contrairement au
+                # 429/418 ci-dessus. On échoue tout de suite pour laisser l'appelant
+                # basculer sur CoinGecko sans gaspiller ~18s/paire en retries voués à l'échec.
+                raise RuntimeError(f"Binance bloqué géographiquement (451): {url}")
             resp.raise_for_status()
             return resp.json()
         except requests.RequestException as exc:
