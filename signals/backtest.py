@@ -750,7 +750,7 @@ def grid_search(pair_dfs: dict) -> dict:
     return best
 
 
-def main():
+def main(deploy: bool = False):
     pair_dfs = fetch_all_klines()
     if not pair_dfs:
         logger.error("Aucune donnée téléchargée, backtest impossible.")
@@ -874,6 +874,13 @@ def main():
             config.BACKTEST_TARGET_WIN_RATE * 100, result["global_win_rate"] * 100,
         )
 
+    if not deploy:
+        logger.info(
+            "Mode exploratoire (--deploy non fourni) : résultat calculé mais PAS enregistré dans "
+            "Supabase. La configuration active en production reste inchangée."
+        )
+        return
+
     params_store.save_params(result, pairs_tested=list(pair_dfs.keys()))
     logger.info(
         "Paramètres retenus enregistrés comme actifs dans Supabase (strategy_params). "
@@ -897,4 +904,18 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Backtest de la stratégie. Sans --deploy, le run est purement exploratoire "
+        "et ne modifie jamais la configuration active en production (voir incident du "
+        "2026-07-28 : un run de test avait silencieusement remplacé la config live par un "
+        "résultat de grid search de moins bonne qualité, coupant les signaux pendant ~36h)."
+    )
+    parser.add_argument(
+        "--deploy", action="store_true",
+        help="Enregistre le résultat comme configuration active dans Supabase (strategy_params) "
+        "et republie backtest_trades. À utiliser uniquement pour un déploiement officiel décidé.",
+    )
+    cli_args = parser.parse_args()
+    main(deploy=cli_args.deploy)
