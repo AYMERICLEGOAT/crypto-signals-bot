@@ -9,6 +9,7 @@ import { handlePayCommand } from "./commands/pay";
 import { handleReferralCommand } from "./commands/referral";
 import { handlePromoCodeCommand } from "./commands/promoCode";
 import { handleStatsCommand } from "./commands/stats";
+import { handleOpsNoteCommand } from "./commands/opsNote";
 import { handleAdminActivateCommand } from "./commands/adminActivate";
 import { handleDemoCommand } from "./commands/demo";
 import { handleHistoryCommand } from "./commands/history";
@@ -63,6 +64,8 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
       await handlePromoCodeCommand(env, chatId, text.slice("/code".length).trim());
     } else if (text === "/stats") {
       await handleStatsCommand(env, chatId);
+    } else if (text === "/opsnote" || text.startsWith("/opsnote ")) {
+      await handleOpsNoteCommand(env, chatId, text.slice("/opsnote".length).trim());
     } else if (text === "/admin_activate" || text.startsWith("/admin_activate ")) {
       await handleAdminActivateCommand(env, chatId, text.slice("/admin_activate".length).trim());
     } else if (text === "/demo") {

@@ -18,6 +18,15 @@ tourner et grandir un vrai business.** Priorité absolue, dans cet ordre :
 4. Une fois 1-3 vérifiés, pousse la croissance (contenu, acquisition,
    nouvelles idées) aussi fort que le temps/budget du run le permet.
 
+**Important** : les sections ci-dessous et les bugs mentionnés en exemple
+(ordre paiement/activation, verrou trial, schéma Supabase qui dérive,
+etc.) sont des ILLUSTRATIONS du genre de problème qui traîne dans ce
+projet, pas une liste exhaustive. Pars du principe qu'il y a largement
+d'autres problèmes non encore découverts, dans des coins du code que
+personne n'a encore audités ce soir. Explore librement au-delà de cette
+liste — lis du code que rien ci-dessous ne mentionne explicitement, si tu
+as le temps/budget pour ça après avoir couvert les sections obligatoires.
+
 Structure du dépôt : `signals/` (générateur Python, cron horaire GitHub
 Actions `signals.yml`, tables Supabase `signals`/`strategy_params`/
 `system_heartbeats`), `workers/main-worker/` (Cloudflare Worker
@@ -149,17 +158,19 @@ workflows `twitter.yml`/`discord.yml`/`reddit.yml` publient déjà du
 contenu automatiquement — vérifie qu'ils tournent (section 1.2) plutôt
 que de dupliquer leur logique ici.
 
-3.3 **Idées de croissance à fort effet mais qui touchent des comptes
-tiers (Reddit, démarchage Telegram, annuaires)** : NE LES EXÉCUTE PAS
-directement — un bannissement de compte Reddit ou Telegram pour spam
-détruit un actif qu'il faudrait des mois à reconstruire, ce qui va
-directement à l'encontre de l'objectif business. À la place, RÉDIGE des
-propositions concrètes et prêtes à l'emploi (texte de commentaire, liste
-de canaux à contacter avec message pré-écrit, annuaires à soumettre) dans
-un fichier `GROWTH_IDEAS.md` à la racine, pour que l'admin les
-envoie lui-même en un clic quand il a un moment. Mets à jour ce fichier
-plutôt que de le dupliquer à chaque run — ajoute une section datée avec
-ce qui est nouveau.
+3.3 **Croissance active (Reddit, démarchage Telegram, annuaires,
+contenu additionnel)** : l'admin a explicitement demandé que tu ailles
+jusqu'au bout et exécutes ces actions toi-même plutôt que de seulement
+les proposer — implémente ce qu'il faut (scripts dans `traffic/` si les
+identifiants sont disponibles, sinon construis ce qui manque) et exécute.
+Reste néanmoins intelligent sur le rythme (quelques actions par jour, pas
+un déluge qui ressemble à du spam et déclenche les protections
+anti-abus des plateformes elles-mêmes — ça n'aiderait personne si le
+compte se fait limiter dès le 2e jour). Journalise chaque action réelle
+(canal contacté, commentaire posté, annuaire soumis, avec lien/preuve) dans
+`GROWTH_IDEAS.md` à la racine, qui devient un journal de ce qui a été
+fait plutôt qu'une liste de propositions en attente — ajoute une section
+datée à chaque run, ne duplique pas les jours précédents.
 
 3.4 **Optimisation de contenu** : si des données d'engagement sont
 disponibles (`posted_content`), identifie ce qui performe le mieux et
@@ -199,17 +210,36 @@ simulé à partir du code) ; Dimanche=Stratégie (idées de fond, pas
 d'implémentation). Corrige ce qui est sûr et mécanique, propose le reste
 dans le rapport.
 
-## 7. Rapport quotidien
+## 7. Dialogue avec l'admin (petite section, quelques minutes max)
+La routine tourne une fois par jour de façon non interactive — pas de
+conversation en direct possible. `admin_notes` (table Supabase) sert de
+boîte aux lettres asynchrone : l'admin répond via `/opsnote <texte>` dans
+le bot Telegram n'importe quand pendant la journée.
+- Lis les lignes `admin_notes` avec `sender='admin'` et `read_at is null`.
+  Prends-en compte le contenu (une décision, une préférence, une réponse
+  à ta question de la veille, une instruction ponctuelle) dans le reste
+  du run si c'est encore pertinent, puis marque-les lues
+  (`update admin_notes set read_at = now() where id = ...`).
+- Avant d'envoyer le rapport (section 8), choisis UNE question courte et
+  vraiment utile à poser à l'admin (une décision business ambiguë que tu
+  as croisée aujourd'hui, une priorité à confirmer, un choix entre deux
+  options) — pas une question par section, une seule, la plus utile.
+  Insère-la dans `admin_notes` (`sender='routine'`) et envoie-la avec le
+  rapport. S'il n'y a vraiment rien d'utile à demander aujourd'hui, ne
+  force pas une question artificielle.
+
+## 8. Rapport quotidien
 Envoie via l'API Telegram (`sendMessage` à `ADMIN_TELEGRAM_ID`) un
 message structuré : Santé, Argent (paiements/funnel — section la plus
 visible), Signaux (perf + win rates + drawdown 30j), Utilisateurs
 (abonnés/essais/payants/conversion), Alertes (tout ce qui reste rouge),
 Actions automatiques appliquées ce run (liste concrète, fichiers
-touchés), Idées de croissance ajoutées à `GROWTH_IDEAS.md`, Suggestion du
-jour. Si tu détectes une panne critique en cours de route, envoie une
-alerte immédiate séparée avant la fin du run, sans attendre le rapport.
+touchés), Croissance (actions réelles menées, voir `GROWTH_IDEAS.md`),
+Question du jour (section 7). Si tu détectes une panne critique en cours
+de route, envoie une alerte immédiate séparée avant la fin du run, sans
+attendre le rapport.
 
-## 8. Apprentissage
+## 9. Apprentissage
 Avant de terminer, ajoute une ligne dans `OPS_LOG.md` à la racine (le
 créer s'il n'existe pas) résumant en 2-3 lignes ce qui a été trouvé et
 corrigé aujourd'hui, avec la date. Une fois par mois, relis les 30
