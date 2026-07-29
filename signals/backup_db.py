@@ -141,7 +141,20 @@ def main() -> int:
         logger.error("Échec de la sauvegarde de TOUTES les tables (%d/%d) -- Supabase probablement indisponible.", total_errors, total_tables)
         return 1
     if total_errors:
-        logger.warning("%d/%d table(s) non sauvegardée(s) ce cycle (voir le détail ci-dessus).", total_errors, total_tables)
+        # Corrigé (29/07) : un échec PARTIEL (ex: seulement `users`, la table
+        # la plus sensible/précieuse -- voir SENSITIVE_TABLES ci-dessus) ne
+        # provoquait jusqu'ici qu'un warning, sans faire échouer le job ni
+        # déclencher l'alerte Telegram de .github/workflows/backup.yml (qui
+        # ne se déclenche que sur `failure()`). backup.yml étant documenté
+        # comme la SEULE sauvegarde réelle des données (pas de PITR/backup
+        # automatique côté Supabase gratuit), toute table manquante -- même
+        # une seule -- mérite une alerte, pas seulement une panne totale.
+        all_errors = {**public_errors, **sensitive_errors}
+        logger.error(
+            "%d/%d table(s) NON sauvegardée(s) ce cycle : %s",
+            total_errors, total_tables, ", ".join(all_errors.keys()),
+        )
+        return 1
     return 0
 
 

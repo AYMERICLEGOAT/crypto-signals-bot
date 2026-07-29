@@ -14,6 +14,16 @@ on:
     types: [completed]
   workflow_dispatch: {}
 
+# Audit#30 (30/07) : ce workflow se déclenche jusqu'à ~24x/jour (une fois par
+# exécution réussie de "Signaux crypto (horaire)", en plus du cron
+# quotidien) -- même risque de chevauchement que signals.yml (voir son
+# commentaire), jamais corrigé ici. `queue` (pas `cancel-in-progress`) : le
+# second run attend la fin du premier plutôt que de l'interrompre en pleine
+# publication GitHub (upsert_file, voir website/github_publisher.py).
+concurrency:
+  group: website-publish
+  cancel-in-progress: false
+
 jobs:
   publish-website:
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}

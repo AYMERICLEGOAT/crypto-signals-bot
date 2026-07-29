@@ -39,6 +39,7 @@ import momentum
 import alerts
 from indicators import compute_all_indicators, ema
 from strategy import detect_signal
+from squeeze_engine import detect_squeeze_signal
 from confidence import compute_confidence_score
 from chart_generator import generate_chart
 
@@ -135,6 +136,48 @@ def fetch_recent_prices(pair: str, coin_id: str):
             )
     except Exception:
         logger.exception("Échec du repli Kraken pour %s -- les 4 sources ont échoué ce cycle pour cette paire.", pair)
+
+    return None
+
+
+def fetch_recent_prices_15m(pair: str):
+    """
+    Historique 15 minutes pour le moteur ⚡ Squeeze (voir squeeze_engine.py).
+    CoinGecko est exclu de cette cascade (contrairement à fetch_recent_prices
+    ci-dessus) : son endpoint intraday ne fournit ni volume ni high/low, deux
+    entrées requises par la détection squeeze/ATR -- inutile d'y recourir.
+    Binance -> Coinbase Exchange -> Kraken (dernier repli).
+    """
+    symbol = binance_client.pair_to_symbol(pair)
+    try:
+        candles = binance_client.get_klines(symbol, interval="15m", limit=config.SQUEEZE_KLINES_LOOKBACK)
+        if candles:
+            return pd.DataFrame(
+                [(ts, high, low, close, vol) for ts, _open, high, low, close, vol in candles],
+                columns=["ts_ms", "high", "low", "price", "volume"],
+            )
+    except Exception:
+        logger.warning("Binance (15m) indisponible pour %s, repli sur Coinbase Exchange.", pair, exc_info=True)
+
+    try:
+        candles = coinbase_client.get_klines(pair, limit=config.SQUEEZE_KLINES_LOOKBACK, granularity_seconds=900)
+        if candles:
+            return pd.DataFrame(
+                [(ts, high, low, close, vol) for ts, _open, high, low, close, vol in candles],
+                columns=["ts_ms", "high", "low", "price", "volume"],
+            )
+    except Exception:
+        logger.warning("Échec du repli Coinbase Exchange (15m) pour %s, dernière tentative sur Kraken.", pair, exc_info=True)
+
+    try:
+        candles = kraken_client.get_klines(pair, limit=config.SQUEEZE_KLINES_LOOKBACK, interval_minutes=15)
+        if candles:
+            return pd.DataFrame(
+                [(ts, high, low, close, vol) for ts, _open, high, low, close, vol in candles],
+                columns=["ts_ms", "high", "low", "price", "volume"],
+            )
+    except Exception:
+        logger.exception("Échec du repli Kraken (15m) pour %s -- les 3 sources ont échoué ce cycle pour cette paire.", pair)
 
     return None
 
@@ -255,6 +298,30 @@ def run_once(params: dict) -> tuple[int, int]:
                 momentum.detect_momentum_alerts(enriched, pair, params["rsi_buy_threshold"], params["rsi_sell_threshold"])
             )
 
+    # ⚡ Moteur Squeeze Volatilité 15M (voir squeeze_engine.py) : totalement
+    # indépendant de la boucle Haute Confiance ci-dessus, tourne en parallèle
+    # sur des bougies 15 min pour augmenter la fréquence de signaux. Ses
+    # candidats rejoignent le même `candidates` (donc le même filtre
+    # anti-corrélation et le même verrou de portefeuille juste en dessous,
+    # cohérent avec storage.count_open_at_risk_trades qui compte tous les
+    # signaux ouverts sans distinction de moteur). Les échecs de fetch 15m ne
+    # comptent pas dans `pairs_with_data` : ce compteur suit la panne de la
+    # source de données elle-même (voir alerts.py), déjà couverte par la
+    # boucle 1h ci-dessus qui interroge les mêmes APIs.
+    if config.ENABLE_SQUEEZE_ENGINE:
+        for pair in config.PAIRS:
+            df15 = fetch_recent_prices_15m(pair)
+            min_points = config.SQUEEZE_LOOKBACK + config.SQUEEZE_BB_PERIOD
+            if df15 is None or len(df15) < min_points:
+                continue
+            enriched15 = compute_all_indicators(
+                df15, params["ema_fast"], params["ema_slow"],
+                config.RSI_PERIOD, config.SQUEEZE_BB_PERIOD, config.SQUEEZE_BB_STD,
+            )
+            squeeze_signal = detect_squeeze_signal(enriched15, pair)
+            if squeeze_signal:
+                candidates.append((squeeze_signal, enriched15))
+
     if momentum_alerts:
         storage.insert_momentum_alerts(momentum_alerts)
         logger.info("%d alerte(s) momentum détectée(s) ce cycle.", len(momentum_alerts))
@@ -290,11 +357,16 @@ def run_once(params: dict) -> tuple[int, int]:
                 open_at_risk, config.MAX_ACTIVE_TRADES, available_slots, skipped,
             )
 
+    failed_inserts = 0
     for signal_dict, enriched in candidates:
         signal_dict["chart_url"] = _generate_and_upload_chart(enriched, signal_dict, now_ms)
-        storage.insert_signal(signal_dict)
+        if not storage.insert_signal(signal_dict):
+            failed_inserts += 1
 
-    return len(candidates), pairs_with_data
+    if failed_inserts:
+        alerts.alert_insert_failure(failed_inserts, len(candidates))
+
+    return len(candidates) - failed_inserts, pairs_with_data
 
 
 def main():

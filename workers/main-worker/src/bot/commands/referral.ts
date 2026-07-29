@@ -14,7 +14,13 @@ import {
 export async function handleReferralCommand(env: Env, telegramId: number): Promise<void> {
   const db = dbConfig(env);
   const user = await getOrCreateUser(db, telegramId);
-  const link = buildReferralLink(env, telegramId);
+  // TELEGRAM_BOT_USERNAME ("ProVIPSignals_bot") contient un underscore : en
+  // parse_mode Markdown, un underscore non échappé ouvre une entité italique.
+  // Message impair au total (un seul underscore dans tout le message avant
+  // ce correctif, voir signalFormat.ts pour le même correctif ailleurs) ->
+  // "can't parse entities", tout le message rejeté par Telegram (bug vécu
+  // le 29/07, même famille que /help).
+  const link = buildReferralLink(env, telegramId).replace(/_/g, "\\_");
   const totalReferred = await countReferralsBy(db, telegramId);
   const paidCount = user.paid_referral_count ?? 0;
   const towardsNextMilestone = paidCount % MILESTONE_REFERRALS;

@@ -27,14 +27,25 @@ def get_client() -> Client:
     return _client
 
 
-def insert_signal(signal: dict) -> None:
-    """Insère un signal dans la table `signals`. `sent` démarre à False."""
+def insert_signal(signal: dict) -> bool:
+    """
+    Insère un signal dans la table `signals`. `sent` démarre à False.
+    Retourne False sur échec (clé invalide, RLS, quota, schéma changé...)
+    au lieu de seulement journaliser -- avant ce correctif, un signal
+    détecté (l'événement le plus rare et le plus précieux du cycle) pouvait
+    disparaître silencieusement à l'écriture : heartbeat vert, aucune
+    alerte, symptôme identique au "3 jours sans signal" du 29/07 (commit
+    c067484) mais côté écriture plutôt que lecture de données. L'appelant
+    (main.py) alerte l'admin immédiatement si ceci retourne False.
+    """
     payload = {**signal, "sent": False}
     try:
         get_client().table("signals").insert(payload).execute()
         logger.info("Signal enregistré: %s %s @ %s", signal["pair"], signal["type"], signal["entry_price"])
+        return True
     except Exception:
         logger.exception("Échec de l'insertion du signal dans Supabase: %s", signal)
+        return False
 
 
 def count_open_at_risk_trades() -> int:
