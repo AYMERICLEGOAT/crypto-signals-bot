@@ -7,6 +7,7 @@ de compiler de driver PostgreSQL natif).
 import logging
 from supabase import create_client, Client
 
+import config
 from config import SUPABASE_URL, SUPABASE_KEY, SUPABASE_STORAGE_BUCKET
 
 logger = logging.getLogger(__name__)
@@ -92,6 +93,60 @@ def insert_momentum_alerts(alerts: list) -> None:
         logger.info("%d alerte(s) momentum enregistrée(s).", len(payload))
     except Exception:
         logger.exception("Échec de l'insertion des alertes momentum dans Supabase: %s", payload)
+
+
+def record_source_health(pairs_with_data: int, total_pairs: int) -> tuple[int, bool]:
+    """
+    Suivi des pannes totales de source de données (Binance+CoinGecko+
+    Coinbase+Kraken tous en échec pour TOUTES les paires le même cycle) --
+    distinct de record_heartbeat ci-dessous, qui se rafraîchit même quand 0
+    paire n'a de donnée (le job Python se termine "avec succès" au sens
+    process, même sans aucune donnée récupérée : 0 signal est un état
+    normal et fréquent, mais 0 paire avec donnée signale une vraie panne).
+
+    Retourne (cycles consécutifs en panne totale après mise à jour, si
+    l'appelant doit alerter MAINTENANT). Le deuxième élément n'est True
+    qu'une seule fois par panne (dès que le seuil est franchi), pas à
+    chaque cycle en panne tant qu'elle continue -- comme
+    system_heartbeats.alerted pour l'alerte "job pas relancé depuis 3h"
+    (voir workers/main-worker/src/cron/monitorSignalsHeartbeat.ts), remis à
+    False dès qu'une paire a de nouveau une donnée. Échec Supabase traité
+    comme (0, False) : dégradation prudente, mieux vaut manquer une alerte
+    que planter le job pour un problème de suivi secondaire.
+    """
+    if pairs_with_data > 0:
+        try:
+            get_client().table("system_heartbeats").update(
+                {"consecutive_source_failures": 0, "source_outage_alerted": False}
+            ).eq("job_name", "signals").execute()
+        except Exception:
+            logger.exception("Échec de la réinitialisation du compteur de pannes de source.")
+        return 0, False
+
+    logger.warning("Panne totale des sources de données ce cycle (0/%d paires avec donnée).", total_pairs)
+    try:
+        row = (
+            get_client().table("system_heartbeats")
+            .select("consecutive_source_failures,source_outage_alerted")
+            .eq("job_name", "signals")
+            .execute()
+        )
+        current = row.data[0]["consecutive_source_failures"] if row.data else 0
+        already_alerted = bool(row.data[0]["source_outage_alerted"]) if row.data else False
+    except Exception:
+        logger.exception("Échec de lecture du compteur de pannes de source, traité comme 0.")
+        current, already_alerted = 0, False
+
+    new_count = current + 1
+    should_alert = new_count >= config.DATA_OUTAGE_ALERT_THRESHOLD_CYCLES and not already_alerted
+    try:
+        update = {"consecutive_source_failures": new_count}
+        if should_alert:
+            update["source_outage_alerted"] = True
+        get_client().table("system_heartbeats").update(update).eq("job_name", "signals").execute()
+    except Exception:
+        logger.exception("Échec de la mise à jour du compteur de pannes de source.")
+    return new_count, should_alert
 
 
 def record_heartbeat(job_name: str) -> None:

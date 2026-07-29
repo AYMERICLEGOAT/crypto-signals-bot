@@ -848,3 +848,19 @@ begin
     returning *;
 end;
 $$;
+
+
+-- ----------------------------------------------------------------------------
+-- 39. Refonte "source hybride" (signals/main.py::fetch_recent_prices) —
+--     Binance (geo-bloqué depuis GitHub Actions) -> CoinGecko -> Coinbase
+--     Exchange -> Kraken. Ces deux colonnes suivent les cycles horaires
+--     consécutifs où les 4 sources ont échoué pour TOUTES les paires (état
+--     que le heartbeat seul ne détecte pas : il se rafraîchit même à 0
+--     signal/0 donnée, voir signals/storage.py::record_source_health).
+--     source_outage_alerted suit le même principe que la colonne `alerted`
+--     existante (une seule alerte par panne, pas une par cycle).
+-- ----------------------------------------------------------------------------
+
+alter table system_heartbeats
+  add column if not exists consecutive_source_failures integer not null default 0,
+  add column if not exists source_outage_alerted boolean not null default false;

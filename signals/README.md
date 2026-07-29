@@ -1,8 +1,10 @@
 # Module de signaux crypto
 
-Génère des signaux ACHAT/VENTE sur 20 paires USDT à partir de l'API
-publique Binance (repli CoinGecko en cas d'indisponibilité), avec backtest
-sur ~24 mois et stockage dans Supabase. Aucune dépendance payante.
+Génère des signaux ACHAT/VENTE sur l'univers de paires USDT défini dans
+`config.py` à partir d'une source de données hybride à 4 niveaux (Binance
+-> CoinGecko -> Coinbase Exchange -> Kraken, chaque niveau tenté seulement
+si le précédent échoue), avec backtest sur ~24 mois et stockage dans
+Supabase. Aucune dépendance payante ni clé API.
 
 Exécuté en production via **GitHub Actions**, une fois par heure (voir
 [`.github/workflows/signals.yml`](../.github/workflows/signals.yml) à la
@@ -12,7 +14,7 @@ racine du dépôt) — aucun serveur ni machine locale ne doit rester allumée.
 
 - Python 3.10+
 - Un compte [Supabase](https://supabase.com) gratuit (pas de KYC, juste un email)
-- Aucune clé API Binance ou CoinGecko n'est nécessaire (endpoints publics)
+- Aucune clé API n'est nécessaire pour aucune des 4 sources de données (endpoints publics)
 
 ## 2. Installation (développement local uniquement)
 
@@ -84,8 +86,9 @@ et de comparer les signaux générés à la performance réelle du marché.
 Le point d'entrée [`main.py`](main.py) fait une **exécution unique** (pas
 de boucle) :
 
-- pour chacune des 20 paires, récupère les ~100 dernières bougies horaires
-  (Binance en priorité, repli CoinGecko si Binance est indisponible),
+- pour chacune des paires, récupère les ~250 dernières bougies horaires via
+  la source hybride à 4 niveaux (Binance -> CoinGecko -> Coinbase Exchange
+  -> Kraken, voir `main.py::fetch_recent_prices`),
 - calcule les indicateurs à partir de cet historique frais (aucun état
   local à conserver entre deux exécutions),
 - dès qu'un croisement EMA + confirmation RSI est détecté, insère un signal
@@ -133,8 +136,11 @@ create policy "allow insert from service" on signals
 ```
 signals/
   config.py                    # Paramètres centralisés (paires, seuils, chemins)
-  binance_client.py            # Client HTTP Binance (source principale, sans clé)
-  coingecko_client.py          # Client HTTP CoinGecko (repli)
+  binance_client.py            # Client HTTP Binance (niveau 1, sans clé)
+  coingecko_client.py          # Client HTTP CoinGecko (niveau 2, repli)
+  coinbase_client.py           # Client HTTP Coinbase Exchange (niveau 3, repli)
+  kraken_client.py             # Client HTTP Kraken (niveau 4, dernier repli)
+  alerts.py                    # Alerte Telegram admin si les 4 sources échouent 3 cycles de suite
   indicators.py                # EMA, RSI, Bandes de Bollinger (pandas pur)
   strategy.py                  # Détection des signaux ACHAT/VENTE
   params_store.py              # Lecture/écriture des paramètres actifs (Supabase)

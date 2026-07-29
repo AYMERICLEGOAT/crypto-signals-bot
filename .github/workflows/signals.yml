@@ -29,11 +29,16 @@ jobs:
       - name: Installer les dépendances
         run: pip install -r signals/requirements.txt
 
-      - name: Générer les signaux (Binance -> repli CoinGecko)
+      - name: Générer les signaux (source hybride Binance/CoinGecko/Coinbase/Kraken)
         working-directory: signals
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          # Alerte directe si les 4 sources de données échouent 3 cycles de
+          # suite (voir signals/alerts.py) -- même secret que l'étape
+          # d'alerte ci-dessous, ADMIN_TELEGRAM_ID a sa valeur par défaut
+          # dans signals/config.py (non sensible, déjà en clair ailleurs).
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: python main.py
 
       # Audit#13 : sans ça, un échec de ce workflow passait inaperçu jusqu'à

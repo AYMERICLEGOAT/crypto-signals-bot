@@ -32,8 +32,11 @@ import storage
 import params_store
 import binance_client
 import coingecko_client
+import coinbase_client
+import kraken_client
 import correlation_guard
 import momentum
+import alerts
 from indicators import compute_all_indicators, ema
 from strategy import detect_signal
 from confidence import compute_confidence_score
@@ -75,15 +78,21 @@ def load_active_params() -> dict:
 def fetch_recent_prices(pair: str, coin_id: str):
     """
     Historique récent d'une paire sous forme de DataFrame (colonnes ts_ms,
-    price, high, low, volume). Binance en priorité (bougies horaires
-    réelles, avec high/low pour l'ATR des Alertes Momentum — voir
-    momentum.py — et volume pour le score de confiance, voir confidence.py),
-    repli CoinGecko en cas d'échec. Retourne None si les deux échouent.
-
-    Le repli CoinGecko ne fournit que des prix de clôture : high/low sont
-    alors égaux à price (dégrade l'ATR en simple écart clôture-à-clôture,
-    honnête mais moins précis) et volume vaut 0 (composante volume du score
-    de confiance neutralisée, pas de donnée inventée).
+    price, high, low, volume). Source hybride à 4 niveaux, chacun tenté
+    seulement si le précédent échoue :
+      1. Binance — bougies horaires réelles (high/low pour l'ATR des
+         Alertes Momentum, voir momentum.py ; volume pour le score de
+         confiance, voir confidence.py). En pratique geo-bloquée (451)
+         depuis les runners GitHub Actions, donc quasi toujours absente.
+      2. CoinGecko — repli historique, ne fournit que des prix de clôture
+         (high/low dégradés à price, volume à 0 : dégradation honnête,
+         jamais de donnée inventée).
+      3. Coinbase Exchange — vraies bougies OHLCV, couverture à 100% de
+         l'univers de paires (mapping BASE-USD trivial).
+      4. Kraken — dernier repli ("auto-réparation") si les 3 précédents ont
+         tous échoué pour cette paire.
+    Retourne None si les 4 échouent (la paire est ignorée ce cycle, voir
+    run_once, et compte comme un échec dans le suivi de panne totale).
     """
     symbol = binance_client.pair_to_symbol(pair)
     try:
@@ -105,7 +114,27 @@ def fetch_recent_prices(pair: str, coin_id: str):
             df["volume"] = 0.0
             return df
     except Exception:
-        logger.exception("Échec du repli CoinGecko pour %s.", pair)
+        logger.warning("Échec du repli CoinGecko pour %s, tentative Coinbase Exchange.", pair, exc_info=True)
+
+    try:
+        candles = coinbase_client.get_klines(pair, limit=KLINES_LOOKBACK)
+        if candles:
+            return pd.DataFrame(
+                [(ts, high, low, close, vol) for ts, _open, high, low, close, vol in candles],
+                columns=["ts_ms", "high", "low", "price", "volume"],
+            )
+    except Exception:
+        logger.warning("Échec du repli Coinbase Exchange pour %s, dernière tentative sur Kraken.", pair, exc_info=True)
+
+    try:
+        candles = kraken_client.get_klines(pair, limit=KLINES_LOOKBACK)
+        if candles:
+            return pd.DataFrame(
+                [(ts, high, low, close, vol) for ts, _open, high, low, close, vol in candles],
+                columns=["ts_ms", "high", "low", "price", "volume"],
+            )
+    except Exception:
+        logger.exception("Échec du repli Kraken pour %s -- les 4 sources ont échoué ce cycle pour cette paire.", pair)
 
     return None
 
@@ -159,14 +188,18 @@ def _generate_and_upload_chart(enriched_df, signal_dict: dict, now_ms: int) -> s
             pass
 
 
-def run_once(params: dict) -> int:
+def run_once(params: dict) -> tuple[int, int]:
     """
     Une passe complète sur toutes les paires. Les signaux détectés sont
     d'abord collectés (pas insérés) pour permettre au filtre anti-corrélation
     (voir correlation_guard.py) de les examiner ENSEMBLE avant toute
     écriture : si plus de 50% des paires signalent la même direction en
     moins de 4h, AUCUN de ces signaux n'est inséré et la génération est
-    mise en pause 24h. Retourne le nombre de signaux effectivement insérés.
+    mise en pause 24h. Retourne (signaux effectivement insérés, nombre de
+    paires pour lesquelles une source de données a répondu) — ce deuxième
+    chiffre alimente le suivi de panne totale (voir alerts.py), distinct du
+    nombre de signaux : 0 signal est normal et fréquent, 0 paire avec
+    donnée signale que les 4 sources sont indisponibles.
 
     Les Alertes Momentum (Bloc 3, voir momentum.py) sont calculées à part,
     uniquement pour les paires n'ayant PAS produit de vrai signal ce cycle
@@ -178,12 +211,14 @@ def run_once(params: dict) -> int:
     candidates = []
     momentum_alerts = []
     volatility_suspensions = []
+    pairs_with_data = 0
 
     for pair, coin_id in config.PAIRS.items():
         df = fetch_recent_prices(pair, coin_id)
         if df is None or len(df) < config.MIN_HISTORY_POINTS:
             logger.warning("Historique insuffisant pour %s, ignoré ce cycle.", pair)
             continue
+        pairs_with_data += 1
 
         enriched = compute_all_indicators(
             df, params["ema_fast"], params["ema_slow"],
@@ -228,14 +263,14 @@ def run_once(params: dict) -> int:
         storage.insert_volatility_suspensions(volatility_suspensions)
 
     if not candidates:
-        return 0
+        return 0, pairs_with_data
 
     if correlation_guard.check_and_maybe_pause([c[0] for c in candidates]):
         logger.warning(
             "🚫 %d signal(aux) détecté(s) mais NON envoyés : mouvement de marché corrélé détecté, "
             "génération mise en pause 24h par sécurité.", len(candidates),
         )
-        return 0
+        return 0, pairs_with_data
 
     # Verrou de portefeuille (mission "grille d'excellence", voir
     # config.MAX_ACTIVE_TRADES) : ne jamais dépasser N positions à risque
@@ -259,11 +294,11 @@ def run_once(params: dict) -> int:
         signal_dict["chart_url"] = _generate_and_upload_chart(enriched, signal_dict, now_ms)
         storage.insert_signal(signal_dict)
 
-    return len(candidates)
+    return len(candidates), pairs_with_data
 
 
 def main():
-    logger.info("Exécution unique du module de signaux (%d paires, Binance -> repli CoinGecko).", len(config.PAIRS))
+    logger.info("Exécution unique du module de signaux (%d paires, source hybride 4 niveaux).", len(config.PAIRS))
 
     active_pause = correlation_guard.get_active_pause()
     if active_pause:
@@ -275,8 +310,14 @@ def main():
         return
 
     params = load_active_params()
-    signals_found = run_once(params)
-    logger.info("Terminé : %d signal(aux) détecté(s) sur ce cycle.", signals_found)
+    signals_found, pairs_with_data = run_once(params)
+    logger.info("Terminé : %d signal(aux) détecté(s) sur ce cycle (%d/%d paires avec donnée).",
+                signals_found, pairs_with_data, len(config.PAIRS))
+
+    consecutive_failures, should_alert = storage.record_source_health(pairs_with_data, len(config.PAIRS))
+    if should_alert:
+        alerts.maybe_alert_data_outage(consecutive_failures)
+
     storage.record_heartbeat("signals")
 
 

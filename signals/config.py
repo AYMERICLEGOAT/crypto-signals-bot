@@ -13,6 +13,21 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 
+# --- Alerte admin directe (voir alerts.py) ---
+# Optionnels : en dev local sans ces variables, l'alerte est simplement
+# journalisée au lieu d'être envoyée (voir alerts.maybe_alert_data_outage).
+# TELEGRAM_BOT_TOKEN est le même secret que celui du Worker/bot Telegram ;
+# ADMIN_TELEGRAM_ID n'est pas un secret (déjà visible en clair dans
+# workers/main-worker/wrangler.toml et .github/workflows/signals.yml).
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+ADMIN_TELEGRAM_ID = os.getenv("ADMIN_TELEGRAM_ID", "8647576528")
+
+# Système hybride de sources de données (voir main.py::fetch_recent_prices) :
+# nombre de cycles horaires consécutifs en panne totale (0 paire sur
+# l'univers entier avec une donnée exploitable, les 4 sources ayant échoué)
+# avant d'alerter l'admin -- voir storage.record_source_health.
+DATA_OUTAGE_ALERT_THRESHOLD_CYCLES = 3
+
 # --- CoinGecko ---
 COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3"
 # Limite d'appels/minute à respecter pour rester sur le plan gratuit sans clé API.
