@@ -17,11 +17,20 @@ export interface JsonRpcConfig {
   onFallback?: (error: unknown) => void;
 }
 
-// Bloc 15.1 : polygon-rpc.com est un nœud public gratuit sans SLA -- un
-// second nœud public gratuit, différent, absorbe une panne/limite de trafic
-// du premier plutôt que de faire échouer tous les paiements USDT le temps
-// que polygon-rpc.com revienne.
-const FALLBACK_POLYGON_RPC_URL = "https://rpc-mainnet.maticvigil.com";
+// Bloc 15.1 : le nœud principal (POLYGON_RPC_URL) est un nœud public gratuit
+// sans SLA -- un second nœud public gratuit, différent, absorbe une
+// panne/limite de trafic du premier plutôt que de faire échouer tous les
+// paiements USDT le temps qu'il revienne.
+//
+// Audit#30 (30/07) : l'ancien fallback (rpc-mainnet.maticvigil.com) s'est
+// révélé DÉFINITIVEMENT fermé ("Our RPC has been shut down - thank you for
+// 4 years of support!", HTTP 403 sur tout appel) -- observé en production
+// via wrangler tail (usdt-offchain échouait en boucle, à chaque cycle de 5
+// min, alors que le nœud principal n'avait qu'un hoquet transitoire). Le
+// "fallback" n'en était donc plus un depuis un temps indéterminé : aucune
+// vraie redondance. Remplacé par drpc.org (vérifié fonctionnel sur
+// eth_blockNumber ET eth_getLogs, sans clé API).
+const FALLBACK_POLYGON_RPC_URL = "https://polygon.drpc.org";
 
 /**
  * Construit la config RPC Polygon standard (nœud principal + fallback +
