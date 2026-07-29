@@ -807,3 +807,16 @@ create table if not exists admin_notes (
 );
 
 create index if not exists idx_admin_notes_unread on admin_notes (created_at asc) where read_at is null;
+
+
+-- ----------------------------------------------------------------------------
+-- 37. Expiration des codes promo — jusqu'ici `promo_codes` n'avait qu'un
+--     drapeau `active` à désactiver manuellement, aucune notion de date de
+--     fin : une offre annoncée comme "limitée dans le temps" (ex: RELANCE50,
+--     -50%) pouvait tourner indéfiniment si personne n'y pensait. NULL =
+--     toujours pas de date de fin (comportement identique à avant pour les
+--     codes existants, changement non cassant) ; une valeur ici la fait
+--     expirer automatiquement sans intervention manuelle.
+-- ----------------------------------------------------------------------------
+
+alter table promo_codes add column if not exists expires_at timestamptz;

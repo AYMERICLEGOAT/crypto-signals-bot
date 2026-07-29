@@ -1,7 +1,7 @@
 import { Env, dbConfig } from "../env";
 import { catchUpMissedEvents } from "../blockchain/subscriptionEvents";
 import { catchUpUsdtTransfers } from "../blockchain/usdtTransfers";
-import { findUserByWalletAddress, activateSubscription, markDiscoveryUsed } from "../db/users";
+import { findUserByWalletAddress, activateSubscription, markDiscoveryUsed, setWalletAddress } from "../db/users";
 import { getLatestPendingPayment, markPaymentConfirmed, getPendingPayments } from "../db/payments";
 import { sendMessage } from "../telegram";
 import { isWalletRpcAvailable, checkMoneroPayment } from "../payments/monero";
@@ -156,8 +156,16 @@ async function processLitecoinPayments(env: Env): Promise<void> {
   for (const payment of pending) {
     if (!payment.pay_address || payment.amount_expected === null) continue;
     try {
-      const paid = await checkLitecoinPayment(env, payment.pay_address, payment.amount_expected);
+      const { paid, senderAddress } = await checkLitecoinPayment(env, payment.pay_address, payment.amount_expected);
       if (!paid) continue;
+
+      // Anti-abus parrainage (voir bot/referral.ts) : contrairement à USDT,
+      // l'adresse de l'acheteur LTC n'était jusqu'ici jamais enregistrée sur
+      // `users.wallet_address`, donc un self-referral payé en Litecoin (deux
+      // comptes Telegram, même wallet) passait inaperçu. LTC étant une
+      // blockchain transparente, on peut retrouver l'expéditeur et
+      // l'enregistrer comme pour USDT.
+      if (senderAddress) await setWalletAddress(db, payment.telegram_id, senderAddress);
 
       // Voir commentaire équivalent dans processUsdtTransfers : active avant de
       // marquer confirmé, pour qu'un échec d'activation reste retentable.

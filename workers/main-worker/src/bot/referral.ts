@@ -91,6 +91,17 @@ export async function maybeRewardReferral(env: Env, referredTelegramId: number):
   // lieu. Un wallet identique des deux côtés est un signal fort de
   // self-referral : on désactive définitivement CE parrainage (jamais
   // retenté aux paiements suivants) sans pénaliser le filleul lui-même.
+  //
+  // Couverture réelle par méthode de paiement : USDT (payments/usdt.ts)
+  // et Litecoin (cron/pollPayments.ts::processLitecoinPayments, corrigé --
+  // capture l'expéditeur via Blockchair, blockchain transparente)
+  // renseignent `wallet_address` et sont donc bien protégés ici. Monero ne
+  // peut PAS l'être par ce mécanisme : c'est une propriété fondamentale de
+  // sa conception (aucune blockchain publique ne peut révéler l'adresse
+  // d'envoi d'une transaction confidentielle), pas un manque de code --
+  // un paiement Monero laissera toujours `wallet_address` intact (déjà
+  // défini par un paiement USDT/LTC antérieur, ou null), donc un
+  // self-referral payé exclusivement en Monero reste indétectable ici.
   if (user.wallet_address && referrer.wallet_address && user.wallet_address === referrer.wallet_address) {
     console.warn(`[referral] Parrainage ignoré (même wallet des deux côtés) : parrain ${referrer.telegram_id}, filleul ${referredTelegramId}.`);
     await markReferralRewarded(db, referredTelegramId);

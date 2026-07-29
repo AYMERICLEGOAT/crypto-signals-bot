@@ -1,6 +1,7 @@
 import { Env, dbConfig } from "../../env";
 import { sendMessage } from "../../telegram";
 import { selectOne, updateRows } from "../../supabaseRest";
+import { activeAndNotExpiredFilter } from "../../payments/promoCodes";
 
 interface PromoCode {
   code: string;
@@ -18,7 +19,7 @@ export async function handlePromoCodeCommand(env: Env, telegramId: number, rawCo
     return;
   }
 
-  const promo = await selectOne<PromoCode>(db, "promo_codes", { code: `eq.${code}`, active: "eq.true" });
+  const promo = await selectOne<PromoCode>(db, "promo_codes", activeAndNotExpiredFilter(code));
   if (!promo) {
     await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, "Code invalide ou expiré.");
     return;

@@ -5,6 +5,16 @@ interface PromoCode {
   code: string;
   discount_pct: number;
   active: boolean;
+  expires_at?: string | null;
+}
+
+/** `active=true` ET (pas de date de fin, ou pas encore expiré) — voir init.sql section 37. */
+export function activeAndNotExpiredFilter(code: string): Record<string, string> {
+  return {
+    code: `eq.${code}`,
+    active: "eq.true",
+    or: `(expires_at.is.null,expires_at.gt.${new Date().toISOString()})`,
+  };
 }
 
 /**
@@ -18,10 +28,7 @@ export async function getEffectivePriceUsd(db: SupabaseConfig, telegramId: numbe
   const user = await getUserIfExists(db, telegramId);
   if (!user?.pending_promo_code) return basePriceUsd;
 
-  const promo = await selectOne<PromoCode>(db, "promo_codes", {
-    code: `eq.${user.pending_promo_code}`,
-    active: "eq.true",
-  });
+  const promo = await selectOne<PromoCode>(db, "promo_codes", activeAndNotExpiredFilter(user.pending_promo_code));
   if (!promo) return basePriceUsd;
 
   return Math.round(basePriceUsd * (1 - promo.discount_pct / 100) * 100) / 100;
