@@ -16,7 +16,18 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 # --- CoinGecko ---
 COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3"
 # Limite d'appels/minute à respecter pour rester sur le plan gratuit sans clé API.
-COINGECKO_MAX_CALLS_PER_MINUTE = 10
+# Abaissé de 10 à 5 (2026-07-29) : depuis que Binance bloque géographiquement
+# (451) TOUS les appels depuis les runners GitHub Actions, les 28 paires de
+# l'univers retombent chacune sur CoinGecko à chaque cycle horaire, contre
+# seulement quelques-unes avant. Le quota officiel CoinGecko gratuit
+# (~10-30/min) est en réalité partagé par IP entre tous les jobs GitHub
+# Actions en cours (pas seulement les nôtres) : même avec un throttle
+# client-side "10/min", on se prenait des 429 en rafale et plusieurs paires
+# échouaient définitivement chaque heure ("Échec du repli CoinGecko"),
+# réduisant silencieusement la couverture réelle et donc les signaux
+# détectables. Marge de sécurité : le cron tourne 1x/heure, on a largement
+# le temps même à 5/min (28 paires x quelques appels chacune).
+COINGECKO_MAX_CALLS_PER_MINUTE = 5
 
 # 20 paires les plus tradées, mappées vers leur identifiant CoinGecko.
 # Format : "SYMBOLE/USDT" -> "id_coingecko"

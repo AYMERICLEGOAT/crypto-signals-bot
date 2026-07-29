@@ -27,8 +27,19 @@ def _throttle():
     _last_call_ts = time.time()
 
 
-def _get(path, params=None, max_retries=3):
-    """GET générique avec throttling + retry/backoff exponentiel."""
+def _get(path, params=None, max_retries=6):
+    """
+    GET générique avec throttling + retry/backoff exponentiel.
+
+    max_retries relevé de 3 à 6 (2026-07-29) : le quota CoinGecko gratuit est
+    partagé par IP entre tous les jobs GitHub Actions en cours (pas
+    seulement les nôtres), donc un 429 est souvent transitoire (une rafale
+    d'un AUTRE job sur la même IP) plutôt qu'un vrai dépassement de notre
+    quota. 3 tentatives (max ~60s d'attente cumulée) abandonnait trop tôt et
+    faisait échouer des paires entières pour le cycle ; 6 tentatives laisse
+    largement le temps à la contention de se résorber, sans risque vu la
+    cadence horaire du cron (5-6 min de retry de plus ne coûtent rien).
+    """
     url = f"{COINGECKO_BASE_URL}{path}"
     for attempt in range(1, max_retries + 1):
         _throttle()
