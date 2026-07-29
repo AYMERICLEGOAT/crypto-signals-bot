@@ -12,7 +12,7 @@ export async function handleHelpCommand(env: Env, telegramId: number): Promise<v
       "/trial — essai gratuit de 3 jours (une fois par wallet)\n" +
       "/status — vérifier ton abonnement en cours\n" +
       "/pay — rappeler le paiement en attente\n" +
-      "/check_payment — vérifier l'état de ton dernier paiement\n" +
+      "/check\\_payment — vérifier l'état de ton dernier paiement\n" +
       "/code CODE — appliquer un code promo\n" +
       "/cancel — arrêter les relances (ton accès déjà payé reste valable jusqu'à expiration)\n\n" +
       "*Signaux*\n" +
@@ -30,7 +30,7 @@ export async function handleHelpCommand(env: Env, telegramId: number): Promise<v
       "*Préférences*\n" +
       "/prefs — choisir les notifications reçues en plus des signaux\n\n" +
       "*Tes données*\n" +
-      "/delete_my_data — supprimer tes données personnelles (RGPD)\n\n" +
+      "/delete\\_my\\_data — supprimer tes données personnelles (RGPD)\n\n" +
       "*Aide*\n" +
       "/help — cette liste",
     { markdown: true }

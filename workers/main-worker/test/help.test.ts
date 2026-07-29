@@ -25,8 +25,30 @@ describe("handleHelpCommand", () => {
 
     await handleHelpCommand(env, 1);
 
-    for (const cmd of ["/subscribe", "/trial", "/status", "/pay", "/code", "/cancel", "/demo", "/history", "/referral", "/trust", "/delete_my_data", "/help"]) {
+    for (const cmd of ["/subscribe", "/trial", "/status", "/pay", "/code", "/cancel", "/demo", "/history", "/referral", "/trust", "/delete\\_my\\_data", "/help"]) {
       expect(text).toContain(cmd);
+    }
+  });
+
+  it("n'a pas d'entité Markdown (legacy) non appariée -- un `_`/`*` non échappé et en nombre impair casse tout le sendMessage avec 'can't parse entities' (bug vécu le 29/07)", async () => {
+    let text = "";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("api.telegram.org")) {
+          text = JSON.parse(init!.body as string).text;
+          return jsonResponse({ ok: true, result: {} });
+        }
+        throw new Error(`Ne devrait interroger aucune donnée: ${url}`);
+      })
+    );
+
+    await handleHelpCommand(env, 1);
+
+    const unescaped = text.replace(/\\[_*`[]/g, "");
+    for (const marker of ["*", "_"]) {
+      const count = unescaped.split(marker).length - 1;
+      expect(count % 2).toBe(0);
     }
   });
 });

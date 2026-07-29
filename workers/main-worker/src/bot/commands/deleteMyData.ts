@@ -17,7 +17,7 @@ export async function handleDeleteMyDataCommand(env: Env, telegramId: number, ra
       "⚠️ *Suppression de tes données*\n\n" +
         "Action irréversible : ton parrainage, tes préférences et ton abonnement en cours seront effacés, et tu perdras immédiatement l'accès aux signaux.\n\n" +
         "Ton adresse wallet est conservée uniquement pour la prévention des abus (elle n'est utilisée à aucune autre fin) — tout le reste de tes données personnelles est supprimé.\n\n" +
-        "Pour confirmer, envoie /delete_my_data confirm",
+        "Pour confirmer, envoie /delete\\_my\\_data confirm",
       { markdown: true }
     );
     return;
