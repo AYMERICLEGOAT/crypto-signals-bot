@@ -25,12 +25,21 @@ function formatMomentumAlert(alert: MomentumAlertRecord): string {
   ].join("\n");
 }
 
+// Retour admin (29/07) : le canal public a déjà envoyé jusqu'à ~40 messages
+// d'un coup un jour de marché agité (beaucoup de faux départs RSI/EMA sur les
+// 28 paires génèrent autant d'alertes momentum le même cycle). Avec la limite
+// précédente (20) une seule diffusion pouvait déjà noyer le canal ; on la
+// réduit ici pour étaler tout retard sur plusieurs cycles de cron (5 min)
+// plutôt que de vider toute la pile d'un coup — aucune alerte n'est perdue,
+// juste diffusée plus progressivement.
+const MAX_ALERTS_PER_DISPATCH = 5;
+
 export async function dispatchMomentumAlerts(env: Env): Promise<void> {
   if (!env.TELEGRAM_CHANNEL_ID) return; // canal non configuré, rien à faire
 
   const db = dbConfig(env);
   const channelId = Number(env.TELEGRAM_CHANNEL_ID);
-  const due = await getUnsentMomentumAlerts(db);
+  const due = await getUnsentMomentumAlerts(db, MAX_ALERTS_PER_DISPATCH);
   if (due.length === 0) return;
 
   const activeUsers = await getActiveUsers(db);
