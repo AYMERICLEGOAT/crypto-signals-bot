@@ -98,17 +98,33 @@ def detect_atr_spike(df: pd.DataFrame, pair: str, min_points: int = 22) -> dict 
 
 def detect_momentum_alerts(df: pd.DataFrame, pair: str, rsi_buy_threshold: float, rsi_sell_threshold: float) -> list:
     """
-    Retourne 0 à 3 alertes momentum pour cette paire (les trois déclencheurs
-    sont indépendants). À appeler UNIQUEMENT pour les paires n'ayant pas déjà
-    produit un vrai signal ce cycle (voir main.py) : un vrai signal est déjà
-    plus informatif qu'une alerte momentum sur le même mouvement.
+    Retourne 0 à 2 alertes momentum pour cette paire (au plus une sur l'axe
+    directionnel RSI/EMA, plus l'ATR qui est un axe indépendant). À appeler
+    UNIQUEMENT pour les paires n'ayant pas déjà produit un vrai signal ce
+    cycle (voir main.py) : un vrai signal est déjà plus informatif qu'une
+    alerte momentum sur le même mouvement.
+
+    Retour terrain (29/07) : RSI-sort-de-la-zone-neutre et croisement-EMA
+    décrivent quasi toujours le MÊME mouvement de prix (un croisement EMA
+    s'accompagne presque mécaniquement d'un RSI qui change de zone) -- les
+    déclencher comme deux alertes séparées produisait deux messages
+    consécutifs quasi redondants pour la même paire au même cycle, ressenti
+    comme du spam. On fusionne : si les deux se déclenchent ensemble, une
+    seule alerte (kind ema_cross_unconfirmed, plus spécifique) avec un détail
+    qui mentionne les deux, plutôt que deux messages.
     """
+    rsi_alert = detect_rsi_neutral_exit(df, pair)
+    ema_alert = detect_unconfirmed_ema_cross(df, pair, rsi_buy_threshold, rsi_sell_threshold)
+    atr_alert = detect_atr_spike(df, pair)
+
     alerts = []
-    for alert in (
-        detect_rsi_neutral_exit(df, pair),
-        detect_unconfirmed_ema_cross(df, pair, rsi_buy_threshold, rsi_sell_threshold),
-        detect_atr_spike(df, pair),
-    ):
-        if alert:
-            alerts.append(alert)
+    if rsi_alert and ema_alert:
+        ema_alert["detail"] += " (RSI sort aussi de sa zone neutre au même moment)"
+        alerts.append(ema_alert)
+    elif ema_alert:
+        alerts.append(ema_alert)
+    elif rsi_alert:
+        alerts.append(rsi_alert)
+    if atr_alert:
+        alerts.append(atr_alert)
     return alerts

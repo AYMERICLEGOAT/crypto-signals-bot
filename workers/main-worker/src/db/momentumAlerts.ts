@@ -28,6 +28,16 @@ export async function getMomentumAlertsSince(db: SupabaseConfig, sinceIso: strin
   return selectRows<{ id: number }>(db, "momentum_alerts", { created_at: `gte.${sinceIso}`, select: "id" });
 }
 
+/** Retour terrain (29/07) : plafond quotidien (pas seulement par cycle de cron) — voir dispatchMomentumAlerts.ts. */
+export async function countMomentumAlertsSentSince(db: SupabaseConfig, sinceIso: string): Promise<number> {
+  const rows = await selectRows<{ id: number }>(db, "momentum_alerts", {
+    sent_to_channel: "eq.true",
+    created_at: `gte.${sinceIso}`,
+    select: "id",
+  });
+  return rows.length;
+}
+
 /** Purge (Bloc 7) : alertes déjà diffusées, sans valeur une fois postées — évite une croissance illimitée de la table. */
 export async function purgeOldSentMomentumAlerts(db: SupabaseConfig, olderThanDays: number): Promise<void> {
   const threshold = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString();

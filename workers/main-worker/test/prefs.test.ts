@@ -93,6 +93,9 @@ describe("dispatchMomentumAlerts respecte les préférences (Bloc 19)", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("momentum_alerts") && url.includes("sent_to_channel=eq.true")) {
+          return jsonResponse([]); // plafond quotidien : rien envoyé aujourd'hui
+        }
         if (url.includes("momentum_alerts") && url.includes("sent_to_channel=eq.false") && (!init || init.method === undefined)) {
           return jsonResponse([{ id: 1, pair: "BTC/USDT", kind: "atr_spike", detail: "Volatilité en hausse", created_at: "2026-01-01T00:00:00Z", sent_to_channel: false }]);
         }

@@ -10,7 +10,7 @@
  */
 
 import { Env, dbConfig } from "../env";
-import { getUnsentMomentumAlerts, markMomentumAlertSent, MomentumAlertRecord } from "../db/momentumAlerts";
+import { getUnsentMomentumAlerts, markMomentumAlertSent, countMomentumAlertsSentSince, MomentumAlertRecord } from "../db/momentumAlerts";
 import { getActiveUsers } from "../db/users";
 import { filterByPref } from "../db/userPrefs";
 import { sendMessage } from "../telegram";
@@ -34,12 +34,32 @@ function formatMomentumAlert(alert: MomentumAlertRecord): string {
 // juste diffusée plus progressivement.
 const MAX_ALERTS_PER_DISPATCH = 5;
 
+// Retour admin (29/07) : étaler sur plusieurs cycles de 5 min ne suffisait pas
+// -- avec 28 paires et le cron toutes les 5 min, la pile peut se reconstituer
+// aussi vite qu'elle se vide un jour de marché agité, et le total sur une
+// journée entière restait perçu comme du spam (30+ alertes/jour). Plafond
+// quotidien réel, distinct du plafond par cycle ci-dessus : au-delà, les
+// alertes restent en attente (rien n'est perdu) mais ne sont plus diffusées
+// avant le lendemain -- mieux vaut un canal qui garde de la valeur perçue
+// qu'un canal qui rattrape coûte que coûte tout son retard.
+const MAX_ALERTS_PER_DAY = 8;
+
+function startOfTodayUtcIso(): string {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
+}
+
 export async function dispatchMomentumAlerts(env: Env): Promise<void> {
   if (!env.TELEGRAM_CHANNEL_ID) return; // canal non configuré, rien à faire
 
   const db = dbConfig(env);
   const channelId = Number(env.TELEGRAM_CHANNEL_ID);
-  const due = await getUnsentMomentumAlerts(db, MAX_ALERTS_PER_DISPATCH);
+
+  const sentToday = await countMomentumAlertsSentSince(db, startOfTodayUtcIso());
+  const remainingToday = MAX_ALERTS_PER_DAY - sentToday;
+  if (remainingToday <= 0) return;
+
+  const due = await getUnsentMomentumAlerts(db, Math.min(MAX_ALERTS_PER_DISPATCH, remainingToday));
   if (due.length === 0) return;
 
   const activeUsers = await getActiveUsers(db);
