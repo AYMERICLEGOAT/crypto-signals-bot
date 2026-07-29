@@ -58,6 +58,15 @@ describe("buildSignalMessage (UX — format de signal plus clair)", () => {
     expect(text).toContain("rejoins @ProVIPSignals\\_bot");
   });
 
+  it("affiche le badge du moteur d'origine (🎯 par défaut, ⚡ pour le moteur Squeeze 15M)", () => {
+    const defaultText = buildSignalMessage(buySignal);
+    expect(defaultText).toContain("🎯 Haute Confiance");
+
+    const squeezeText = buildSignalMessage({ ...buySignal, engine: "squeeze_15m" });
+    expect(squeezeText).toContain("⚡ Squeeze 15M");
+    expect(squeezeText).toContain("Signal Squeeze 15M");
+  });
+
   it("gère correctement un signal SELL (contexte baissier, signes inversés)", () => {
     const sellSignal = { ...buySignal, type: "SELL" as const, entry_price: 100, stop_loss: 105, take_profit: 90 };
     const text = buildSignalMessage(sellSignal);
@@ -78,16 +87,28 @@ describe("buildSignalMessage — Multi-TP (mission grille d'excellence)", () => 
     tp3_price: 110,
   };
 
-  it("affiche les 3 niveaux TP avec leurs labels et ratios quand tp1_price est présent", () => {
+  it("affiche les 3 niveaux TP avec leurs labels et ratios (calculés dynamiquement) quand tp1_price est présent", () => {
     const text = buildSignalMessage(multiTpSignal);
     expect(text).toContain("🥇 TP1");
     expect(text).toContain("Sécurisation rapide");
     expect(text).toContain("Break-Even");
     expect(text).toContain("🥈 TP2");
-    expect(text).toContain("Objectif principal (Ratio 1:2.2)");
+    // stop à 3 de distance (100-97), TP2 à 6.3 de distance -> ratio 1:2.1
+    expect(text).toContain("ratio 1:2.1");
+    expect(text).toContain("Objectif principal");
     expect(text).toContain("🥉 TP3");
-    expect(text).toContain("Runner (Ratio 1:3.3)");
-    expect(text).toContain("-1.5x ATR");
+    // TP3 à 10 de distance -> ratio 1:3.3
+    expect(text).toContain("ratio 1:3.3");
+    expect(text).toContain("Runner");
+  });
+
+  it("calcule le ratio dynamiquement (pas de multiplicateur ATR codé en dur) -- valable pour n'importe quel moteur", () => {
+    // Moteur Squeeze 15M (multiplicateurs différents de Haute Confiance, voir signals/config.py) :
+    // stop à 1.5 de distance, TP1 à 1.0 -> ratio 1:0.7
+    const squeezeSignal = { ...buySignal, engine: "squeeze_15m", stop_loss: 98.5, tp1_price: 101, tp2_price: 102, tp3_price: 103 };
+    const text = buildSignalMessage(squeezeSignal);
+    expect(text).toContain("ratio 1:0.7");
+    expect(text).not.toContain("ATR");
   });
 
   it("revient à l'ancien format simple (take profit / stop loss uniques) si tp1_price est absent", () => {

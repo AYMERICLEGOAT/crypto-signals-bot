@@ -31,12 +31,22 @@ jobs:
       - name: Installer les dépendances
         run: pip install -r signals/requirements.txt
 
+      # Audit#30 (30/07) : retry automatique (3 tentatives, backoff) -- un
+      # hoquet réseau transitoire sur UNE table (voir backup_db.py, qui
+      # alerte désormais sur tout échec même partiel) ne doit pas forcer une
+      # intervention manuelle si un simple nouvel essai aurait suffi.
+      # (`working-directory` n'est pas un input de nick-fields/retry -- le
+      # `cd` se fait explicitement dans la commande.)
       - name: Exporter les tables Supabase (public + privé)
-        working-directory: signals
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: cd signals && python backup_db.py
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: python backup_db.py
 
       - name: Committer la sauvegarde publique (sans donnée personnelle)
         working-directory: signals

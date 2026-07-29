@@ -18,14 +18,22 @@ jobs:
       - name: Installer les dépendances
         run: pip install -r traffic/requirements.txt
 
+      # Audit#30 (30/07) : retry automatique (3 tentatives, backoff) pour les
+      # hoquets réseau transitoires (Discord API, Supabase) -- une vraie
+      # erreur de configuration (token invalide, etc.) échoue quand même sur
+      # les 3 tentatives et alerte normalement ci-dessous.
       - name: Publier le message du jour
-        working-directory: traffic
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 5
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: cd traffic && python discord_daily.py
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
-        run: python discord_daily.py
 
       # Audit#13 : voir signals.yml pour le contexte (même secret TELEGRAM_BOT_TOKEN requis).
       - name: Alerter l'admin en cas d'échec

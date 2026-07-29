@@ -74,6 +74,7 @@ def _build_signal(pair: str, side: str, entry_price: float, timestamp=None, atr:
         "stop_loss": round(stop_loss, 8),
         "take_profit": round(take_profit, 8),
         "created_at": (timestamp or datetime.now(timezone.utc)).isoformat(),
+        "engine": "high_confidence",
     }
     if tp1_price is not None:
         signal["tp1_price"] = round(tp1_price, 8)

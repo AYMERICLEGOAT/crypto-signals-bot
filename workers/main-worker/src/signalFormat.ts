@@ -25,6 +25,17 @@ export interface SignalLike {
   tp1_price?: number | null;
   tp2_price?: number | null;
   tp3_price?: number | null;
+  /** Moteur d'origine (voir signals/squeeze_engine.py) -- absent ou "high_confidence" pour les signaux du moteur historique EMA/RSI 1h. */
+  engine?: string | null;
+}
+
+const ENGINE_BADGE: Record<string, string> = {
+  high_confidence: "🎯 Haute Confiance",
+  squeeze_15m: "⚡ Squeeze 15M",
+};
+
+function engineBadge(engine?: string | null): string {
+  return ENGINE_BADGE[engine ?? "high_confidence"] ?? ENGINE_BADGE.high_confidence;
 }
 
 function pct(value: number): string {
@@ -36,10 +47,13 @@ export function typeLabel(type: SignalSide): string {
   return type === "BUY" ? "ACHAT" : "VENTE";
 }
 
-function buildContext(type: SignalSide): string {
-  return type === "BUY"
-    ? "📈 Signal Haute Confiance : la tendance vient de basculer haussière (EMA + RSI + ADX alignés)."
-    : "📉 Signal Haute Confiance : la tendance vient de basculer baissière (EMA + RSI + ADX alignés).";
+function buildContext(type: SignalSide, engine?: string | null): string {
+  const arrow = type === "BUY" ? "📈" : "📉";
+  const direction = type === "BUY" ? "haussière" : "baissière";
+  if (engine === "squeeze_15m") {
+    return `${arrow} Signal Squeeze 15M : cassure ${direction} après une phase de compression de volatilité, confirmée par le volume.`;
+  }
+  return `${arrow} Signal Haute Confiance : la tendance vient de basculer ${direction} (EMA + RSI + ADX alignés).`;
 }
 
 function buildRiskSizingLine(entryPrice: number, stopLoss: number): string | null {
@@ -56,24 +70,30 @@ function buildRiskSizingLine(entryPrice: number, stopLoss: number): string | nul
 
 /**
  * Mission "grille d'excellence" — gestion Multi-TP avec sécurisation
- * Break-Even (voir signals/config.py::ENABLE_MULTI_TP_EXITS). Les
- * multiplicateurs ATR sont fixes en production (validés par backtest sur 24
- * mois/28 paires) donc affichés en dur ici plutôt que transmis dynamiquement.
+ * Break-Even (voir signals/config.py::ENABLE_MULTI_TP_EXITS). Le ratio
+ * risque/rendement affiché est calculé dynamiquement à partir des prix
+ * réels du signal (distance TPn / distance stop) plutôt qu'affiché en dur :
+ * les deux moteurs (Haute Confiance et Squeeze 15M, voir
+ * signals/squeeze_engine.py) utilisent des multiplicateurs ATR différents,
+ * un texte fixe aurait été faux pour l'un des deux.
  */
 function buildMultiTpLines(signal: SignalLike): string[] {
   const pctOf = (level: number) =>
     signal.type === "BUY" ? ((level - signal.entry_price) / signal.entry_price) * 100 : ((signal.entry_price - level) / signal.entry_price) * 100;
-  const lines = [`🛑 Stop-Loss : ${signal.stop_loss} (-1.5x ATR, ${pct(-Math.abs(pctOf(signal.stop_loss)))})`];
+  const slDist = Math.abs(signal.entry_price - signal.stop_loss);
+  const ratioLabel = (level: number) => (slDist > 0 ? ` (ratio 1:${(Math.abs(level - signal.entry_price) / slDist).toFixed(1)})` : "");
+
+  const lines = [`🛑 Stop-Loss : ${signal.stop_loss} (${pct(-Math.abs(pctOf(signal.stop_loss)))})`];
   if (signal.tp1_price != null) {
     lines.push(
-      `🥇 TP1 : ${signal.tp1_price} (+1.0x ATR, ${pct(pctOf(signal.tp1_price))}) — Sécurisation rapide + passage automatique au Break-Even`
+      `🥇 TP1 : ${signal.tp1_price} (${pct(pctOf(signal.tp1_price))}${ratioLabel(signal.tp1_price)}) — Sécurisation rapide + passage automatique au Break-Even`
     );
   }
   if (signal.tp2_price != null) {
-    lines.push(`🥈 TP2 : ${signal.tp2_price} (+3.3x ATR, ${pct(pctOf(signal.tp2_price))}) — Objectif principal (Ratio 1:2.2)`);
+    lines.push(`🥈 TP2 : ${signal.tp2_price} (${pct(pctOf(signal.tp2_price))}${ratioLabel(signal.tp2_price)}) — Objectif principal`);
   }
   if (signal.tp3_price != null) {
-    lines.push(`🥉 TP3 : ${signal.tp3_price} (+5.0x ATR, ${pct(pctOf(signal.tp3_price))}) — Runner (Ratio 1:3.3)`);
+    lines.push(`🥉 TP3 : ${signal.tp3_price} (${pct(pctOf(signal.tp3_price))}${ratioLabel(signal.tp3_price)}) — Runner`);
   }
   return lines;
 }
@@ -105,8 +125,8 @@ export function buildSignalMessage(
   const isMultiTp = signal.tp1_price != null;
 
   const lines: Array<string | null> = [
-    `${emoji} *${label} ${signal.pair}*${opts.delayNote ? ` _(${opts.delayNote})_` : ""}`,
-    buildContext(signal.type),
+    `${emoji} *${label} ${signal.pair}* — ${engineBadge(signal.engine)}${opts.delayNote ? ` _(${opts.delayNote})_` : ""}`,
+    buildContext(signal.type, signal.engine),
     "",
     `💵 Zone d'entrée : ${signal.entry_price}`,
     ...(isMultiTp

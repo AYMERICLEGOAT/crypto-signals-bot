@@ -5,6 +5,7 @@ __pycache__/
 data/*.db
 data/*.json
 data/*.png
+data/backtest_cache/
 
 # Bloc 15.3 : backups/private/ contient des donnees personnelles (telegram_id,
 # wallets, adresses de paiement) -- ne doit JAMAIS finir dans un commit, meme

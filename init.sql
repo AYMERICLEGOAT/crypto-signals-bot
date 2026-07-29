@@ -864,3 +864,25 @@ $$;
 alter table system_heartbeats
   add column if not exists consecutive_source_failures integer not null default 0,
   add column if not exists source_outage_alerted boolean not null default false;
+
+
+-- ----------------------------------------------------------------------------
+-- 40. Second moteur de signaux "⚡ Squeeze Volatilité 15M" (voir
+--     signals/squeeze_engine.py) — tourne en parallèle du moteur historique
+--     "🎯 Haute Confiance" pour augmenter la fréquence de signaux. Chaque
+--     ligne existante est réputée venir du moteur historique (defaut
+--     'high_confidence'), signals/strategy.py l'écrit désormais explicitement.
+-- ----------------------------------------------------------------------------
+
+alter table signals add column if not exists engine text not null default 'high_confidence';
+create index if not exists idx_signals_engine on signals (engine);
+
+
+-- ----------------------------------------------------------------------------
+-- 41. Audit#30 (30/07) — alerte "aucun signal depuis 6h" (voir
+--     workers/main-worker/src/cron/checkSignalFreshness.ts), indépendante
+--     de `alerted` (qui suit "le job ne tourne plus", pas "le job tourne
+--     mais ne trouve rien").
+-- ----------------------------------------------------------------------------
+
+alter table system_heartbeats add column if not exists no_signal_alerted boolean not null default false;

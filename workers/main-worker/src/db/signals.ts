@@ -27,6 +27,8 @@ export interface SignalRecord {
   tp2_hit_at?: string | null;
   tp3_hit_at?: string | null;
   breakeven_active?: boolean;
+  /** Moteur d'origine (voir signals/squeeze_engine.py) -- "high_confidence" par défaut (colonne SQL non nullable). */
+  engine?: string;
 }
 
 export async function getUnsentSignals(db: SupabaseConfig): Promise<SignalRecord[]> {

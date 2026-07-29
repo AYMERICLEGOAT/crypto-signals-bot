@@ -82,6 +82,23 @@ PAIRS = {
     "TAO/USDT": "bittensor",
     "STX/USDT": "blockstack",
     "FIL/USDT": "filecoin",
+    # Univers élargi à 40 paires (backtest 12 mois validé, voir
+    # backtest_squeeze.py) : 12 paires liquides et anciennes (historique
+    # Binance >= 2022) ajoutées pour augmenter la fréquence de signaux sans
+    # toucher aux 28 déjà en place. Sélectionnées aussi pour leur bonne
+    # couverture Coinbase/Kraken (source hybride, voir main.py).
+    "VET/USDT": "vechain",
+    "ALGO/USDT": "algorand",
+    "ICP/USDT": "internet-computer",
+    "ETC/USDT": "ethereum-classic",
+    "HBAR/USDT": "hedera-hashgraph",
+    "XLM/USDT": "stellar",
+    "AAVE/USDT": "aave",
+    "MKR/USDT": "maker",
+    "GRT/USDT": "the-graph",
+    "SAND/USDT": "the-sandbox",
+    "EOS/USDT": "eos",
+    "CHZ/USDT": "chiliz",
 }
 
 # Correctif fondamental (découvert en validant les "Améliorations 1-9") :
@@ -195,6 +212,31 @@ BTC_CRASH_SUSPEND_MS = 4 * 60 * 60 * 1000
 # ratio 2.03->2.05, drawdown 81.4%->54.5% (espérance/trade x2.2) -> CONSERVÉ.
 ENABLE_ADX_REGIME_FILTER = True
 ADX_TREND_THRESHOLD = 25
+
+# Second moteur "⚡ Squeeze Volatilité 15M" (voir squeeze_engine.py),
+# indépendant du moteur "🎯 Haute Confiance" ci-dessus -- tourne en
+# parallèle sur le même cycle horaire pour augmenter la fréquence de
+# signaux. Valeurs de départ avant backtest (voir backtest_squeeze.py) ;
+# ajustées si besoin après validation empirique.
+# DÉSACTIVÉ tant que le backtest combiné (12 mois/40 paires, voir
+# backtest_squeeze.py) n'a pas confirmé les critères demandés (win rate TP1
+# > 55%, drawdown < 45%) -- le code est committé maintenant (nécessaire pour
+# que main.py reste valide, il l'importe déjà) mais le moteur reste inactif
+# en production jusqu'à validation explicite.
+ENABLE_SQUEEZE_ENGINE = False
+SQUEEZE_BB_PERIOD = 20
+SQUEEZE_BB_STD = 2
+SQUEEZE_LOOKBACK = 96            # 24h de bougies 15 min
+SQUEEZE_PERCENTILE = 0.20        # largeur de bande dans les 20% les plus bas = compression
+SQUEEZE_VOLUME_SMA_PERIOD = 20
+SQUEEZE_SL_MULTIPLIER = 1.5
+SQUEEZE_TP1_MULTIPLIER = 1.0
+SQUEEZE_TP2_MULTIPLIER = 2.0
+SQUEEZE_TP3_MULTIPLIER = 3.0
+SQUEEZE_TP1_WEIGHT = 0.5
+SQUEEZE_TP2_WEIGHT = 0.3
+SQUEEZE_TP3_WEIGHT = 0.2
+SQUEEZE_KLINES_LOOKBACK = 250     # bougies 15 min récupérées par cycle (~62h)
 
 # Bloc 11.3 : si l'ATR (volatilité) dépasse cette fraction du prix, aucun
 # signal n'est émis pour la paire ce cycle (marché trop erratique pour que

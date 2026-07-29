@@ -17,7 +17,6 @@ import requests
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://api.kraken.com"
-_INTERVAL_MINUTES = 60  # 1h, cohérent avec les autres sources
 
 _BASE_ALIASES = {"BTC": "XBT", "DOGE": "XDG"}
 
@@ -50,16 +49,18 @@ def pair_to_kraken_symbol(pair: str) -> str:
     return f"{base}USDT"
 
 
-def get_klines(pair: str, limit: int = 250):
+def get_klines(pair: str, limit: int = 250, interval_minutes: int = 60):
     """
-    Bougies OHLC via /0/public/OHLC. Retourne une liste de tuples
+    Bougies OHLC via /0/public/OHLC. `interval_minutes` doit être une des
+    valeurs acceptées par Kraken : 1, 5, 15 (voir squeeze_engine.py), 30,
+    60 (défaut), 240, 1440, 10080, 21600. Retourne une liste de tuples
     (open_time_ms, open, high, low, close, volume), triée par temps
     croissant (ordre natif de l'API). Kraken ne fournit pas de paramètre
     `limit` : il renvoie ses ~720 dernières bougies à cet intervalle, on
     tronque nous-même aux `limit` plus récentes.
     """
     symbol = pair_to_kraken_symbol(pair)
-    data = _get("/0/public/OHLC", params={"pair": symbol, "interval": _INTERVAL_MINUTES})
+    data = _get("/0/public/OHLC", params={"pair": symbol, "interval": interval_minutes})
     result = data.get("result", {})
     # La clé du résultat n'est pas toujours identique au paramètre `pair`
     # envoyé (Kraken renvoie parfois un alias interne, ex: XXBTZUSD) --

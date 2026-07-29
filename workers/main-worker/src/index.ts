@@ -23,6 +23,7 @@ import { sendWelcomeFollowUps } from "./cron/welcomeSequence";
 import { pollPayments } from "./cron/pollPayments";
 import { runDailyMaintenance } from "./cron/dailyMaintenance";
 import { monitorSignalsHeartbeat } from "./cron/monitorSignalsHeartbeat";
+import { checkSignalFreshness } from "./cron/checkSignalFreshness";
 import { rotateVipInviteLinkIfDue } from "./bot/vipChannel";
 import { pingSupabase } from "./supabaseRest";
 import { dbConfig } from "./env";
@@ -91,6 +92,7 @@ export default {
         await pollPayments(env).catch((err) => console.error("[cron] Erreur pollPayments:", err));
         await runDailyMaintenance(env).catch((err) => console.error("[cron] Erreur runDailyMaintenance:", err));
         await monitorSignalsHeartbeat(env).catch((err) => console.error("[cron] Erreur monitorSignalsHeartbeat:", err));
+        await checkSignalFreshness(env).catch((err) => console.error("[cron] Erreur checkSignalFreshness:", err));
         await rotateVipInviteLinkIfDue(env).catch((err) => console.error("[cron] Erreur rotateVipInviteLinkIfDue:", err));
       })()
     );

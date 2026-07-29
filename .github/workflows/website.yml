@@ -38,8 +38,16 @@ jobs:
       - name: Installer les dépendances
         run: pip install -r website/requirements.txt
 
+      # Audit#30 (30/07) : retry automatique (3 tentatives, backoff) -- se
+      # déclenche jusqu'à ~24x/jour, un hoquet réseau transitoire (Supabase,
+      # API GitHub) n'a pas besoin d'attendre le prochain déclenchement.
       - name: Générer et publier le site (public/)
-        working-directory: website
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: cd website && python main.py
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
@@ -55,7 +63,6 @@ jobs:
           SITE_NAME: "Signaux Crypto Gratuits"
           TELEGRAM_BOT_USERNAME: ProVIPSignals_bot
           TELEGRAM_CHANNEL_URL: https://t.me/ProSignauxPublic
-        run: python main.py
 
       # Audit#13 : voir signals.yml pour le contexte (même secret TELEGRAM_BOT_TOKEN requis).
       - name: Alerter l'admin en cas d'échec

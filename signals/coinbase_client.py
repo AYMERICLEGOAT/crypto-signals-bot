@@ -14,7 +14,6 @@ import requests
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://api.exchange.coinbase.com"
-_GRANULARITY_SECONDS = 3600  # 1h, cohérent avec les autres sources
 
 
 def _get(path, params=None, max_retries=3, timeout=15):
@@ -41,19 +40,21 @@ def pair_to_product_id(pair: str) -> str:
     return f"{base}-USD"
 
 
-def get_klines(pair: str, limit: int = 250):
+def get_klines(pair: str, limit: int = 250, granularity_seconds: int = 3600):
     """
     Bougies OHLCV via /products/{id}/candles. Coinbase plafonne à 300
     bougies par requête (largement suffisant pour KLINES_LOOKBACK=250).
-    Retourne une liste de tuples (open_time_ms, open, high, low, close,
-    volume) triée par temps croissant (l'API renvoie l'ordre inverse).
+    `granularity_seconds` doit être une des valeurs acceptées par Coinbase :
+    60, 300, 900 (15 min, voir squeeze_engine.py), 3600 (1h, défaut), 21600,
+    86400. Retourne une liste de tuples (open_time_ms, open, high, low,
+    close, volume) triée par temps croissant (l'API renvoie l'ordre inverse).
     """
     product_id = pair_to_product_id(pair)
     now = int(time.time())
-    start = now - min(limit, 300) * _GRANULARITY_SECONDS
+    start = now - min(limit, 300) * granularity_seconds
     data = _get(
         f"/products/{product_id}/candles",
-        params={"granularity": _GRANULARITY_SECONDS, "start": start, "end": now},
+        params={"granularity": granularity_seconds, "start": start, "end": now},
     )
     # Format Coinbase : [time, low, high, open, close, volume]
     candles = [
