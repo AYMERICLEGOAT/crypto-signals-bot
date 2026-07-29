@@ -83,13 +83,33 @@ export async function getLatestPaymentAnyStatus(db: SupabaseConfig, telegramId: 
   return rows[0] ?? null;
 }
 
-export async function markPaymentConfirmed(db: SupabaseConfig, id: number): Promise<void> {
-  await updateRows(
+/**
+ * Réclame ATOMIQUEMENT un paiement pending (anti-race, voir cron/pollPayments.ts) :
+ * le filtre `status=eq.pending` fait que si deux invocations du Worker se
+ * chevauchent (ex: un appel Monero-RPC/Blockchair qui traîne au-delà du
+ * cycle de cron de 5 min), une seule des deux PATCH renvoie une ligne — la
+ * seconde reçoit un tableau vide et doit s'abstenir de retraiter ce paiement
+ * (double activation, double crédit de parrainage, double message).
+ * Retourne true si CETTE invocation a bien gagné la réclamation.
+ */
+export async function markPaymentConfirmed(db: SupabaseConfig, id: number): Promise<boolean> {
+  const rows = await updateRows(
     db,
     "pending_payments",
-    { id: `eq.${id}` },
+    { id: `eq.${id}`, status: "eq.pending" },
     { status: "confirmed", confirmed_at: new Date().toISOString() }
   );
+  return rows.length > 0;
+}
+
+/**
+ * Compense un échec APRÈS la réclamation (ex: activateSubscription lève une
+ * exception) : remet le paiement en attente pour qu'il soit retenté au
+ * prochain cycle plutôt que de rester bloqué en "confirmed" sans jamais
+ * avoir été réellement activé (voir le fix payé/pas-activé de ce soir).
+ */
+export async function revertPendingPayment(db: SupabaseConfig, id: number): Promise<void> {
+  await updateRows(db, "pending_payments", { id: `eq.${id}` }, { status: "pending", confirmed_at: null });
 }
 
 /**

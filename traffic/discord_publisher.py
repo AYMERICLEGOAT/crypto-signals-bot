@@ -50,8 +50,13 @@ def publish_to_discord(signal):
         timeout=15,
     )
     if not resp.ok:
-        logger.error("Discord: échec de l'envoi (HTTP %s): %s", resp.status_code, resp.text)
-        return False
+        # Avant ce correctif : un token expiré/révoqué, un bot retiré du canal,
+        # ou un canal supprimé (401/403/404) retournait juste False -- exactement
+        # le motif "vert mais n'a rien fait" déjà corrigé pour Reddit/Twitter le
+        # 29/07. Une vraie panne réseau (requests.post qui lève) faisait déjà
+        # échouer le job bruyamment ; l'incohérence était qu'un problème
+        # d'authentification/permission, plus définitif, restait silencieux.
+        raise RuntimeError(f"Discord a répondu {resp.status_code} lors de la publication du signal: {resp.text}")
 
     supabase_client.record_posted("discord", signal["id"])
     logger.info("Discord: message publié pour le signal #%s.", signal["id"])
@@ -83,8 +88,7 @@ def publish_macro_summary():
         timeout=15,
     )
     if not resp.ok:
-        logger.error("Discord: échec de l'envoi du résumé macro (HTTP %s): %s", resp.status_code, resp.text)
-        return False
+        raise RuntimeError(f"Discord a répondu {resp.status_code} lors de la publication du résumé macro: {resp.text}")
 
     supabase_client.record_posted("discord", None, target="macro-summary")
     logger.info("Discord: résumé macro publié.")

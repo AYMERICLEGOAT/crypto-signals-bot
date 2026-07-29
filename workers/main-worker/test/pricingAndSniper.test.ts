@@ -49,21 +49,20 @@ describe("offerCounter", () => {
     expect(remaining).toBe(0);
   });
 
-  it("incrémente slots_used d'une unité", async () => {
-    let patchedTo: number | null = null;
+  it("incrémente slots_used via l'UPDATE atomique increment_offer_slot (anti-race, voir Audit#28)", async () => {
+    let rpcArgs: unknown = null;
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
-        if (!init || init.method === undefined) return jsonResponse([{ offer_name: "decouverte", slots_total: 50, slots_used: 10 }]);
-        if (init.method === "PATCH") {
-          patchedTo = JSON.parse(init.body as string).slots_used;
-          return jsonResponse([]);
+        if (url.includes("/rpc/increment_offer_slot")) {
+          rpcArgs = JSON.parse(init!.body as string);
+          return jsonResponse([{ offer_name: "decouverte", slots_total: 50, slots_used: 11 }]);
         }
         throw new Error(`URL inattendue: ${url}`);
       })
     );
     await incrementDiscoverySlotsUsed({ url: env.SUPABASE_URL, key: env.SUPABASE_KEY });
-    expect(patchedTo).toBe(11);
+    expect(rpcArgs).toEqual({ p_offer_name: "decouverte" });
   });
 });
 

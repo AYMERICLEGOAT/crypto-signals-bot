@@ -5,6 +5,17 @@ on:
     - cron: "0 * * * *"
   workflow_dispatch: {}
 
+# Race condition trouvée dans l'audit du 29/07 : ce workflow n'avait aucune
+# protection contre un chevauchement (cron horaire + rerun manuel pendant un
+# run encore actif, plausible pendant un incident type "0 signal depuis 3
+# jours"). Deux runs qui insèrent chacun un signal pour la même bougie
+# horaire produiraient un doublon, diffusé deux fois côté Worker. `queue`
+# (pas `cancel-in-progress`) : le second run attend la fin du premier plutôt
+# que de l'interrompre en plein milieu d'une insertion Supabase.
+concurrency:
+  group: signals-cron
+  cancel-in-progress: false
+
 jobs:
   run-signals:
     runs-on: ubuntu-latest

@@ -2,7 +2,7 @@ import { Env, dbConfig } from "../env";
 import { catchUpMissedEvents } from "../blockchain/subscriptionEvents";
 import { catchUpUsdtTransfers } from "../blockchain/usdtTransfers";
 import { findUserByWalletAddress, activateSubscription, markDiscoveryUsed, setWalletAddress } from "../db/users";
-import { getLatestPendingPayment, markPaymentConfirmed, getPendingPayments } from "../db/payments";
+import { getLatestPendingPayment, markPaymentConfirmed, revertPendingPayment, getPendingPayments } from "../db/payments";
 import { sendMessage } from "../telegram";
 import { isWalletRpcAvailable, checkMoneroPayment } from "../payments/monero";
 import { checkLitecoinPayment } from "../payments/litecoin";
@@ -11,7 +11,7 @@ import { maybeRewardReferral } from "../bot/referral";
 import { consumePendingPromoCode } from "../payments/promoCodes";
 import { SupabaseConfig } from "../supabaseRest";
 import { PLAN_DURATION_DAYS, DISCOVERY_PLAN, STANDARD_PLAN, isValidPlan } from "../payments/plans";
-import { incrementDiscoverySlotsUsed, getRemainingEarlyAdopterSlots, incrementEarlyAdopterSlotsUsed } from "../db/offerCounter";
+import { incrementDiscoverySlotsUsed, incrementEarlyAdopterSlotsUsed } from "../db/offerCounter";
 import { getUserIfExists } from "../db/users";
 
 const EARLY_ADOPTER_BONUS_DAYS = 30;
@@ -32,11 +32,13 @@ export async function onPaymentConfirmed(env: Env, db: SupabaseConfig, telegramI
 
   // Bloc 14.3 : mois offert aux 10 premiers abonnés Standard (compteur réel,
   // jamais décoratif -- même principe que le Pack Découverte ci-dessus).
+  // L'incrément atomique fait foi (pas un getRemainingEarlyAdopterSlots() lu
+  // séparément avant, qui laissait une fenêtre de course pouvant créditer ce
+  // bonus deux fois pour un seul quota si deux invocations se chevauchent).
   if (plan === STANDARD_PLAN) {
-    const remaining = await getRemainingEarlyAdopterSlots(db);
-    if (remaining <= 0) return;
+    const gotSlot = await incrementEarlyAdopterSlotsUsed(db);
+    if (!gotSlot) return;
 
-    await incrementEarlyAdopterSlotsUsed(db);
     const user = await getUserIfExists(db, telegramId);
     if (!user?.expiration) return;
 
@@ -71,13 +73,21 @@ async function processUsdtEvents(env: Env): Promise<void> {
       continue;
     }
 
-    await activateSubscription(db, user.telegram_id, event.plan, new Date(event.newExpirationMs));
     const pending = await getLatestPendingPayment(db, user.telegram_id, "USDT");
-    if (pending) await markPaymentConfirmed(db, pending.id);
-    await maybeRewardReferral(env, user.telegram_id);
-    await consumePendingPromoCode(db, user.telegram_id);
+    // Réclame ATOMIQUEMENT avant d'agir (voir commentaire détaillé dans
+    // processUsdtTransfers ci-dessous) : si `pending` est déjà null ou déjà
+    // réclamé par une invocation concurrente, on n'active/crédite rien deux fois.
+    if (pending && !(await markPaymentConfirmed(db, pending.id))) continue;
 
-    await sendMessage(env.TELEGRAM_BOT_TOKEN, user.telegram_id, "✅ Paiement USDT confirmé sur la blockchain ! Ton abonnement est actif.");
+    try {
+      await activateSubscription(db, user.telegram_id, event.plan, new Date(event.newExpirationMs));
+      await maybeRewardReferral(env, user.telegram_id);
+      await consumePendingPromoCode(db, user.telegram_id);
+      await sendMessage(env.TELEGRAM_BOT_TOKEN, user.telegram_id, "✅ Paiement USDT confirmé sur la blockchain ! Ton abonnement est actif.");
+    } catch (err) {
+      if (pending) await revertPendingPayment(db, pending.id);
+      throw err;
+    }
   }
 }
 
@@ -108,17 +118,27 @@ async function processUsdtTransfers(env: Env): Promise<void> {
       continue;
     }
 
-    // Active D'ABORD, ne marque confirmé qu'ensuite : si activateSubscription
-    // échoue (hoquet Supabase transitoire), le paiement reste "pending" et sera
-    // retenté au cycle suivant, au lieu d'être marqué confirmé puis perdu sans
-    // qu'aucun code ne le retente jamais (l'utilisateur aurait payé sans accès).
-    await activateSubscription(db, user.telegram_id, pending.plan, addDays(new Date(), durationForPlan(pending.plan)));
-    await markPaymentConfirmed(db, pending.id);
-    await maybeRewardReferral(env, user.telegram_id);
-    await consumePendingPromoCode(db, user.telegram_id);
-    await onPaymentConfirmed(env, db, user.telegram_id, pending.plan);
+    // Réclame ATOMIQUEMENT ce paiement (PATCH conditionné sur status=eq.pending,
+    // voir db/payments.ts) avant toute action : si le cron se chevauche avec
+    // une invocation précédente encore en cours (ex: un appel réseau lent),
+    // une seule des deux gagne la réclamation -- l'autre voit `false` et
+    // s'abstient, ce qui évite double activation + double crédit de parrainage
+    // + double message pour le même paiement réel.
+    if (!(await markPaymentConfirmed(db, pending.id))) continue;
 
-    await sendMessage(env.TELEGRAM_BOT_TOKEN, user.telegram_id, "✅ Paiement USDT confirmé sur la blockchain ! Ton abonnement est actif.");
+    try {
+      await activateSubscription(db, user.telegram_id, pending.plan, addDays(new Date(), durationForPlan(pending.plan)));
+      await maybeRewardReferral(env, user.telegram_id);
+      await consumePendingPromoCode(db, user.telegram_id);
+      await onPaymentConfirmed(env, db, user.telegram_id, pending.plan);
+      await sendMessage(env.TELEGRAM_BOT_TOKEN, user.telegram_id, "✅ Paiement USDT confirmé sur la blockchain ! Ton abonnement est actif.");
+    } catch (err) {
+      // Si l'activation échoue APRÈS la réclamation (hoquet Supabase
+      // transitoire), remet le paiement en attente pour qu'il soit retenté au
+      // cycle suivant plutôt que perdu (payé mais jamais activé).
+      await revertPendingPayment(db, pending.id);
+      throw err;
+    }
   }
 }
 
@@ -136,14 +156,21 @@ async function processMoneroPayments(env: Env): Promise<void> {
       const paid = await checkMoneroPayment(env, payment.address_index, payment.amount_expected);
       if (!paid) continue;
 
-      // Voir commentaire équivalent dans processUsdtTransfers : active avant de
-      // marquer confirmé, pour qu'un échec d'activation reste retentable.
-      await activateSubscription(db, payment.telegram_id, payment.plan, addDays(new Date(), durationForPlan(payment.plan)));
-      await markPaymentConfirmed(db, payment.id);
-      await maybeRewardReferral(env, payment.telegram_id);
-      await consumePendingPromoCode(db, payment.telegram_id);
-      await onPaymentConfirmed(env, db, payment.telegram_id, payment.plan);
-      await sendMessage(env.TELEGRAM_BOT_TOKEN, payment.telegram_id, "✅ Paiement Monero confirmé ! Ton abonnement est actif.");
+      // Réclame ATOMIQUEMENT (voir commentaire détaillé dans processUsdtTransfers) :
+      // évite qu'une invocation qui chevauche une précédente (ex: wallet-rpc lent)
+      // ne retraite le même paiement une deuxième fois.
+      if (!(await markPaymentConfirmed(db, payment.id))) continue;
+
+      try {
+        await activateSubscription(db, payment.telegram_id, payment.plan, addDays(new Date(), durationForPlan(payment.plan)));
+        await maybeRewardReferral(env, payment.telegram_id);
+        await consumePendingPromoCode(db, payment.telegram_id);
+        await onPaymentConfirmed(env, db, payment.telegram_id, payment.plan);
+        await sendMessage(env.TELEGRAM_BOT_TOKEN, payment.telegram_id, "✅ Paiement Monero confirmé ! Ton abonnement est actif.");
+      } catch (err) {
+        await revertPendingPayment(db, payment.id);
+        throw err;
+      }
     } catch (err) {
       console.error(`[monero] Erreur de vérification pour le paiement #${payment.id}:`, err);
     }
@@ -167,14 +194,21 @@ async function processLitecoinPayments(env: Env): Promise<void> {
       // l'enregistrer comme pour USDT.
       if (senderAddress) await setWalletAddress(db, payment.telegram_id, senderAddress);
 
-      // Voir commentaire équivalent dans processUsdtTransfers : active avant de
-      // marquer confirmé, pour qu'un échec d'activation reste retentable.
-      await activateSubscription(db, payment.telegram_id, payment.plan, addDays(new Date(), durationForPlan(payment.plan)));
-      await markPaymentConfirmed(db, payment.id);
-      await maybeRewardReferral(env, payment.telegram_id);
-      await consumePendingPromoCode(db, payment.telegram_id);
-      await onPaymentConfirmed(env, db, payment.telegram_id, payment.plan);
-      await sendMessage(env.TELEGRAM_BOT_TOKEN, payment.telegram_id, "✅ Paiement Litecoin confirmé ! Ton abonnement est actif.");
+      // Réclame ATOMIQUEMENT (voir commentaire détaillé dans processUsdtTransfers) :
+      // évite qu'une invocation qui chevauche une précédente (ex: appel Blockchair
+      // lent) ne retraite le même paiement une deuxième fois.
+      if (!(await markPaymentConfirmed(db, payment.id))) continue;
+
+      try {
+        await activateSubscription(db, payment.telegram_id, payment.plan, addDays(new Date(), durationForPlan(payment.plan)));
+        await maybeRewardReferral(env, payment.telegram_id);
+        await consumePendingPromoCode(db, payment.telegram_id);
+        await onPaymentConfirmed(env, db, payment.telegram_id, payment.plan);
+        await sendMessage(env.TELEGRAM_BOT_TOKEN, payment.telegram_id, "✅ Paiement Litecoin confirmé ! Ton abonnement est actif.");
+      } catch (err) {
+        await revertPendingPayment(db, payment.id);
+        throw err;
+      }
     } catch (err) {
       console.error(`[litecoin] Erreur de vérification pour le paiement #${payment.id}:`, err);
     }

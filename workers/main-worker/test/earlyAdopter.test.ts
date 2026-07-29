@@ -18,10 +18,14 @@ describe("onPaymentConfirmed — Bloc 14.3 (mois offert aux 10 premiers Standard
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
-        if (url.includes("offer_counter") && url.includes("early_adopter") && (!init || init.method === undefined)) {
-          return jsonResponse([{ offer_name: "early_adopter", slots_total: 10, slots_used: 3 }]);
+        // Correctif race (29/07) : l'incrément passe par la fonction SQL
+        // atomique increment_offer_slot (RPC) plutôt qu'un SELECT puis PATCH
+        // séparés -- une seule requête fait foi, et son résultat non-vide
+        // signifie que CETTE invocation a bien obtenu la place.
+        if (url.includes("/rpc/increment_offer_slot")) {
+          expect(JSON.parse(init!.body as string)).toEqual({ p_offer_name: "early_adopter" });
+          return jsonResponse([{ offer_name: "early_adopter", slots_total: 10, slots_used: 4 }]);
         }
-        if (url.includes("offer_counter") && init?.method === "PATCH") return jsonResponse([]);
         if (url.includes("users") && (!init || init.method === undefined)) {
           return jsonResponse([{ telegram_id: 42, expiration: "2026-01-01T00:00:00.000Z" }]);
         }
@@ -43,14 +47,29 @@ describe("onPaymentConfirmed — Bloc 14.3 (mois offert aux 10 premiers Standard
     expect(notified).toContain("10 premiers abonnés Standard");
   });
 
-  it("ne fait rien si les 10 places early-adopter sont déjà prises", async () => {
+  it("ne fait rien si les 10 places early-adopter sont déjà prises (RPC ne renvoie aucune ligne)", async () => {
     const fetchSpy = vi.fn(async (url: string) => {
-      if (url.includes("offer_counter")) return jsonResponse([{ offer_name: "early_adopter", slots_total: 10, slots_used: 10 }]);
+      if (url.includes("/rpc/increment_offer_slot")) return jsonResponse([]); // quota épuisé -> aucune ligne affectée
       throw new Error(`Ne devrait pas être appelé: ${url}`);
     });
     vi.stubGlobal("fetch", fetchSpy);
 
     await onPaymentConfirmed(env, db, 42, 1);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("n'obtient pas la place si une invocation concurrente l'a déjà réclamée entre-temps", async () => {
+    // Simule le cas de la race : le compteur affichait encore de la place au
+    // moment de la lecture ailleurs, mais l'UPDATE atomique WHERE slots_used
+    // < slots_total n'affecte plus aucune ligne car une autre invocation a
+    // gagné la course entre-temps.
+    const fetchSpy = vi.fn(async (url: string) => {
+      if (url.includes("/rpc/increment_offer_slot")) return jsonResponse([]);
+      throw new Error(`Ne devrait pas être appelé: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await onPaymentConfirmed(env, db, 99, 1);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 });

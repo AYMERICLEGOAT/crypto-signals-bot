@@ -820,3 +820,31 @@ create index if not exists idx_admin_notes_unread on admin_notes (created_at asc
 -- ----------------------------------------------------------------------------
 
 alter table promo_codes add column if not exists expires_at timestamptz;
+
+
+-- ----------------------------------------------------------------------------
+-- 38. increment_offer_slot — corrige une race sur offer_counter.slots_used
+--     (Pack Découverte / bonus early-adopter) : db/offerCounter.ts faisait un
+--     SELECT puis un UPDATE slots_used = <valeur lue> + 1 en deux requêtes
+--     séparées. Si deux invocations du cron Worker se chevauchent (ex: un
+--     appel Monero-RPC/Blockchair qui traîne au-delà du cycle de 5 min), les
+--     deux peuvent lire la même valeur avant que l'une des deux n'écrive,
+--     perdant un incrément (2 places consommées comptées comme 1 seule) et
+--     pouvant même appliquer deux fois le bonus "10 premiers abonnés" à un
+--     même utilisateur. Un seul UPDATE atomique (même principe que
+--     claim_litecoin_address, plus haut) élimine la fenêtre de course.
+-- ----------------------------------------------------------------------------
+
+create or replace function increment_offer_slot(p_offer_name text)
+returns setof offer_counter
+language plpgsql
+as $$
+begin
+    return query
+    update offer_counter
+    set slots_used = slots_used + 1
+    where offer_name = p_offer_name
+      and slots_used < slots_total
+    returning *;
+end;
+$$;

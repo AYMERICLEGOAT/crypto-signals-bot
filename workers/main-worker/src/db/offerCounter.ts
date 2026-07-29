@@ -1,4 +1,4 @@
-import { SupabaseConfig, selectOne, updateRows } from "../supabaseRest";
+import { SupabaseConfig, selectOne, callRpc } from "../supabaseRest";
 
 const OFFER_NAME = "decouverte";
 const EARLY_ADOPTER_OFFER_NAME = "early_adopter";
@@ -20,11 +20,14 @@ export async function getRemainingDiscoverySlots(db: SupabaseConfig): Promise<nu
  * Incrémente le compteur d'utilisation — à appeler uniquement à la
  * confirmation RÉELLE d'un paiement Découverte (jamais à l'affichage de
  * l'offre), pour que le compteur reflète des places vraiment prises.
+ *
+ * Passe par la fonction SQL increment_offer_slot (UPDATE atomique) plutôt
+ * qu'un lire-puis-écrire : deux invocations du cron qui se chevauchent
+ * (ex: un appel réseau lent côté paiement) pouvaient sinon lire la même
+ * valeur avant que l'une des deux n'écrive, perdant un incrément.
  */
 export async function incrementDiscoverySlotsUsed(db: SupabaseConfig): Promise<void> {
-  const row = await selectOne<OfferCounterRow>(db, "offer_counter", { offer_name: `eq.${OFFER_NAME}` });
-  if (!row) return;
-  await updateRows(db, "offer_counter", { offer_name: `eq.${OFFER_NAME}` }, { slots_used: row.slots_used + 1 });
+  await callRpc(db, "increment_offer_slot", { p_offer_name: OFFER_NAME });
 }
 
 /** Bloc 14.3 : mois offert aux 10 premiers abonnés Standard (même table générique que Découverte). */
@@ -34,9 +37,17 @@ export async function getRemainingEarlyAdopterSlots(db: SupabaseConfig): Promise
   return Math.max(0, row.slots_total - row.slots_used);
 }
 
-/** Incrémente uniquement à la confirmation RÉELLE d'un paiement Standard, comme incrementDiscoverySlotsUsed. */
-export async function incrementEarlyAdopterSlotsUsed(db: SupabaseConfig): Promise<void> {
-  const row = await selectOne<OfferCounterRow>(db, "offer_counter", { offer_name: `eq.${EARLY_ADOPTER_OFFER_NAME}` });
-  if (!row) return;
-  await updateRows(db, "offer_counter", { offer_name: `eq.${EARLY_ADOPTER_OFFER_NAME}` }, { slots_used: row.slots_used + 1 });
+/**
+ * Incrémente uniquement à la confirmation RÉELLE d'un paiement Standard,
+ * comme incrementDiscoverySlotsUsed. Retourne true si CETTE invocation a
+ * réellement obtenu une place (le UPDATE atomique n'affecte aucune ligne si
+ * le quota est déjà épuisé) — l'appelant doit se baser sur cette valeur de
+ * retour plutôt que sur un getRemainingEarlyAdopterSlots() lu séparément
+ * avant, qui laissait une fenêtre de course pouvant créditer le bonus deux
+ * fois pour un seul quota (deux invocations qui se chevauchent, voir
+ * cron/pollPayments.ts::onPaymentConfirmed).
+ */
+export async function incrementEarlyAdopterSlotsUsed(db: SupabaseConfig): Promise<boolean> {
+  const rows = await callRpc<OfferCounterRow[]>(db, "increment_offer_slot", { p_offer_name: EARLY_ADOPTER_OFFER_NAME });
+  return rows.length > 0;
 }
