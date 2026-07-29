@@ -216,13 +216,25 @@ ADX_TREND_THRESHOLD = 25
 # Second moteur "⚡ Squeeze Volatilité 15M" (voir squeeze_engine.py),
 # indépendant du moteur "🎯 Haute Confiance" ci-dessus -- tourne en
 # parallèle sur le même cycle horaire pour augmenter la fréquence de
-# signaux. Valeurs de départ avant backtest (voir backtest_squeeze.py) ;
-# ajustées si besoin après validation empirique.
-# DÉSACTIVÉ tant que le backtest combiné (12 mois/40 paires, voir
-# backtest_squeeze.py) n'a pas confirmé les critères demandés (win rate TP1
-# > 55%, drawdown < 45%) -- le code est committé maintenant (nécessaire pour
-# que main.py reste valide, il l'importe déjà) mais le moteur reste inactif
-# en production jusqu'à validation explicite.
+# signaux.
+#
+# DÉSACTIVÉ DÉFINITIVEMENT (30/07) après backtest combiné réel (12 mois,
+# 40 paires, voir backtest_squeeze.py) : le seuil de compression (percentile
+# 20 sur 24h glissantes de largeur de bande) s'est avéré bien trop permissif
+# -- 13 662 trades/an (37.4/jour, cible 2-3), soit une compression détectée
+# en pratique presque en continu plutôt que sur de vraies raretés. Plus
+# grave que la fréquence : l'espérance par trade est NÉGATIVE (58.0% de
+# réussite x ratio gain/perte 0.66 - 42.0% x 1 ≈ -3.7% par trade), ce que la
+# haute fréquence amplifie en un drawdown de 98.7% (quasi-effondrement de
+# l'équité simulée), très loin de la cible <45%. Pas un problème de réglage
+# de fréquence : un edge qui perd de l'argent en moyenne perd plus vite avec
+# plus de trades, il ne devient jamais rentable en resserrant juste le
+# seuil. Code conservé (main.py l'importe) pour une itération future
+# éventuelle sur la logique de détection elle-même, mais inactif en
+# production tant qu'aucun nouveau backtest ne démontre une espérance
+# positive. L'univers à 40 paires ci-dessus (config.PAIRS) reste actif :
+# il profite déjà au moteur Haute Confiance seul (2.28 signaux/jour, win
+# rate TP1 60.9%, indépendant de ce flag).
 ENABLE_SQUEEZE_ENGINE = False
 SQUEEZE_BB_PERIOD = 20
 SQUEEZE_BB_STD = 2

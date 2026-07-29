@@ -120,6 +120,16 @@ def simulate_combined_portfolio(hc_dfs: dict, squeeze_dfs: dict, max_active_trad
         ).reset_index(drop=True)
         for pair, df in squeeze_dfs.items()
     }
+    # Perf : le seuil de compression (quantile glissant de la largeur de
+    # bande) était recalculé à la volée pour CHAQUE candidat d'entrée
+    # (jusqu'à 40 paires x ~35 000 bougies 15m = ~1.4M tris O(n log n) sur
+    # une fenêtre de 96 -- plusieurs dizaines de minutes). Précalculé ici en
+    # vectorisé (une seule passe .rolling par paire), même résultat, des
+    # ordres de grandeur plus rapide.
+    for e in squeeze_enriched.values():
+        e["band_width"] = (e["bb_upper"] - e["bb_lower"]) / e["bb_mid"]
+        e["squeeze_threshold"] = e["band_width"].rolling(config.SQUEEZE_LOOKBACK).quantile(config.SQUEEZE_PERCENTILE)
+        e["volume_sma"] = e["volume"].rolling(config.SQUEEZE_VOLUME_SMA_PERIOD).mean()
 
     def ts_index(enriched):
         return {pair: {ts: i for i, ts in enumerate(e["ts_ms"].values)} for pair, e in enriched.items()}
@@ -279,12 +289,12 @@ def simulate_combined_portfolio(hc_dfs: dict, squeeze_dfs: dict, max_active_trad
         if any(pd.isna(v) for v in (prev["bb_upper"], prev["bb_lower"], prev["bb_mid"],
                                       curr["bb_upper"], curr["bb_lower"], curr.get("atr"))):
             return
-        band_width = (e["bb_upper"] - e["bb_lower"]) / e["bb_mid"]
-        recent_widths = band_width.iloc[idx - config.SQUEEZE_LOOKBACK:idx]
-        if recent_widths.isna().any() or len(recent_widths) < config.SQUEEZE_LOOKBACK:
-            return
-        threshold = recent_widths.quantile(config.SQUEEZE_PERCENTILE)
-        if band_width.iloc[idx - 1] > threshold:
+        # Perf : seuil et moyenne de volume précalculés en vectorisé avant la
+        # boucle événementielle (voir simulate_combined_portfolio) -- même
+        # résultat que recalculer un quantile/une moyenne glissante ici à
+        # chaque candidat, sans le coût O(n log n) répété ~1.4M fois.
+        threshold = e["squeeze_threshold"].iloc[idx - 1]
+        if pd.isna(threshold) or e["band_width"].iloc[idx - 1] > threshold:
             return
         was_inside = prev["price"] <= prev["bb_upper"] and prev["price"] >= prev["bb_lower"]
         if not was_inside:
@@ -293,7 +303,7 @@ def simulate_combined_portfolio(hc_dfs: dict, squeeze_dfs: dict, max_active_trad
         breakout_down = curr["price"] < curr["bb_lower"]
         if not (breakout_up or breakout_down):
             return
-        volume_sma = e["volume"].iloc[idx - config.SQUEEZE_VOLUME_SMA_PERIOD + 1:idx + 1].mean()
+        volume_sma = e["volume_sma"].iloc[idx]
         if pd.isna(volume_sma) or volume_sma <= 0 or curr["volume"] <= volume_sma:
             return
         side = "BUY" if breakout_up else "SELL"
