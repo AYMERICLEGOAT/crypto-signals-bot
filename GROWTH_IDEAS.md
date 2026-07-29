@@ -53,3 +53,25 @@ identifiants Reddit vérifiés et `REDDIT_SUBREDDITS` renseigné, et Twitter
 réparé côté admin, il vaudra la peine de construire un script de démarchage
 Telegram/annuaires (aucun script de ce type n'existe encore dans `traffic/`)
 plutôt que de se reposer uniquement sur les 3 automatisations existantes.
+
+## 2026-07-29
+
+**Aucune nouvelle action d'acquisition ce run** — priorité donnée à la
+fiabilité (sections 1-2) suite au retour direct de l'admin aujourd'hui
+(canal qui spamme, alertes bruyantes reçues en direct, doute exprimé sur
+l'état général du système). Pousser plus de croissance sur un canal perçu
+comme peu fiable serait contre-productif ; voir `OPS_LOG.md` du jour pour
+le correctif appliqué (lot d'alertes momentum réduit).
+
+**Identifiants toujours manquants** (inchangé depuis le 28/07) :
+`REDDIT_CLIENT_ID/SECRET/USERNAME/PASSWORD` absents de `traffic/.env` —
+Reddit échoue maintenant de façon visible (rouge) au lieu de silencieuse,
+ce qui est plus honnête mais ne remplace pas les identifiants. Twitter
+toujours cassé côté permissions OAuth1 (action admin requise sur le
+Twitter Developer Portal, aucun code ne peut corriger ça).
+
+**Métriques observées** : toujours 2 utilisateurs au total (plan Pro admin
++ 1 essai gratuit expiré aujourd'hui à 07:35 UTC), 0 paiement confirmé, 0
+donnée exit_surveys/referral_rewards exploitable — business toujours en
+phase pré-traction, rien de nouveau à tirer de l'optimisation de contenu
+(3.4) cette semaine.
