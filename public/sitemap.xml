@@ -2,32 +2,32 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://crypto-signals-bot-site.signalytics.workers.dev/</loc>
-    <lastmod>2026-07-29</lastmod>
+    <lastmod>2026-07-30</lastmod>
     <changefreq>daily</changefreq>
   </url>
   <url>
     <loc>https://crypto-signals-bot-site.signalytics.workers.dev/privacy.html</loc>
-    <lastmod>2026-07-29</lastmod>
+    <lastmod>2026-07-30</lastmod>
     <changefreq>daily</changefreq>
   </url>
   <url>
     <loc>https://crypto-signals-bot-site.signalytics.workers.dev/terms.html</loc>
-    <lastmod>2026-07-29</lastmod>
+    <lastmod>2026-07-30</lastmod>
     <changefreq>daily</changefreq>
   </url>
   <url>
     <loc>https://crypto-signals-bot-site.signalytics.workers.dev/archives.html</loc>
-    <lastmod>2026-07-29</lastmod>
+    <lastmod>2026-07-30</lastmod>
     <changefreq>daily</changefreq>
   </url>
   <url>
     <loc>https://crypto-signals-bot-site.signalytics.workers.dev/transparency.html</loc>
-    <lastmod>2026-07-29</lastmod>
+    <lastmod>2026-07-30</lastmod>
     <changefreq>daily</changefreq>
   </url>
   <url>
     <loc>https://crypto-signals-bot-site.signalytics.workers.dev/en/</loc>
-    <lastmod>2026-07-29</lastmod>
+    <lastmod>2026-07-30</lastmod>
     <changefreq>daily</changefreq>
   </url>
   <url>
@@ -68,6 +68,16 @@
   <url>
     <loc>https://crypto-signals-bot-site.signalytics.workers.dev/en/signals/2026-07-29.html</loc>
     <lastmod>2026-07-29</lastmod>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://crypto-signals-bot-site.signalytics.workers.dev/signaux/2026-07-30.html</loc>
+    <lastmod>2026-07-30</lastmod>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://crypto-signals-bot-site.signalytics.workers.dev/en/signals/2026-07-30.html</loc>
+    <lastmod>2026-07-30</lastmod>
     <changefreq>daily</changefreq>
   </url>
 </urlset>
