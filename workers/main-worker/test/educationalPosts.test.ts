@@ -1,6 +1,9 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { getNextEducationalPost, hasSentEducationalPostToday, markEducationalPostSent } from "../src/db/educationalPosts";
 import { dispatchEducationalPost } from "../src/cron/dispatchEducationalPost";
+
+const NOON_UTC = new Date("2026-08-03T12:00:00Z");
+const NIGHT_22H_UTC = new Date("2026-08-03T22:00:00Z");
 
 function jsonResponse(body: unknown) {
   return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
@@ -45,11 +48,16 @@ describe("hasSentEducationalPostToday", () => {
 });
 
 describe("dispatchEducationalPost", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
 
   const env = { TELEGRAM_BOT_TOKEN: "fake-token", TELEGRAM_CHANNEL_ID: "-100123", SUPABASE_URL: db.url, SUPABASE_KEY: db.key } as any;
 
-  it("envoie le prochain post et le marque comme envoyé si aucun post n'est encore parti aujourd'hui", async () => {
+  it("envoie le prochain post et le marque comme envoyé si aucun post n'est encore parti aujourd'hui (dans la fenêtre 8h-20h UTC)", async () => {
+    vi.setSystemTime(NOON_UTC);
     let markedSent = false;
     let sentToTelegram = false;
 
@@ -81,6 +89,7 @@ describe("dispatchEducationalPost", () => {
   });
 
   it("ne fait rien si un post a déjà été envoyé aujourd'hui", async () => {
+    vi.setSystemTime(NOON_UTC);
     const fetchSpy = vi.fn(async (url: string) => {
       if (url.includes("last_sent_at=gte.")) return jsonResponse([{ id: 1 }]);
       throw new Error(`Ne devrait pas être appelé: ${url}`);
@@ -92,10 +101,20 @@ describe("dispatchEducationalPost", () => {
   });
 
   it("ne fait rien si TELEGRAM_CHANNEL_ID n'est pas configuré", async () => {
+    vi.setSystemTime(NOON_UTC);
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
 
     await dispatchEducationalPost({ ...env, TELEGRAM_CHANNEL_ID: undefined });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("ne fait rien en dehors de la fenêtre 8h-20h UTC (retour admin 30/07 : post reçu à 22h)", async () => {
+    vi.setSystemTime(NIGHT_22H_UTC);
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await dispatchEducationalPost(env);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

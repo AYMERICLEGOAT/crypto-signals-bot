@@ -24,6 +24,8 @@ import { pollPayments } from "./cron/pollPayments";
 import { runDailyMaintenance } from "./cron/dailyMaintenance";
 import { monitorSignalsHeartbeat } from "./cron/monitorSignalsHeartbeat";
 import { checkSignalFreshness } from "./cron/checkSignalFreshness";
+import { ensureChannelPinned } from "./cron/ensureChannelPinned";
+import { postChannelReminder } from "./cron/postChannelReminder";
 import { rotateVipInviteLinkIfDue } from "./bot/vipChannel";
 import { pingSupabase } from "./supabaseRest";
 import { dbConfig } from "./env";
@@ -93,6 +95,8 @@ export default {
         await runDailyMaintenance(env).catch((err) => console.error("[cron] Erreur runDailyMaintenance:", err));
         await monitorSignalsHeartbeat(env).catch((err) => console.error("[cron] Erreur monitorSignalsHeartbeat:", err));
         await checkSignalFreshness(env).catch((err) => console.error("[cron] Erreur checkSignalFreshness:", err));
+        await ensureChannelPinned(env).catch((err) => console.error("[cron] Erreur ensureChannelPinned:", err));
+        await postChannelReminder(env).catch((err) => console.error("[cron] Erreur postChannelReminder:", err));
         await rotateVipInviteLinkIfDue(env).catch((err) => console.error("[cron] Erreur rotateVipInviteLinkIfDue:", err));
       })()
     );

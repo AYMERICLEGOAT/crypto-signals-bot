@@ -94,6 +94,24 @@ export async function answerCallbackQuery(token: string, callbackQueryId: string
   await callTelegramApi(token, "answerCallbackQuery", { callback_query_id: callbackQueryId, text });
 }
 
+export async function pinChatMessage(token: string, chatId: number, messageId: number): Promise<void> {
+  await callTelegramApi(token, "pinChatMessage", { chat_id: chatId, message_id: messageId, disable_notification: true });
+}
+
+/** Comme sendMessage, mais retourne le message_id envoyé (nécessaire pour pinChatMessage) -- ne gère pas le découpage multi-message, réservé aux messages courts (ex: message épinglé du canal). */
+export async function sendMessageAndGetId(token: string, chatId: number, text: string): Promise<number> {
+  const res = await fetch(`${API_BASE}${token}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, text }),
+  });
+  const json = (await res.json()) as { ok: boolean; result?: { message_id: number }; description?: string };
+  if (!json.ok || !json.result) {
+    throw new Error(`Telegram API sendMessage a échoué: ${json.description ?? "réponse invalide"}`);
+  }
+  return json.result.message_id;
+}
+
 export async function setWebhook(token: string, url: string, secretToken: string): Promise<void> {
   await callTelegramApi(token, "setWebhook", { url, secret_token: secretToken });
 }

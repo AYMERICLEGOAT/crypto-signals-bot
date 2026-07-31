@@ -886,3 +886,17 @@ create index if not exists idx_signals_engine on signals (engine);
 -- ----------------------------------------------------------------------------
 
 alter table system_heartbeats add column if not exists no_signal_alerted boolean not null default false;
+
+
+-- ----------------------------------------------------------------------------
+-- 42. Correctif spam Alertes Momentum (30/07, retour admin "120 messages
+--     d'un coup") — le plafond quotidien (workers/main-worker/src/cron/
+--     dispatchMomentumAlerts.ts) comptait par `created_at` (date de
+--     détection), pas par date d'envoi réel : un stock d'anciennes alertes
+--     jamais diffusées (accumulé pendant les ralentissements du cron) se
+--     drainait donc SANS jamais compter contre le quota du jour, un cycle
+--     de 5 min après l'autre, jusqu'à épuisement complet du stock. `sent_at`
+--     permet de compter par date d'ENVOI réelle.
+-- ----------------------------------------------------------------------------
+
+alter table momentum_alerts add column if not exists sent_at timestamptz;

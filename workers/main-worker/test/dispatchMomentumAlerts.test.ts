@@ -25,8 +25,8 @@ describe("dispatchMomentumAlerts", () => {
         if (url.includes("/users") && url.includes("expiration=gt.")) {
           return jsonResponse([]);
         }
-        if (url.includes("momentum_alerts") && url.includes("sent_to_channel=eq.true")) {
-          return jsonResponse([]); // plafond quotidien : rien envoyé aujourd'hui, ne bloque pas ce test
+        if (url.includes("momentum_alerts") && url.includes("sent_at=gte.")) {
+          return jsonResponse([]); // plafond quotidien (compté par date d'ENVOI réelle) : rien envoyé aujourd'hui, ne bloque pas ce test
         }
         if (url.includes("momentum_alerts") && url.includes("sent_to_channel=eq.false") && (!init || init.method === undefined)) {
           return jsonResponse([
@@ -75,8 +75,8 @@ describe("dispatchMomentumAlerts", () => {
         if (url.includes("/users") && url.includes("expiration=gt.")) {
           return jsonResponse([]);
         }
-        if (url.includes("momentum_alerts") && url.includes("sent_to_channel=eq.true")) {
-          return jsonResponse([]); // plafond quotidien : rien envoyé aujourd'hui, ne bloque pas ce test
+        if (url.includes("momentum_alerts") && url.includes("sent_at=gte.")) {
+          return jsonResponse([]); // plafond quotidien (compté par date d'ENVOI réelle) : rien envoyé aujourd'hui, ne bloque pas ce test
         }
         if (url.includes("momentum_alerts") && url.includes("sent_to_channel=eq.false") && (!init || init.method === undefined)) {
           return jsonResponse([
@@ -96,5 +96,21 @@ describe("dispatchMomentumAlerts", () => {
 
     await dispatchMomentumAlerts(env);
     expect(posted).toBe(2);
+  });
+
+  it("respecte le plafond quotidien même pour un gros stock d'anciennes alertes en retard (bug du 30/07 : comptait par date de détection, pas d'envoi)", async () => {
+    const fetchSpy = vi.fn(async (url: string) => {
+      // Plafond quotidien déjà atteint (8 alertes envoyées AUJOURD'HUI, sent_at récent).
+      if (url.includes("momentum_alerts") && url.includes("sent_at=gte.")) {
+        return jsonResponse(Array.from({ length: 8 }, (_, i) => ({ id: 100 + i })));
+      }
+      // Un stock de 50 anciennes alertes non envoyées (created_at très ancien) ne doit
+      // JAMAIS être interrogé une fois le plafond du jour atteint -- sinon régression.
+      throw new Error(`Ne devrait pas être appelé une fois le plafond atteint: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await dispatchMomentumAlerts(env);
+    expect(fetchSpy).toHaveBeenCalledTimes(1); // seul le comptage du plafond -- retour immédiat, rien d'autre interrogé
   });
 });

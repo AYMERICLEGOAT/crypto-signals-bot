@@ -85,13 +85,23 @@ def fetch_recent_prices(pair: str, coin_id: str):
          Alertes Momentum, voir momentum.py ; volume pour le score de
          confiance, voir confidence.py). En pratique geo-bloquée (451)
          depuis les runners GitHub Actions, donc quasi toujours absente.
-      2. CoinGecko — repli historique, ne fournit que des prix de clôture
-         (high/low dégradés à price, volume à 0 : dégradation honnête,
-         jamais de donnée inventée).
-      3. Coinbase Exchange — vraies bougies OHLCV, couverture à 100% de
-         l'univers de paires (mapping BASE-USD trivial).
-      4. Kraken — dernier repli ("auto-réparation") si les 3 précédents ont
-         tous échoué pour cette paire.
+      2. Coinbase Exchange — vraies bougies OHLCV (comme Binance), couverture
+         à 100% de l'univers de paires (mapping BASE-USD trivial).
+      3. Kraken — deuxième repli à données réelles.
+      4. CoinGecko — dernier recours SEULEMENT (30/07) : ne fournit que des
+         prix de clôture (high/low dégradés à price, volume à 0) ET impose
+         un throttle de 12s/appel (plan gratuit, 5 appels/min, voir
+         COINGECKO_MAX_CALLS_PER_MINUTE) -- décisif sur 40 paires : passé en
+         2e position, Binance étant systématiquement bloqué en production,
+         CHAQUE cycle payait 40x12s = 8 min de latence pure. Combiné à la
+         garde anti-chevauchement du workflow (cancel-in-progress=false),
+         ça faisait sauter la moitié des déclenchements horaires -- une
+         bougie où un croisement EMA se produisait n'était alors plus la
+         bougie "courante" au prochain cycle (retardé), et detect_signal()
+         ne regarde jamais que la dernière bougie : le signal était
+         définitivement raté, pas juste retardé. Coinbase/Kraken n'ont pas
+         ce throttle et donnent une vraie donnée OHLCV, d'où leur promotion
+         devant CoinGecko.
     Retourne None si les 4 échouent (la paire est ignorée ce cycle, voir
     run_once, et compte comme un échec dans le suivi de panne totale).
     """
@@ -104,7 +114,27 @@ def fetch_recent_prices(pair: str, coin_id: str):
                 columns=["ts_ms", "high", "low", "price", "volume"],
             )
     except Exception:
-        logger.warning("Binance indisponible pour %s, repli sur CoinGecko.", pair, exc_info=True)
+        logger.warning("Binance indisponible pour %s, repli sur Coinbase Exchange.", pair, exc_info=True)
+
+    try:
+        candles = coinbase_client.get_klines(pair, limit=KLINES_LOOKBACK)
+        if candles:
+            return pd.DataFrame(
+                [(ts, high, low, close, vol) for ts, _open, high, low, close, vol in candles],
+                columns=["ts_ms", "high", "low", "price", "volume"],
+            )
+    except Exception:
+        logger.warning("Échec du repli Coinbase Exchange pour %s, tentative Kraken.", pair, exc_info=True)
+
+    try:
+        candles = kraken_client.get_klines(pair, limit=KLINES_LOOKBACK)
+        if candles:
+            return pd.DataFrame(
+                [(ts, high, low, close, vol) for ts, _open, high, low, close, vol in candles],
+                columns=["ts_ms", "high", "low", "price", "volume"],
+            )
+    except Exception:
+        logger.warning("Échec du repli Kraken pour %s, dernière tentative sur CoinGecko.", pair, exc_info=True)
 
     try:
         points = coingecko_client.get_intraday_history(coin_id, days=COINGECKO_FALLBACK_DAYS)
@@ -115,27 +145,7 @@ def fetch_recent_prices(pair: str, coin_id: str):
             df["volume"] = 0.0
             return df
     except Exception:
-        logger.warning("Échec du repli CoinGecko pour %s, tentative Coinbase Exchange.", pair, exc_info=True)
-
-    try:
-        candles = coinbase_client.get_klines(pair, limit=KLINES_LOOKBACK)
-        if candles:
-            return pd.DataFrame(
-                [(ts, high, low, close, vol) for ts, _open, high, low, close, vol in candles],
-                columns=["ts_ms", "high", "low", "price", "volume"],
-            )
-    except Exception:
-        logger.warning("Échec du repli Coinbase Exchange pour %s, dernière tentative sur Kraken.", pair, exc_info=True)
-
-    try:
-        candles = kraken_client.get_klines(pair, limit=KLINES_LOOKBACK)
-        if candles:
-            return pd.DataFrame(
-                [(ts, high, low, close, vol) for ts, _open, high, low, close, vol in candles],
-                columns=["ts_ms", "high", "low", "price", "volume"],
-            )
-    except Exception:
-        logger.exception("Échec du repli Kraken pour %s -- les 4 sources ont échoué ce cycle pour cette paire.", pair)
+        logger.exception("Échec du repli CoinGecko pour %s -- les 4 sources ont échoué ce cycle pour cette paire.", pair)
 
     return None
 

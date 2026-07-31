@@ -9,6 +9,7 @@ export interface MomentumAlertRecord {
   detail: string;
   created_at: string;
   sent_to_channel: boolean;
+  sent_at: string | null;
 }
 
 export async function getUnsentMomentumAlerts(db: SupabaseConfig, limit = 20): Promise<MomentumAlertRecord[]> {
@@ -20,7 +21,7 @@ export async function getUnsentMomentumAlerts(db: SupabaseConfig, limit = 20): P
 }
 
 export async function markMomentumAlertSent(db: SupabaseConfig, id: number): Promise<void> {
-  await updateRows(db, "momentum_alerts", { id: `eq.${id}` }, { sent_to_channel: true });
+  await updateRows(db, "momentum_alerts", { id: `eq.${id}` }, { sent_to_channel: true, sent_at: new Date().toISOString() });
 }
 
 /** Bloc 12.3 — récap hebdomadaire : alertes momentum envoyées depuis `sinceIso`. */
@@ -29,10 +30,17 @@ export async function getMomentumAlertsSince(db: SupabaseConfig, sinceIso: strin
 }
 
 /** Retour terrain (29/07) : plafond quotidien (pas seulement par cycle de cron) — voir dispatchMomentumAlerts.ts. */
+/**
+ * Correctif 30/07 : filtrait sur `created_at` (date de DÉTECTION), pas la
+ * date d'envoi réelle -- un stock d'anciennes alertes en retard (accumulé
+ * pendant un ralentissement du cron signals.yml) se drainait alors SANS
+ * jamais compter contre ce plafond, cycle de 5 min après cycle de 5 min,
+ * jusqu'à épuisement complet du stock (retour admin : "120 messages d'un
+ * coup"). `sent_at` (voir markMomentumAlertSent) compte par date d'ENVOI.
+ */
 export async function countMomentumAlertsSentSince(db: SupabaseConfig, sinceIso: string): Promise<number> {
   const rows = await selectRows<{ id: number }>(db, "momentum_alerts", {
-    sent_to_channel: "eq.true",
-    created_at: `gte.${sinceIso}`,
+    sent_at: `gte.${sinceIso}`,
     select: "id",
   });
   return rows.length;

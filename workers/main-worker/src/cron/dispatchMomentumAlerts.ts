@@ -25,14 +25,14 @@ function formatMomentumAlert(alert: MomentumAlertRecord): string {
   ].join("\n");
 }
 
-// Retour admin (29/07) : le canal public a déjà envoyé jusqu'à ~40 messages
-// d'un coup un jour de marché agité (beaucoup de faux départs RSI/EMA sur les
-// 28 paires génèrent autant d'alertes momentum le même cycle). Avec la limite
-// précédente (20) une seule diffusion pouvait déjà noyer le canal ; on la
-// réduit ici pour étaler tout retard sur plusieurs cycles de cron (5 min)
-// plutôt que de vider toute la pile d'un coup — aucune alerte n'est perdue,
-// juste diffusée plus progressivement.
-const MAX_ALERTS_PER_DISPATCH = 5;
+// Retour admin (29/07 puis 30/07, "120 messages d'un coup") : le vrai bug
+// n'était pas cette limite mais countMomentumAlertsSentSince (voir
+// db/momentumAlerts.ts) qui comptait par date de DÉTECTION au lieu de date
+// d'ENVOI -- un stock d'alertes en retard se drainait alors sans jamais
+// compter contre le plafond quotidien, cycle de 5 min après cycle de 5 min.
+// Corrigé (sent_at). Abaissée à 3 en plus (30/07) pour étaler davantage tout
+// pic ponctuel : aucune alerte n'est perdue, juste diffusée plus lentement.
+const MAX_ALERTS_PER_DISPATCH = 3;
 
 // Retour admin (29/07) : étaler sur plusieurs cycles de 5 min ne suffisait pas
 // -- avec 28 paires et le cron toutes les 5 min, la pile peut se reconstituer
