@@ -82,8 +82,12 @@ export async function activateTrialForWallet(env: Env, telegramId: number, walle
     return;
   }
 
-  await markTrialUsed(db, telegramId);
+  // Ordre important : activer l'abonnement AVANT de marquer trial_used. Si
+  // activateSubscription échoue (hoquet Supabase transitoire), trial_used
+  // reste false et /trial reste retentable au prochain essai plutôt que de
+  // bloquer définitivement un utilisateur qui n'a jamais rien reçu.
   await activateSubscription(db, telegramId, 0, addDays(new Date(), TRIAL_DURATION_DAYS));
+  await markTrialUsed(db, telegramId);
 
   await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, "🎉 Essai gratuit de 3 jours activé ! Tu vas recevoir les signaux automatiquement.");
 }
