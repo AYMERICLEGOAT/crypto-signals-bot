@@ -75,3 +75,32 @@ Twitter Developer Portal, aucun code ne peut corriger ça).
 donnée exit_surveys/referral_rewards exploitable — business toujours en
 phase pré-traction, rien de nouveau à tirer de l'optimisation de contenu
 (3.4) cette semaine.
+
+## 2026-07-31
+
+**Aucune nouvelle action d'acquisition ce run, pour la 3e fois consécutive**
+— cette fois la raison a changé : la fiabilité du système est validée
+aujourd'hui (signaux + momentum alerts corrigés et vérifiés en conditions
+réelles, voir `OPS_LOG.md`), donc ce n'est plus un canal peu fiable qui
+bloque. Le vrai blocage reste, inchangé depuis le 28/07 : `REDDIT_CLIENT_ID/
+SECRET/USERNAME/PASSWORD` toujours vides dans `traffic/.env` (seuls
+`REDDIT_USER_AGENT`/`REDDIT_SUBREDDITS` sont renseignés), et Twitter
+toujours cassé côté permissions OAuth1 app (Developer Portal) malgré des
+clés API présentes. Aucun des deux ne se corrige par du code — ce sont des
+actions manuelles côté admin. Discord (seule automatisation qui tourne
+réellement) n'a rien eu de nouveau à publier : aucun nouveau signal généré
+depuis le 26/07 tant que le correctif de vitesse n'était pas encore
+déployé, donc rien à publier qui ne soit déjà passé.
+
+Plutôt que de forcer une action de croissance artificielle sans canal
+fonctionnel, une question a été posée à l'admin (voir `admin_notes` /
+rapport Telegram du jour) : prioriser l'obtention des identifiants Reddit +
+la réparation Twitter cette semaine, ou mettre volontairement la croissance
+active en pause tant que la base (2 comptes, dont 1 de test) ne justifie
+pas cet effort.
+
+**Métriques observées** : 2 utilisateurs (1 payant plan Pro = compte admin,
+1 essai expiré le 29/07), + 1 compte de test créé aujourd'hui pendant une
+session de vérification admin (`111111111`, à ignorer). 0 paiement
+confirmé, 0 revenu (`daily_stats`). Rien de nouveau côté `posted_content`
+pour l'optimisation (3.4) — toujours trop tôt.
