@@ -16,7 +16,10 @@ export async function handleDeleteMyDataCommand(env: Env, telegramId: number, ra
       telegramId,
       "⚠️ *Suppression de tes données*\n\n" +
         "Action irréversible : ton parrainage, tes préférences et ton abonnement en cours seront effacés, et tu perdras immédiatement l'accès aux signaux.\n\n" +
-        "Ton adresse wallet est conservée uniquement pour la prévention des abus (elle n'est utilisée à aucune autre fin) — tout le reste de tes données personnelles est supprimé.\n\n" +
+        "Ce qui est conservé (jamais utilisé à d'autre fin) :\n" +
+        "• Ton adresse wallet — pour la prévention des abus (une offre par wallet)\n" +
+        "• Ton historique de paiement — obligation légale/comptable\n" +
+        "• Les actions admin te concernant, le cas échéant — traçabilité interne\n\n" +
         "Pour confirmer, envoie /delete\\_my\\_data confirm",
       { markdown: true }
     );

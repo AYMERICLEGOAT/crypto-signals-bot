@@ -11,11 +11,18 @@ accidentelle sans ce script.
     dépôt (public sur GitHub) par le workflow.
   - SENSITIVE_TABLES : contiennent des identifiants Telegram et/ou des
     adresses de paiement (users, pending_payments, litecoin_address_pool,
-    signal_deliveries, etc.). Écrites dans backups/private/, qui n'est
-    JAMAIS commité (voir .gitignore) — le workflow les envoie uniquement en
-    artefact GitHub Actions privé (accès restreint aux collaborateurs du
-    dépôt, expire automatiquement).
-  Committer les tables sensibles dans un dépôt public exposerait
+    signal_deliveries, etc.). Écrites dans backups/private/ (jamais commité,
+    voir .gitignore) PUIS uploadées vers un bucket Supabase Storage PRIVÉ
+    (voir _upload_private_backup) -- jamais en artefact GitHub Actions.
+  Correctif du 31/07 (audit sécurité) : ce dépôt GitHub est PUBLIC
+  (vérifié via `gh repo view --json isPrivate`). Un artefact GitHub Actions
+  d'un dépôt public est accessible à N'IMPORTE QUEL compte GitHub, pas
+  seulement aux "collaborateurs" comme le supposait la version précédente
+  de ce commentaire -- la sauvegarde "privée" était donc de facto publique.
+  Un bucket Supabase Storage avec `public=false` n'est lisible qu'avec la
+  clé secrète (jamais exposée, voir .gitignore), c'est la seule option
+  réellement privée dont ce projet dispose sans service tiers payant.
+  Committer les tables sensibles dans le dépôt public exposerait
   définitivement les wallets et identifiants de tous les abonnés dans
   l'historique git, y compris ceux ayant déjà demandé /delete_my_data —
   l'exact inverse de la promesse RGPD du projet. Ne jamais fusionner les
@@ -27,9 +34,12 @@ import logging
 import os
 from datetime import datetime, timezone
 
+import requests
 from supabase import create_client
 
 from config import SUPABASE_URL, SUPABASE_KEY
+
+PRIVATE_BACKUP_BUCKET = "private-backups"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -76,6 +86,9 @@ SENSITIVE_TABLES = [
     "payment_cache",
     "referral_rewards",
     "exit_surveys",
+    "user_prefs",
+    "reviews",
+    "admin_notes",
 ]
 
 
@@ -106,6 +119,50 @@ def _backup_tables(client, tables: list) -> tuple:
     return dump, errors
 
 
+def _ensure_private_bucket_exists() -> None:
+    """Crée le bucket Storage privé s'il n'existe pas déjà (idempotent -- un 400 "already exists" est ignoré)."""
+    headers = {"Authorization": f"Bearer {SUPABASE_KEY}", "apikey": SUPABASE_KEY, "Content-Type": "application/json"}
+    resp = requests.post(
+        f"{SUPABASE_URL}/storage/v1/bucket",
+        headers=headers,
+        json={"id": PRIVATE_BACKUP_BUCKET, "name": PRIVATE_BACKUP_BUCKET, "public": False},
+        timeout=15,
+    )
+    if resp.status_code not in (200, 201) and "already exists" not in resp.text.lower() and "duplicate" not in resp.text.lower():
+        raise RuntimeError(f"Échec de création du bucket privé {PRIVATE_BACKUP_BUCKET}: {resp.status_code} {resp.text}")
+
+
+def _upload_private_backup(local_path: str, remote_filename: str) -> None:
+    """
+    Envoie la sauvegarde privée (telegram_id/wallets/paiements) vers un
+    bucket Supabase Storage PRIVÉ (public=false) -- lisible uniquement avec
+    la clé secrète du projet, jamais exposée. Remplace l'ancien artefact
+    GitHub Actions (voir docstring en tête de fichier : un dépôt public rend
+    ses artefacts accessibles à tout compte GitHub, pas seulement aux
+    collaborateurs). Lève une exception si l'upload échoue -- une sauvegarde
+    "privée" qui échoue silencieusement à être mise en sécurité serait pire
+    que pas de sauvegarde du tout (fausse impression de protection).
+    """
+    _ensure_private_bucket_exists()
+    with open(local_path, "rb") as f:
+        data = f.read()
+    headers = {
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "apikey": SUPABASE_KEY,
+        "Content-Type": "application/json",
+        "x-upsert": "true",
+    }
+    resp = requests.post(
+        f"{SUPABASE_URL}/storage/v1/object/{PRIVATE_BACKUP_BUCKET}/{remote_filename}",
+        headers=headers,
+        data=data,
+        timeout=30,
+    )
+    if not resp.ok:
+        raise RuntimeError(f"Échec de l'upload de la sauvegarde privée vers Supabase Storage: {resp.status_code} {resp.text}")
+    logger.info("Sauvegarde privée envoyée vers le bucket Storage privé '%s' : %s", PRIVATE_BACKUP_BUCKET, remote_filename)
+
+
 def _write_backup(directory: str, label: str, dump: dict, errors: dict, timestamp: str) -> str:
     os.makedirs(directory, exist_ok=True)
     path = os.path.join(directory, f"backup_{label}_{timestamp}.json")
@@ -133,10 +190,19 @@ def main() -> int:
     public_path = _write_backup(PUBLIC_DIR, "public", public_dump, public_errors, timestamp)
     private_path = _write_backup(PRIVATE_DIR, "private", sensitive_dump, sensitive_errors, timestamp)
     logger.info("Sauvegarde publique: %s", public_path)
-    logger.info("Sauvegarde privée (jamais commitée, voir .gitignore): %s", private_path)
+    logger.info("Sauvegarde privée (locale, jamais commitée, voir .gitignore): %s", private_path)
+
+    upload_failed = False
+    try:
+        _upload_private_backup(private_path, os.path.basename(private_path))
+    except Exception:
+        logger.exception("Échec de la mise en sécurité de la sauvegarde privée (bucket Storage) -- traité comme un échec du backup.")
+        upload_failed = True
 
     total_tables = len(PUBLIC_TABLES) + len(SENSITIVE_TABLES)
     total_errors = len(public_errors) + len(sensitive_errors)
+    if upload_failed:
+        return 1
     if total_errors == total_tables:
         logger.error("Échec de la sauvegarde de TOUTES les tables (%d/%d) -- Supabase probablement indisponible.", total_errors, total_tables)
         return 1

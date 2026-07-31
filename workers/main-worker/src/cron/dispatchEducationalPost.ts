@@ -1,8 +1,6 @@
 import { Env, dbConfig } from "../env";
 import { sendMessage } from "../telegram";
 import { getNextEducationalPost, markEducationalPostSent, hasSentEducationalPostToday } from "../db/educationalPosts";
-import { getActiveUsers } from "../db/users";
-import { filterByPref } from "../db/userPrefs";
 
 // Retour admin (30/07, post reçu à 22h) : sans fenêtre horaire, le seul gate
 // "déjà envoyé aujourd'hui" laisse le post partir sur le premier cycle utile
@@ -24,8 +22,10 @@ function isWithinDispatchWindow(): boolean {
  * 5 minutes (voir index.ts) : le gate "déjà envoyé aujourd'hui" empêche les
  * envois multiples sans avoir besoin d'un cron dédié une fois par jour.
  *
- * Bloc 19 : en plus du canal, envoyé aussi en DM aux abonnés actifs n'ayant
- * pas désactivé "Posts éducatifs" dans /prefs (activé par défaut).
+ * Channel-only depuis le 30/07 (retour admin "il y a toujours du spam") :
+ * plus de DM, voir dispatchMomentumAlerts.ts pour le même changement. CTA
+ * ajouté (audit du 31/07) : ce flux n'en avait aucun, contrairement aux
+ * alertes momentum -- occasion de conversion perdue à chaque post.
  */
 export async function dispatchEducationalPost(env: Env): Promise<void> {
   if (!env.TELEGRAM_CHANNEL_ID) return;
@@ -37,14 +37,7 @@ export async function dispatchEducationalPost(env: Env): Promise<void> {
   const post = await getNextEducationalPost(db);
   if (!post) return;
 
-  await sendMessage(env.TELEGRAM_BOT_TOKEN, Number(env.TELEGRAM_CHANNEL_ID), post.content);
+  const cta = env.TELEGRAM_BOT_USERNAME ? `\n\n📡 Signaux réels + suivi complet : @${env.TELEGRAM_BOT_USERNAME}` : "";
+  await sendMessage(env.TELEGRAM_BOT_TOKEN, Number(env.TELEGRAM_CHANNEL_ID), post.content + cta);
   await markEducationalPostSent(db, post.id);
-
-  const activeUsers = await getActiveUsers(db);
-  const recipientIds = await filterByPref(db, activeUsers.map((u) => u.telegram_id), "educational_posts");
-  await Promise.all(
-    recipientIds.map((id) => sendMessage(env.TELEGRAM_BOT_TOKEN, id, post.content).catch((err) =>
-      console.error(`[educational-post] Échec DM à ${id}:`, err)
-    ))
-  );
 }

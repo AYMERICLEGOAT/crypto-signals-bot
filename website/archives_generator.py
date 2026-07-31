@@ -99,7 +99,7 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
     canonical_url = f"{SITE_BASE_URL}/"
     title = f"{SITE_NAME} — Analyses techniques automatisées sur Telegram"
     description = (
-        "Signaux crypto générés automatiquement (croisement EMA9/21 + RSI) sur 28 paires, "
+        "Signaux crypto générés automatiquement (croisement EMA9/21 + RSI) sur 40 paires, "
         "diffusés sur Telegram. Essai gratuit, sans engagement."
     )
 
@@ -146,7 +146,7 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
 <body>
   <span class="status">🟢 Bot en ligne</span>
   <h1>Signaux Crypto Gratuits</h1>
-  <p class="subtitle">Analyses techniques automatisées (EMA, RSI, Bandes de Bollinger) sur 28 paires, diffusées sur Telegram.</p>
+  <p class="subtitle">Analyses techniques automatisées (EMA, RSI, Bandes de Bollinger) sur 40 paires, diffusées sur Telegram.</p>
 
   {stats_html}
 

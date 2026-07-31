@@ -69,36 +69,55 @@ export default {
     return new Response("not found", { status: 404 });
   },
 
-  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(
-      (async () => {
-        await dispatchSignals(env).catch((err) => console.error("[cron] Erreur dispatchSignals:", err));
-        await dispatchStandardTier(env).catch((err) => console.error("[cron] Erreur dispatchStandardTier:", err));
-        await dispatchPublicChannel(env).catch((err) => console.error("[cron] Erreur dispatchPublicChannel:", err));
-        await dispatchMomentumAlerts(env).catch((err) => console.error("[cron] Erreur dispatchMomentumAlerts:", err));
-        await dispatchVolatilitySuspensions(env).catch((err) => console.error("[cron] Erreur dispatchVolatilitySuspensions:", err));
-        await dispatchCryptoFact(env).catch((err) => console.error("[cron] Erreur dispatchCryptoFact:", err));
-        await dispatchFearGreed(env).catch((err) => console.error("[cron] Erreur dispatchFearGreed:", err));
-        await dispatchWeeklyRecap(env).catch((err) => console.error("[cron] Erreur dispatchWeeklyRecap:", err));
-        await trackSignalOutcomes(env).catch((err) => console.error("[cron] Erreur trackSignalOutcomes:", err));
-        await announceSignalPause(env).catch((err) => console.error("[cron] Erreur announceSignalPause:", err));
-        await dispatchEducationalPost(env).catch((err) => console.error("[cron] Erreur dispatchEducationalPost:", err));
-        await dispatchNoSignalStatus(env).catch((err) => console.error("[cron] Erreur dispatchNoSignalStatus:", err));
-        await runLuckyVipDay(env).catch((err) => console.error("[cron] Erreur luckyVipDay:", err));
-        await revertLuckyVip(env).catch((err) => console.error("[cron] Erreur revertLuckyVip:", err));
-        await postLeaderboard(env).catch((err) => console.error("[cron] Erreur postLeaderboard:", err));
-        await checkExpirationReminders(env).catch((err) => console.error("[cron] Erreur checkExpirationReminders:", err));
-        await sendReengagementOffers(env).catch((err) => console.error("[cron] Erreur sendReengagementOffers:", err));
-        await sendSatisfactionSurveys(env).catch((err) => console.error("[cron] Erreur sendSatisfactionSurveys:", err));
-        await sendWelcomeFollowUps(env).catch((err) => console.error("[cron] Erreur sendWelcomeFollowUps:", err));
-        await pollPayments(env).catch((err) => console.error("[cron] Erreur pollPayments:", err));
-        await runDailyMaintenance(env).catch((err) => console.error("[cron] Erreur runDailyMaintenance:", err));
-        await monitorSignalsHeartbeat(env).catch((err) => console.error("[cron] Erreur monitorSignalsHeartbeat:", err));
-        await checkSignalFreshness(env).catch((err) => console.error("[cron] Erreur checkSignalFreshness:", err));
-        await ensureChannelPinned(env).catch((err) => console.error("[cron] Erreur ensureChannelPinned:", err));
-        await postChannelReminder(env).catch((err) => console.error("[cron] Erreur postChannelReminder:", err));
-        await rotateVipInviteLinkIfDue(env).catch((err) => console.error("[cron] Erreur rotateVipInviteLinkIfDue:", err));
-      })()
-    );
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    // Deux déclencheurs cron distincts (audit du 31/07, voir wrangler.toml) :
+    // les ~27 tâches tournant toutes les 5 min dans UNE seule invocation
+    // dépassaient la limite de sous-requêtes Cloudflare par invocation --
+    // les dernières tâches de la chaîne échouaient silencieusement à chaque
+    // cycle. Scindé par fréquence réelle de besoin : signaux/paiements/suivi
+    // restent sur */5 (réactivité), contenu quotidien/hebdo et tâches
+    // d'administration passent sur */15 (déjà protégées par leurs propres
+    // gates "déjà envoyé aujourd'hui/cette semaine", un délai de quelques
+    // minutes ne change rien pour l'utilisateur).
+    if (event.cron === "*/5 * * * *") {
+      ctx.waitUntil(
+        (async () => {
+          await dispatchSignals(env).catch((err) => console.error("[cron] Erreur dispatchSignals:", err));
+          await dispatchStandardTier(env).catch((err) => console.error("[cron] Erreur dispatchStandardTier:", err));
+          await dispatchPublicChannel(env).catch((err) => console.error("[cron] Erreur dispatchPublicChannel:", err));
+          await dispatchMomentumAlerts(env).catch((err) => console.error("[cron] Erreur dispatchMomentumAlerts:", err));
+          await dispatchVolatilitySuspensions(env).catch((err) => console.error("[cron] Erreur dispatchVolatilitySuspensions:", err));
+          await trackSignalOutcomes(env).catch((err) => console.error("[cron] Erreur trackSignalOutcomes:", err));
+          await announceSignalPause(env).catch((err) => console.error("[cron] Erreur announceSignalPause:", err));
+          await pollPayments(env).catch((err) => console.error("[cron] Erreur pollPayments:", err));
+          await monitorSignalsHeartbeat(env).catch((err) => console.error("[cron] Erreur monitorSignalsHeartbeat:", err));
+          await checkSignalFreshness(env).catch((err) => console.error("[cron] Erreur checkSignalFreshness:", err));
+        })()
+      );
+      return;
+    }
+
+    if (event.cron === "*/15 * * * *") {
+      ctx.waitUntil(
+        (async () => {
+          await dispatchCryptoFact(env).catch((err) => console.error("[cron] Erreur dispatchCryptoFact:", err));
+          await dispatchFearGreed(env).catch((err) => console.error("[cron] Erreur dispatchFearGreed:", err));
+          await dispatchWeeklyRecap(env).catch((err) => console.error("[cron] Erreur dispatchWeeklyRecap:", err));
+          await dispatchEducationalPost(env).catch((err) => console.error("[cron] Erreur dispatchEducationalPost:", err));
+          await dispatchNoSignalStatus(env).catch((err) => console.error("[cron] Erreur dispatchNoSignalStatus:", err));
+          await runLuckyVipDay(env).catch((err) => console.error("[cron] Erreur luckyVipDay:", err));
+          await revertLuckyVip(env).catch((err) => console.error("[cron] Erreur revertLuckyVip:", err));
+          await postLeaderboard(env).catch((err) => console.error("[cron] Erreur postLeaderboard:", err));
+          await checkExpirationReminders(env).catch((err) => console.error("[cron] Erreur checkExpirationReminders:", err));
+          await sendReengagementOffers(env).catch((err) => console.error("[cron] Erreur sendReengagementOffers:", err));
+          await sendSatisfactionSurveys(env).catch((err) => console.error("[cron] Erreur sendSatisfactionSurveys:", err));
+          await sendWelcomeFollowUps(env).catch((err) => console.error("[cron] Erreur sendWelcomeFollowUps:", err));
+          await runDailyMaintenance(env).catch((err) => console.error("[cron] Erreur runDailyMaintenance:", err));
+          await ensureChannelPinned(env).catch((err) => console.error("[cron] Erreur ensureChannelPinned:", err));
+          await postChannelReminder(env).catch((err) => console.error("[cron] Erreur postChannelReminder:", err));
+          await rotateVipInviteLinkIfDue(env).catch((err) => console.error("[cron] Erreur rotateVipInviteLinkIfDue:", err));
+        })()
+      );
+    }
   },
 };

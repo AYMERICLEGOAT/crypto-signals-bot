@@ -26,20 +26,8 @@ export async function setUserPref(db: SupabaseConfig, telegramId: number, key: k
 }
 
 /**
- * Sous-ensemble de `telegramIds` n'ayant PAS désactivé `key` (par défaut :
- * tout le monde, tant qu'aucune ligne user_prefs n'existe pour eux).
- */
-export async function filterByPref(db: SupabaseConfig, telegramIds: number[], key: keyof typeof DEFAULT_PREFS): Promise<number[]> {
-  if (telegramIds.length === 0) return [];
-  const rows = await selectRows<UserPrefsRow>(db, "user_prefs", { telegram_id: `in.(${telegramIds.join(",")})` });
-  const disabled = new Set(rows.filter((r) => r[key] === false).map((r) => r.telegram_id));
-  return telegramIds.filter((id) => !disabled.has(id));
-}
-
-/**
  * Sous-ensemble de `telegramIds` ayant ACTIVÉ `key` (opt-in : par défaut
- * personne, tant qu'aucune ligne user_prefs n'existe pour eux — contrairement
- * à `filterByPref` qui suppose l'inverse pour les préférences opt-out).
+ * personne, tant qu'aucune ligne user_prefs n'existe pour eux).
  */
 export async function filterByPrefEnabled(db: SupabaseConfig, telegramIds: number[], key: keyof typeof DEFAULT_PREFS): Promise<number[]> {
   if (telegramIds.length === 0) return [];

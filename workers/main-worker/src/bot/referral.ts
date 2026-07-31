@@ -7,7 +7,7 @@
  */
 
 import { Env, dbConfig } from "../env";
-import { getUserIfExists, setReferredBy, markReferralRewarded, activateSubscription } from "../db/users";
+import { getUserIfExists, setReferredBy, claimReferralReward, activateSubscription } from "../db/users";
 import { recordReferralReward } from "../db/referralRewards";
 import { updateRows } from "../supabaseRest";
 import { sendMessage } from "../telegram";
@@ -104,9 +104,15 @@ export async function maybeRewardReferral(env: Env, referredTelegramId: number):
   // self-referral payé exclusivement en Monero reste indétectable ici.
   if (user.wallet_address && referrer.wallet_address && user.wallet_address === referrer.wallet_address) {
     console.warn(`[referral] Parrainage ignoré (même wallet des deux côtés) : parrain ${referrer.telegram_id}, filleul ${referredTelegramId}.`);
-    await markReferralRewarded(db, referredTelegramId);
+    await claimReferralReward(db, referredTelegramId);
     return;
   }
+
+  // Réclame ATOMIQUEMENT avant de créditer quoi que ce soit (voir
+  // db/users.ts::claimReferralReward) : si une invocation concurrente a déjà
+  // gagné la réclamation pour ce filleul entre-temps, on s'abstient plutôt
+  // que de créditer le parrain une deuxième fois.
+  if (!(await claimReferralReward(db, referredTelegramId))) return;
 
   const newPaidReferralCount = (referrer.paid_referral_count ?? 0) + 1;
   const hitMilestone = newPaidReferralCount % MILESTONE_REFERRALS === 0;
@@ -125,7 +131,7 @@ export async function maybeRewardReferral(env: Env, referredTelegramId: number):
 
   await activateSubscription(db, referrer.telegram_id, referrer.plan ?? 1, newExpiration);
   await updateRows(db, "users", { telegram_id: `eq.${referrer.telegram_id}` }, { paid_referral_count: newPaidReferralCount });
-  await markReferralRewarded(db, referredTelegramId);
+  // referral_rewarded déjà mis à true par la réclamation atomique ci-dessus.
 
   // BLOC 22 : commission virtuelle sur le plan que le filleul vient de payer
   // (déjà activé sur `user` par l'appelant avant maybeRewardReferral -- voir

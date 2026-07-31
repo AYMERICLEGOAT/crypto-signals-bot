@@ -2,7 +2,7 @@ name: Signaux crypto (horaire)
 
 on:
   schedule:
-    - cron: "0 * * * *"
+    - cron: "5 * * * *"
   workflow_dispatch: {}
 
 # Race condition trouvée dans l'audit du 29/07 : ce workflow n'avait aucune

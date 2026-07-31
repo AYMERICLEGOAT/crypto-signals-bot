@@ -39,6 +39,8 @@ export async function handleDemoCommand(env: Env, telegramId: number): Promise<v
   const entry = Number(trade.entry_price);
   const stopLoss = trade.side === "BUY" ? entry * (1 - slPct) : entry * (1 + slPct);
   const takeProfit = trade.side === "BUY" ? entry * (1 + tpPct) : entry * (1 - tpPct);
+  const tp1 = trade.side === "BUY" ? entry * (1 + tpPct * 0.5) : entry * (1 - tpPct * 0.5);
+  const tp3 = trade.side === "BUY" ? entry * (1 + tpPct * 1.5) : entry * (1 - tpPct * 1.5);
 
   const outcomeNote =
     trade.outcome === "WIN"
@@ -53,6 +55,9 @@ export async function handleDemoCommand(env: Env, telegramId: number): Promise<v
     entry_price: entry,
     stop_loss: stopLoss,
     take_profit: takeProfit,
+    tp1_price: tp1,
+    tp2_price: takeProfit,
+    tp3_price: tp3,
     created_at: trade.entered_at,
   });
 

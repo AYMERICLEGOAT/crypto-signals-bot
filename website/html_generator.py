@@ -70,7 +70,7 @@ _STRINGS = {
             f"Échantillon encore trop petit pour être significatif ({trades} trades sur 24 mois) "
             f"— taux de réussite non affiché tant que le seuil de {min_trades} trades n'est pas atteint."
         ),
-        "backtest_detail": "Simulé sur 28 paires, données horaires réelles Binance des 24 derniers mois.",
+        "backtest_detail": "Simulé sur 40 paires, données horaires réelles Binance des 24 derniers mois.",
         "backtest_note": "⚠️ Résultat d'une optimisation \"in-sample\" (sur les données ayant servi à choisir "
         "les paramètres) : une performance passée ne garantit pas un résultat identique en conditions réelles. "
         "Ce backtest est mis à jour automatiquement à chaque nouvelle exécution.",

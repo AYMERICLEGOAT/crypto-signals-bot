@@ -3,10 +3,19 @@ main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
-# Cron Trigger : toutes les 5 minutes -> diffusion des signaux + rattrapage
-# des paiements USDT/Monero/Litecoin (voir src/index.ts, scheduled()).
+# Deux Cron Triggers (audit du 31/07) : les ~27 tâches tournaient toutes les
+# 5 min dans UNE seule invocation, ce qui a fini par dépasser la limite de
+# sous-requêtes Cloudflare par invocation -- les dernières tâches de la
+# chaîne (ensureChannelPinned, postChannelReminder, checkSignalFreshness,
+# rotateVipInviteLinkIfDue) échouaient silencieusement à chaque cycle.
+# Scindé par fréquence réelle de besoin plutôt que par un simple découpage
+# arbitraire (voir src/index.ts, scheduled()) :
+#   */5  -> signaux, paiements, suivi -- tout ce qui doit rester réactif.
+#   */15 -> contenu quotidien/hebdo et tâches d'administration, déjà protégées
+#           par leurs propres gates ("déjà envoyé aujourd'hui/cette semaine") :
+#           un délai de quelques minutes ne change rien pour l'utilisateur.
 [triggers]
-crons = ["*/5 * * * *"]
+crons = ["*/5 * * * *", "*/15 * * * *"]
 
 # Variables non sensibles (visibles dans ce fichier, donc jamais de secrets ici).
 # Les vraies clés/tokens sont fournis via `wrangler secret put` (voir README).

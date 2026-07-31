@@ -39,12 +39,14 @@ describe("maybeRewardReferral — palier des 3 filleuls payants", () => {
         const isGet = !init || init.method === undefined;
         if (url.includes("telegram_id=eq.10") && isGet) return jsonResponse([referred]);
         if (url.includes("telegram_id=eq.1") && isGet) return jsonResponse([referrer]);
+        // ATTENTION ordre : "telegram_id=eq.1".includes-match sur "telegram_id=eq.10" aussi (sous-chaîne) --
+        // le check de réclamation (marqueur unique referral_rewarded=eq.false) doit passer en premier.
+        if (url.includes("referral_rewarded=eq.false") && init?.method === "PATCH") return jsonResponse([{ telegram_id: 10, referral_rewarded: true }]);
         if (url.includes("telegram_id=eq.1") && init?.method === "PATCH") {
           const body = JSON.parse(init.body as string);
           if ("paid_referral_count" in body) newCount = body.paid_referral_count;
           return jsonResponse([]);
         }
-        if (url.includes("telegram_id=eq.10") && init?.method === "PATCH") return jsonResponse([]);
         if (url.includes("referral_rewards") && init?.method === "POST") return jsonResponse([]);
         if (url.includes("api.telegram.org")) {
           sentText = JSON.parse(init!.body as string).text;
@@ -74,12 +76,12 @@ describe("maybeRewardReferral — palier des 3 filleuls payants", () => {
         const isGet = !init || init.method === undefined;
         if (url.includes("telegram_id=eq.20") && isGet) return jsonResponse([referred]);
         if (url.includes("telegram_id=eq.2") && isGet) return jsonResponse([referrer]);
+        if (url.includes("referral_rewarded=eq.false") && init?.method === "PATCH") return jsonResponse([{ telegram_id: 20, referral_rewarded: true }]);
         if (url.includes("telegram_id=eq.2") && init?.method === "PATCH") {
           const body = JSON.parse(init.body as string);
           if ("paid_referral_count" in body) newCount = body.paid_referral_count;
           return jsonResponse([]);
         }
-        if (url.includes("telegram_id=eq.20") && init?.method === "PATCH") return jsonResponse([]);
         if (url.includes("referral_rewards") && init?.method === "POST") return jsonResponse([]);
         if (url.includes("api.telegram.org")) {
           sentText = JSON.parse(init!.body as string).text;
@@ -120,11 +122,11 @@ describe("maybeRewardReferral — palier des 3 filleuls payants", () => {
         const isGet = !init || init.method === undefined;
         if (url.includes("telegram_id=eq.70") && isGet) return jsonResponse([referred]);
         if (url.includes("telegram_id=eq.7") && isGet) return jsonResponse([referrer]);
+        if (url.includes("referral_rewarded=eq.false") && init?.method === "PATCH") return jsonResponse([{ telegram_id: 70, referral_rewarded: true }]);
         if (url.includes("telegram_id=eq.7") && init?.method === "PATCH") {
           activated = true;
           return jsonResponse([]);
         }
-        if (url.includes("telegram_id=eq.70") && init?.method === "PATCH") return jsonResponse([]);
         if (url.includes("referral_rewards") && init?.method === "POST") {
           return new Response("relation \"referral_rewards\" does not exist", { status: 404 });
         }
@@ -159,8 +161,8 @@ describe("maybeRewardReferral — bonus Joker (Bloc 6)", () => {
         const isGet = !init || init.method === undefined;
         if (url.includes("telegram_id=eq.40") && isGet) return jsonResponse([referred]);
         if (url.includes("telegram_id=eq.4") && isGet) return jsonResponse([referrer]);
+        if (url.includes("referral_rewarded=eq.false") && init?.method === "PATCH") return jsonResponse([{ telegram_id: 40, referral_rewarded: true }]);
         if (url.includes("telegram_id=eq.4") && init?.method === "PATCH") return jsonResponse([]);
-        if (url.includes("telegram_id=eq.40") && init?.method === "PATCH") return jsonResponse([]);
         if (url.includes("referral_rewards") && init?.method === "POST") {
           recordedReward = JSON.parse(init.body as string);
           return jsonResponse([]);
@@ -195,8 +197,8 @@ describe("maybeRewardReferral — bonus Joker (Bloc 6)", () => {
         const isGet = !init || init.method === undefined;
         if (url.includes("telegram_id=eq.50") && isGet) return jsonResponse([referred]);
         if (url.includes("telegram_id=eq.5") && isGet) return jsonResponse([referrer]);
+        if (url.includes("referral_rewarded=eq.false") && init?.method === "PATCH") return jsonResponse([{ telegram_id: 50, referral_rewarded: true }]);
         if (url.includes("telegram_id=eq.5") && init?.method === "PATCH") return jsonResponse([]);
-        if (url.includes("telegram_id=eq.50") && init?.method === "PATCH") return jsonResponse([]);
         if (url.includes("referral_rewards") && init?.method === "POST") {
           recordedReward = JSON.parse(init.body as string);
           return jsonResponse([]);
@@ -229,8 +231,8 @@ describe("maybeRewardReferral — bonus Joker (Bloc 6)", () => {
         const isGet = !init || init.method === undefined;
         if (url.includes("telegram_id=eq.60") && isGet) return jsonResponse([referred]);
         if (url.includes("telegram_id=eq.6") && isGet) return jsonResponse([referrer]);
+        if (url.includes("referral_rewarded=eq.false") && init?.method === "PATCH") return jsonResponse([{ telegram_id: 60, referral_rewarded: true }]);
         if (url.includes("telegram_id=eq.6") && init?.method === "PATCH") return jsonResponse([]);
-        if (url.includes("telegram_id=eq.60") && init?.method === "PATCH") return jsonResponse([]);
         if (url.includes("referral_rewards") && init?.method === "POST") {
           recordedReward = JSON.parse(init.body as string);
           return jsonResponse([]);
@@ -300,8 +302,8 @@ describe("maybeRewardReferral — anti-abus même wallet (Bloc 10)", () => {
         const isGet = !init || init.method === undefined;
         if (url.includes("telegram_id=eq.90") && isGet) return jsonResponse([referred]);
         if (url.includes("telegram_id=eq.9") && isGet) return jsonResponse([referrer]);
+        if (url.includes("referral_rewarded=eq.false") && init?.method === "PATCH") return jsonResponse([{ telegram_id: 90, referral_rewarded: true }]);
         if (url.includes("telegram_id=eq.9") && init?.method === "PATCH") return jsonResponse([]);
-        if (url.includes("telegram_id=eq.90") && init?.method === "PATCH") return jsonResponse([]);
         if (url.includes("referral_rewards") && init?.method === "POST") return jsonResponse([]);
         if (url.includes("api.telegram.org")) {
           notified = true;

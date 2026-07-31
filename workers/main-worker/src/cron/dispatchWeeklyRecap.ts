@@ -12,8 +12,6 @@ import { hasPostedWeeklyRecapRecently, recordWeeklyRecapPost } from "../db/weekl
 import { getSignalsCreatedSince, getSignalsResolvedSince } from "../db/signals";
 import { getMomentumAlertsSince } from "../db/momentumAlerts";
 import { computePnlPct } from "../signalMath";
-import { getActiveUsers } from "../db/users";
-import { filterByPref } from "../db/userPrefs";
 
 const RECAP_WEEKDAY_UTC = 0; // dimanche
 const RECAP_HOUR_UTC = 18;
@@ -61,8 +59,8 @@ export async function dispatchWeeklyRecap(env: Env): Promise<void> {
 
   // Bloc 19 : en plus du canal, envoye aussi en DM aux abonnes actifs n'ayant
   // pas desactive "Recap hebdomadaire" dans /prefs (active par defaut).
-  const activeUsers = await getActiveUsers(db);
-  const recipientIds = await filterByPref(db, activeUsers.map((u) => u.telegram_id), "weekly_recap");
+  // Le récapitulatif est publié sur le canal, sans notification privée.
+  const recipientIds: number[] = [];
   await Promise.all(
     recipientIds.map((id) => sendMessage(env.TELEGRAM_BOT_TOKEN, id, text, { markdown: true }).catch((err) =>
       console.error(`[weekly-recap] Échec DM à ${id}:`, err)

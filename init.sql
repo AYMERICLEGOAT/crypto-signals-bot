@@ -821,6 +821,46 @@ create index if not exists idx_admin_notes_unread on admin_notes (created_at asc
 
 alter table promo_codes add column if not exists expires_at timestamptz;
 
+-- ----------------------------------------------------------------------------
+-- 43. Limiteur de commandes atomique : une lecture suivie d'un upsert côté
+-- Worker laissait passer deux requêtes Telegram concurrentes. Toute la
+-- décision est maintenant prise dans une seule transaction PostgreSQL.
+-- (Numérotée 43 : collision évitée avec la section 39 "source hybride" déjà
+-- existante plus bas dans ce fichier au moment où celle-ci a été écrite.)
+-- ----------------------------------------------------------------------------
+
+create or replace function consume_command_rate_limit(
+  p_telegram_id bigint,
+  p_window_ms integer,
+  p_max_commands integer
+)
+returns table(allowed boolean)
+language plpgsql
+as $$
+declare
+  now_utc timestamptz := now();
+  current_count integer;
+  current_start timestamptz;
+begin
+  select count, window_start into current_count, current_start
+  from command_rate_limit where telegram_id = p_telegram_id for update;
+
+  if not found or current_start <= now_utc - make_interval(secs => p_window_ms / 1000.0) then
+    insert into command_rate_limit (telegram_id, window_start, count)
+    values (p_telegram_id, now_utc, 1)
+    on conflict (telegram_id) do update set window_start = excluded.window_start, count = excluded.count;
+    return query select true;
+  end if;
+
+  if current_count >= p_max_commands then
+    return query select false;
+  end if;
+
+  update command_rate_limit set count = count + 1 where telegram_id = p_telegram_id;
+  return query select true;
+end;
+$$;
+
 
 -- ----------------------------------------------------------------------------
 -- 38. increment_offer_slot — corrige une race sur offer_counter.slots_used
@@ -900,3 +940,25 @@ alter table system_heartbeats add column if not exists no_signal_alerted boolean
 -- ----------------------------------------------------------------------------
 
 alter table momentum_alerts add column if not exists sent_at timestamptz;
+
+
+-- ----------------------------------------------------------------------------
+-- 44. Dette de schéma strategy_params (audit du 31/07) -- aucun bug actif
+-- (signals/params_store.py fournit toujours une valeur pour ces colonnes,
+-- workers/main-worker ne fait que les lire), mais le type de `id` et les
+-- contraintes NOT NULL en base ne correspondaient plus à ce que ce fichier
+-- documente depuis longtemps. Alignement, pas correctif urgent.
+-- ----------------------------------------------------------------------------
+
+alter table strategy_params alter column id type bigint;
+alter table strategy_params alter column ema_fast set not null;
+alter table strategy_params alter column ema_slow set not null;
+alter table strategy_params alter column rsi_period set not null;
+alter table strategy_params alter column rsi_oversold set not null;
+alter table strategy_params alter column rsi_overbought set not null;
+alter table strategy_params alter column tp_pct set not null;
+alter table strategy_params alter column sl_pct set not null;
+alter table strategy_params alter column win_rate set not null;
+alter table strategy_params alter column trade_count set not null;
+alter table strategy_params alter column last_tested set not null;
+alter table strategy_params alter column is_active set not null;

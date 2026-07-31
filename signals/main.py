@@ -53,6 +53,14 @@ KLINES_LOOKBACK = 250
 COINGECKO_FALLBACK_DAYS = 6  # granularité horaire chez CoinGecko sur cette fenêtre, ~144 points
 
 
+def only_closed_candles(df: pd.DataFrame, interval_ms: int) -> pd.DataFrame:
+    """Exclut la bougie ouverte : un croisement provisoire n'est jamais un signal."""
+    if df.empty:
+        return df
+    now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    return df[df["ts_ms"] + interval_ms <= now_ms].reset_index(drop=True)
+
+
 def load_active_params() -> dict:
     """Charge les paramètres actifs depuis Supabase, ou les valeurs par défaut de config.py."""
     row = params_store.load_active_params()
@@ -268,6 +276,8 @@ def run_once(params: dict) -> tuple[int, int]:
 
     for pair, coin_id in config.PAIRS.items():
         df = fetch_recent_prices(pair, coin_id)
+        if df is not None:
+            df = only_closed_candles(df, 60 * 60 * 1000)
         if df is None or len(df) < config.MIN_HISTORY_POINTS:
             logger.warning("Historique insuffisant pour %s, ignoré ce cycle.", pair)
             continue
@@ -321,6 +331,8 @@ def run_once(params: dict) -> tuple[int, int]:
     if config.ENABLE_SQUEEZE_ENGINE:
         for pair in config.PAIRS:
             df15 = fetch_recent_prices_15m(pair)
+            if df15 is not None:
+                df15 = only_closed_candles(df15, 15 * 60 * 1000)
             min_points = config.SQUEEZE_LOOKBACK + config.SQUEEZE_BB_PERIOD
             if df15 is None or len(df15) < min_points:
                 continue

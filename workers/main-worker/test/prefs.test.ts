@@ -34,7 +34,7 @@ describe("handlePrefsCommand", () => {
 describe("handlePrefsToggle", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("désactive une préférence et le confirme", async () => {
+  it("désactive le trailing stop et le confirme", async () => {
     let upserted: any;
     let confirmText = "";
     vi.stubGlobal(
@@ -53,9 +53,17 @@ describe("handlePrefsToggle", () => {
       })
     );
 
-    await handlePrefsToggle(env, 111, "prefs:momentum_alerts:off");
-    expect(upserted.momentum_alerts).toBe(false);
+    await handlePrefsToggle(env, 111, "prefs:trailing_stop:off");
+    expect(upserted.trailing_stop).toBe(false);
     expect(confirmText).toContain("désactivé");
+  });
+
+  it("ignore silencieusement une clé qui n'est plus proposée (Alertes Momentum/éducatif/récap sont channel-only désormais)", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await handlePrefsToggle(env, 111, "prefs:momentum_alerts:off");
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("active le trailing stop pour un utilisateur qui l'avait désactivé", async () => {
@@ -83,10 +91,10 @@ describe("handlePrefsToggle", () => {
   });
 });
 
-describe("dispatchMomentumAlerts respecte les préférences (Bloc 19)", () => {
+describe("dispatchMomentumAlerts est channel-only (plus de DM, voir retour admin spam 30/07)", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("n'envoie pas de DM à un abonné ayant désactivé les alertes momentum", async () => {
+  it("ne consulte jamais /users ni user_prefs -- les alertes restent sur le canal, jamais en DM", async () => {
     const dmRecipients: number[] = [];
     const envWithChannel = { ...env, TELEGRAM_CHANNEL_ID: "-100123" };
 
@@ -99,23 +107,17 @@ describe("dispatchMomentumAlerts respecte les préférences (Bloc 19)", () => {
         if (url.includes("momentum_alerts") && url.includes("sent_to_channel=eq.false") && (!init || init.method === undefined)) {
           return jsonResponse([{ id: 1, pair: "BTC/USDT", kind: "atr_spike", detail: "Volatilité en hausse", created_at: "2026-01-01T00:00:00Z", sent_to_channel: false }]);
         }
-        if (url.includes("/users") && url.includes("expiration=gt.")) {
-          return jsonResponse([{ telegram_id: 111, plan: 2, expiration: "2099-01-01T00:00:00Z" }, { telegram_id: 222, plan: 2, expiration: "2099-01-01T00:00:00Z" }]);
-        }
-        if (url.includes("user_prefs") && url.includes("telegram_id=in.")) {
-          return jsonResponse([{ telegram_id: 111, momentum_alerts: false, educational_posts: true, weekly_recap: true }]);
-        }
         if (url.includes("momentum_alerts") && init?.method === "PATCH") return jsonResponse([]);
         if (url.includes("api.telegram.org")) {
           const chatId = JSON.parse(init!.body as string).chat_id;
           if (chatId !== -100123) dmRecipients.push(chatId);
           return jsonResponse({ ok: true, result: {} });
         }
-        throw new Error(`URL inattendue: ${url}`);
+        throw new Error(`URL inattendue (attendu : plus d'appel /users ou user_prefs): ${url}`);
       })
     );
 
     await dispatchMomentumAlerts(envWithChannel);
-    expect(dmRecipients).toEqual([222]); // 111 a désactivé, 222 non (défaut = activé)
+    expect(dmRecipients).toEqual([]);
   });
 });

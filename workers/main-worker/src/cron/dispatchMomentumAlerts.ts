@@ -11,8 +11,6 @@
 
 import { Env, dbConfig } from "../env";
 import { getUnsentMomentumAlerts, markMomentumAlertSent, countMomentumAlertsSentSince, MomentumAlertRecord } from "../db/momentumAlerts";
-import { getActiveUsers } from "../db/users";
-import { filterByPref } from "../db/userPrefs";
 import { sendMessage } from "../telegram";
 
 function formatMomentumAlert(alert: MomentumAlertRecord): string {
@@ -62,8 +60,9 @@ export async function dispatchMomentumAlerts(env: Env): Promise<void> {
   const due = await getUnsentMomentumAlerts(db, Math.min(MAX_ALERTS_PER_DISPATCH, remainingToday));
   if (due.length === 0) return;
 
-  const activeUsers = await getActiveUsers(db);
-  const recipientIds = await filterByPref(db, activeUsers.map((u) => u.telegram_id), "momentum_alerts");
+  // Les alertes de contexte restent sur le canal : seuls les vrais signaux
+  // et leurs suivis méritent une notification privée.
+  const recipientIds: number[] = [];
 
   for (const alert of due) {
     const text = formatMomentumAlert(alert);

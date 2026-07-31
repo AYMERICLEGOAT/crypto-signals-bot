@@ -1,7 +1,15 @@
 import { Env, dbConfig } from "../../env";
 import { SupabaseConfig } from "../../supabaseRest";
 import { sendMessage, getChatMemberStatus } from "../../telegram";
-import { getOrCreateUser, activateSubscription, markTrialUsed, hasWalletClaimedTrial, countReferralsBy } from "../../db/users";
+import {
+  getOrCreateUser,
+  activateSubscription,
+  markTrialUsed,
+  hasWalletClaimedTrial,
+  countReferralsBy,
+  isSubscriptionActive,
+  setWalletAddress,
+} from "../../db/users";
 import { setPendingAction } from "../../db/pendingActions";
 import { buildReferralLink } from "../referral";
 import { addDays } from "../../utils/date";
@@ -32,6 +40,20 @@ export async function handleTrialCommand(env: Env, telegramId: number): Promise<
 
   if (user.trial_used) {
     await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, "Tu as déjà utilisé ton essai gratuit. Utilise /subscribe pour t'abonner.");
+    return;
+  }
+
+  // Un abonné payant (Standard/Pro/Découverte) qui active /trial verrait son
+  // plan en cours écrasé par 3 jours d'essai (activateSubscription remplace
+  // l'expiration) -- refuser plutôt que de faire perdre le bénéfice déjà payé.
+  if (isSubscriptionActive(user) && user.plan !== 0) {
+    await sendMessage(
+      env.TELEGRAM_BOT_TOKEN,
+      telegramId,
+      `Tu as déjà un abonnement payant actif jusqu'au ${new Date(user.expiration as string).toLocaleDateString("fr-FR")} — ` +
+        "l'essai gratuit ne t'apporterait rien de plus (et remplacerait ton abonnement en cours par 3 jours seulement). " +
+        "Utilise /status pour voir le détail."
+    );
     return;
   }
 
@@ -81,6 +103,15 @@ export async function activateTrialForWallet(env: Env, telegramId: number, walle
     );
     return;
   }
+
+  // Bug corrigé (audit du 31/07) : cette fonction prétendait reproduire la
+  // garantie "un essai par adresse" du contrat on-chain via
+  // hasWalletClaimedTrial() ci-dessus, mais n'enregistrait jamais l'adresse
+  // en base -- hasWalletClaimedTrial() ne pouvait donc JAMAIS matcher un
+  // wallet ayant déjà servi à un essai (confirmé en prod : les 2 comptes
+  // trial_used=true avaient wallet_address=NULL). Un même wallet pouvait
+  // réclamer un essai gratuit avec un nombre illimité de comptes Telegram.
+  await setWalletAddress(db, telegramId, walletAddress);
 
   // Ordre important : activer l'abonnement AVANT de marquer trial_used. Si
   // activateSubscription échoue (hoquet Supabase transitoire), trial_used

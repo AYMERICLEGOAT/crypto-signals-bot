@@ -1,4 +1,4 @@
-import { SupabaseConfig, selectOne, selectRows, insertRow, updateRows } from "../supabaseRest";
+import { SupabaseConfig, selectOne, selectRows, insertRow, updateRows, deleteRows } from "../supabaseRest";
 
 export interface UserRecord {
   telegram_id: number;
@@ -42,8 +42,26 @@ export async function setReferredBy(db: SupabaseConfig, telegramId: number, refe
   await updateRows(db, "users", { telegram_id: `eq.${telegramId}` }, { referred_by: referrerTelegramId });
 }
 
-export async function markReferralRewarded(db: SupabaseConfig, telegramId: number): Promise<void> {
-  await updateRows(db, "users", { telegram_id: `eq.${telegramId}` }, { referral_rewarded: true });
+/**
+ * Réclame ATOMIQUEMENT le crédit de parrainage pour ce filleul (PATCH
+ * conditionné sur referral_rewarded=eq.false, même pattern que
+ * db/payments.ts::markPaymentConfirmed) -- corrige une race TOCTOU (audit du
+ * 31/07) : l'ancienne version faisait un UPDATE inconditionnel après une
+ * lecture séparée, donc si deux paiements distincts du même filleul se
+ * confirmaient dans la même fenêtre de cron (pollPayments.ts, plusieurs
+ * méthodes de paiement en Promise.all), les deux invocations pouvaient lire
+ * referral_rewarded=false avant que l'autre n'écrive true, créditant le
+ * parrain deux fois. Retourne true seulement si CET appel a gagné la
+ * réclamation -- l'appelant ne doit créditer le parrain que dans ce cas.
+ */
+export async function claimReferralReward(db: SupabaseConfig, telegramId: number): Promise<boolean> {
+  const rows = await updateRows<UserRecord>(
+    db,
+    "users",
+    { telegram_id: `eq.${telegramId}`, referral_rewarded: "eq.false" },
+    { referral_rewarded: true }
+  );
+  return rows.length > 0;
 }
 
 export async function setWalletAddress(db: SupabaseConfig, telegramId: number, address: string): Promise<void> {
@@ -269,8 +287,30 @@ export async function markUserCancelled(db: SupabaseConfig, telegramId: number):
  * wallet. Limitation assumée et annoncée à l'utilisateur, pas cachée
  * (prévention de la fraude = base légale légitime pour cette rétention
  * minimale, RGPD art. 17§3).
+ *
+ * Complété (audit du 31/07) : `pending_payments` et `admin_actions` NE sont
+ * PAS purgées ici -- historique de paiement et journal d'audit admin,
+ * conservés pour obligation légale/comptable et traçabilité interne (même
+ * base légale que ci-dessus), déjà annoncé côté utilisateur (voir
+ * deleteMyData.ts, message post-confirmation). `litecoin_address_pool` et
+ * `lucky_vip_draws` en revanche n'ont aucune raison de conserver le lien
+ * avec ce compte une fois l'effacement demandé -- corrigés ici.
  */
 export async function eraseUserPersonalData(db: SupabaseConfig, telegramId: number): Promise<void> {
+  await Promise.all([
+    deleteRows(db, "user_prefs", { telegram_id: `eq.${telegramId}` }),
+    deleteRows(db, "reviews", { telegram_id: `eq.${telegramId}` }),
+    deleteRows(db, "signal_deliveries", { telegram_id: `eq.${telegramId}` }),
+    deleteRows(db, "pending_actions", { telegram_id: `eq.${telegramId}` }),
+    deleteRows(db, "command_rate_limit", { telegram_id: `eq.${telegramId}` }),
+    deleteRows(db, "exit_surveys", { telegram_id: `eq.${telegramId}` }),
+    deleteRows(db, "promo_code_redemptions", { telegram_id: `eq.${telegramId}` }),
+    deleteRows(db, "referral_rewards", { referrer_telegram_id: `eq.${telegramId}` }),
+    deleteRows(db, "referral_rewards", { referred_telegram_id: `eq.${telegramId}` }),
+    deleteRows(db, "lucky_vip_draws", { telegram_id: `eq.${telegramId}` }),
+    updateRows(db, "litecoin_address_pool", { reserved_for_telegram_id: `eq.${telegramId}` }, { reserved_for_telegram_id: null }),
+  ]);
+
   await updateRows(
     db,
     "users",

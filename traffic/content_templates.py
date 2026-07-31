@@ -45,16 +45,21 @@ def format_tweet(signal):
     (voir format_tweet_reply), technique standard et non trompeuse — le
     contenu du tweet reste honnête, seul l'emplacement du lien change.
     """
+    # Audit du 31/07 : seul canal (Telegram/Reddit/Discord ont tous un
+    # DISCLAIMER_SHORT) sans aucune mention "pas un conseil" -- "NFA/DYOR"
+    # (Not Financial Advice / Do Your Own Research) est l'abréviation standard
+    # sur Twitter crypto, assez courte pour tenir dans la limite de 280
+    # caractères sans sacrifier le reste du contenu.
     hook = random.choice(_TWEET_HOOKS).format(pair=signal["pair"], side=_side_label(signal))
     text = (
         f"{_emoji(signal)} {hook}\n"
         f"{_side_label(signal)} | Entrée {format_price(signal['entry_price'])} | "
         f"SL {format_price(signal['stop_loss'])} | TP {format_price(signal['take_profit'])}\n\n"
-        f"#Crypto #Trading"
+        f"#Crypto #Trading — NFA/DYOR"
     )
     if len(text) > 280:
         # Repli compact si la paire/les prix rendent le texte trop long.
-        text = f"{_emoji(signal)} Signal {_side_label(signal)} {signal['pair']} — entrée {format_price(signal['entry_price'])}"
+        text = f"{_emoji(signal)} Signal {_side_label(signal)} {signal['pair']} — entrée {format_price(signal['entry_price'])} (NFA/DYOR)"
     return text
 
 

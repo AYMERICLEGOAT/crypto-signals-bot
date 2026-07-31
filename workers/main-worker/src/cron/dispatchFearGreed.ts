@@ -56,15 +56,19 @@ export async function dispatchFearGreed(env: Env): Promise<void> {
     return;
   }
 
+  // markdown:true -- échapper le username (voir signalFormat.ts) : un
+  // underscore non échappé casse tout le message (bug vécu le 29/07 sur
+  // /help et /referral, même famille).
+  const escapedUsername = env.TELEGRAM_BOT_USERNAME?.replace(/_/g, "\\_");
   const comment = COMMENTS[classification] ?? "";
-  const text = [
+  const lines: Array<string | null> = [
     `📊 *Indice Fear & Greed : ${value} (${translateClassification(classification)})*`,
     comment,
     "",
     "ℹ️ Indicateur de sentiment de marché (source : alternative.me), pas un signal de trading ni un conseil en investissement.",
-  ]
-    .filter(Boolean)
-    .join("\n");
+    escapedUsername ? `\n📡 Signaux réels + suivi complet : @${escapedUsername}` : null,
+  ];
+  const text = lines.filter((line): line is string => line !== null && line !== "").join("\n");
 
   await sendMessage(env.TELEGRAM_BOT_TOKEN, Number(env.TELEGRAM_CHANNEL_ID), text, { markdown: true });
   await recordFearGreedPost(db, value, classification);

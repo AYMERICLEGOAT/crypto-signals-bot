@@ -33,9 +33,12 @@ NUM_SIGNALS_TO_DISPLAY = 5
 COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3"
 COINGECKO_MAX_CALLS_PER_MINUTE = 10
 
-# Mapping paire -> identifiant CoinGecko (mêmes 28 paires que le module signals/,
+# Mapping paire -> identifiant CoinGecko (mêmes 40 paires que le module signals/,
 # voir signals/config.py::PAIRS - tenu manuellement en synchro, ce module n'importe
 # pas signals/ pour rester déployable indépendamment).
+# Corrigé le 31/07 (audit) : cette liste était restée à 28 paires après le
+# dernier élargissement de l'univers côté signals/, créant une incohérence
+# entre les 40 paires réellement analysées et ce que le site affichait.
 PAIRS = {
     "BTC/USDT": "bitcoin",
     "ETH/USDT": "ethereum",
@@ -65,6 +68,18 @@ PAIRS = {
     "TAO/USDT": "bittensor",
     "STX/USDT": "blockstack",
     "FIL/USDT": "filecoin",
+    "AAVE/USDT": "aave",
+    "ALGO/USDT": "algorand",
+    "CHZ/USDT": "chiliz",
+    "EOS/USDT": "eos",
+    "ETC/USDT": "ethereum-classic",
+    "GRT/USDT": "the-graph",
+    "HBAR/USDT": "hedera-hashgraph",
+    "ICP/USDT": "internet-computer",
+    "MKR/USDT": "maker",
+    "SAND/USDT": "the-sandbox",
+    "VET/USDT": "vechain",
+    "XLM/USDT": "stellar",
 }
 
 # --- Évaluation des performances passées ---

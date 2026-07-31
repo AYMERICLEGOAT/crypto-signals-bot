@@ -1,11 +1,19 @@
 import { InlineKeyboard } from "../telegram";
 import { PaidPlan, PLAN_PRICES_USD, PLAN_DURATION_DAYS, STANDARD_PLAN, PRO_PLAN, DISCOVERY_PLAN } from "../payments/plans";
 
-export const startKeyboard: InlineKeyboard = [
-  [{ text: "📅 S'abonner", callback_data: "start:subscribe" }],
-  [{ text: "🎁 Essai gratuit (3 jours)", callback_data: "start:trial" }],
-  [{ text: "📊 Mon statut", callback_data: "start:status" }],
-];
+/**
+ * `showTrial=false` pour un abonné ayant déjà un plan payant actif (Standard/
+ * Pro/Découverte) : proposer l'essai gratuit reviendrait à l'inviter à
+ * écraser son propre abonnement en cours par 3 jours d'essai (voir
+ * bot/commands/trial.ts, handleTrialCommand refuse maintenant ce cas, mais
+ * autant ne pas présenter le bouton en premier lieu).
+ */
+export function buildStartKeyboard(showTrial: boolean): InlineKeyboard {
+  const rows: InlineKeyboard = [[{ text: "📅 S'abonner", callback_data: "start:subscribe" }]];
+  if (showTrial) rows.push([{ text: "🎁 Essai gratuit (3 jours)", callback_data: "start:trial" }]);
+  rows.push([{ text: "📊 Mon statut", callback_data: "start:status" }]);
+  return rows;
+}
 
 /**
  * Ancrage psychologique (Bloc 2.2) : Standard en premier, puis Pro, puis

@@ -39,6 +39,7 @@ async function isBlockedByRateLimit(env: Env, telegramId: number): Promise<boole
 
 /** Traite une Update Telegram reçue par le webhook (voir index.ts, fetch()). */
 export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<void> {
+  try {
   if (update.message) {
     const chatId = update.message.chat.id;
     if (await isBlockedByRateLimit(env, chatId)) {
@@ -105,7 +106,12 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
 
     await answerCallbackQuery(env.TELEGRAM_BOT_TOKEN, cq.id);
 
-    if (await isBlockedByRateLimit(env, chatId)) return; // callback déjà "répondu" ci-dessus, on ignore juste l'action
+    // Rate-limite/exempte la PERSONNE qui clique (cq.from.id), pas le chat où
+    // le bouton est affiché -- pour un bouton posté dans un canal, chatId
+    // serait l'ID (négatif) du canal, jamais égal à ADMIN_TELEGRAM_ID : l'admin
+    // se ferait rate-limiter par erreur en cliquant sur son propre canal
+    // (audit du 31/07 ; sur-limitation seulement, jamais de sous-limitation).
+    if (await isBlockedByRateLimit(env, cq.from.id)) return; // callback déjà "répondu" ci-dessus, on ignore juste l'action
 
     if (data === "start:subscribe") await handleSubscribeCommand(env, chatId);
     else if (data === "start:trial") await handleTrialCommand(env, chatId);
@@ -116,5 +122,16 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
     else if (data.startsWith("exit_survey:")) await handleExitSurveyResponse(env, chatId, data);
     else if (data.startsWith("prefs:")) await handlePrefsToggle(env, chatId, data);
     else if (data.startsWith("review:")) await handleReviewRating(env, chatId, data);
+  }
+  } catch (err) {
+    // Telegram reçoit déjà un 200 pour éviter les doublons : sans réponse de
+    // secours, toute panne transitoire du handler paraît être un silence.
+    console.error("[bot] Command failed:", err);
+    const chatId = update.message?.chat.id ?? update.callback_query?.message?.chat.id ?? update.callback_query?.from.id;
+    if (chatId !== undefined) {
+      await sendMessage(env.TELEGRAM_BOT_TOKEN, chatId, "Une erreur temporaire est survenue. Réessaie dans quelques instants.").catch((sendErr) =>
+        console.error("[bot] Fallback notification failed:", sendErr)
+      );
+    }
   }
 }
