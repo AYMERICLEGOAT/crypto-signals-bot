@@ -16,6 +16,11 @@
     <changefreq>daily</changefreq>
   </url>
   <url>
+    <loc>https://crypto-signals-bot-site.signalytics.workers.dev/mentions-legales.html</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
     <loc>https://crypto-signals-bot-site.signalytics.workers.dev/archives.html</loc>
     <lastmod>2026-08-01</lastmod>
     <changefreq>daily</changefreq>
@@ -27,6 +32,36 @@
   </url>
   <url>
     <loc>https://crypto-signals-bot-site.signalytics.workers.dev/en/</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://crypto-signals-bot-site.signalytics.workers.dev/guides/</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://crypto-signals-bot-site.signalytics.workers.dev/guides/comment-lire-un-signal-crypto.html</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://crypto-signals-bot-site.signalytics.workers.dev/guides/gestion-du-risque-crypto.html</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://crypto-signals-bot-site.signalytics.workers.dev/guides/rsi-et-moyennes-mobiles-expliques.html</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://crypto-signals-bot-site.signalytics.workers.dev/guides/backtest-et-surapprentissage.html</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://crypto-signals-bot-site.signalytics.workers.dev/guides/erreurs-debutant-trading-crypto.html</loc>
     <lastmod>2026-08-01</lastmod>
     <changefreq>daily</changefreq>
   </url>
