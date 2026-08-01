@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>RSI et moyennes mobiles : ce qu&#x27;ils disent vraiment (et ce qu&#x27;ils ne disent pas)</title>
+  <meta name="description" content="Comment fonctionnent le RSI et les moyennes mobiles EMA, ce qu&#x27;ils mesurent réellement, et les pièges classiques d&#x27;interprétation.">
+  <meta name="keywords" content="RSI crypto, EMA moyenne mobile, indicateur technique, surachat survente">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://crypto-signals-bot-site.signalytics.workers.dev/guides/rsi-et-moyennes-mobiles-expliques.html">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="RSI et moyennes mobiles : ce qu&#x27;ils disent vraiment (et ce qu&#x27;ils ne disent pas)">
+  <meta property="og:description" content="Comment fonctionnent le RSI et les moyennes mobiles EMA, ce qu&#x27;ils mesurent réellement, et les pièges classiques d&#x27;interprétation.">
+  <meta property="og:url" content="https://crypto-signals-bot-site.signalytics.workers.dev/guides/rsi-et-moyennes-mobiles-expliques.html">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "Article", "headline": "RSI et moyennes mobiles, expliqués simplement", "description": "Comment fonctionnent le RSI et les moyennes mobiles EMA, ce qu'ils mesurent réellement, et les pièges classiques d'interprétation.", "mainEntityOfPage": {"@type": "WebPage", "@id": "https://crypto-signals-bot-site.signalytics.workers.dev/guides/rsi-et-moyennes-mobiles-expliques.html"}, "inLanguage": "fr", "isAccessibleForFree": true}</script>
+  <style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 780px;
+         margin: 0 auto; padding: 24px 16px 64px; line-height: 1.55; }
+  h1 { font-size: 1.7rem; margin-bottom: 4px; }
+  h2 { font-size: 1.25rem; margin-top: 2.5rem; border-bottom: 2px solid #6366f1; padding-bottom: 6px; }
+  .subtitle { color: #666; margin-top: 0; }
+  .lang-switch { text-align: right; font-size: 0.85rem; }
+  .signal-card { border: 1px solid #d8d8e0; border-radius: 10px; padding: 16px 18px; margin: 16px 0; }
+  .signal-card.buy { border-left: 5px solid #16a34a; }
+  .signal-card.sell { border-left: 5px solid #dc2626; }
+  .signal-header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+  .signal-pair { font-weight: 700; font-size: 1.1rem; }
+  .badge { padding: 2px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; color: white; }
+  .badge.buy { background: #16a34a; }
+  .badge.sell { background: #dc2626; }
+  .prices { display: flex; gap: 18px; margin: 10px 0; flex-wrap: wrap; font-size: 0.92rem; }
+  .prices span b { display: block; font-size: 1rem; }
+  .signal-chart { max-width: 100%; border-radius: 8px; margin: 10px 0; }
+  .cta { background: linear-gradient(135deg, #6366f1, #4338ca); color: white; padding: 24px;
+         border-radius: 12px; text-align: center; margin: 2.5rem 0; }
+  .cta a { color: white; font-weight: 700; font-size: 1.1rem; text-decoration: underline; }
+  .backtest { background: #f5f5ff; border: 1px solid #e0e0f5; border-radius: 12px; padding: 18px 20px; margin: 1.5rem 0; }
+  .backtest h2 { margin-top: 0; border-bottom: none; }
+  .backtest-stat { font-size: 1.4rem; font-weight: 700; color: #4338ca; margin: 4px 0; }
+  .perf-stats { display: flex; gap: 24px; flex-wrap: wrap; margin: 16px 0; }
+  .perf-stat { text-align: center; }
+  .perf-stat b { display: block; font-size: 1.6rem; }
+  table.recent { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 12px; }
+  table.recent th, table.recent td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #e5e5ef; }
+  .outcome-win { color: #16a34a; font-weight: 700; }
+  .outcome-loss { color: #dc2626; font-weight: 700; }
+  .disclaimer { font-size: 0.82rem; color: #777; margin-top: 3rem; border-top: 1px solid #e5e5ef; padding-top: 12px; }
+  footer { margin-top: 2rem; font-size: 0.85rem; color: #999; }
+
+  .guide-body h2 { font-size: 1.2rem; margin-top: 2.2rem; }
+  .guide-body p { margin: 0.9rem 0; }
+  .guide-body ul, .guide-body ol { padding-left: 1.3rem; }
+  .guide-body li { margin: 8px 0; }
+  .breadcrumb { font-size: 0.85rem; color: #666; margin-bottom: 8px; }
+  .breadcrumb a { color: #4338ca; }
+  .guide-cta { background: linear-gradient(135deg, #6366f1, #4338ca); color: white;
+               padding: 20px; border-radius: 12px; margin: 2.5rem 0 1.5rem; }
+  .guide-cta a { color: white; font-weight: 700; }
+  .guide-cta p { margin: 6px 0; }
+  .related { border-top: 1px solid #e5e5ef; margin-top: 2.5rem; padding-top: 1rem; }
+  .related li { margin: 10px 0; }
+  .guide-disclaimer { font-size: 0.85rem; color: #777; border-top: 1px solid #e5e5ef;
+                      margin-top: 2rem; padding-top: 12px; }
+</style>
+</head>
+<body>
+  <p class="breadcrumb"><a href="/">Accueil</a> › <a href="/guides/">Guides</a> › RSI et moyennes mobiles, expliqués simplement</p>
+  <header>
+    <h1>RSI et moyennes mobiles, expliqués simplement</h1>
+    <p class="subtitle">Comment fonctionnent le RSI et les moyennes mobiles EMA, ce qu&#x27;ils mesurent réellement, et les pièges classiques d&#x27;interprétation.</p>
+  </header>
+
+  <article class="guide-body">
+
+<p>Le RSI et les moyennes mobiles sont les deux indicateurs les plus utilisés en analyse technique. Ils sont aussi les plus mal interprétés. Voici ce qu'ils mesurent réellement.</p>
+
+<h2>La moyenne mobile exponentielle (EMA)</h2>
+<p>Une moyenne mobile lisse le prix pour rendre la tendance lisible. La version exponentielle (EMA) donne plus de poids aux prix récents qu'aux anciens : elle réagit donc plus vite aux changements de direction qu'une moyenne simple.</p>
+<p>Ce gain de réactivité a un coût : elle produit aussi davantage de faux signaux. Il n'existe pas de réglage qui soit à la fois rapide et fiable — c'est un arbitrage, pas un problème à résoudre.</p>
+<p>Le croisement de deux EMA (une courte, une longue) est le signal le plus répandu : quand la courte passe au-dessus de la longue, on parle de configuration haussière. Attention toutefois : <b>un croisement confirme une tendance, il ne la prédit pas</b>. Au moment où il se produit, le prix a généralement déjà bougé.</p>
+
+<h2>Le RSI</h2>
+<p>Le RSI (Relative Strength Index) mesure la vitesse et l'amplitude des variations récentes, sur une échelle de 0 à 100. En dessous de 30, on parle de « survente » ; au-dessus de 70, de « surachat ».</p>
+<p>Le malentendu le plus fréquent tient dans ces deux mots. « Survendu » ne signifie pas « va remonter ». Un actif peut rester survendu pendant des semaines en pleine tendance baissière, et ruiner tous ceux qui ont acheté « parce que le RSI était bas ».</p>
+<p>Le RSI mesure un momentum passé. Il ne contient aucune information sur l'avenir.</p>
+
+<h2>Les bandes de Bollinger</h2>
+<p>Elles encadrent une moyenne mobile par deux bandes calculées sur l'écart-type du prix. Leur écartement mesure la volatilité du moment : bandes larges, marché agité ; bandes resserrées, marché calme.</p>
+<p>Le resserrement extrême — le « squeeze » — précède souvent un mouvement marqué. Mais il ne dit rien de sa <i>direction</i>. C'est une information sur l'amplitude à venir, pas sur le sens.</p>
+
+<h2>Pourquoi combiner plusieurs indicateurs</h2>
+<p>Chaque indicateur produit des faux signaux. En exiger deux simultanément — par exemple un croisement de moyennes confirmé par un RSI en zone extrême — réduit nettement leur nombre.</p>
+<p>Cela ne les élimine jamais. Et au-delà de trois ou quatre conditions, on tombe dans le travers inverse : la stratégie ne se déclenche presque plus, et les rares signaux restants correspondent surtout aux particularités des données passées. C'est le surapprentissage.</p>
+
+<h2>Le choix du timeframe change tout</h2>
+<p>Un signal en bougies horaires et un signal en bougies 5 minutes n'ont pas la même fiabilité statistique. Plus l'unité de temps est courte, plus le bruit domine le signal.</p>
+<p>Un même actif peut d'ailleurs sembler haussier en journalier et baissier en horaire au même instant. Ce n'est pas une contradiction : ce sont deux échelles différentes. S'en tenir à une unité de référence évite l'essentiel de la confusion.</p>
+
+<h2>Ce qu'aucun indicateur ne fera jamais</h2>
+<p>Prédire l'avenir. Un indicateur décrit une probabilité fondée sur des schémas passés, rien de plus. C'est pourquoi la gestion du risque compte au moins autant que la qualité du signal : elle, elle fonctionne quelle que soit la fiabilité de la prédiction.</p>
+
+  </article>
+
+  
+    <div class="guide-cta">
+      <p><b>Envie de voir ces principes appliqués concrètement ?</b></p>
+      <p>Notre bot Telegram publie ses signaux avec entrée, stop loss et objectifs
+         définis à l'avance — et publie <b>tous</b> les résultats, gains comme pertes.</p>
+      <p><a href="https://t.me/ProVIPSignals_bot">Voir le bot sur Telegram →</a></p>
+    </div>
+  
+    <nav class="related">
+      <h2>Autres guides</h2>
+      <ul>
+      <li><a href="/guides/comment-lire-un-signal-crypto.html">Comment lire un signal de trading crypto</a></li>
+      <li><a href="/guides/gestion-du-risque-crypto.html">Gestion du risque en trading crypto</a></li>
+      <li><a href="/guides/backtest-et-surapprentissage.html">Backtest et surapprentissage : lire les chiffres correctement</a></li>
+      <li><a href="/guides/erreurs-debutant-trading-crypto.html">Les 8 erreurs qui ruinent les débutants</a></li>
+      </ul>
+    </nav>
+
+  <p class="guide-disclaimer">
+    Contenu pédagogique. Rien sur cette page ne constitue un conseil en investissement.
+    Le trading de cryptoactifs comporte un risque de perte en capital.
+    Les performances passées ne préjugent pas des performances futures.
+  </p>
+  <footer>
+    <p><a href="/">← Retour à l'accueil</a> — <a href="/transparency.html">Transparence</a>
+       — <a href="/terms.html">Conditions générales</a></p>
+  </footer>
+</body>
+</html>
