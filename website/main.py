@@ -25,6 +25,7 @@ from html_generator import build_daily_page
 from archives_generator import build_archives_page, build_waiting_homepage
 from transparency_generator import build_transparency_page
 from sitemap_generator import build_sitemap, build_robots_txt
+import guides_generator
 import github_publisher
 
 
@@ -142,6 +143,17 @@ def main():
     ]
     if signals:
         sitemap_pages.append({"path": "/en/", "lastmod": today_str})
+
+    # Guides pédagogiques (voir guides_generator.py) : contenu de fond publié
+    # à chaque cycle. Contrairement aux pages de signaux, il ne dépend
+    # d'aucune donnée externe -- il est donc toujours présent, y compris
+    # pendant les périodes sans signal, et donne au site de quoi être
+    # référencé (la page d'accueil seule faisait 744 mots).
+    guide_files = guides_generator.build_all_guide_files()
+    files_to_publish += guide_files
+    sitemap_pages += guides_generator.sitemap_entries(today_str)
+    print(f"   + {len(guide_files)} page(s) de guides pédagogiques.")
+
     sitemap_pages += manifest
     files_to_publish += [
         ("sitemap.xml", build_sitemap(sitemap_pages)),

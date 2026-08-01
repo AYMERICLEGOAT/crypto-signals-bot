@@ -100,6 +100,7 @@ _STRINGS = {
         "privacy_link": "Politique de confidentialité",
         "terms_link": "Conditions générales",
         "transparency_link": "Transparence",
+        "guides_link": "Guides",
         "lang_switch": "English version",
         "date_format": "%d/%m/%Y",
         "footer_date_format": "%d/%m/%Y",  # jour seul, voir Audit#11 (github_publisher.py compare le contenu à l'octet près)
@@ -173,6 +174,7 @@ _STRINGS = {
         "privacy_link": "Privacy Policy",
         "terms_link": "Terms of Service",
         "transparency_link": "Transparency",
+        "guides_link": "Guides",
         "lang_switch": "Version française",
         "date_format": "%m/%d/%Y",
         "footer_date_format": "%m/%d/%Y",
@@ -434,7 +436,7 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
   <p class="disclaimer">{s["disclaimer"]}</p>
 
   <footer>
-    <p>{s["footer"](footer_ts)} — <a href="/privacy.html">{s["privacy_link"]}</a> — <a href="/terms.html">{s["terms_link"]}</a> — <a href="/transparency.html">{s["transparency_link"]}</a> — <a href="/mentions-legales.html">Mentions légales</a></p>
+    <p>{s["footer"](footer_ts)} — <a href="/privacy.html">{s["privacy_link"]}</a> — <a href="/terms.html">{s["terms_link"]}</a> — <a href="/transparency.html">{s["transparency_link"]}</a> — <a href="/guides/">{s["guides_link"]}</a> — <a href="/mentions-legales.html">Mentions légales</a></p>
   </footer>
 </body>
 </html>"""
