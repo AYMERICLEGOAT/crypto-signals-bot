@@ -4,7 +4,10 @@ import { getActivePayingCount } from "../../db/adminStats";
 
 /** Bloc 13.1 : preuve sociale publique — nombre réel d'abonnés payants actifs, calculé en direct (jamais un chiffre inventé). */
 export async function handleTrustCommand(env: Env, telegramId: number): Promise<void> {
-  const count = await getActivePayingCount(dbConfig(env));
+  // L'administrateur est exclu : il s'active un plan pour tester le parcours
+  // de paiement, et se compter soi-même dans une preuve sociale publique
+  // fausserait le seul chiffre que cette commande promet d'être honnête.
+  const count = await getActivePayingCount(dbConfig(env), env.ADMIN_TELEGRAM_ID);
 
   const text =
     count > 0

@@ -28,12 +28,23 @@ export async function getAdminStats(db: SupabaseConfig): Promise<AdminStats> {
   return { trials, everPaid, activePaying, conversionRatePct };
 }
 
-/** Bloc 13.1 — /trust (preuve sociale publique) : nombre réel d'abonnés payants actifs, sans les stats admin (public, pas de gate). */
-export async function getActivePayingCount(db: SupabaseConfig): Promise<number> {
-  const rows = await selectRows(db, "users", {
+/**
+ * Bloc 13.1 — /trust (preuve sociale publique) : nombre réel d'abonnés
+ * payants actifs, sans les stats admin (public, pas de gate).
+ *
+ * `excludeTelegramId` (audit du 01/08/2026) : l'administrateur s'active
+ * régulièrement un plan pour tester le parcours de paiement. Il était compté
+ * dans un chiffre présenté publiquement comme « nombre réel d'abonnés
+ * payants » — une preuve sociale qui comptait le vendeur parmi ses propres
+ * clients. Sur une base de 3 comptes, cela suffisait à afficher "1 trader
+ * nous fait confiance" alors qu'aucun client n'avait jamais payé.
+ */
+export async function getActivePayingCount(db: SupabaseConfig, excludeTelegramId?: string): Promise<number> {
+  const rows = await selectRows<{ telegram_id: number }>(db, "users", {
     plan_started_at: "not.is.null",
     expiration: `gt.${new Date().toISOString()}`,
     select: "telegram_id",
   });
-  return rows.length;
+  if (!excludeTelegramId) return rows.length;
+  return rows.filter((r) => String(r.telegram_id) !== excludeTelegramId).length;
 }
