@@ -51,7 +51,25 @@ jobs:
           # d'alerte ci-dessous, ADMIN_TELEGRAM_ID a sa valeur par défaut
           # dans signals/config.py (non sensible, déjà en clair ailleurs).
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        run: python main.py
+        # Réessai automatique (audit du 01/08/2026). Ce cycle est le seul
+        # moment où un croisement peut être détecté : un échec transitoire
+        # (API de marché qui renvoie un 5xx, coupure réseau du runner, hoquet
+        # Supabase) faisait perdre le cycle entier. La fenêtre de rattrapage
+        # côté code limite désormais les dégâts, mais réessayer sur place
+        # coûte quelques secondes et évite d'attendre 30 minutes.
+        # Trois tentatives espacées de 30s, puis échec réel (l'étape d'alerte
+        # ci-dessous prend alors le relais).
+        run: |
+          for attempt in 1 2 3; do
+            echo "--- Tentative $attempt/3 ---"
+            if python main.py; then
+              exit 0
+            fi
+            echo "Tentative $attempt échouée."
+            [ "$attempt" -lt 3 ] && sleep 30
+          done
+          echo "Les 3 tentatives ont échoué."
+          exit 1
 
       # Audit#13 : sans ça, un échec de ce workflow passait inaperçu jusqu'à
       # ce que quelqu'un remarque l'absence de nouveaux signaux. Nécessite le

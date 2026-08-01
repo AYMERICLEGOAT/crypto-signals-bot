@@ -14,16 +14,39 @@ import { getActiveStrategyParams } from "../db/strategyParams";
 const CONSECUTIVE_LOSSES_THRESHOLD = 2;
 const TRIAL_PLAN = 0;
 
-async function buildWinRatePhrase(env: Env): Promise<string> {
-  if (env.DISPLAY_WINRATE !== "true") {
-    return "la stratégie est backtestée sur 24 mois de données réelles et suivie en continu";
-  }
+/**
+ * Contexte factuel joint au message de réassurance.
+ *
+ * Réécrit le 01/08/2026. L'ancienne version affirmait qu'« une série de
+ * pertes ne remet pas en cause la stratégie sur la durée » — autrement dit
+ * que la stratégie est saine sur le long terme. Or la mesure walk-forward
+ * sur 24 mois donne une espérance NÉGATIVE (-0,019%/trade, voir
+ * signals/DIAGNOSTIC_SIGNAUX_2026-08-01.md). Affirmer le contraire à un
+ * client PAYANT, au moment précis où il vient d'enchaîner deux pertes, est
+ * la pire forme de réassurance : elle l'encourage à rester exposé sur la
+ * foi d'une promesse que nos propres données contredisent.
+ *
+ * Ce qui reste vrai et utile dans ce message, c'est le conseil de
+ * comportement (ne pas doubler la mise, ne pas déplacer son stop). Il est
+ * conservé ; la promesse sur la stratégie, non.
+ */
+async function buildContextPhrase(env: Env): Promise<string> {
+  const neutral =
+    "deux pertes d'affilée sont statistiquement banales, y compris sur une stratégie qui fonctionne — " +
+    "mais elles ne prouvent pas non plus qu'elle fonctionne";
+  if (env.DISPLAY_WINRATE !== "true") return neutral;
   try {
     const stats = await getActiveStrategyParams(dbConfig(env));
-    if (!stats) return "la stratégie est backtestée sur 24 mois de données réelles et suivie en continu";
-    return `le taux de réussite est de ${(stats.win_rate * 100).toFixed(0)}%`;
+    if (!stats) return neutral;
+    // Le taux de réussite n'est jamais donné seul : sans le rapport
+    // gains/pertes moyens, il laisse croire à une rentabilité qui n'est pas
+    // démontrée (voir le même correctif sur le site et dans /faq).
+    return (
+      `${(stats.win_rate * 100).toFixed(0)}% des trades atteignent leur premier objectif, ` +
+      "ce qui ne signifie pas pour autant que la stratégie soit rentable"
+    );
   } catch {
-    return "la stratégie est backtestée sur 24 mois de données réelles et suivie en continu";
+    return neutral;
   }
 }
 
@@ -65,7 +88,7 @@ export async function handleAntiStress(env: Env, recipients: number[], outcome: 
 
   // LOSS : incrémente, et rassure uniquement au moment où le seuil est atteint
   // (pas à chaque perte supplémentaire au-delà, pour ne pas être lourd).
-  const winRatePhrase = await buildWinRatePhrase(env);
+  const contextPhrase = await buildContextPhrase(env);
   await Promise.all(
     payingUsers.map(async (u) => {
       const newCount = u.consecutive_losses + 1;
@@ -79,7 +102,11 @@ export async function handleAntiStress(env: Env, recipients: number[], outcome: 
         await sendMessage(
           env.TELEGRAM_BOT_TOKEN,
           u.telegram_id,
-          `📊 Deux pertes consécutives récentes. Rappel : ${winRatePhrase} — une série de pertes ne remet pas en cause la stratégie sur la durée. Reste discipliné, ne double pas la mise pour "te refaire".`
+          `📊 Deux pertes consécutives récentes — ${contextPhrase}.\n\n` +
+            "Ce qui compte maintenant : ne double pas la mise pour \"te refaire\" (c'est l'erreur " +
+            "la plus coûteuse en trading), ne déplace pas ton stop, et garde la même taille de " +
+            "position qu'avant. Si ces pertes dépassent ce que tu peux te permettre, réduis la " +
+            "taille ou mets en pause — c'est une décision saine, pas un abandon."
         ).catch((err) => console.error(`[anti-stress] Échec message de réassurance pour ${u.telegram_id}:`, err));
       }
     })

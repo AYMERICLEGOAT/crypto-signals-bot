@@ -1011,3 +1011,29 @@ alter table strategy_params alter column win_rate set not null;
 alter table strategy_params alter column trade_count set not null;
 alter table strategy_params alter column last_tested set not null;
 alter table strategy_params alter column is_active set not null;
+
+
+-- ----------------------------------------------------------------------------
+-- 45. Index sur les requêtes chaudes (audit du 01/08/2026)
+--     Trois filtres tournent à CHAQUE cycle cron sans index dédié. Sans effet
+--     à quelques utilisateurs, mais ce sont exactement les requêtes qui
+--     dégradent en premier quand la base grossit — donc à poser avant la
+--     croissance, pas après.
+-- ----------------------------------------------------------------------------
+
+-- users.expiration : filtre "abonnement encore actif" (expiration > now()).
+-- Utilisé par la diffusion des signaux, les relances d'expiration, /trust et
+-- les statistiques — soit plusieurs fois par cycle de 5 minutes.
+create index if not exists idx_users_expiration on users (expiration);
+
+-- Variante partielle pour le décompte des abonnés PAYANTS actifs
+-- (plan_started_at non nul + non expiré), utilisé par /trust et /stats.
+create index if not exists idx_users_active_paying
+  on users (expiration) where plan_started_at is not null;
+
+-- signals.created_at : balayage par fenêtre temporelle. Chemin le plus
+-- fréquent depuis le correctif de rattrapage du 01/08 —
+-- storage.pairs_signalled_since() interroge cette colonne à chaque exécution
+-- du générateur (toutes les 30 min), en plus du récap hebdomadaire et du
+-- récapitulatif de relance.
+create index if not exists idx_signals_created_at on signals (created_at desc);

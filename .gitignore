@@ -12,3 +12,4 @@ signals/data/
 **/.dev.vars
 *.env
 !.env.example
+traffic/directory_kit.json
