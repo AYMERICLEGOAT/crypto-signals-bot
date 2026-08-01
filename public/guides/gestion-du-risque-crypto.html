@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Gestion du risque en crypto : la seule chose qui vous garde en vie</title>
+  <meta name="description" content="Taille de position, risque par trade, ratio risque/rendement : les règles qui déterminent si vous survivez, expliquées avec les calculs.">
+  <meta name="keywords" content="gestion du risque crypto, taille de position, money management, ratio risque rendement">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://crypto-signals-bot-site.signalytics.workers.dev/guides/gestion-du-risque-crypto.html">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Gestion du risque en crypto : la seule chose qui vous garde en vie">
+  <meta property="og:description" content="Taille de position, risque par trade, ratio risque/rendement : les règles qui déterminent si vous survivez, expliquées avec les calculs.">
+  <meta property="og:url" content="https://crypto-signals-bot-site.signalytics.workers.dev/guides/gestion-du-risque-crypto.html">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "Article", "headline": "Gestion du risque en trading crypto", "description": "Taille de position, risque par trade, ratio risque/rendement : les règles qui déterminent si vous survivez, expliquées avec les calculs.", "mainEntityOfPage": {"@type": "WebPage", "@id": "https://crypto-signals-bot-site.signalytics.workers.dev/guides/gestion-du-risque-crypto.html"}, "inLanguage": "fr", "isAccessibleForFree": true}</script>
+  <style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 780px;
+         margin: 0 auto; padding: 24px 16px 64px; line-height: 1.55; }
+  h1 { font-size: 1.7rem; margin-bottom: 4px; }
+  h2 { font-size: 1.25rem; margin-top: 2.5rem; border-bottom: 2px solid #6366f1; padding-bottom: 6px; }
+  .subtitle { color: #666; margin-top: 0; }
+  .lang-switch { text-align: right; font-size: 0.85rem; }
+  .signal-card { border: 1px solid #d8d8e0; border-radius: 10px; padding: 16px 18px; margin: 16px 0; }
+  .signal-card.buy { border-left: 5px solid #16a34a; }
+  .signal-card.sell { border-left: 5px solid #dc2626; }
+  .signal-header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+  .signal-pair { font-weight: 700; font-size: 1.1rem; }
+  .badge { padding: 2px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; color: white; }
+  .badge.buy { background: #16a34a; }
+  .badge.sell { background: #dc2626; }
+  .prices { display: flex; gap: 18px; margin: 10px 0; flex-wrap: wrap; font-size: 0.92rem; }
+  .prices span b { display: block; font-size: 1rem; }
+  .signal-chart { max-width: 100%; border-radius: 8px; margin: 10px 0; }
+  .cta { background: linear-gradient(135deg, #6366f1, #4338ca); color: white; padding: 24px;
+         border-radius: 12px; text-align: center; margin: 2.5rem 0; }
+  .cta a { color: white; font-weight: 700; font-size: 1.1rem; text-decoration: underline; }
+  .backtest { background: #f5f5ff; border: 1px solid #e0e0f5; border-radius: 12px; padding: 18px 20px; margin: 1.5rem 0; }
+  .backtest h2 { margin-top: 0; border-bottom: none; }
+  .backtest-stat { font-size: 1.4rem; font-weight: 700; color: #4338ca; margin: 4px 0; }
+  .perf-stats { display: flex; gap: 24px; flex-wrap: wrap; margin: 16px 0; }
+  .perf-stat { text-align: center; }
+  .perf-stat b { display: block; font-size: 1.6rem; }
+  table.recent { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 12px; }
+  table.recent th, table.recent td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #e5e5ef; }
+  .outcome-win { color: #16a34a; font-weight: 700; }
+  .outcome-loss { color: #dc2626; font-weight: 700; }
+  .disclaimer { font-size: 0.82rem; color: #777; margin-top: 3rem; border-top: 1px solid #e5e5ef; padding-top: 12px; }
+  footer { margin-top: 2rem; font-size: 0.85rem; color: #999; }
+
+  .guide-body h2 { font-size: 1.2rem; margin-top: 2.2rem; }
+  .guide-body p { margin: 0.9rem 0; }
+  .guide-body ul, .guide-body ol { padding-left: 1.3rem; }
+  .guide-body li { margin: 8px 0; }
+  .breadcrumb { font-size: 0.85rem; color: #666; margin-bottom: 8px; }
+  .breadcrumb a { color: #4338ca; }
+  .guide-cta { background: linear-gradient(135deg, #6366f1, #4338ca); color: white;
+               padding: 20px; border-radius: 12px; margin: 2.5rem 0 1.5rem; }
+  .guide-cta a { color: white; font-weight: 700; }
+  .guide-cta p { margin: 6px 0; }
+  .related { border-top: 1px solid #e5e5ef; margin-top: 2.5rem; padding-top: 1rem; }
+  .related li { margin: 10px 0; }
+  .guide-disclaimer { font-size: 0.85rem; color: #777; border-top: 1px solid #e5e5ef;
+                      margin-top: 2rem; padding-top: 12px; }
+</style>
+</head>
+<body>
+  <p class="breadcrumb"><a href="/">Accueil</a> › <a href="/guides/">Guides</a> › Gestion du risque en trading crypto</p>
+  <header>
+    <h1>Gestion du risque en trading crypto</h1>
+    <p class="subtitle">Taille de position, risque par trade, ratio risque/rendement : les règles qui déterminent si vous survivez, expliquées avec les calculs.</p>
+  </header>
+
+  <article class="guide-body">
+
+<p>La plupart des débutants cherchent la bonne stratégie. Les traders qui durent ont d'abord réglé une autre question : combien perdre quand ils ont tort. C'est ce paramètre, bien plus que la qualité des signaux, qui décide de la survie d'un compte.</p>
+
+<h2>La règle du 1-2 % par position</h2>
+<p>Ne jamais risquer plus de 1 à 2 % de son capital total sur une seule position. « Risquer » signifie ici : ce que vous perdez si le stop loss est touché — pas le montant investi.</p>
+<p>Pourquoi ce chiffre ? Parce que les séries de pertes arrivent, y compris avec une bonne stratégie. Avec un taux de réussite de 50 %, une série de 7 pertes consécutives survient régulièrement sur quelques centaines de trades. À 2 % de risque, cela coûte environ 13 % du capital : désagréable, récupérable. À 20 % de risque par position, le compte est effacé.</p>
+
+<h2>Calculer sa taille de position</h2>
+<p>La taille ne se choisit pas au feeling. Elle se déduit de trois nombres :</p>
+<ul>
+  <li>votre capital total ;</li>
+  <li>le pourcentage que vous acceptez de perdre sur ce trade (1-2 %) ;</li>
+  <li>la distance entre votre prix d'entrée et votre stop loss, en pourcentage.</li>
+</ul>
+<p><b>Taille = (capital × risque accepté) ÷ distance au stop</b></p>
+<p>Exemple : 5 000 € de capital, 2 % de risque accepté (soit 100 €), un stop placé 4 % sous l'entrée. Taille = 100 ÷ 0,04 = <b>2 500 €</b> de position. Si le stop est touché, vous perdez 4 % de 2 500 €, soit exactement les 100 € prévus.</p>
+<p>Conséquence importante : plus le stop est éloigné, plus la position doit être <i>petite</i>. Un stop large ne veut pas dire un risque plus grand — à condition d'ajuster la taille.</p>
+
+<h2>Le ratio risque/rendement</h2>
+<p>Il compare ce que vous risquez à ce que vous visez. Un ratio de 1:2 signifie viser deux fois plus de gain que de perte potentielle.</p>
+<p>Ce ratio détermine le taux de réussite dont vous avez besoin pour être rentable :</p>
+<ul>
+  <li>ratio 1:1 → il faut gagner plus de 50 % du temps ;</li>
+  <li>ratio 1:2 → 34 % suffisent ;</li>
+  <li>ratio 1:3 → 25 % suffisent.</li>
+</ul>
+<p>C'est pour cette raison qu'une stratégie qui « se trompe » les trois quarts du temps peut être solidement gagnante. Et pourquoi une stratégie qui a raison 7 fois sur 10 peut ruiner un compte.</p>
+
+<h2>Les trois erreurs qui coûtent le plus cher</h2>
+<ul>
+  <li><b>Déplacer son stop</b> quand le prix s'en approche, « pour laisser une chance au trade ». Vous transformez une perte définie en perte inconnue.</li>
+  <li><b>Augmenter la taille après une perte</b> pour « se refaire ». C'est le revenge trading : il amplifie les pertes bien plus qu'il ne les répare.</li>
+  <li><b>Changer de stratégie après chaque échec.</b> Une stratégie s'évalue sur des dizaines de trades. Sur un seul résultat, vous n'observez que du hasard.</li>
+</ul>
+
+<h2>Le journal de trading</h2>
+<p>Notez pour chaque position : pourquoi vous êtes entré, pourquoi vous êtes sorti, et ce que vous ressentiez. Après trente lignes, vos biais deviennent visibles — et ils sont presque toujours différents de ce que vous imaginiez. Aucun indicateur ne vous apprendra autant sur vos résultats que ce simple carnet.</p>
+
+  </article>
+
+  
+    <div class="guide-cta">
+      <p><b>Envie de voir ces principes appliqués concrètement ?</b></p>
+      <p>Notre bot Telegram publie ses signaux avec entrée, stop loss et objectifs
+         définis à l'avance — et publie <b>tous</b> les résultats, gains comme pertes.</p>
+      <p><a href="https://t.me/ProVIPSignals_bot">Voir le bot sur Telegram →</a></p>
+    </div>
+  
+    <nav class="related">
+      <h2>Autres guides</h2>
+      <ul>
+      <li><a href="/guides/comment-lire-un-signal-crypto.html">Comment lire un signal de trading crypto</a></li>
+      <li><a href="/guides/rsi-et-moyennes-mobiles-expliques.html">RSI et moyennes mobiles, expliqués simplement</a></li>
+      <li><a href="/guides/backtest-et-surapprentissage.html">Backtest et surapprentissage : lire les chiffres correctement</a></li>
+      <li><a href="/guides/erreurs-debutant-trading-crypto.html">Les 8 erreurs qui ruinent les débutants</a></li>
+      </ul>
+    </nav>
+
+  <p class="guide-disclaimer">
+    Contenu pédagogique. Rien sur cette page ne constitue un conseil en investissement.
+    Le trading de cryptoactifs comporte un risque de perte en capital.
+    Les performances passées ne préjugent pas des performances futures.
+  </p>
+  <footer>
+    <p><a href="/">← Retour à l'accueil</a> — <a href="/transparency.html">Transparence</a>
+       — <a href="/terms.html">Conditions générales</a></p>
+  </footer>
+</body>
+</html>
