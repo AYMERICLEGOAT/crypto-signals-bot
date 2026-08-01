@@ -22,12 +22,33 @@ export async function handleReviewRating(env: Env, telegramId: number, data: str
 
   const db = dbConfig(env);
   const reviewId = await insertReview(db, telegramId, rating);
-  await setPendingAction(db, telegramId, { type: "awaiting_review_comment", reviewId });
+
+  // La NOTE est déjà enregistrée à ce stade : c'est l'essentiel, et le
+  // commentaire libre qui suit n'est qu'un bonus optionnel. Armer son
+  // attente ne doit donc jamais faire échouer l'ensemble.
+  //
+  // Bug trouvé en test réel le 01/08/2026 : la contrainte CHECK de
+  // pending_actions n'autorisait que 'awaiting_wallet_usdt' et
+  // 'awaiting_wallet_trial' (voir init.sql section 45), alors que ce flux y
+  // écrit 'awaiting_review_comment'. L'insertion partait donc en erreur 23514,
+  // l'exception remontait, le remerciement n'était jamais envoyé et
+  // l'utilisateur recevait « Une erreur temporaire est survenue » — alors que
+  // sa note venait bel et bien d'être enregistrée. Une fonctionnalité censée
+  // bâtir la crédibilité paraissait cassée à chaque utilisation.
+  let commentPromptAvailable = true;
+  try {
+    await setPendingAction(db, telegramId, { type: "awaiting_review_comment", reviewId });
+  } catch (err) {
+    commentPromptAvailable = false;
+    console.error("[review] Attente de commentaire indisponible (note bien enregistrée):", err);
+  }
 
   await sendMessage(
     env.TELEGRAM_BOT_TOKEN,
     telegramId,
-    "Merci pour ta note ! Tu peux répondre à ce message avec un commentaire (anonyme, optionnel) — sinon ignore-le simplement, c'est déjà enregistré."
+    commentPromptAvailable
+      ? "Merci pour ta note ! Tu peux répondre à ce message avec un commentaire (anonyme, optionnel) — sinon ignore-le simplement, c'est déjà enregistré."
+      : "Merci pour ta note, elle est bien enregistrée 🙏"
   );
 }
 

@@ -1037,3 +1037,19 @@ create index if not exists idx_users_active_paying
 -- du générateur (toutes les 30 min), en plus du récap hebdomadaire et du
 -- récapitulatif de relance.
 create index if not exists idx_signals_created_at on signals (created_at desc);
+
+-- Contrainte CHECK de pending_actions : le flux /review écrit
+-- 'awaiting_review_comment' (voir workers/main-worker/src/db/pendingActions.ts)
+-- alors que la contrainte d'origine (section 7) n'autorisait que les deux
+-- valeurs liées au wallet. Résultat mesuré en production le 01/08/2026 :
+-- erreur 23514 à chaque note laissée via /review — la note était enregistrée,
+-- mais l'exception coupait le remerciement et l'utilisateur voyait « une
+-- erreur temporaire est survenue ». Le code dégrade désormais proprement,
+-- mais le commentaire libre reste impossible tant que cette contrainte n'est
+-- pas élargie.
+alter table pending_actions drop constraint if exists pending_actions_action_type_check;
+alter table pending_actions add constraint pending_actions_action_type_check
+  check (action_type in ('awaiting_wallet_usdt', 'awaiting_wallet_trial', 'awaiting_review_comment'));
+
+-- Colonne utilisée par le même flux (identifiant de la note à compléter).
+alter table pending_actions add column if not exists review_id bigint;
