@@ -104,3 +104,31 @@ pas cet effort.
 session de vérification admin (`111111111`, à ignorer). 0 paiement
 confirmé, 0 revenu (`daily_stats`). Rien de nouveau côté `posted_content`
 pour l'optimisation (3.4) — toujours trop tôt.
+
+## 2026-08-01
+
+**Aucune nouvelle action d'acquisition ce run, blocage inchangé pour la
+4e fois consécutive** : `REDDIT_CLIENT_ID/SECRET/USERNAME/PASSWORD`
+toujours vides dans `traffic/.env` (`Publication Reddit` a échoué
+explicitement ce matin, run du 01/08 10:12 UTC), Twitter toujours cassé
+côté permissions OAuth1 (Developer Portal) malgré les clés API présentes
+(`Publication Twitter` a échoué ce matin, run du 01/08 09:47 UTC). Aucun
+des deux ne se corrige par du code. Discord (seule automatisation
+d'acquisition qui tourne réellement) a publié normalement aujourd'hui.
+Plutôt que de reposer une 4e fois la même question sans réponse directe
+(posée les 28/07, 29/07 et 31/07), pas de nouvelle relance — la priorité
+du jour était ailleurs : l'admin a signalé ce matin (`admin_notes` #7)
+être frustré par le manque de signaux et leur qualité, et a explicitement
+donné carte blanche ("tu as toutes permissions, rends tout parfait"). Le
+run a donc consacré son budget à corriger un vrai bug (perte silencieuse
+de ~75% des signaux valides sur cycles cron manqués) et à revalider la
+géométrie TP/SL (espérance désormais positive sur les deux derniers
+semestres) plutôt qu'à des actions de croissance qui, sans base
+d'abonnés significative, seraient prématurées de toute façon.
+
+**Métriques observées** : 3 comptes au total (1 admin plan Standard, 1
+essai gratuit réel expiré le 29/07, 1 compte de test créé le 31/07 —
+inchangé). 0 paiement confirmé, 0 revenu. `reviews` : 2 votes "up", tous
+deux du compte admin, aucun commentaire texte — pas assez de signal pour
+l'optimisation de contenu (3.4) ni pour une proposition produit fondée
+sur du feedback réel (voir section 5 du rapport du jour à la place).

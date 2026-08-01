@@ -70,3 +70,48 @@ Cloudflare répond normalement. Croissance : toujours 0 client réel (2
 comptes, dont 1 de test admin créé aujourd'hui), Reddit/Twitter toujours
 bloqués par des identifiants/permissions côté admin (3e jour identique) —
 question posée à l'admin pour trancher (prioriser ou mettre en pause).
+
+## 2026-08-01
+Journée dominée par un message admin urgent (`admin_notes` #7, 11h02 :
+"pas eu de signaux depuis une semaine", carte blanche totale). Deux gros
+correctifs faits en amont de ce run (mêmes fichiers, même journée) :
+(1) `detect_signals_with_catchup()` — le cron horaire ne partait qu'~12
+fois/jour au lieu de 24 (best-effort GitHub Actions), et chaque bougie
+manquée perdait ses croisements pour toujours ; balaie désormais les 6
+dernières bougies avec garde-fou `is_still_actionable()` pour ne jamais
+annoncer une entrée déjà dépassée par le marché (voir
+`signals/DIAGNOSTIC_SIGNAUX_2026-08-01.md`, 1600 comparaisons de
+non-regard-vers-le-futur vérifiées dans `test_catchup.py`) ; (2) géométrie
+TP/SL rééquilibrée (G6 : SL 1.2/TP 1.3-3.5-6.0 ATR, poids 0.3/0.3/0.4) —
+l'ancienne perdait de l'argent en walk-forward sur le semestre récent
+(+0.065%→-0.029%/trade, ratio gain/perte 0.67), la nouvelle est positive
+sur les deux semestres (+0.128%/+0.031%) et le drawdown baisse (45%→41%).
+Ajout de `edge_guard.py` : suspend automatiquement la génération si
+l'espérance RÉALISÉE (signaux clôturés, pas le backtest) devient nettement
+négative sur ≥30 trades — motif : l'érosion passée ne déclenchait aucune
+alarme, le win rate restant flatteur. Exploré et **refusé** : assouplir les
+seuils RSI pour produire plus de signaux (6x plus de volume en walk-forward
+mais amplificateur de régime, perd plus que la production actuelle en
+période défavorable malgré une meilleure espérance apparente).
+
+Routine du jour (sections 1-9) : santé et argent vérifiés sains (Worker
+`/health` 200, webhook Telegram propre, heartbeat signals à jour, 5
+workflows GitHub Actions verts sauf Reddit/Twitter — échecs déjà connus
+et non liés au code), aucune anomalie `pending_payments` (0 paiement
+confirmé au total, business toujours pré-traction : 3 comptes, 0 client
+payant réel), prix cohérents partout (`plans.ts`/`terms.html`/boutons du
+bot dérivent tous de la même source), `strategy_params` actif sain
+(G6, walk-forward validé). Page transparence vérifiée honnête (affiche
+"n/a" faute de signaux clôturés plutôt qu'un chiffre trompeur). `npm test`
+toujours cassé localement (même bug d'infra chemin Windows avec espaces,
+confirmé indépendant du code) — vérifié par `tsc --noEmit` (propre) à la
+place. Note admin #7 marquée lue ; question du jour posée en retour
+(`admin_notes` #8) : confirmer l'arbitrage qualité/fiabilité plutôt que
+volume brut de signaux. Croissance : aucune action nouvelle, blocage
+Reddit/Twitter inchangé pour la 4e fois (voir `GROWTH_IDEAS.md`) — budget
+du run à juste titre consacré à l'urgence signalée par l'admin plutôt qu'à
+la croissance, une base de 0 client payant ne le justifiant pas encore.
+Proposé sans implémenter (section 5, 1er du mois) : publier l'espérance
+réalisée (`edge_guard`) sur la page transparence plutôt que seulement le
+taux de réussite backtest, pour rendre visible la préférence qualité que
+l'admin n'a pas explicitement validée.
