@@ -63,8 +63,24 @@ _STRINGS = {
         "review_up": "👍",
         "review_down": "👎",
         "backtest_heading": "🧪 Backtest de la stratégie",
+        # Audit du 01/08/2026 : un taux de réussite affiché SEUL est la façon
+        # la plus trompeuse de présenter une stratégie. 61% de réussite avec un
+        # ratio gain/perte de 0,67 n'est PAS rentable (61 x 0,67 = 40,9 contre
+        # 39 x 1,0 = 39,0, soit l'équilibre au cheveu près). Mesuré sur ces
+        # mêmes 24 mois, l'espérance de la stratégie est négative
+        # (-0,019%/trade, voir signals/DIAGNOSTIC_SIGNAUX_2026-08-01.md).
+        # Vendre un abonnement sur ce chiffre serait une pratique commerciale
+        # trompeuse (art. L121-2 code de la consommation). Le taux reste
+        # affiché — il est factuel — mais accompagné de ce qu'il faut pour ne
+        # pas le confondre avec une promesse de gain.
         "backtest_stat": lambda win_rate, trades: (
-            f"{win_rate:.1f}% de réussite sur {trades} trades en 24 mois"
+            f"{win_rate:.1f}% des trades atteignent leur premier objectif ({trades} trades simulés sur 24 mois)"
+        ),
+        "backtest_winrate_caveat": (
+            "⚠️ Un taux de réussite élevé ne signifie pas rentable : ce qui compte est le rapport entre "
+            "ce que rapportent les trades gagnants et ce que coûtent les perdants. Sur cette période simulée, "
+            "les deux se compensent quasiment — la stratégie n'a pas démontré de rentabilité. "
+            "Aucune performance n'est promise."
         ),
         "backtest_insignificant": lambda trades, min_trades: (
             f"Échantillon encore trop petit pour être significatif ({trades} trades sur 24 mois) "
@@ -130,8 +146,14 @@ _STRINGS = {
         "review_up": "👍",
         "review_down": "👎",
         "backtest_heading": "🧪 Strategy backtest",
+        # Voir le commentaire de la version française ci-dessus.
         "backtest_stat": lambda win_rate, trades: (
-            f"{win_rate:.1f}% win rate on {trades} trades over 24 months"
+            f"{win_rate:.1f}% of trades reach their first target ({trades} simulated trades over 24 months)"
+        ),
+        "backtest_winrate_caveat": (
+            "⚠️ A high win rate does not mean profitable: what matters is how much winners earn versus "
+            "how much losers cost. Over this simulated period the two roughly cancel out — the strategy "
+            "has not demonstrated profitability. No performance is promised."
         ),
         "backtest_insignificant": lambda trades, min_trades: (
             f"Sample still too small to be statistically significant ({trades} trades over 24 months) "
@@ -305,16 +327,28 @@ def _backtest_section_html(backtest_stats, s):
 
     win_rate_pct = float(backtest_stats["win_rate"]) * 100
     trades = int(backtest_stats["trade_count"])
+    significant = trades >= MIN_SIGNIFICANT_TRADES
     stat_text = (
-        s["backtest_insignificant"](trades, MIN_SIGNIFICANT_TRADES)
-        if trades < MIN_SIGNIFICANT_TRADES
-        else s["backtest_stat"](win_rate_pct, trades)
+        s["backtest_stat"](win_rate_pct, trades)
+        if significant
+        else s["backtest_insignificant"](trades, MIN_SIGNIFICANT_TRADES)
+    )
+
+    # L'avertissement n'accompagne le chiffre que lorsqu'un chiffre est
+    # réellement affiché (sinon il n'y a rien à nuancer).
+    caveat_html = (
+        f'<p class="backtest-caveat" style="font-size:0.9rem;color:#b45309;'
+        f'background:#fffbeb;border-left:3px solid #f59e0b;padding:10px 12px;'
+        f'border-radius:6px;margin:10px 0;">{s["backtest_winrate_caveat"]}</p>'
+        if significant
+        else ""
     )
 
     return f"""
     <section class="backtest">
       <h2>{s["backtest_heading"]}</h2>
       <p class="backtest-stat">{stat_text}</p>
+      {caveat_html}
       <p>{s["backtest_detail"]}</p>
       <p style="font-size:0.85rem;color:#777;">{s["backtest_note"]}</p>
     </section>"""

@@ -86,7 +86,7 @@ def publish_to_twitter(signal, randomized_delay=True):
         tweet_id = response.data.get("id") if response and response.data else None
         supabase_client.record_posted("twitter", signal["id"])
         logger.info("Twitter: tweet publié (id=%s) pour le signal #%s.", tweet_id, signal["id"])
-    except tweepy.TweepyException:
+    except tweepy.TweepyException as exc:
         # Audit#3 : on ne l'avale plus. Un plafond atteint ou un signal déjà
         # publié retournent False plus haut (comportement normal, silencieux à
         # raison) — mais une VRAIE erreur d'API (permissions OAuth1 insuffisantes,
@@ -95,6 +95,16 @@ def publish_to_twitter(signal, randomized_delay=True):
         # jamais (c'est exactement ce qui s'est produit avec le blocage de
         # permissions "Read" au lieu de "Read and Write").
         logger.exception("Twitter: échec de la publication pour le signal #%s.", signal["id"])
+        # Audit du 01/08/2026 : distinguer le refus de PERMISSIONS (403/401,
+        # état durable qui demande une action précise dans le portail X) d'une
+        # erreur transitoire. Sans ça, l'admin recevait tous les jours le même
+        # « Échec du workflow » sans jamais savoir quoi corriger -- et le canal
+        # est resté mort au moins du 29/07 au 01/08.
+        import preflight
+
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        if status in (401, 403):
+            preflight.report_auth_failure("twitter", f"HTTP {status}")
         raise
 
     # Lien en réponse plutôt que dans le tweet principal (voir format_tweet_reply).

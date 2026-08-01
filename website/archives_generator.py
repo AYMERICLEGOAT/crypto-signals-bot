@@ -28,9 +28,16 @@ def _backtest_stat_html(win_rate_pct, trade_count):
             f'({trade_count} trades sur {_BACKTEST_WINDOW_MONTHS} mois) — taux de réussite non affiché '
             f"tant que le seuil de {MIN_SIGNIFICANT_TRADES} trades n'est pas atteint.</p>"
         )
+    # Audit du 01/08/2026 : ne jamais afficher un taux de réussite seul (voir
+    # website/html_generator.py, même correctif). 61% de réussite avec un ratio
+    # gain/perte de 0,67 n'est pas rentable, et l'espérance mesurée sur ces
+    # mêmes 24 mois est négative -- présenter le taux nu comme argument de
+    # vente serait trompeur.
     return (
-        f'<p class="archive-stats">{win_rate_pct:.1f}% de réussite sur {trade_count} trades '
-        f"(backtest {_BACKTEST_WINDOW_MONTHS} mois, in-sample).</p>"
+        f'<p class="archive-stats">{win_rate_pct:.1f}% des trades atteignent leur premier objectif '
+        f"({trade_count} trades simulés, backtest {_BACKTEST_WINDOW_MONTHS} mois, in-sample). "
+        f"⚠️ Un taux de réussite élevé ne signifie pas rentable : sur cette période, gains et pertes "
+        f"se compensent quasiment. Aucune performance n'est promise.</p>"
     )
 
 _OUTCOME_LABEL = {"WIN": "Take profit atteint ✅", "LOSS": "Stop loss touché ❌", "TIMEOUT": "Clôturé (délai)"}

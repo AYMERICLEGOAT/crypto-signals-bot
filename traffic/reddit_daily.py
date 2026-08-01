@@ -8,6 +8,7 @@ jours, mais reddit_publisher.is_due() applique déjà l'espacement réel
 
 import logging
 
+import preflight
 import supabase_client
 from reddit_publisher import publish_to_reddit
 
@@ -16,6 +17,12 @@ logger = logging.getLogger(__name__)
 
 
 def main():
+    # Les 4 secrets Reddit n'ont jamais été renseignés : ce workflow échouait
+    # donc tous les jours sur un RuntimeError brut, sans jamais dire quoi
+    # corriger. On sort proprement avec la marche à suivre à la place.
+    if not preflight.ensure_configured("reddit"):
+        return
+
     signal = supabase_client.get_latest_signal()
     if not signal:
         logger.info("Aucun signal en base : rien à publier sur Reddit aujourd'hui (pas de résumé macro pour ce canal).")

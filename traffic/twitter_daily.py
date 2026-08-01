@@ -6,6 +6,7 @@ déclencher QUE Twitter depuis ce workflow (pas Reddit/Discord).
 
 import logging
 
+import preflight
 import supabase_client
 from twitter_publisher import publish_to_twitter, publish_macro_summary
 
@@ -14,6 +15,13 @@ logger = logging.getLogger(__name__)
 
 
 def main():
+    # Contrôle de configuration AVANT tout le reste : publish_to_twitter()
+    # patiente jusqu'à 1800s (espacement volontaire, voir config.py) avant de
+    # toucher l'API. Sans ce contrôle, un identifiant manquant coûtait ~17 min
+    # de runner pour finir sur une erreur qui était connue dès la seconde 0.
+    if not preflight.ensure_configured("twitter"):
+        return
+
     signal = supabase_client.get_latest_signal()
     if not signal:
         logger.info("Aucun signal en base : publication du résumé macro à la place.")
