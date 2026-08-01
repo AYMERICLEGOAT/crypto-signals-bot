@@ -66,7 +66,7 @@ export async function dispatchFearGreed(env: Env): Promise<void> {
     comment,
     "",
     "ℹ️ Indicateur de sentiment de marché (source : alternative.me), pas un signal de trading ni un conseil en investissement.",
-    escapedUsername ? `\n📡 Signaux réels + suivi complet : @${escapedUsername}` : null,
+    escapedUsername ? `\n@${escapedUsername} pour des signaux en temps réel` : null,
   ];
   const text = lines.filter((line): line is string => line !== null && line !== "").join("\n");
 

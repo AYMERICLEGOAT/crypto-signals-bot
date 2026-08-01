@@ -15,7 +15,7 @@ compatibility_flags = ["nodejs_compat"]
 #           par leurs propres gates ("déjà envoyé aujourd'hui/cette semaine") :
 #           un délai de quelques minutes ne change rien pour l'utilisateur.
 [triggers]
-crons = ["*/5 * * * *", "*/15 * * * *"]
+crons = ["*/5 * * * *", "*/15 * * * *", "0 */3 * * *"]
 
 # Variables non sensibles (visibles dans ce fichier, donc jamais de secrets ici).
 # Les vraies clés/tokens sont fournis via `wrangler secret put` (voir README).

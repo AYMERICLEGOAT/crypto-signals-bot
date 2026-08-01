@@ -1,17 +1,33 @@
-import { InlineKeyboard } from "../telegram";
+import { InlineKeyboard, InlineKeyboardButton } from "../telegram";
 import { PaidPlan, PLAN_PRICES_USD, PLAN_DURATION_DAYS, STANDARD_PLAN, PRO_PLAN, DISCOVERY_PLAN } from "../payments/plans";
 
 /**
  * `showTrial=false` pour un abonné ayant déjà un plan payant actif (Standard/
  * Pro/Découverte) : proposer l'essai gratuit reviendrait à l'inviter à
  * écraser son propre abonnement en cours par 3 jours d'essai (voir
- * bot/commands/trial.ts, handleTrialCommand refuse maintenant ce cas, mais
- * autant ne pas présenter le bouton en premier lieu).
+ * bot/commands/trial.ts, handleTrialCommand refuse ce cas). S'applique aux
+ * trois claviers de la séquence /start ci-dessous (refonte UX du 01/08/2026).
  */
-export function buildStartKeyboard(showTrial: boolean): InlineKeyboard {
-  const rows: InlineKeyboard = [[{ text: "📅 S'abonner", callback_data: "start:subscribe" }]];
-  if (showTrial) rows.push([{ text: "🎁 Essai gratuit (3 jours)", callback_data: "start:trial" }]);
-  rows.push([{ text: "📊 Mon statut", callback_data: "start:status" }]);
+function trialCtaButton(): InlineKeyboardButton {
+  return { text: "🎁 Essai gratuit", callback_data: "start:trial" };
+}
+
+/** Premier message de la séquence /start : accroche seule, un unique bouton essai. */
+export function buildStartMessage1Keyboard(showTrial: boolean): InlineKeyboard | undefined {
+  return showTrial ? [[trialCtaButton()]] : undefined;
+}
+
+/** Deuxième message (+3s) : /demo et /trial en boutons cliquables, voir commands/start.ts. */
+export function buildStartMessage2Keyboard(showTrial: boolean): InlineKeyboard {
+  const rows: InlineKeyboard = [[{ text: "📈 /demo — voir un exemple", callback_data: "start:demo" }]];
+  if (showTrial) rows.push([{ text: "🎁 /trial — essai gratuit 3 jours", callback_data: "start:trial" }]);
+  return rows;
+}
+
+/** Troisième message (+10s) : /help, plus le bouton essai rappelé sur chaque message. */
+export function buildStartMessage3Keyboard(showTrial: boolean): InlineKeyboard {
+  const rows: InlineKeyboard = [[{ text: "❓ /help — toutes les commandes", callback_data: "start:help" }]];
+  if (showTrial) rows.push([trialCtaButton()]);
   return rows;
 }
 

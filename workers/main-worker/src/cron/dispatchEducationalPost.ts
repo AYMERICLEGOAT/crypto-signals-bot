@@ -37,7 +37,7 @@ export async function dispatchEducationalPost(env: Env): Promise<void> {
   const post = await getNextEducationalPost(db);
   if (!post) return;
 
-  const cta = env.TELEGRAM_BOT_USERNAME ? `\n\n📡 Signaux réels + suivi complet : @${env.TELEGRAM_BOT_USERNAME}` : "";
+  const cta = env.TELEGRAM_BOT_USERNAME ? `\n\n@${env.TELEGRAM_BOT_USERNAME} pour des signaux en temps réel` : "";
   await sendMessage(env.TELEGRAM_BOT_TOKEN, Number(env.TELEGRAM_CHANNEL_ID), post.content + cta);
   await markEducationalPostSent(db, post.id);
 }

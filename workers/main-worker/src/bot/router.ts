@@ -116,6 +116,8 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
     if (data === "start:subscribe") await handleSubscribeCommand(env, chatId);
     else if (data === "start:trial") await handleTrialCommand(env, chatId);
     else if (data === "start:status") await handleStatusCommand(env, chatId);
+    else if (data === "start:demo") await handleDemoCommand(env, chatId);
+    else if (data === "start:help") await handleHelpCommand(env, chatId);
     else if (data.startsWith("plan:")) await handlePlanSelection(env, chatId, data);
     else if (data.startsWith("pay:")) await handlePaymentMethodSelection(env, chatId, data);
     else if (data.startsWith("survey:")) await handleSurveyResponse(env, chatId, data);

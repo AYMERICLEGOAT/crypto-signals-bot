@@ -20,7 +20,7 @@ export async function dispatchCryptoFact(env: Env): Promise<void> {
   // signalFormat.ts) : un underscore non échappé casse tout le message
   // (bug vécu le 29/07 sur /help et /referral, même famille).
   const escapedUsername = env.TELEGRAM_BOT_USERNAME?.replace(/_/g, "\\_");
-  const cta = escapedUsername ? `\n\n📡 Signaux réels + suivi complet : @${escapedUsername}` : "";
+  const cta = escapedUsername ? `\n\n@${escapedUsername} pour des signaux en temps réel` : "";
   await sendMessage(env.TELEGRAM_BOT_TOKEN, Number(env.TELEGRAM_CHANNEL_ID), `💡 *Le saviez-vous ?*\n\n${fact.content}${cta}`, {
     markdown: true,
   });

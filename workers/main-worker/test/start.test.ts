@@ -1,0 +1,127 @@
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { handleStart } from "../src/bot/commands/start";
+
+function jsonResponse(body: unknown) {
+  return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+}
+
+const env = { TELEGRAM_BOT_TOKEN: "fake-token", SUPABASE_URL: "https://fake-supabase.test", SUPABASE_KEY: "k" } as any;
+
+function makeUser(overrides: Record<string, unknown> = {}) {
+  return {
+    telegram_id: 1,
+    wallet_address: null,
+    plan: null,
+    expiration: null,
+    trial_used: false,
+    created_at: "2026-01-01T00:00:00Z",
+    referred_by: null,
+    ...overrides,
+  };
+}
+
+describe("handleStart — séquence de 3 messages (refonte UX du 01/08/2026)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("envoie 3 messages espacés (accroche, options, aide) avec le bouton essai sur chacun quand éligible", async () => {
+    const sentMessages: { text: string; keyboard?: unknown }[] = [];
+    const sleepCalls: number[] = [];
+
+    vi.stubGlobal(
+      "setTimeout",
+      vi.fn((fn: () => void, ms: number) => {
+        sleepCalls.push(ms);
+        fn();
+        return 0 as unknown as NodeJS.Timeout;
+      })
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("/users") && url.includes("telegram_id=eq.1")) return jsonResponse([makeUser()]);
+        if (url.includes("api.telegram.org")) {
+          const body = JSON.parse(init!.body as string);
+          sentMessages.push({ text: body.text, keyboard: body.reply_markup });
+          return jsonResponse({ ok: true, result: {} });
+        }
+        throw new Error(`URL inattendue: ${url}`);
+      })
+    );
+
+    await handleStart(env, 1);
+
+    expect(sentMessages).toHaveLength(3);
+    expect(sentMessages[0].text).toContain("stratégie backtestée");
+    expect(sentMessages[1].text).toContain("comment ça marche");
+    expect(sentMessages[2].text).toContain("/help");
+
+    // Bouton "essai gratuit" présent sur chacun des 3 messages.
+    for (const msg of sentMessages) {
+      const flat = JSON.stringify(msg.keyboard);
+      expect(flat).toContain("start:trial");
+    }
+    // Message 2 propose aussi /demo.
+    expect(JSON.stringify(sentMessages[1].keyboard)).toContain("start:demo");
+    // Message 3 propose aussi /help en bouton.
+    expect(JSON.stringify(sentMessages[2].keyboard)).toContain("start:help");
+
+    // Délais cumulés : +3s puis +7s (soit +10s au total depuis le message 1).
+    expect(sleepCalls).toEqual([3_000, 7_000]);
+  });
+
+  it("n'affiche pas le bouton essai gratuit pour un abonné avec un plan payant déjà actif", async () => {
+    vi.stubGlobal("setTimeout", vi.fn((fn: () => void) => { fn(); return 0 as unknown as NodeJS.Timeout; }));
+    const sentMessages: { text: string; keyboard?: unknown }[] = [];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("/users") && url.includes("telegram_id=eq.2")) {
+          return jsonResponse([makeUser({ telegram_id: 2, plan: 1, expiration: "2099-01-01T00:00:00.000Z" })]);
+        }
+        if (url.includes("api.telegram.org")) {
+          const body = JSON.parse(init!.body as string);
+          sentMessages.push({ text: body.text, keyboard: body.reply_markup });
+          return jsonResponse({ ok: true, result: {} });
+        }
+        throw new Error(`URL inattendue: ${url}`);
+      })
+    );
+
+    await handleStart(env, 2);
+
+    expect(sentMessages).toHaveLength(3);
+    for (const msg of sentMessages) {
+      expect(JSON.stringify(msg.keyboard) ?? "").not.toContain("start:trial");
+    }
+    // Le message 1 n'a alors plus aucun bouton du tout.
+    expect(sentMessages[0].keyboard).toBeUndefined();
+    // Le message 2 garde /demo malgré tout.
+    expect(JSON.stringify(sentMessages[1].keyboard)).toContain("start:demo");
+  });
+
+  it("attribue le parrainage avant d'envoyer les messages, si un payload de /start est fourni", async () => {
+    vi.stubGlobal("setTimeout", vi.fn((fn: () => void) => { fn(); return 0 as unknown as NodeJS.Timeout; }));
+    let referredByPatched = false;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const isGet = !init || init.method === undefined;
+        if (url.includes("telegram_id=eq.3") && isGet) return jsonResponse([makeUser({ telegram_id: 3, referred_by: null })]);
+        if (url.includes("telegram_id=eq.9") && isGet) return jsonResponse([makeUser({ telegram_id: 9 })]);
+        if (url.includes("telegram_id=eq.3") && init?.method === "PATCH") {
+          const body = JSON.parse(init.body as string);
+          if (body.referred_by === 9) referredByPatched = true;
+          return jsonResponse([]);
+        }
+        if (url.includes("api.telegram.org")) return jsonResponse({ ok: true, result: {} });
+        throw new Error(`URL inattendue: ${url} ${init?.method}`);
+      })
+    );
+
+    await handleStart(env, 3, "9"); // payload = code de parrainage du telegram_id 9 (voir referral.ts::decodeReferralCode)
+
+    expect(referredByPatched).toBe(true);
+  });
+});

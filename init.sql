@@ -241,6 +241,51 @@ create table if not exists educational_posts (
 
 create index if not exists idx_educational_posts_rotation on educational_posts (last_sent_at nulls first, id);
 
+-- Index unique (pas une contrainte "add constraint if not exists", non
+-- portable) : permet on conflict (content) do nothing ci-dessous, pour que
+-- ré-exécuter ce fichier ne duplique jamais les 30 lignes -- même bug que
+-- celui vécu sur crypto_facts (une ré-exécution avait recréé une ligne en
+-- double, faute d'un tel garde-fou à l'origine).
+create unique index if not exists idx_educational_posts_content_unique on educational_posts (content);
+
+-- Contenu du 01/08/2026 (refonte UX) : les 30 posts n'avaient jusqu'ici
+-- jamais été committés (seedés directement en base) -- ajoutés ici pour
+-- qu'un environnement reconstruit à partir de ce fichier les retrouve tels
+-- quels. Voir workers/main-worker/src/cron/dispatchEducationalPost.ts
+-- (envoyé en texte brut, sans markdown -- pas d'échappement nécessaire ici).
+insert into educational_posts (content) values
+('📈 L''EMA : l''arme préférée des traders qui détestent être en retard. En donnant plus de poids aux prix récents, elle réagit plus vite qu''une moyenne mobile simple aux changements de tendance — au prix de plus de faux signaux.'),
+('🔀 Le croisement EMA9/EMA21 : quand la courte passe au-dessus de la longue, beaucoup de traders y voient un signal haussier. Un indice, jamais une certitude — à combiner avec d''autres indicateurs.'),
+('🌡️ Le RSI, c''est le thermomètre du marché : de 0 à 100, il mesure la vitesse et l''ampleur des variations de prix. En dessous de 30 : "survendu". Au-dessus de 70 : "suracheté".'),
+('⚠️ Piège classique du RSI : un actif "survendu" peut le rester longtemps en pleine tendance baissière. Le RSI mesure le momentum, il ne prédit pas un rebond.'),
+('📏 Les bandes de Bollinger entourent une moyenne mobile grâce à l''écart-type du prix. Plus elles s''écartent, plus la volatilité grimpe à cet instant précis.'),
+('⚡ Le "squeeze" : quand les bandes de Bollinger se resserrent fort, un mouvement de prix plus marqué suit souvent — dans un sens... ou dans l''autre.'),
+('🛑 Le stop loss clôture automatiquement une position perdante à un niveau fixé à l''avance. Le définir AVANT d''entrer évite de décider à chaud, sous le coup de l''émotion.'),
+('🎯 Stop loss trop serré = déclenché par le simple bruit du marché. Trop large = ne protège plus rien. Le bon réglage dépend de la volatilité de l''actif, jamais d''un chiffre universel.'),
+('💰 Le take profit sécurise un gain automatiquement, à un niveau fixé à l''avance — sans avoir à fixer les graphiques en continu.'),
+('⚖️ Le ratio risque/rendement compare ta perte potentielle (jusqu''au stop) à ton gain potentiel (jusqu''au take profit). Un ratio 1:2 veut dire : viser deux fois plus de gain que de risque pris.'),
+('🧮 Règle d''or : ne jamais risquer plus de 1-2% de son capital sur une seule position. De quoi encaisser plusieurs pertes d''affilée sans être éliminé.'),
+('📐 La taille de position ne se choisit pas au hasard : elle se calcule à partir du capital total, du % de risque accepté, et de la distance jusqu''au stop loss — jamais un montant fixe identique à chaque trade.'),
+('⏱️ Un croisement de moyennes mobiles confirme une tendance — ce n''est pas un signal de timing parfait. Le temps que le croisement se confirme, le prix a souvent déjà bougé.'),
+('🧩 Combiner plusieurs indicateurs (croisement EMA + confirmation RSI, par exemple) réduit les faux signaux — mais n''élimine jamais complètement le risque d''erreur.'),
+('🔍 Le choix du timeframe change tout : un signal en bougies horaires n''a pas la même fiabilité qu''un signal en bougies 5 minutes. Plus le timeframe est court, plus le bruit domine.'),
+('🧭 Un même actif peut sembler haussier en journalier et baissier en horaire, au même instant. Rester fidèle à UN timeframe de référence évite la confusion.'),
+('🌊 La volatilité mesure l''AMPLEUR des mouvements de prix, pas leur direction. Un marché très volatil peut aussi bien monter que s''effondrer.'),
+('🎢 Les cryptos sont bien plus volatiles que les actions ou le forex : un mouvement de 5-10% en une journée n''a rien d''exceptionnel — contrairement à d''autres marchés.'),
+('🧱 Un support, c''est un niveau où la demande a historiquement freiné une baisse. Une résistance, l''inverse. Des zones probabilistes — jamais des lignes magiques infranchissables.'),
+('🔄 Une résistance cassée devient souvent... un nouveau support (et inversement). La psychologie collective des acteurs du marché change à ce niveau précis.'),
+('🔬 Un backtest simule une stratégie sur des données passées pour estimer sa performance. Utile pour valider une logique — mais un bon backtest ne garantit jamais un résultat identique en conditions réelles.'),
+('🚩 L''overfitting : coller une stratégie aux données passées jusqu''à ce qu''elle perde toute capacité à réagir aux nouvelles. Une stratégie "parfaite" en backtest est un signal d''alerte, pas de confiance.'),
+('🪙 Le DCA (dollar-cost averaging) : investir un montant fixe à intervalles réguliers plutôt qu''une grosse somme d''un coup. Ça lisse le prix d''achat moyen et réduit l''impact du timing.'),
+('📊 Les marchés crypto alternent accumulation (prix stable), tendance (mouvement clair) et distribution (retournement). Reconnaître la phase actuelle aide à interpréter les signaux.'),
+('😱 Le FOMO pousse à entrer en position après une forte hausse — souvent trop tard. Des règles claires, écrites à l''avance, aident à résister à cette impulsion.'),
+('🔥 Après une perte, l''envie de "se refaire" avec une position plus grosse est l''une des erreurs les plus coûteuses en trading. Le revenge trading amplifie les pertes, il ne les répare jamais.'),
+('📓 Tenir un journal de trading (pourquoi tu entres, pourquoi tu sors, ce qui a marché ou non) révèle tes propres biais bien mieux que ta mémoire seule.'),
+('🚫 Erreur classique : déplacer son stop loss plus loin quand le prix s''en approche "pour laisser une chance au trade". Ça transforme une perte maîtrisée en perte potentiellement illimitée.'),
+('🔁 Erreur classique #2 : changer de stratégie après chaque perte isolée. Une stratégie s''évalue sur des dizaines de trades, jamais sur un seul résultat.'),
+('🔮 Aucun indicateur, aussi bien construit soit-il, ne prédit l''avenir avec certitude — il décrit une probabilité basée sur des schémas passés. La gestion du risque compte autant que la qualité du signal.')
+on conflict (content) do nothing;
+
 create table if not exists lucky_vip_draws (
     id            bigserial primary key,
     telegram_id   bigint not null references users (telegram_id),
@@ -552,58 +597,62 @@ create table if not exists crypto_facts (
 
 create index if not exists idx_crypto_facts_rotation on crypto_facts (last_sent_at nulls first, id);
 
+-- Contenu réécrit le 01/08/2026 (refonte UX) : même fait, formulation plus
+-- percutante -- voir workers/main-worker/src/cron/dispatchCryptoFact.ts
+-- (envoyé en markdown, d'où l'échappement de l'underscore sur OP\_RETURN,
+-- même bug que celui vécu le 29/07 sur /help et /referral).
 insert into crypto_facts (content) values
-('Le premier achat concret en Bitcoin : 10 000 BTC contre deux pizzas, le 22 mai 2010, désormais célébré comme le "Bitcoin Pizza Day".'),
-('Le bloc genesis de Bitcoin, miné le 3 janvier 2009, contient un message caché : le titre d''un article du Times sur un plan de sauvetage bancaire.'),
-('"Satoshi Nakamoto", le ou les créateurs de Bitcoin, n''ont jamais révélé leur identité réelle.'),
-('Il n''y aura jamais plus de 21 millions de bitcoins en circulation : la limite est inscrite dans le protocole.'),
-('Le plus petit fragment de bitcoin s''appelle un "satoshi" : un cent-millionième de BTC.'),
-('Ethereum a introduit les "smart contracts", des programmes qui s''exécutent automatiquement sur la blockchain.'),
-('La blockchain Bitcoin fonctionne en continu depuis 2009, sans interruption majeure.'),
-('"HODL" vient d''une faute de frappe sur un forum en 2013 ("I AM HODLING") devenue une expression culte.'),
-('Chaque bloc miné avant 2020 rapportait 50 BTC de récompense ; ce montant est divisé par deux tous les ~4 ans ("halving").'),
-('Le dernier bitcoin ne sera miné que vers l''année 2140, selon le rythme du halving.'),
-('En 2021, le Salvador est devenu le premier pays à adopter le bitcoin comme monnaie légale.'),
-('Le terme "blockchain" désigne littéralement une chaîne de blocs de données liés cryptographiquement.'),
-('Perdre la clé privée d''un portefeuille crypto signifie perdre l''accès à ses fonds, définitivement — il n''y a pas de "mot de passe oublié".'),
-('On estime que plusieurs millions de bitcoins sont définitivement inaccessibles, clés privées perdues.'),
-('La preuve de travail (proof of work) de Bitcoin consomme de l''énergie pour sécuriser le réseau contre la fraude.'),
-('Ethereum est passé de la preuve de travail à la preuve d''enjeu (proof of stake) en 2022, lors de "The Merge".'),
-('Le mot "crypto" dans cryptomonnaie fait référence à la cryptographie utilisée pour sécuriser les transactions, pas à un secret.'),
-('Le Bitcoin Whitepaper, publié par Satoshi Nakamoto en octobre 2008, tient sur seulement 9 pages.'),
-('Une adresse Bitcoin peut recevoir des fonds même vide de toute activité — elle est générée mathématiquement, pas allouée par un tiers.'),
-('Les "NFT" (jetons non fongibles) permettent de représenter la propriété d''un objet numérique unique sur une blockchain.'),
-('DogeCoin, créé en 2013 comme une blague basée sur un mème de chien Shiba Inu, reste l''une des cryptomonnaies les plus connues.'),
-('Une transaction Bitcoin ne peut pas être annulée une fois confirmée sur la blockchain.'),
-('Les "stablecoins" comme l''USDT visent à maintenir une valeur stable, généralement indexée sur le dollar.'),
-('Binance, fondée en 2017, est devenue en quelques années l''une des plus grandes plateformes d''échange de cryptomonnaies au monde.'),
-('Le "gas" sur Ethereum désigne les frais payés pour exécuter une transaction ou un smart contract.'),
-('Un "wallet" (portefeuille) crypto ne stocke pas vraiment les pièces : il conserve les clés qui prouvent qu''on les possède sur la blockchain.'),
-('La capitalisation totale du marché crypto a dépassé les 1 000 milliards de dollars pour la première fois en 2021.'),
-('Un mineur qui valide un bloc Bitcoin doit résoudre un calcul cryptographique complexe, vérifié ensuite facilement par les autres nœuds.'),
-('Solana, lancée en 2020, met en avant des temps de confirmation de transaction très rapides comparés à Bitcoin.'),
-('Ethereum a été proposé par Vitalik Buterin en 2013, alors qu''il avait 19 ans.'),
-('Le mot "altcoin" désigne toute cryptomonnaie autre que le Bitcoin.'),
-('La blockchain Bitcoin ajoute un nouveau bloc environ toutes les 10 minutes, en moyenne.'),
-('Certains gouvernements ont interdit ou fortement restreint l''usage des cryptomonnaies, quand d''autres les ont pleinement intégrées.'),
-('Le "cold wallet" (portefeuille froid) stocke les clés hors ligne, à l''abri du piratage à distance.'),
-('L''"airdrop" désigne la distribution gratuite de jetons à des utilisateurs, souvent pour promouvoir un nouveau projet.'),
-('Une "fork" (bifurcation) de blockchain crée une nouvelle version du protocole — Bitcoin Cash est ainsi né d''un fork de Bitcoin en 2017.'),
-('Litecoin, lancé en 2011, est souvent présenté comme "l''argent" à côté de "l''or" que représenterait le Bitcoin.'),
-('Le trading de cryptomonnaies fonctionne 24h/24 et 7j/7, contrairement aux marchés boursiers traditionnels.'),
-('Une seed phrase (phrase de récupération) de 12 ou 24 mots permet de restaurer un portefeuille crypto sur n''importe quel appareil.'),
-('Chaque bloc Bitcoin doit être validé par consensus du réseau : aucun mineur ne peut valider un bloc invalide à lui seul.'),
-('Le "DeFi" (finance décentralisée) vise à recréer des services financiers (prêts, échanges) sans intermédiaire bancaire traditionnel.'),
-('XRP, la cryptomonnaie associée à Ripple, cible en priorité les transferts internationaux rapides entre institutions financières.'),
-('La volatilité des cryptomonnaies peut dépasser 10% de variation en une seule journée, bien plus que la plupart des actifs traditionnels.'),
-('Le premier guichet automatique Bitcoin (ATM) a été installé au Canada en 2013.'),
-('Chaque transaction Bitcoin est publique et consultable sur la blockchain, mais les identités réelles derrière les adresses ne le sont pas directement (pseudonymat, pas anonymat total).'),
-('Le terme "whale" (baleine) désigne un détenteur possédant une quantité très importante d''une cryptomonnaie, capable d''influencer son marché.'),
-('La Chine a interdit le minage de cryptomonnaies sur son territoire en 2021, provoquant une migration massive des mineurs vers d''autres pays.'),
-('Le champ "OP_RETURN" permet d''inscrire une petite quantité de données arbitraires dans une transaction Bitcoin.'),
-('Le mot "testnet" désigne un réseau blockchain parallèle utilisé pour tester du code sans risquer de vrais fonds.'),
-('Une "adresse multisig" exige plusieurs signatures différentes avant qu''une transaction puisse être validée — utile pour sécuriser des fonds partagés.'),
-('Le symbole ₿ pour le Bitcoin n''est pas officiel : il n''existe aucune norme Unicode universellement adoptée pour le représenter.')
+('🍕 2 pizzas = 10 000 BTC. Le 22 mai 2010, quelqu''un a fait l''échange le plus commenté de l''histoire crypto — aujourd''hui célébré chaque année comme le "Bitcoin Pizza Day".'),
+('🗞️ Le tout premier bloc de Bitcoin (3 janvier 2009) cache un message : le titre d''un article du Times sur un plan de sauvetage bancaire. Un clin d''œil qui n''a rien d''un hasard.'),
+('🕵️ Le plus grand mystère de la crypto : personne ne sait qui est "Satoshi Nakamoto", le ou les créateurs de Bitcoin. Leur identité n''a jamais été révélée.'),
+('🔒 21 millions. Pas un de plus. Le nombre maximum de bitcoins qui existeront un jour est gravé dans le protocole depuis le premier jour.'),
+('🔬 Le plus petit fragment de Bitcoin s''appelle un "satoshi" — un cent-millionième de BTC. De quoi acheter du Bitcoin même avec un tout petit budget.'),
+('⚙️ Ethereum a changé la donne en introduisant les "smart contracts" : des programmes qui s''exécutent automatiquement sur la blockchain, sans intermédiaire.'),
+('⏳ Depuis 2009, la blockchain Bitcoin tourne en continu, sans interruption majeure — un des réseaux informatiques les plus fiables jamais créés.'),
+('✍️ "HODL" est né d''une faute de frappe sur un forum en 2013 ("I AM HODLING"). Depuis, c''est devenu un mot culte de toute la culture crypto.'),
+('✂️ Chaque bloc miné rapportait 50 BTC avant 2020. Ce montant est divisé par deux tous les ~4 ans, lors du "halving" — un mécanisme intégré dès le départ.'),
+('📅 Le tout dernier bitcoin ne sera miné que vers l''an 2140 — au rythme du halving, la récompense continue de fondre tous les 4 ans.'),
+('🇸🇻 En 2021, le Salvador est devenu le premier pays au monde à adopter le bitcoin comme monnaie légale, aux côtés du dollar.'),
+('⛓️ "Blockchain" veut dire exactement ce que ça dit : une chaîne de blocs de données, liés entre eux par cryptographie.'),
+('🔑 Perdre la clé privée de son portefeuille crypto, c''est perdre l''accès à ses fonds — pour toujours. Il n''y a pas de bouton "mot de passe oublié".'),
+('💀 On estime que plusieurs millions de bitcoins sont perdus à jamais, coincés derrière des clés privées égarées.'),
+('⛏️ La preuve de travail (proof of work) de Bitcoin consomme de l''énergie... volontairement. C''est ce coût qui sécurise le réseau contre la fraude.'),
+('🔀 En 2022, Ethereum a changé de moteur en plein vol : passage de la preuve de travail à la preuve d''enjeu (proof of stake), lors de "The Merge".'),
+('🔐 Le "crypto" de cryptomonnaie vient de cryptographie — la technique qui sécurise les transactions. Rien à voir avec un quelconque secret.'),
+('📄 Le Bitcoin Whitepaper, publié par Satoshi Nakamoto en octobre 2008, tient sur 9 pages. Neuf pages qui ont changé la finance mondiale.'),
+('🧮 Une adresse Bitcoin peut recevoir des fonds sans jamais avoir servi : elle est générée mathématiquement, personne n''a besoin de te l''"attribuer".'),
+('🖼️ Les NFT (jetons non fongibles) permettent de représenter la propriété d''un objet numérique unique — impossible à dupliquer sur la blockchain.'),
+('🐕 Dogecoin est né en 2013 comme une blague basée sur un mème de chien Shiba Inu. Plus de dix ans après, c''est toujours l''une des cryptos les plus connues au monde.'),
+('⏮️ Une transaction Bitcoin confirmée ne peut JAMAIS être annulée. Pas de service client, pas de retour en arrière possible.'),
+('💵 Les "stablecoins" comme l''USDT visent une valeur stable, généralement indexée sur le dollar — un pont entre crypto et monnaie traditionnelle.'),
+('🚀 Fondée en 2017, Binance est devenue en quelques années l''une des plus grandes plateformes d''échange crypto au monde.'),
+('⛽ Le "gas" sur Ethereum, ce sont les frais à payer pour exécuter une transaction ou un smart contract — le prix du calcul sur la blockchain.'),
+('👛 Un "wallet" crypto ne stocke pas vraiment tes pièces : il garde les clés qui prouvent que tu les possèdes sur la blockchain.'),
+('📈 En 2021, la capitalisation totale du marché crypto a dépassé les 1 000 milliards de dollars pour la toute première fois.'),
+('🧩 Miner un bloc Bitcoin, c''est résoudre un calcul cryptographique complexe — mais vérifié ensuite en un instant par n''importe quel autre nœud du réseau.'),
+('⚡ Lancée en 2020, Solana mise tout sur la vitesse : des temps de confirmation de transaction largement plus rapides que Bitcoin.'),
+('🧠 Vitalik Buterin avait 19 ans quand il a proposé Ethereum, en 2013. Aujourd''hui, c''est l''une des blockchains les plus utilisées au monde.'),
+('🪙 "Altcoin" désigne simplement toute cryptomonnaie qui n''est pas le Bitcoin — des milliers de projets rentrent dans cette case.'),
+('⏱️ La blockchain Bitcoin ajoute un nouveau bloc environ toutes les 10 minutes, en moyenne, depuis 2009.'),
+('🌍 Certains gouvernements ont interdit les cryptomonnaies. D''autres les ont pleinement intégrées à leur économie. La régulation reste un vrai patchwork mondial.'),
+('❄️ Un "cold wallet" garde tes clés hors ligne, totalement coupées d''internet — la meilleure protection contre le piratage à distance.'),
+('🎁 Un "airdrop", c''est une distribution gratuite de jetons à des utilisateurs — souvent utilisé pour faire connaître un nouveau projet.'),
+('🍴 Une "fork" crée une nouvelle version d''une blockchain. Bitcoin Cash est ainsi né d''une bifurcation de Bitcoin, en 2017.'),
+('🥈 Litecoin, lancé en 2011, se présente souvent comme "l''argent" à côté de "l''or" que représenterait le Bitcoin.'),
+('🌙 Le trading crypto ne s''arrête jamais : 24h/24, 7j/7, week-ends compris — contrairement aux marchés boursiers traditionnels.'),
+('📝 Une seed phrase de 12 ou 24 mots suffit à restaurer un portefeuille crypto entier, sur n''importe quel appareil, n''importe où.'),
+('🤝 Aucun mineur ne peut valider un bloc Bitcoin invalide tout seul : chaque bloc doit passer par le consensus de l''ensemble du réseau.'),
+('🏦 La "DeFi" (finance décentralisée) veut recréer prêts, échanges et services financiers... sans passer par une banque.'),
+('🌐 XRP, la cryptomonnaie liée à Ripple, cible en priorité un objectif précis : accélérer les transferts internationaux entre institutions financières.'),
+('🎢 Une variation de plus de 10% en une seule journée ? Banal en crypto. Bien plus violent que la plupart des actifs traditionnels.'),
+('🏧 Le tout premier distributeur automatique de Bitcoin a été installé au Canada, en 2013.'),
+('🕶️ Chaque transaction Bitcoin est publique et consultable par tous — mais les identités réelles derrière les adresses restent cachées. Pseudonymat, pas anonymat total.'),
+('🐋 Une "baleine" désigne un détenteur avec une quantité de crypto si importante qu''il peut, à lui seul, influencer le marché.'),
+('🚫 En 2021, la Chine a interdit le minage de cryptomonnaies sur son territoire, provoquant l''exode massif des mineurs vers d''autres pays.'),
+('🗂️ Le champ "OP\_RETURN" permet d''inscrire une petite quantité de données arbitraires directement dans une transaction Bitcoin.'),
+('🧪 Un "testnet" est un réseau blockchain parallèle, pensé pour tester du code sans jamais risquer le moindre vrai fonds.'),
+('🔐 Une adresse "multisig" exige plusieurs signatures différentes avant de valider une transaction — parfait pour sécuriser des fonds partagés à plusieurs.'),
+('❓ Le symbole ₿ pour le Bitcoin n''a rien d''officiel : aucune norme Unicode universelle ne l''a jamais consacré.')
 on conflict (content) do nothing;
 
 
