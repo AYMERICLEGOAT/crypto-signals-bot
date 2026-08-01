@@ -157,14 +157,43 @@ ATR_TARGET_MULTIPLIER = 3.0
 # l'espérance brute par trade est plus faible qu'avec le SL/TP unique
 # (+0.026 à +0.039 vs +0.103 en unités de risque), mais le win rate perçu et
 # le drawdown réduit sont jugés prioritaires pour la rétention abonnés.
+#
+# GÉOMÉTRIE RÉVISÉE LE 01/08/2026 (variante "G6", voir
+# backtest_geometry_walkforward.py et DIAGNOSTIC_SIGNAUX_2026-08-01.md).
+# L'ancienne géométrie (SL 1.5 / TP1 1.0 avec 50% du volume) était
+# structurellement déséquilibrée : on risquait 1.5xATR pour ne sécuriser que
+# 1.0xATR sur la MOITIÉ de la position. D'où un ratio gain/perte de 0.67 --
+# les gagnants rapportaient moins que ce que coûtaient les perdants. Avec
+# 60% de réussite : 60 x 0.67 = 40.2 contre 40 x 1.0 = 40.0, soit à
+# l'équilibre au cheveu près... et négatif dès que le taux de réussite perd
+# 1.5 point. C'est exactement ce qui s'est produit : l'espérance mesurée est
+# passée de +0.065% à -0.029% par trade entre les deux semestres.
+#
+# Trois corrections combinées : stop resserré (1.2), TP1 repoussé au-delà du
+# risque pris (1.3 > 1.2), et poids déplacé du TP1 vers le runner TP3
+# (0.5/0.3/0.2 -> 0.3/0.3/0.4) pour laisser courir les gagnants.
+#
+# Validé en walk-forward sur DEUX semestres indépendants (critère qui a fait
+# rejeter le moteur Squeeze et l'assouplissement RSI seul) :
+#   semestre 1 : +0.128%/trade  (ancienne géométrie : +0.065%)
+#   semestre 2 : +0.031%/trade  (ancienne géométrie : -0.029%, négative)
+#   ratio gain/perte 1.10 (contre 0.67), drawdown 41% (contre 45%)
+# Meilleure que l'ancienne sur TOUS les axes, drawdown compris, à volume de
+# signaux inchangé (~2.6/jour).
+#
+# ⚠️ Effet d'affichage à connaître : le win rate PERÇU baisse (49% contre
+# 60%). C'est attendu et sain -- TP1 plus loin est touché moins souvent,
+# mais rapporte assez pour que l'ensemble devienne rentable. Ne pas
+# réinterpréter cette baisse comme une régression (voir DISPLAY_WINRATE,
+# laissé à false).
 ENABLE_MULTI_TP_EXITS = True
-MULTI_TP_SL_MULTIPLIER = 1.5    # identique à ATR_STOP_MULTIPLIER
-MULTI_TP_TP1_MULTIPLIER = 1.0   # sécurisation rapide + passage à break-even
-MULTI_TP_TP2_MULTIPLIER = 3.3   # objectif principal, ratio réel 3.3/1.5 = 1:2.2
-MULTI_TP_TP3_MULTIPLIER = 5.0   # runner, ratio réel 5.0/1.5 = 1:3.3
-MULTI_TP_TP1_WEIGHT = 0.5
+MULTI_TP_SL_MULTIPLIER = 1.2    # resserré (était 1.5) : réduit la taille des perdants
+MULTI_TP_TP1_MULTIPLIER = 1.3   # au-DELÀ du risque pris (1.2) -- c'était le défaut structurel
+MULTI_TP_TP2_MULTIPLIER = 3.5   # objectif principal, ratio réel 3.5/1.2 = 1:2.9
+MULTI_TP_TP3_MULTIPLIER = 6.0   # runner, ratio réel 6.0/1.2 = 1:5.0
+MULTI_TP_TP1_WEIGHT = 0.3       # moins de volume sorti tôt...
 MULTI_TP_TP2_WEIGHT = 0.3
-MULTI_TP_TP3_WEIGHT = 0.2
+MULTI_TP_TP3_WEIGHT = 0.4       # ...pour en laisser davantage courir jusqu'au runner
 
 # Verrou de portefeuille (validé par backtest événementiel 24 mois + walk-
 # forward 12/12 mois sur l'univers 28 paires, voir PAIRS ci-dessus) : jamais

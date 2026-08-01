@@ -56,6 +56,22 @@ def alert_insert_failure(failed_count: int, total_candidates: int) -> None:
     )
 
 
+def alert_degraded_edge(stats: dict) -> None:
+    """
+    Espérance réalisée devenue nettement négative (voir edge_guard.py) : la
+    génération vient d'être suspendue. C'est une alerte de gravité maximale
+    -- elle signifie que les signaux diffusés récemment perdaient de
+    l'argent en moyenne, pas qu'un composant technique est tombé.
+    """
+    _send_admin_message(
+        f"🛑 Génération de signaux SUSPENDUE : espérance réalisée {stats['expectancy_pct']:+.3f}% par trade "
+        f"sur {stats['count']} signaux clôturés (taux de réussite {stats['win_rate_pct']:.1f}%). "
+        "La stratégie perd de l'argent en moyenne sur la période mesurée — ne pas relancer sans avoir "
+        "revalidé les paramètres (voir signals/backtest_geometry_walkforward.py).",
+        context="espérance réalisée dégradée",
+    )
+
+
 def maybe_alert_data_outage(consecutive_failures: int) -> None:
     """
     Envoie une alerte Telegram à l'admin. Appelé uniquement quand le

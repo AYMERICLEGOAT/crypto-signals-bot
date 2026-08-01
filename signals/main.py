@@ -35,6 +35,7 @@ import coingecko_client
 import coinbase_client
 import kraken_client
 import correlation_guard
+import edge_guard
 import momentum
 import alerts
 from indicators import compute_all_indicators, ema
@@ -435,6 +436,23 @@ def main():
         )
         storage.record_heartbeat("signals")  # la pause est un état normal, pas une panne
         return
+
+    # Garde-fou d'espérance réalisée (voir edge_guard.py) : si les signaux
+    # réellement clôturés montrent une espérance nettement négative sur un
+    # échantillon suffisant, on suspend plutôt que de continuer à diffuser à
+    # des abonnés payants une stratégie que nos propres mesures disent
+    # perdante. Dormant tant qu'il n'y a pas assez de trades clôturés.
+    degraded, edge_stats = edge_guard.should_pause_for_degraded_edge()
+    if degraded:
+        edge_guard.register_pause(edge_stats)
+        alerts.alert_degraded_edge(edge_stats)
+        storage.record_heartbeat("signals")
+        return
+    if edge_stats["count"] >= edge_guard.MIN_CLOSED_TRADES:
+        logger.info(
+            "Espérance réalisée : %+.3f%%/trade sur %d signaux clôturés (réussite %.1f%%).",
+            edge_stats["expectancy_pct"], edge_stats["count"], edge_stats["win_rate_pct"],
+        )
 
     params = load_active_params()
     signals_found, pairs_with_data = run_once(params)
