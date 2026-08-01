@@ -6,10 +6,13 @@ import { createLitecoinInvoice } from "../../payments/litecoin";
 import { getEffectivePriceUsd } from "../../payments/promoCodes";
 import { createPendingPayment } from "../../db/payments";
 import { setPendingAction } from "../../db/pendingActions";
-import { buildPlanKeyboard, paymentMethodKeyboard } from "../keyboards";
+import { buildPlanKeyboard, paymentMethodKeyboard, consentKeyboard } from "../keyboards";
 import { getRemainingDiscoverySlots } from "../../db/offerCounter";
 import { hasWalletClaimedDiscovery } from "../../db/users";
 import { PaidPlan, PLAN_PRICES_USD, PLAN_NAMES, PLAN_DURATION_DAYS, DISCOVERY_PLAN, isValidPlan } from "../../payments/plans";
+
+/** Site public — même valeur que SITE_BASE_URL dans .github/workflows/website.yml. */
+const TERMS_URL = "https://crypto-signals-bot-site.signalytics.workers.dev/terms.html";
 
 export async function handleSubscribeCommand(env: Env, telegramId: number): Promise<void> {
   const db = dbConfig(env);
@@ -49,6 +52,43 @@ export async function handlePlanSelection(env: Env, telegramId: number, data: st
       return;
     }
   }
+
+  // Étape de consentement explicite (audit du 01/08/2026). Les CGV
+  // affirmaient la renonciation au droit de rétractation, mais celle-ci
+  // n'était jamais RECUEILLIE : le code de la consommation (art. L221-28
+  // 13°) exige, pour un contenu numérique exécuté immédiatement, un accord
+  // préalable exprès du consommateur ET la reconnaissance expresse qu'il
+  // perd son droit de rétractation. Une clause dans les CGV ne suffit pas ;
+  // il faut un acte positif avant le paiement. C'est aussi plus honnête :
+  // l'abonné sait exactement ce qu'il achète et ce qu'il abandonne.
+  await sendMessage(
+    env.TELEGRAM_BOT_TOKEN,
+    telegramId,
+    `Avant de payer, trois points à valider :\n\n` +
+      `• L'accès démarre immédiatement après confirmation du paiement.\n` +
+      `• Le paiement se fait en cryptoactifs : il est irréversible, et aucun remboursement n'est possible ` +
+      `une fois confirmé. En demandant l'exécution immédiate, tu renonces à ton droit de rétractation de 14 jours.\n` +
+      `• Aucune performance n'est garantie. Les signaux ne sont pas un conseil en investissement, ` +
+      `et tu peux perdre de l'argent.\n\n` +
+      `Conditions complètes : ${TERMS_URL}`,
+    { keyboard: consentKeyboard(plan) }
+  );
+}
+
+/**
+ * Consentement donné : on passe seulement maintenant au choix du moyen de
+ * paiement. Le clic est tracé côté journal du Worker -- horodatage et
+ * identifiant, ce qui constitue la trace de l'accord exprès.
+ */
+export async function handlePurchaseConsent(env: Env, telegramId: number, data: string): Promise<void> {
+  const raw = Number(data.split(":")[1]);
+  if (!isValidPlan(raw)) return;
+  const plan: PaidPlan = raw;
+
+  console.log(
+    `[consentement] telegram_id=${telegramId} plan=${plan} ` +
+      `renonciation_retractation=true horodatage=${new Date().toISOString()}`
+  );
 
   await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, "Choisis ton moyen de paiement :", {
     keyboard: paymentMethodKeyboard(plan),

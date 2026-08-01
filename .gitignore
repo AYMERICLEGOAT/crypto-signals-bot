@@ -3,3 +3,12 @@ _ancien-crypto-signals-bot.env
 .env
 ops_routine.log
 signals/data/
+
+# Secrets locaux : ces fichiers contiennent des jetons réels (bot Telegram,
+# clé secrète Supabase, clé privée Polygon). Le dépôt étant PUBLIC, un
+# `git add -A` distrait suffirait à les exposer définitivement. Seuls les
+# .example, sans valeur réelle, sont suivis.
+.dev.vars
+**/.dev.vars
+*.env
+!.env.example

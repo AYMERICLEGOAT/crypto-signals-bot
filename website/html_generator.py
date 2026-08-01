@@ -400,7 +400,7 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
   <p class="disclaimer">{s["disclaimer"]}</p>
 
   <footer>
-    <p>{s["footer"](footer_ts)} — <a href="/privacy.html">{s["privacy_link"]}</a> — <a href="/terms.html">{s["terms_link"]}</a> — <a href="/transparency.html">{s["transparency_link"]}</a></p>
+    <p>{s["footer"](footer_ts)} — <a href="/privacy.html">{s["privacy_link"]}</a> — <a href="/terms.html">{s["terms_link"]}</a> — <a href="/transparency.html">{s["transparency_link"]}</a> — <a href="/mentions-legales.html">Mentions légales</a></p>
   </footer>
 </body>
 </html>"""

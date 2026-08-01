@@ -150,6 +150,6 @@ def build_transparency_page(history, canonical_path="/transparency.html", resolv
   déterminé automatiquement (prix courant comparé au stop loss / take profit) — voir la section performance de
   la <a href="/">page d'accueil</a> pour le détail. Performance passée, pas une garantie pour l'avenir.</p>
 
-  <footer>Page générée automatiquement le {footer_ts}. <a href="/privacy.html">Politique de confidentialité</a> — <a href="/terms.html">Conditions générales</a></footer>
+  <footer>Page générée automatiquement le {footer_ts}. <a href="/privacy.html">Politique de confidentialité</a> — <a href="/terms.html">Conditions générales</a> — <a href="/mentions-legales.html">Mentions légales</a></footer>
 </body>
 </html>"""

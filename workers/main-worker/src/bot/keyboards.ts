@@ -68,6 +68,16 @@ export function buildPlanKeyboard(remainingDiscoverySlots: number, proPlanVisibl
   return keyboard;
 }
 
+/**
+ * Consentement exprès avant paiement (audit du 01/08/2026, voir
+ * commands/subscribe.ts). Un seul bouton d'acceptation : le refus se fait
+ * en n'appuyant pas — inutile d'ajouter un bouton "je refuse" qui ne
+ * ferait rien de plus que l'inaction.
+ */
+export function consentKeyboard(plan: PaidPlan): InlineKeyboard {
+  return [[{ text: "✅ J'ai compris et j'accepte", callback_data: `consent:${plan}` }]];
+}
+
 export function paymentMethodKeyboard(plan: PaidPlan): InlineKeyboard {
   return [
     [{ text: "💵 USDT (Polygon)", callback_data: `pay:USDT:${plan}` }],

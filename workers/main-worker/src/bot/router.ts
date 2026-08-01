@@ -4,7 +4,7 @@ import { isRateLimited } from "../db/rateLimit";
 import { handleStart } from "./commands/start";
 import { handleStatusCommand } from "./commands/status";
 import { handleTrialCommand } from "./commands/trial";
-import { handleSubscribeCommand, handlePlanSelection, handlePaymentMethodSelection } from "./commands/subscribe";
+import { handleSubscribeCommand, handlePlanSelection, handlePurchaseConsent, handlePaymentMethodSelection } from "./commands/subscribe";
 import { handlePayCommand } from "./commands/pay";
 import { handleReferralCommand } from "./commands/referral";
 import { handlePromoCodeCommand } from "./commands/promoCode";
@@ -119,6 +119,7 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
     else if (data === "start:demo") await handleDemoCommand(env, chatId);
     else if (data === "start:help") await handleHelpCommand(env, chatId);
     else if (data.startsWith("plan:")) await handlePlanSelection(env, chatId, data);
+    else if (data.startsWith("consent:")) await handlePurchaseConsent(env, chatId, data);
     else if (data.startsWith("pay:")) await handlePaymentMethodSelection(env, chatId, data);
     else if (data.startsWith("survey:")) await handleSurveyResponse(env, chatId, data);
     else if (data.startsWith("exit_survey:")) await handleExitSurveyResponse(env, chatId, data);
