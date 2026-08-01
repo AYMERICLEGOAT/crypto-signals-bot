@@ -56,12 +56,21 @@ Le script affiche l'adresse déployée et l'écrit dans `deployments/<network>.j
 
 ## 5. Après déploiement
 
-1. Copie l'adresse déployée dans `bot/.env` (`CONTRACT_ADDRESS=...`).
-2. Génère/mets à jour l'ABI utilisée par le bot :
-   ```bash
-   node scripts/export-abi.js
-   ```
-   (à relancer à chaque fois que le contrat est modifié et recompilé)
+**Ce contrat est actuellement dormant : le bot (`workers/main-worker`) tourne
+en V2 100% off-chain (essais gratuits et abonnements gérés côté Supabase,
+paiements USDT confirmés par polling d'événements `Transfer` plutôt que par
+appel au contrat) et ne l'appelle plus.** Il n'y a donc rien à brancher côté
+bot après un déploiement classique. Le répertoire `bot/` (Node.js) référencé
+dans d'anciennes versions de ce document a été supprimé, remplacé par
+`workers/main-worker`.
+
+Si ce contrat était un jour réactivé :
+
+1. L'adresse déployée irait dans le binding `CONTRACT_ADDRESS` de
+   `workers/main-worker` (voir son README, `wrangler.toml` `[vars]`).
+2. Tout secret associé (ex. clé d'un wallet appelant le contrat) se poserait
+   avec `wrangler secret put <NOM>` depuis `workers/main-worker/`, jamais dans
+   un fichier `.env` — ce worker ne lit pas de `.env` en production.
 3. (Optionnel mais recommandé) Vérifie le contrat sur Polygonscan pour que le code
    source soit visible publiquement — renforce la confiance des abonnés :
    ```bash
@@ -91,5 +100,8 @@ Le script affiche l'adresse déployée et l'écrit dans `deployments/<network>.j
 - `withdraw()` envoie toujours les fonds vers l'adresse OWNER fixe, jamais vers
   un destinataire arbitraire — même une clé OWNER compromise ne peut pas rediriger
   les fonds ailleurs que vers cette adresse.
-- Le wallet dont la clé signe `setTrial()` (utilisé par le bot, cf. `bot/`) doit
-  être exactement OWNER : toute autre clé échouera avec `caller is not the owner`.
+- `setTrial()` ne peut être appelée que par le wallet OWNER exact (toute autre
+  clé échoue avec `caller is not the owner`). Ceci dit, en V2 le bot
+  (`workers/main-worker`) n'appelle plus `setTrial()` du tout — les essais
+  gratuits sont gérés 100% côté Supabase (voir son README) — donc cette
+  fonction n'est actuellement invoquée par aucun code en production.

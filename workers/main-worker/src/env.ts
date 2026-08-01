@@ -11,12 +11,11 @@ export interface Env {
   TELEGRAM_BOT_TOKEN: string;
   // Vérifié contre l'en-tête X-Telegram-Bot-Api-Secret-Token sur chaque appel
   // webhook : sans ça, l'URL du webhook est un endpoint public non authentifié
-  // qui pourrait déclencher des commandes (dont /trial, qui dépense du gas
-  // depuis le wallet admin) pour n'importe qui la découvre.
+  // qui pourrait déclencher n'importe quelle commande du bot pour n'importe
+  // qui la découvre.
   TELEGRAM_WEBHOOK_SECRET: string;
   SUPABASE_URL: string;
   SUPABASE_KEY: string;
-  ADMIN_PRIVATE_KEY: string;
   MONERO_WALLET_RPC_URL?: string;
   MONERO_WALLET_RPC_USER?: string;
   MONERO_WALLET_RPC_PASSWORD?: string;

@@ -45,9 +45,9 @@ export default {
     }
 
     if (url.pathname === "/telegram-webhook" && request.method === "POST") {
-      // Empêche quiconque découvre l'URL de déclencher des commandes (dont
-      // /trial, qui dépense du gas depuis le wallet admin) : seul Telegram,
-      // qui renvoie ce secret configuré via setWebhook, passe ce contrôle.
+      // Empêche quiconque découvre l'URL de déclencher n'importe quelle
+      // commande du bot : seul Telegram, qui renvoie ce secret configuré via
+      // setWebhook, passe ce contrôle.
       const secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token");
       if (!secret || !timingSafeEqual(secret, env.TELEGRAM_WEBHOOK_SECRET)) {
         return new Response("unauthorized", { status: 401 });

@@ -7,7 +7,6 @@ TELEGRAM_BOT_TOKEN=1234567890:VOTRE_TOKEN_BOTFATHER
 TELEGRAM_WEBHOOK_SECRET=une-chaine-aleatoire-longue-et-secrete
 SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
 SUPABASE_KEY=eyJxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-ADMIN_PRIVATE_KEY=0xCLE_PRIVEE_DU_WALLET_OWNER
 MONERO_WALLET_RPC_URL=http://127.0.0.1:18082/json_rpc
 MONERO_WALLET_RPC_USER=
 MONERO_WALLET_RPC_PASSWORD=

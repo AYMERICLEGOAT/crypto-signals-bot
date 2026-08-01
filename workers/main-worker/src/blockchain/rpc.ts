@@ -133,10 +133,6 @@ export interface RpcLog {
   transactionHash: string;
 }
 
-export async function ethCall(rpc: JsonRpcConfig, to: string, data: string): Promise<string> {
-  return rpcCall<string>(rpc, "eth_call", [{ to, data }, "latest"]);
-}
-
 export async function getBlockNumber(rpc: JsonRpcConfig): Promise<number> {
   const hex = await rpcCall<string>(rpc, "eth_blockNumber", []);
   return parseInt(hex, 16);
@@ -154,33 +150,4 @@ export async function getLogs(
       toBlock: "0x" + params.toBlock.toString(16),
     },
   ]);
-}
-
-/** "pending" plutôt que "latest" pour tenir compte des transactions déjà envoyées mais pas encore minées. */
-export async function getTransactionCount(rpc: JsonRpcConfig, address: string): Promise<number> {
-  const hex = await rpcCall<string>(rpc, "eth_getTransactionCount", [address, "pending"]);
-  return parseInt(hex, 16);
-}
-
-export async function getGasPrice(rpc: JsonRpcConfig): Promise<bigint> {
-  const hex = await rpcCall<string>(rpc, "eth_gasPrice", []);
-  return BigInt(hex);
-}
-
-export async function getChainId(rpc: JsonRpcConfig): Promise<bigint> {
-  const hex = await rpcCall<string>(rpc, "eth_chainId", []);
-  return BigInt(hex);
-}
-
-export async function sendRawTransaction(rpc: JsonRpcConfig, rawTxHex: string): Promise<string> {
-  return rpcCall<string>(rpc, "eth_sendRawTransaction", [rawTxHex]);
-}
-
-export interface RpcReceipt {
-  status: string; // "0x1" = succès, "0x0" = échec
-  blockNumber: string;
-}
-
-export async function getTransactionReceipt(rpc: JsonRpcConfig, txHash: string): Promise<RpcReceipt | null> {
-  return rpcCall<RpcReceipt | null>(rpc, "eth_getTransactionReceipt", [txHash]);
 }

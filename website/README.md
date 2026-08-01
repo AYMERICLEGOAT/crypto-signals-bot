@@ -8,9 +8,12 @@ le site à chaque push.
 
 ## 1. Ce que fait le script, dans l'ordre
 
-1. Évalue les signaux passés encore "en attente" : compare leur prix courant
-   (via CoinGecko) à leur stop loss / take profit pour déterminer un vrai
-   résultat (WIN/LOSS), stocké dans Supabase.
+1. Lit les résultats des signaux déjà résolus (WIN/LOSS) pour ses statistiques
+   de performance affichées sur le site — la résolution elle-même (comparaison
+   du prix courant au stop loss / take profit) est faite exclusivement par le
+   Worker Cloudflare (`workers/main-worker/src/cron/trackSignalOutcomes.ts`,
+   toutes les 5 minutes via Binance), pas par ce script (voir
+   `outcome_evaluator.py`).
 2. Récupère les 5 derniers signaux (envoyés ou non).
 3. Génère un paragraphe d'analyse en français par signal, à partir de
    templates décrivant la logique réelle de la stratégie (croisement
@@ -33,15 +36,13 @@ de vrais résultats**, jamais un chiffre choisi pour l'occasion. Tant
 qu'aucun signal n'est encore résolu, le site l'affiche honnêtement ("en
 cours d'évaluation") plutôt que d'inventer un taux de réussite.
 
-Méthode (voir `outcome_evaluator.py`) : un signal est marqué WIN si le prix
-courant a atteint son take profit, LOSS s'il a atteint son stop loss, et
-LOSS par expiration (timeout, `EVAL_TIMEOUT_DAYS` dans `config.py`, 10 jours
-par défaut) s'il n'a touché ni l'un ni l'autre après un certain temps — même
-convention conservatrice que le backtest du module `signals/`. C'est une
-comparaison au prix **courant** (un instantané quotidien), pas une analyse
-tick par tick de tout l'historique intrabar : suffisant pour un site de
-contenu, mais à garder en tête si tu veux un calcul de performance de
-qualité "audit".
+Méthode : la résolution WIN/LOSS elle-même (take profit atteint, stop loss
+atteint, ou expiration par timeout) est faite exclusivement par le Worker
+Cloudflare (`workers/main-worker/src/cron/trackSignalOutcomes.ts`, toutes les
+5 minutes via Binance) — voir sa doc pour le détail de la méthode et le délai
+d'expiration. `outcome_evaluator.py` ne fait plus que **lire** ces résultats
+déjà écrits dans Supabase pour calculer les statistiques agrégées affichées
+sur le site ; il ne réévalue rien lui-même.
 
 ## 3. Prérequis
 
@@ -100,7 +101,6 @@ configuré), chaque push déclenche automatiquement un nouveau déploiement.
 website/
   config.py              Configuration centralisée (.env, paires, seuils)
   supabase_client.py       Accès REST à Supabase (signaux, résultats)
-  coingecko_client.py       Prix courants (pour évaluer les résultats passés)
   outcome_evaluator.py      Détermine WIN/LOSS honnêtement + stats agrégées
   content_templates.py      Paragraphes d'analyse FR/EN (templates)
   html_generator.py         Construit la page HTML complète (FR/EN, hreflang)

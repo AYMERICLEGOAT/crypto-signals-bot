@@ -7,18 +7,6 @@
 import { keccak_256 } from "@noble/hashes/sha3";
 import { bytesToHex } from "@noble/hashes/utils";
 
-function selector(signature: string): string {
-  const hash = keccak_256(new TextEncoder().encode(signature));
-  return "0x" + bytesToHex(hash.slice(0, 4));
-}
-
-export const SELECTORS = {
-  isActive: selector("isActive(address)"),
-  plan1Price: selector("PLAN1_PRICE()"),
-  plan2Price: selector("PLAN2_PRICE()"),
-  setTrial: selector("setTrial(address)"),
-};
-
 export const SUBSCRIBED_TOPIC0 =
   "0x" + bytesToHex(keccak_256(new TextEncoder().encode("Subscribed(address,uint8,uint256,uint256)")));
 
@@ -39,16 +27,8 @@ export function encodeAddressArg(address: string): string {
   return padLeft32(stripHexPrefix(address).toLowerCase());
 }
 
-export function encodeCall(selectorHex: string, ...argsHex: string[]): string {
-  return selectorHex + argsHex.join("");
-}
-
 export function decodeUint256(resultHex: string): bigint {
   return BigInt(resultHex === "0x" ? "0x0" : resultHex);
-}
-
-export function decodeBool(resultHex: string): boolean {
-  return decodeUint256(resultHex) !== 0n;
 }
 
 export function decodeAddressFromTopic(topicHex: string): string {

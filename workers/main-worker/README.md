@@ -17,7 +17,7 @@ continue. Adaptations nécessaires :
 | Map en mémoire (état conversationnel) | Table Supabase `pending_actions` | Isolat recyclable à tout moment, aucun état fiable entre requêtes |
 | `data/last_block.json` | Table Supabase `chain_state` | Pas de système de fichiers persistant |
 | `@supabase/supabase-js` | Client REST maison (`supabaseRest.ts`) | Reste au plus proche de "API REST + clé" comme demandé, fetch uniquement |
-| `ethers.js` | JSON-RPC brut + `@noble/curves`/`@noble/hashes`/`@ethereumjs/rlp` | **ethers.js ne charge pas sous workerd** (import statique de `node:https`, absent du runtime) — vérifié empiriquement |
+| `ethers.js` | JSON-RPC brut + `@noble/hashes` | **ethers.js ne charge pas sous workerd** (import statique de `node:https`, absent du runtime) — vérifié empiriquement |
 | `bitcoinjs-lib`/`bip32` (Litecoin) | Pool d'adresses pré-générées (Supabase) | **Ne tournent pas non plus sous workerd** (chaîne de dépendances Node historiques incompatible, ex. `readable-stream`) — vérifié empiriquement |
 
 Ces deux dernières lignes ne sont pas des suppositions : testées avec
@@ -73,7 +73,6 @@ wrangler secret put TELEGRAM_BOT_TOKEN
 wrangler secret put TELEGRAM_WEBHOOK_SECRET   # une chaîne aléatoire longue, générée par toi (ex: openssl rand -hex 32)
 wrangler secret put SUPABASE_URL
 wrangler secret put SUPABASE_KEY              # clé anon ou service_role selon tes policies RLS
-wrangler secret put ADMIN_PRIVATE_KEY         # wallet OWNER du contrat — voir avertissements section 7
 wrangler secret put MONERO_WALLET_RPC_URL     # optionnel, pour activer les paiements Monero
 wrangler secret put MONERO_WALLET_RPC_USER    # optionnel
 wrangler secret put MONERO_WALLET_RPC_PASSWORD # optionnel
@@ -103,8 +102,8 @@ TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET=... WORKER_URL=https://signal-sub
 `TELEGRAM_WEBHOOK_SECRET` doit être EXACTEMENT la même valeur que celle posée
 via `wrangler secret put` à l'étape 5. Sans cette vérification, l'URL du
 webhook serait un endpoint public non authentifié : n'importe qui la
-découvrant pourrait déclencher `/trial`, qui dépense du gas depuis le wallet
-admin — d'où le contrôle systématique de l'en-tête
+découvrant pourrait déclencher n'importe quelle commande du bot en se faisant
+passer pour Telegram — d'où le contrôle systématique de l'en-tête
 `X-Telegram-Bot-Api-Secret-Token` dans `src/index.ts`.
 
 ## 8. Parrainage et graphiques dans les signaux
@@ -132,21 +131,14 @@ fonctionne automatiquement dès que la colonne existe.
 
 ## 10. Sécurité — points à ne pas ignorer
 
-- **`ADMIN_PRIVATE_KEY`** contrôle `setTrial()` sur le contrat (donc dépense
-  du gas MATIC/POL à chaque essai gratuit accordé). Utilise un wallet dédié
-  ne détenant que le MATIC nécessaire, jamais un wallet avec des fonds
-  importants.
 - **`TELEGRAM_WEBHOOK_SECRET`** doit être long et aléatoire (pas un mot de
   passe mémorisable) — c'est la seule protection de l'endpoint webhook contre
   des requêtes forgées.
 - Le Worker ne demande jamais de clé privée ni de phrase de récupération à
   l'utilisateur final (même principe que le module 2).
-- Les nonces des transactions `setTrial` sont lus via `eth_getTransactionCount(..., "pending")`
-  à chaque appel plutôt que gérés par un compteur centralisé : en cas de deux
-  `/trial` strictement simultanés (très improbable à l'échelle de ce projet),
-  il existe un risque théorique de collision de nonce. Limitation assumée,
-  documentée plutôt que masquée — un vrai système de file d'attente de nonces
-  serait disproportionné ici.
+- L'essai gratuit (`/trial`) est géré 100% côté Supabase depuis la V2 (plus
+  d'appel au contrat, plus de wallet admin ni de gas dépensé) — voir
+  `src/bot/commands/trial.ts`.
 
 ## 11. À propos des tests locaux (`npm test`)
 
@@ -172,9 +164,9 @@ src/
   blockchain/
     rpc.ts                        JSON-RPC brut (remplace ethers.js)
     abi.ts                        Encodage/décodage ABI "à la main"
-    tx.ts                         Construction + signature de transaction (noble + RLP)
-    contract.ts                   isActive / prix des plans / setTrial
-    subscriptionEvents.ts          Rattrapage des événements Subscribed
+    usdtTransfers.ts               Flux de paiement actif (V2, 100% off-chain, événements Transfer USDT)
+    subscriptionEvents.ts          Rattrapage des événements Subscribed du contrat -- dormant,
+                                    activable via ONCHAIN_CONTRACT_POLLING_ENABLED (voir env.ts)
   payments/                       usdt.ts, monero.ts, litecoin.ts, priceConversion.ts, httpDigestClient.ts
   bot/                             commandes, clavier, routeur d'updates, formatage
   cron/                            dispatchSignals.ts, pollPayments.ts

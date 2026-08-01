@@ -1,37 +1,23 @@
 import { describe, it, expect } from "vitest";
 import {
-  SELECTORS,
   SUBSCRIBED_TOPIC0,
   TRANSFER_TOPIC0,
   encodeAddressArg,
-  encodeCall,
   decodeUint256,
-  decodeBool,
   decodeAddressFromTopic,
   decodeSubscribedData,
 } from "../src/blockchain/abi";
 
 // Valeurs de référence calculées indépendamment avec `ethers.id(...)` en Node
 // (voir conversation) — sert à vérifier que notre keccak256 "à la main" donne
-// bien les mêmes sélecteurs/topic que la lib de référence de l'écosystème.
+// bien les mêmes topics que la lib de référence de l'écosystème.
 const REF = {
-  isActive: "0x9f8a13d7",
-  plan1Price: "0xfe3175cb",
-  plan2Price: "0x8a672de2",
-  setTrial: "0x4914c997",
   subscribedTopic0: "0x0461beb329d7acfbed27b25e75051d4b137810d66ecd6d048744f7b636385ad0",
   // Topic0 standard ERC20 Transfer, bien connu et documenté publiquement.
   transferTopic0: "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
 };
 
-describe("abi.ts — sélecteurs et topic, recoupés avec ethers.id()", () => {
-  it("calcule les bons sélecteurs de fonction", () => {
-    expect(SELECTORS.isActive).toBe(REF.isActive);
-    expect(SELECTORS.plan1Price).toBe(REF.plan1Price);
-    expect(SELECTORS.plan2Price).toBe(REF.plan2Price);
-    expect(SELECTORS.setTrial).toBe(REF.setTrial);
-  });
-
+describe("abi.ts — topics, recoupés avec ethers.id()", () => {
   it("calcule le bon topic0 pour l'événement Subscribed", () => {
     expect(SUBSCRIBED_TOPIC0).toBe(REF.subscribedTopic0);
   });
@@ -48,16 +34,8 @@ describe("abi.ts — encodage/décodage", () => {
     expect(encoded.length).toBe(64);
   });
 
-  it("concatène sélecteur + arguments pour former le calldata", () => {
-    const data = encodeCall(SELECTORS.isActive, encodeAddressArg("0x71367B5f4519700a63c2564b754cF959317E1f61"));
-    expect(data.startsWith(SELECTORS.isActive)).toBe(true);
-    expect(data.length).toBe(10 + 64); // "0x" + 8 hex (sélecteur) + 64 hex (argument)
-  });
-
-  it("décode un uint256 et un bool depuis un résultat eth_call", () => {
+  it("décode un uint256 depuis un résultat eth_call", () => {
     expect(decodeUint256("0x" + (10n).toString(16).padStart(64, "0"))).toBe(10n);
-    expect(decodeBool("0x" + (1n).toString(16).padStart(64, "0"))).toBe(true);
-    expect(decodeBool("0x" + (0n).toString(16).padStart(64, "0"))).toBe(false);
   });
 
   it("décode une adresse depuis un topic indexé (padded 32 octets)", () => {

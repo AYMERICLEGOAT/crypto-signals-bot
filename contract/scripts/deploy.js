@@ -37,10 +37,13 @@ async function main() {
   );
   console.log(`Adresse sauvegardée dans ${deploymentFile}`);
 
+  console.log(
+    "\nNote : ce contrat est actuellement dormant -- le bot (workers/main-worker) " +
+    "tourne en V2 100% off-chain et ne l'appelle plus (voir contract/README.md). " +
+    "Rien à brancher côté bot pour un déploiement standard."
+  );
   console.log("\nProchaines étapes :");
-  console.log(`  1. Copier "${address}" dans bot/.env sous CONTRACT_ADDRESS`);
-  console.log("  2. Lancer `node scripts/export-abi.js` pour copier l'ABI vers bot/src/blockchain/abi/");
-  console.log("  3. (Optionnel) Vérifier le contrat: npx hardhat verify --network " + hre.network.name + " " + address);
+  console.log("  1. (Optionnel) Vérifier le contrat: npx hardhat verify --network " + hre.network.name + " " + address);
 }
 
 main().catch((error) => {
