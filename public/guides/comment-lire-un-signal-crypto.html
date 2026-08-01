@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Comment lire un signal de trading crypto (guide complet)</title>
+  <meta name="description" content="Entrée, stop loss, take profit, TP1/TP2/TP3 : ce que chaque ligne d&#x27;un signal crypto veut dire, et comment l&#x27;utiliser sans se tromper.">
+  <meta name="keywords" content="signal crypto, lire un signal trading, stop loss take profit, TP1 TP2 TP3">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://crypto-signals-bot-site.signalytics.workers.dev/guides/comment-lire-un-signal-crypto.html">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Comment lire un signal de trading crypto (guide complet)">
+  <meta property="og:description" content="Entrée, stop loss, take profit, TP1/TP2/TP3 : ce que chaque ligne d&#x27;un signal crypto veut dire, et comment l&#x27;utiliser sans se tromper.">
+  <meta property="og:url" content="https://crypto-signals-bot-site.signalytics.workers.dev/guides/comment-lire-un-signal-crypto.html">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "Article", "headline": "Comment lire un signal de trading crypto", "description": "Entrée, stop loss, take profit, TP1/TP2/TP3 : ce que chaque ligne d'un signal crypto veut dire, et comment l'utiliser sans se tromper.", "mainEntityOfPage": {"@type": "WebPage", "@id": "https://crypto-signals-bot-site.signalytics.workers.dev/guides/comment-lire-un-signal-crypto.html"}, "inLanguage": "fr", "isAccessibleForFree": true}</script>
+  <style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 780px;
+         margin: 0 auto; padding: 24px 16px 64px; line-height: 1.55; }
+  h1 { font-size: 1.7rem; margin-bottom: 4px; }
+  h2 { font-size: 1.25rem; margin-top: 2.5rem; border-bottom: 2px solid #6366f1; padding-bottom: 6px; }
+  .subtitle { color: #666; margin-top: 0; }
+  .lang-switch { text-align: right; font-size: 0.85rem; }
+  .signal-card { border: 1px solid #d8d8e0; border-radius: 10px; padding: 16px 18px; margin: 16px 0; }
+  .signal-card.buy { border-left: 5px solid #16a34a; }
+  .signal-card.sell { border-left: 5px solid #dc2626; }
+  .signal-header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+  .signal-pair { font-weight: 700; font-size: 1.1rem; }
+  .badge { padding: 2px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; color: white; }
+  .badge.buy { background: #16a34a; }
+  .badge.sell { background: #dc2626; }
+  .prices { display: flex; gap: 18px; margin: 10px 0; flex-wrap: wrap; font-size: 0.92rem; }
+  .prices span b { display: block; font-size: 1rem; }
+  .signal-chart { max-width: 100%; border-radius: 8px; margin: 10px 0; }
+  .cta { background: linear-gradient(135deg, #6366f1, #4338ca); color: white; padding: 24px;
+         border-radius: 12px; text-align: center; margin: 2.5rem 0; }
+  .cta a { color: white; font-weight: 700; font-size: 1.1rem; text-decoration: underline; }
+  .backtest { background: #f5f5ff; border: 1px solid #e0e0f5; border-radius: 12px; padding: 18px 20px; margin: 1.5rem 0; }
+  .backtest h2 { margin-top: 0; border-bottom: none; }
+  .backtest-stat { font-size: 1.4rem; font-weight: 700; color: #4338ca; margin: 4px 0; }
+  .perf-stats { display: flex; gap: 24px; flex-wrap: wrap; margin: 16px 0; }
+  .perf-stat { text-align: center; }
+  .perf-stat b { display: block; font-size: 1.6rem; }
+  table.recent { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 12px; }
+  table.recent th, table.recent td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #e5e5ef; }
+  .outcome-win { color: #16a34a; font-weight: 700; }
+  .outcome-loss { color: #dc2626; font-weight: 700; }
+  .disclaimer { font-size: 0.82rem; color: #777; margin-top: 3rem; border-top: 1px solid #e5e5ef; padding-top: 12px; }
+  footer { margin-top: 2rem; font-size: 0.85rem; color: #999; }
+
+  .guide-body h2 { font-size: 1.2rem; margin-top: 2.2rem; }
+  .guide-body p { margin: 0.9rem 0; }
+  .guide-body ul, .guide-body ol { padding-left: 1.3rem; }
+  .guide-body li { margin: 8px 0; }
+  .breadcrumb { font-size: 0.85rem; color: #666; margin-bottom: 8px; }
+  .breadcrumb a { color: #4338ca; }
+  .guide-cta { background: linear-gradient(135deg, #6366f1, #4338ca); color: white;
+               padding: 20px; border-radius: 12px; margin: 2.5rem 0 1.5rem; }
+  .guide-cta a { color: white; font-weight: 700; }
+  .guide-cta p { margin: 6px 0; }
+  .related { border-top: 1px solid #e5e5ef; margin-top: 2.5rem; padding-top: 1rem; }
+  .related li { margin: 10px 0; }
+  .guide-disclaimer { font-size: 0.85rem; color: #777; border-top: 1px solid #e5e5ef;
+                      margin-top: 2rem; padding-top: 12px; }
+</style>
+</head>
+<body>
+  <p class="breadcrumb"><a href="/">Accueil</a> › <a href="/guides/">Guides</a> › Comment lire un signal de trading crypto</p>
+  <header>
+    <h1>Comment lire un signal de trading crypto</h1>
+    <p class="subtitle">Entrée, stop loss, take profit, TP1/TP2/TP3 : ce que chaque ligne d&#x27;un signal crypto veut dire, et comment l&#x27;utiliser sans se tromper.</p>
+  </header>
+
+  <article class="guide-body">
+
+<p>Un signal de trading, c'est une proposition de transaction décrite à l'avance : à quel prix entrer, à quel prix sortir si ça se passe mal, et à quel prix prendre ses gains si ça se passe bien. Rien de plus. Ce n'est ni une prédiction, ni une garantie.</p>
+
+<h2>Les quatre informations indispensables</h2>
+<p>Un signal exploitable contient toujours ces quatre éléments. S'il en manque un, il est inutilisable — vous ne pourriez pas savoir quand sortir.</p>
+<ul>
+  <li><b>La paire</b> — l'actif concerné, par exemple BTC/USDT. Le premier terme est ce que vous achetez ou vendez, le second ce avec quoi vous le payez.</li>
+  <li><b>Le sens</b> — ACHAT (vous pariez sur la hausse) ou VENTE (vous pariez sur la baisse).</li>
+  <li><b>Le prix d'entrée</b> — le niveau auquel la position est censée être ouverte.</li>
+  <li><b>Le stop loss</b> — le niveau auquel vous coupez la perte. C'est l'information la plus importante des quatre.</li>
+</ul>
+
+<h2>Pourquoi le stop loss compte plus que l'objectif</h2>
+<p>C'est contre-intuitif : la plupart des débutants regardent d'abord le take profit, parce que c'est le chiffre agréable. Or c'est le stop loss qui détermine si vous serez encore là dans six mois.</p>
+<p>La raison est arithmétique. Une perte de 50 % demande un gain de 100 % pour revenir à l'équilibre. Une perte de 20 % ne demande que 25 %. Plus vous laissez courir une perte, plus la remontée devient improbable — pas parce que le marché vous en veut, mais parce que les pourcentages ne sont pas symétriques.</p>
+<p>Un signal sans stop loss n'est donc pas un signal « plus ambitieux ». C'est un signal incomplet.</p>
+
+<h2>Ce que signifient TP1, TP2 et TP3</h2>
+<p>Beaucoup de signaux modernes proposent plusieurs objectifs au lieu d'un seul. L'idée : sortir la position par tranches plutôt qu'en une fois.</p>
+<ul>
+  <li><b>TP1</b> — le premier objectif, le plus proche. Souvent utilisé pour sécuriser une partie de la position et remonter le stop au prix d'entrée. À partir de là, le trade ne peut plus finir perdant.</li>
+  <li><b>TP2</b> — l'objectif principal, plus ambitieux, atteint moins souvent.</li>
+  <li><b>TP3</b> — le « runner » : la fraction laissée courir au cas où le mouvement se prolonge. Atteint rarement, mais c'est lui qui compense les trades perdants.</li>
+</ul>
+<p>Le passage au break-even après TP1 est le mécanisme central : il transforme un trade risqué en trade sans risque. C'est ce qui permet d'encaisser plusieurs échecs d'affilée sans dommage.</p>
+
+<h2>Le piège du taux de réussite</h2>
+<p>« 70 % de réussite » sonne excellent. Ça ne veut pourtant rien dire tout seul.</p>
+<p>Imaginez une stratégie qui gagne 7 fois sur 10, mais dont les gains font 1 € et les pertes 3 €. Sur 10 trades : +7 € de gains, −9 € de pertes. Résultat : perdante, avec 70 % de réussite.</p>
+<p>Ce qui compte est le produit des deux : le taux de réussite <i>et</i> le rapport entre la taille moyenne des gains et celle des pertes. Une stratégie qui gagne 4 fois sur 10 mais dont les gains sont trois fois plus gros que les pertes est largement gagnante.</p>
+<p>Méfiez-vous donc de tout service qui met en avant un taux de réussite sans jamais mentionner ce rapport. C'est l'indicateur le plus facile à afficher, et le plus facile à rendre flatteur.</p>
+
+<h2>Comment utiliser un signal concrètement</h2>
+<ol>
+  <li>Vérifiez que le prix actuel n'est pas déjà loin du prix d'entrée. Si le mouvement a déjà eu lieu, le rapport risque/rendement n'est plus celui annoncé.</li>
+  <li>Placez le stop loss <b>avant</b> d'ouvrir la position, pas après. Décider d'un stop quand on est déjà en perte, c'est décider sous le coup de l'émotion.</li>
+  <li>Calculez votre taille de position à partir du stop, pas d'un montant fixe (voir notre guide sur la gestion du risque).</li>
+  <li>Ne déplacez jamais le stop plus loin. C'est l'erreur qui transforme une perte maîtrisée en perte illimitée.</li>
+</ol>
+
+  </article>
+
+  
+    <div class="guide-cta">
+      <p><b>Envie de voir ces principes appliqués concrètement ?</b></p>
+      <p>Notre bot Telegram publie ses signaux avec entrée, stop loss et objectifs
+         définis à l'avance — et publie <b>tous</b> les résultats, gains comme pertes.</p>
+      <p><a href="https://t.me/ProVIPSignals_bot">Voir le bot sur Telegram →</a></p>
+    </div>
+  
+    <nav class="related">
+      <h2>Autres guides</h2>
+      <ul>
+      <li><a href="/guides/gestion-du-risque-crypto.html">Gestion du risque en trading crypto</a></li>
+      <li><a href="/guides/rsi-et-moyennes-mobiles-expliques.html">RSI et moyennes mobiles, expliqués simplement</a></li>
+      <li><a href="/guides/backtest-et-surapprentissage.html">Backtest et surapprentissage : lire les chiffres correctement</a></li>
+      <li><a href="/guides/erreurs-debutant-trading-crypto.html">Les 8 erreurs qui ruinent les débutants</a></li>
+      </ul>
+    </nav>
+
+  <p class="guide-disclaimer">
+    Contenu pédagogique. Rien sur cette page ne constitue un conseil en investissement.
+    Le trading de cryptoactifs comporte un risque de perte en capital.
+    Les performances passées ne préjugent pas des performances futures.
+  </p>
+  <footer>
+    <p><a href="/">← Retour à l'accueil</a> — <a href="/transparency.html">Transparence</a>
+       — <a href="/terms.html">Conditions générales</a></p>
+  </footer>
+</body>
+</html>
