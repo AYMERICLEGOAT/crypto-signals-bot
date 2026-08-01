@@ -41,8 +41,23 @@ _EXTRA_STYLE = """
 """
 
 
+def guide_file_path(slug):
+    """Chemin du FICHIER publié (avec extension)."""
+    return f"{GUIDES_DIR}/{slug}.html"
+
+
 def guide_path(slug):
-    return f"/{GUIDES_DIR}/{slug}.html"
+    """
+    URL canonique, SANS extension .html.
+
+    Cloudflare sert ce site en retirant l'extension : une requête sur
+    /guides/x.html renvoie un 307 vers /guides/x. Déclarer la version .html
+    en canonique et dans le sitemap créerait une chaîne de redirection sur
+    les URL exactes qu'on demande aux moteurs d'indexer — vérifié en direct
+    sur les pages existantes du site, qui ont ce défaut. Les guides étant
+    nouveaux, autant les publier directement propres.
+    """
+    return f"/{GUIDES_DIR}/{slug}"
 
 
 def _article_jsonld(guide, canonical):
@@ -188,7 +203,7 @@ def build_guides_index():
 def build_all_guide_files():
     """[(chemin relatif, contenu)] pour publication — index + une page par guide."""
     files = [(f"{GUIDES_DIR}/index.html", build_guides_index())]
-    files += [(f"{GUIDES_DIR}/{g['slug']}.html", build_guide_page(g)) for g in GUIDES]
+    files += [(guide_file_path(g["slug"]), build_guide_page(g)) for g in GUIDES]
     return files
 
 
