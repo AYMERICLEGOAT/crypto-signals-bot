@@ -32,6 +32,7 @@ export async function handleHelpCommand(env: Env, telegramId: number): Promise<v
       "*Tes données*\n" +
       "/delete\\_my\\_data — supprimer tes données personnelles (RGPD)\n\n" +
       "*Aide*\n" +
+      "/faq — les questions qu'on nous pose le plus (dont : est-ce rentable ?)\n" +
       "/help — cette liste",
     { markdown: true }
   );

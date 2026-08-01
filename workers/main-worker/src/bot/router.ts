@@ -17,6 +17,7 @@ import { handleSurveyResponse } from "./commands/surveyResponse";
 import { handleCancelCommand } from "./commands/cancel";
 import { handleDeleteMyDataCommand } from "./commands/deleteMyData";
 import { handleHelpCommand } from "./commands/help";
+import { handleFaqCommand } from "./commands/faq";
 import { handleTrustCommand } from "./commands/trust";
 import { handleExitSurveyResponse } from "./commands/exitSurveyResponse";
 import { handlePrefsCommand, handlePrefsToggle } from "./commands/prefs";
@@ -79,6 +80,8 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
       await handleDeleteMyDataCommand(env, chatId, text.slice("/delete_my_data".length).trim());
     } else if (text === "/help") {
       await handleHelpCommand(env, chatId);
+    } else if (text === "/faq") {
+      await handleFaqCommand(env, chatId);
     } else if (text === "/trust") {
       await handleTrustCommand(env, chatId);
     } else if (text === "/prefs") {
@@ -104,7 +107,18 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
     const chatId = cq.message?.chat.id ?? cq.from.id;
     const data = cq.data ?? "";
 
-    await answerCallbackQuery(env.TELEGRAM_BOT_TOKEN, cq.id);
+    // Simple accusé de réception (fait disparaître le sablier sur le bouton).
+    // NE DOIT JAMAIS bloquer l'action demandée : Telegram refuse cet appel
+    // avec un 400 "query is too old" dès que la callback query a expiré —
+    // ce qui arrive réellement quand l'utilisateur clique sur un bouton d'un
+    // message ancien, ou quand le Worker démarre à froid et met quelques
+    // secondes à répondre. Avant ce correctif, l'exception remontait et
+    // faisait abandonner TOUTE la suite : l'utilisateur cliquait
+    // « S'abonner » et il ne se passait rien (bug découvert le 01/08/2026 en
+    // rejouant les callbacks sur le webhook déployé).
+    await answerCallbackQuery(env.TELEGRAM_BOT_TOKEN, cq.id).catch((err) =>
+      console.error("[bot] answerCallbackQuery non bloquant:", err)
+    );
 
     // Rate-limite/exempte la PERSONNE qui clique (cq.from.id), pas le chat où
     // le bouton est affiché -- pour un bouton posté dans un canal, chatId
