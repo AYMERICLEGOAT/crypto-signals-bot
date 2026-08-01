@@ -250,6 +250,21 @@ SQUEEZE_TP2_WEIGHT = 0.3
 SQUEEZE_TP3_WEIGHT = 0.2
 SQUEEZE_KLINES_LOOKBACK = 250     # bougies 15 min récupérées par cycle (~62h)
 
+# --- Filtres structurels du moteur Squeeze (exploration du 31/07, voir
+# SQUEEZE_EXPLORATION_2026-07-31.md) : s'ajoutent à la détection de base
+# (compression -> cassure -> volume) pour tenter de retirer les faux départs
+# responsables de l'espérance négative constatée. Valeurs ci-dessous
+# "neutres" = comportement historique strictement inchangé. Chaque filtre est
+# implémenté À L'IDENTIQUE dans squeeze_engine.detect_squeeze_signal (live) et
+# dans backtest_squeeze._squeeze_entry_sides (simulation) -- les deux doivent
+# rester synchronisés, sinon ce qui est validé n'est pas ce qui tourne.
+SQUEEZE_REQUIRE_CONFIRMATION = False  # exige que la bougie SUIVANT la cassure clôture aussi hors bande (entrée décalée d'une bougie)
+SQUEEZE_MIN_BREAKOUT_ATR = 0.0        # dépassement minimal de la bande à la clôture, en fraction d'ATR (0 = aucun)
+SQUEEZE_VOLUME_MULTIPLIER = 1.0       # volume de la cassure > ce multiple de sa SMA (1.0 = filtre d'origine)
+SQUEEZE_ADX_FILTER_MODE = "off"       # "off" | "hc" (rejette les contre-tendances quand ADX>seuil) | "strict" (exige ADX>seuil ET alignement)
+SQUEEZE_ADX_THRESHOLD = 25
+SQUEEZE_HTF_EMA_PERIOD = 0            # 0 = pas de filtre de tendance ; sinon EMA sur les clôtures 15m (200 ≈ EMA50 en 1h, 800 ≈ EMA50 en 4h)
+
 # Bloc 11.3 : si l'ATR (volatilité) dépasse cette fraction du prix, aucun
 # signal n'est émis pour la paire ce cycle (marché trop erratique pour que
 # des niveaux de stop/target fixés à l'avance restent pertinents), et un

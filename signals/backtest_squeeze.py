@@ -23,6 +23,7 @@ import json
 import logging
 import os
 
+import numpy as np
 import pandas as pd
 
 import config
@@ -98,6 +99,144 @@ def fetch_15m_klines(pairs=BACKTEST_PAIRS, days=VALIDATION_DAYS) -> dict:
     return pair_dfs
 
 
+# --- Détection d'entrée vectorisée -------------------------------------------
+# La boucle événementielle testait les conditions d'entrée bougie par bougie
+# via .iloc (jusqu'à ~2,8 M extractions de ligne pandas par backtest, soit
+# plusieurs minutes à elle seule). Les conditions ne dépendant que de la série
+# de la paire, elles sont précalculées ici en une passe numpy par paire :
+# résultat strictement identique, temps négligeable.
+
+def _lag_float(a: np.ndarray, k: int) -> np.ndarray:
+    """Valeur de `a` k bougies plus tôt, réalignée sur l'index courant (NaN en tête)."""
+    if k == 0:
+        return a
+    out = np.full(a.shape, np.nan)
+    out[k:] = a[:-k]
+    return out
+
+
+def _lag_bool(a: np.ndarray, k: int) -> np.ndarray:
+    if k == 0:
+        return a
+    out = np.zeros(a.shape, dtype=bool)
+    out[k:] = a[:-k]
+    return out
+
+
+def _squeeze_entry_sides(e: pd.DataFrame) -> np.ndarray:
+    """
+    Vectorise EXACTEMENT squeeze_engine.detect_squeeze_signal (détection de
+    base + filtres structurels de config) sur toute la série 15m d'une paire.
+    Retourne un tableau int8 aligné sur l'index de `e` : +1 = ouvrir un BUY
+    sur cette bougie (à sa clôture), -1 = SELL, 0 = rien.
+
+    ⚠️ Toute évolution de la logique doit être faite dans les DEUX fichiers,
+    sinon ce qui est validé ici n'est pas ce qui tourne en production.
+    """
+    price = e["price"].to_numpy(dtype=float)
+    bbu = e["bb_upper"].to_numpy(dtype=float)
+    bbl = e["bb_lower"].to_numpy(dtype=float)
+    bbm = e["bb_mid"].to_numpy(dtype=float)
+    atr = e["atr"].to_numpy(dtype=float)
+    vol = e["volume"].to_numpy(dtype=float)
+    vsma = e["volume_sma"].to_numpy(dtype=float)
+    bw = e["band_width"].to_numpy(dtype=float)
+    thr = e["squeeze_threshold"].to_numpy(dtype=float)
+
+    with np.errstate(invalid="ignore"):
+        prev_price, prev_bbu, prev_bbl, prev_bbm = (_lag_float(x, 1) for x in (price, bbu, bbl, bbm))
+        prev_ok = ~(np.isnan(prev_bbu) | np.isnan(prev_bbl) | np.isnan(prev_bbm))
+        squeezed = _lag_float(bw, 1) <= _lag_float(thr, 1)
+        inside = (prev_price <= prev_bbu) & (prev_price >= prev_bbl)
+        vol_ok = (vsma > 0) & (vol > config.SQUEEZE_VOLUME_MULTIPLIER * vsma)
+        base = prev_ok & squeezed & inside & vol_ok & ~np.isnan(atr)
+
+        buy = base & (price > bbu)
+        sell = base & (price < bbl)
+
+        margin = config.SQUEEZE_MIN_BREAKOUT_ATR
+        if margin > 0:
+            buy &= (price - bbu) >= margin * atr
+            sell &= (bbl - price) >= margin * atr
+
+        mode = config.SQUEEZE_ADX_FILTER_MODE
+        if mode != "off" and "adx" in e.columns:
+            adx = e["adx"].to_numpy(dtype=float)
+            pdi = e["plus_di"].to_numpy(dtype=float)
+            mdi = e["minus_di"].to_numpy(dtype=float)
+            known = ~(np.isnan(adx) | np.isnan(pdi) | np.isnan(mdi))
+            strong = known & (adx > config.SQUEEZE_ADX_THRESHOLD)
+            up_trend = pdi > mdi
+            if mode == "strict":
+                buy &= strong & up_trend
+                sell &= strong & ~up_trend
+            else:  # "hc" : ne rejette que les cassures à contre-tendance en régime de tendance forte
+                buy &= ~(strong & ~up_trend)
+                sell &= ~(strong & up_trend)
+
+        if config.SQUEEZE_HTF_EMA_PERIOD > 0:
+            htf = e["price"].ewm(span=config.SQUEEZE_HTF_EMA_PERIOD, adjust=False).mean().to_numpy(dtype=float)
+            buy &= price > htf
+            sell &= price < htf
+
+        if config.SQUEEZE_REQUIRE_CONFIRMATION:
+            # L'entrée glisse sur la bougie suivante, qui doit elle aussi
+            # clôturer hors bande (et fournir un ATR exploitable).
+            buy = _lag_bool(buy, 1) & (price > bbu) & ~np.isnan(atr)
+            sell = _lag_bool(sell, 1) & (price < bbl) & ~np.isnan(atr)
+
+    return np.where(buy, 1, np.where(sell, -1, 0)).astype(np.int8)
+
+
+def _hc_entry_sides(e: pd.DataFrame) -> np.ndarray:
+    """
+    Vectorise la condition d'entrée du moteur 🎯 Haute Confiance (croisement
+    prix/EMA lente + RSI en zone extrême sur la fenêtre RSI_CROSS_WINDOW +
+    filtre de régime ADX), à l'identique de strategy.detect_signal /
+    backtest.simulate_trades. Moteur en production : logique inchangée, seule
+    la forme (numpy au lieu de .iloc bougie par bougie) diffère.
+    """
+    price = e["price"].to_numpy(dtype=float)
+    ema_slow = e["ema_slow"].to_numpy(dtype=float)
+    rsi = e["rsi"].to_numpy(dtype=float)
+    atr = e["atr"].to_numpy(dtype=float)
+    window = config.RSI_CROSS_WINDOW + 1
+    rsi_min = e["rsi"].rolling(window, min_periods=1).min().to_numpy(dtype=float)
+    rsi_max = e["rsi"].rolling(window, min_periods=1).max().to_numpy(dtype=float)
+
+    with np.errstate(invalid="ignore"):
+        known = ~(np.isnan(ema_slow) | np.isnan(rsi) | np.isnan(atr)) & (atr > 0)
+        crossed_up = (_lag_float(price, 1) <= _lag_float(ema_slow, 1)) & (price > ema_slow)
+        crossed_down = (_lag_float(price, 1) >= _lag_float(ema_slow, 1)) & (price < ema_slow)
+        buy = known & crossed_up & (rsi_min < config.RSI_BUY_THRESHOLD)
+        sell = known & crossed_down & (rsi_max > config.RSI_SELL_THRESHOLD)
+
+        if config.ENABLE_ADX_REGIME_FILTER and "adx" in e.columns:
+            adx = e["adx"].to_numpy(dtype=float)
+            pdi = e["plus_di"].to_numpy(dtype=float)
+            mdi = e["minus_di"].to_numpy(dtype=float)
+            strong = ~np.isnan(adx) & (adx > config.ADX_TREND_THRESHOLD)
+            up_trend = pdi > mdi
+            buy &= ~(strong & ~up_trend)
+            sell &= ~(strong & up_trend)
+
+    return np.where(buy, 1, np.where(sell, -1, 0)).astype(np.int8)
+
+
+def _ohlc_arrays(enriched: dict) -> dict:
+    """Colonnes utiles à la gestion des sorties, en numpy (évite un .iloc par bougie et par position ouverte)."""
+    return {
+        pair: {
+            "low": e["low"].to_numpy(dtype=float),
+            "high": e["high"].to_numpy(dtype=float),
+            "price": e["price"].to_numpy(dtype=float),
+            "atr": e["atr"].to_numpy(dtype=float),
+            "ts_ms": e["ts_ms"].to_numpy(),
+        }
+        for pair, e in enriched.items()
+    }
+
+
 def simulate_combined_portfolio(hc_dfs: dict, squeeze_dfs: dict, max_active_trades: int) -> list:
     """
     Simulation événementielle combinée : union des timestamps 1h (Haute
@@ -131,6 +270,12 @@ def simulate_combined_portfolio(hc_dfs: dict, squeeze_dfs: dict, max_active_trad
         e["squeeze_threshold"] = e["band_width"].rolling(config.SQUEEZE_LOOKBACK).quantile(config.SQUEEZE_PERCENTILE)
         e["volume_sma"] = e["volume"].rolling(config.SQUEEZE_VOLUME_SMA_PERIOD).mean()
 
+    hc_sides = {pair: _hc_entry_sides(e) for pair, e in hc_enriched.items()}
+    squeeze_sides = {pair: _squeeze_entry_sides(e) for pair, e in squeeze_enriched.items()}
+    hc_arr, squeeze_arr = _ohlc_arrays(hc_enriched), _ohlc_arrays(squeeze_enriched)
+
+    squeeze_min_idx = max(WARMUP_CANDLES, config.SQUEEZE_LOOKBACK + config.SQUEEZE_BB_PERIOD)
+
     def ts_index(enriched):
         return {pair: {ts: i for i, ts in enumerate(e["ts_ms"].values)} for pair, e in enriched.items()}
 
@@ -147,7 +292,7 @@ def simulate_combined_portfolio(hc_dfs: dict, squeeze_dfs: dict, max_active_trad
     def ret(side, entry, level):
         return (level - entry) / entry if side == "BUY" else (entry - level) / entry
 
-    def process_exits(pair, engine, enriched_map, idx_map, ts):
+    def process_exits(pair, engine, arr_map, idx_map, ts):
         nonlocal n_active_pre_tp1
         key = (pair, engine)
         if key not in open_positions:
@@ -156,15 +301,15 @@ def simulate_combined_portfolio(hc_dfs: dict, squeeze_dfs: dict, max_active_trad
         if idx is None:
             return
         pos = open_positions[key]
-        candle = enriched_map[pair].iloc[idx]
-        lo, hi, side = candle["low"], candle["high"], pos["side"]
+        arr = arr_map[pair]
+        lo, hi, side = arr["low"][idx], arr["high"][idx], pos["side"]
         hit_stop = (lo <= pos["stop"]) if side == "BUY" else (hi >= pos["stop"])
 
         def _close(outcome, exit_price):
             closed_trades.append({
                 "pair": pair, "side": side, "entry_price": pos["entry_price"], "exit_price": exit_price,
                 "outcome": outcome, "pnl_pct": pos["pnl_pct_acc"],
-                "entered_at": pos["entered_at"], "exited_at": int(candle["ts_ms"]),
+                "entered_at": pos["entered_at"], "exited_at": int(arr["ts_ms"][idx]),
                 "tp1_hit": pos["tp1_hit"], "engine": engine,
             })
             del open_positions[key]
@@ -220,117 +365,68 @@ def simulate_combined_portfolio(hc_dfs: dict, squeeze_dfs: dict, max_active_trad
             timeout = HC_TIMEOUT_PERIODS if engine == "high_confidence" else SQUEEZE_TIMEOUT_PERIODS
             held = idx - pos["entry_idx"]
             if held >= timeout:
-                exit_price = candle["price"]
+                exit_price = arr["price"][idx]
                 pos["pnl_pct_acc"] += pos["weight_remaining"] * ret(side, pos["entry_price"], exit_price)
                 outcome = "WIN" if pos["tp1_hit"] else "TIMEOUT"
                 if not pos["tp1_hit"]:
                     n_active_pre_tp1 -= 1
                 _close(outcome, exit_price)
 
-    def try_enter_hc(pair, ts):
+    def _open(pair, engine, side, idx, arr, sl_mult, tp1_mult, tp2_mult, tp3_mult, tp1_w, tp2_w):
         nonlocal n_active_pre_tp1
-        key = (pair, "high_confidence")
-        if key in open_positions:
-            return
-        e = hc_enriched[pair]
-        idx = hc_idx[pair].get(ts)
-        if idx is None or idx < WARMUP_CANDLES or idx >= len(e) - 1:
-            return
-        prev, curr = e.iloc[idx - 1], e.iloc[idx]
-        if pd.isna(curr["ema_slow"]) or pd.isna(curr["rsi"]) or pd.isna(curr.get("atr")):
-            return
-        crossed_up = prev["price"] <= prev["ema_slow"] and curr["price"] > curr["ema_slow"]
-        crossed_down = prev["price"] >= prev["ema_slow"] and curr["price"] < curr["ema_slow"]
-        recent_rsi = e["rsi"].iloc[max(0, idx - config.RSI_CROSS_WINDOW):idx + 1]
-        side = None
-        if crossed_up and (recent_rsi < config.RSI_BUY_THRESHOLD).any():
-            side = "BUY"
-        elif crossed_down and (recent_rsi > config.RSI_SELL_THRESHOLD).any():
-            side = "SELL"
-        if side is None:
-            return
-        if config.ENABLE_ADX_REGIME_FILTER:
-            adx_val = curr.get("adx")
-            if pd.notna(adx_val) and adx_val > config.ADX_TREND_THRESHOLD:
-                trend_up = curr["plus_di"] > curr["minus_di"]
-                if (side == "BUY" and not trend_up) or (side == "SELL" and trend_up):
-                    return
-        atr_val = curr.get("atr")
-        if pd.isna(atr_val) or atr_val <= 0:
-            return
-        entry_price = curr["price"]
-        sl_dist, tp1_dist = config.MULTI_TP_SL_MULTIPLIER * atr_val, config.MULTI_TP_TP1_MULTIPLIER * atr_val
-        tp2_dist, tp3_dist = config.MULTI_TP_TP2_MULTIPLIER * atr_val, config.MULTI_TP_TP3_MULTIPLIER * atr_val
+        atr_val, entry_price = arr["atr"][idx], arr["price"][idx]
+        sl_dist = sl_mult * atr_val
         if side == "BUY":
             stop = entry_price - sl_dist
-            tp1, tp2, tp3 = entry_price + tp1_dist, entry_price + tp2_dist, entry_price + tp3_dist
+            tp1, tp2, tp3 = (entry_price + tp1_mult * atr_val, entry_price + tp2_mult * atr_val,
+                             entry_price + tp3_mult * atr_val)
         else:
             stop = entry_price + sl_dist
-            tp1, tp2, tp3 = entry_price - tp1_dist, entry_price - tp2_dist, entry_price - tp3_dist
-        open_positions[key] = {
+            tp1, tp2, tp3 = (entry_price - tp1_mult * atr_val, entry_price - tp2_mult * atr_val,
+                             entry_price - tp3_mult * atr_val)
+        open_positions[(pair, engine)] = {
             "side": side, "entry_price": entry_price, "entry_idx": idx, "stop": stop,
             "tp1": tp1, "tp2": tp2, "tp3": tp3, "tp1_hit": False, "tp2_hit": False,
-            "weight_remaining": 1.0, "pnl_pct_acc": 0.0, "entered_at": int(curr["ts_ms"]),
-            "tp1_weight": config.MULTI_TP_TP1_WEIGHT, "tp2_weight": config.MULTI_TP_TP2_WEIGHT,
+            "weight_remaining": 1.0, "pnl_pct_acc": 0.0, "entered_at": int(arr["ts_ms"][idx]),
+            "tp1_weight": tp1_w, "tp2_weight": tp2_w,
         }
         n_active_pre_tp1 += 1
 
+    def try_enter_hc(pair, ts):
+        if (pair, "high_confidence") in open_positions:
+            return
+        idx = hc_idx[pair].get(ts)
+        n = len(hc_sides[pair])
+        if idx is None or idx < WARMUP_CANDLES or idx >= n - 1:
+            return
+        code = hc_sides[pair][idx]
+        if code == 0:
+            return
+        _open(pair, "high_confidence", "BUY" if code > 0 else "SELL", idx, hc_arr[pair],
+              config.MULTI_TP_SL_MULTIPLIER, config.MULTI_TP_TP1_MULTIPLIER,
+              config.MULTI_TP_TP2_MULTIPLIER, config.MULTI_TP_TP3_MULTIPLIER,
+              config.MULTI_TP_TP1_WEIGHT, config.MULTI_TP_TP2_WEIGHT)
+
     def try_enter_squeeze(pair, ts):
-        nonlocal n_active_pre_tp1
-        key = (pair, "squeeze_15m")
-        if key in open_positions:
+        if (pair, "squeeze_15m") in open_positions:
             return
-        e = squeeze_enriched[pair]
         idx = squeeze_idx[pair].get(ts)
-        min_points = config.SQUEEZE_LOOKBACK + config.SQUEEZE_BB_PERIOD
-        if idx is None or idx < max(WARMUP_CANDLES, min_points) or idx >= len(e) - 1:
+        n = len(squeeze_sides[pair])
+        if idx is None or idx < squeeze_min_idx or idx >= n - 1:
             return
-        prev, curr = e.iloc[idx - 1], e.iloc[idx]
-        if any(pd.isna(v) for v in (prev["bb_upper"], prev["bb_lower"], prev["bb_mid"],
-                                      curr["bb_upper"], curr["bb_lower"], curr.get("atr"))):
+        code = squeeze_sides[pair][idx]
+        if code == 0:
             return
-        # Perf : seuil et moyenne de volume précalculés en vectorisé avant la
-        # boucle événementielle (voir simulate_combined_portfolio) -- même
-        # résultat que recalculer un quantile/une moyenne glissante ici à
-        # chaque candidat, sans le coût O(n log n) répété ~1.4M fois.
-        threshold = e["squeeze_threshold"].iloc[idx - 1]
-        if pd.isna(threshold) or e["band_width"].iloc[idx - 1] > threshold:
-            return
-        was_inside = prev["price"] <= prev["bb_upper"] and prev["price"] >= prev["bb_lower"]
-        if not was_inside:
-            return
-        breakout_up = curr["price"] > curr["bb_upper"]
-        breakout_down = curr["price"] < curr["bb_lower"]
-        if not (breakout_up or breakout_down):
-            return
-        volume_sma = e["volume_sma"].iloc[idx]
-        if pd.isna(volume_sma) or volume_sma <= 0 or curr["volume"] <= volume_sma:
-            return
-        side = "BUY" if breakout_up else "SELL"
-        atr_val = curr["atr"]
-        entry_price = curr["price"]
-        sl_dist = config.SQUEEZE_SL_MULTIPLIER * atr_val
-        tp1_dist, tp2_dist, tp3_dist = (config.SQUEEZE_TP1_MULTIPLIER * atr_val,
-                                          config.SQUEEZE_TP2_MULTIPLIER * atr_val, config.SQUEEZE_TP3_MULTIPLIER * atr_val)
-        if side == "BUY":
-            stop = entry_price - sl_dist
-            tp1, tp2, tp3 = entry_price + tp1_dist, entry_price + tp2_dist, entry_price + tp3_dist
-        else:
-            stop = entry_price + sl_dist
-            tp1, tp2, tp3 = entry_price - tp1_dist, entry_price - tp2_dist, entry_price - tp3_dist
-        open_positions[key] = {
-            "side": side, "entry_price": entry_price, "entry_idx": idx, "stop": stop,
-            "tp1": tp1, "tp2": tp2, "tp3": tp3, "tp1_hit": False, "tp2_hit": False,
-            "weight_remaining": 1.0, "pnl_pct_acc": 0.0, "entered_at": int(curr["ts_ms"]),
-            "tp1_weight": config.SQUEEZE_TP1_WEIGHT, "tp2_weight": config.SQUEEZE_TP2_WEIGHT,
-        }
-        n_active_pre_tp1 += 1
+        _open(pair, "squeeze_15m", "BUY" if code > 0 else "SELL", idx, squeeze_arr[pair],
+              config.SQUEEZE_SL_MULTIPLIER, config.SQUEEZE_TP1_MULTIPLIER,
+              config.SQUEEZE_TP2_MULTIPLIER, config.SQUEEZE_TP3_MULTIPLIER,
+              config.SQUEEZE_TP1_WEIGHT, config.SQUEEZE_TP2_WEIGHT)
 
     for ts in all_ts:
         for pair in list(hc_enriched.keys()):
-            process_exits(pair, "high_confidence", hc_enriched, hc_idx, ts)
+            process_exits(pair, "high_confidence", hc_arr, hc_idx, ts)
         for pair in list(squeeze_enriched.keys()):
-            process_exits(pair, "squeeze_15m", squeeze_enriched, squeeze_idx, ts)
+            process_exits(pair, "squeeze_15m", squeeze_arr, squeeze_idx, ts)
 
         if n_active_pre_tp1 >= max_active_trades:
             continue
@@ -346,6 +442,32 @@ def simulate_combined_portfolio(hc_dfs: dict, squeeze_dfs: dict, max_active_trad
     return closed_trades
 
 
+def expectancy_of(trades: list) -> float:
+    """
+    Espérance par trade, en pourcentage du capital engagé (moyenne simple des
+    pnl_pct réalisés). C'est LE chiffre qui décide si un moteur mérite de
+    tourner : un win rate élevé avec un ratio gain/perte faible peut très bien
+    donner une espérance négative (cas historique du moteur Squeeze).
+    """
+    if not trades:
+        return 0.0
+    return sum(t["pnl_pct"] for t in trades) / len(trades)
+
+
+def report(trades: list, days: int = VALIDATION_DAYS) -> None:
+    hc_trades = [t for t in trades if t["engine"] == "high_confidence"]
+    sq_trades = [t for t in trades if t["engine"] == "squeeze_15m"]
+
+    for label, subset in [("🎯 Haute Confiance seul", hc_trades), ("⚡ Squeeze 15M seul", sq_trades), ("COMBINÉ", trades)]:
+        gl = gain_loss_ratio_of(subset)
+        logger.info(
+            "%s -> %d trades (%.2f/jour), win rate TP1 = %.1f%%, ratio gain/perte = %s, "
+            "espérance/trade = %+.4f%%, drawdown max = %.1f%%",
+            label, len(subset), len(subset) / days, win_rate_of(subset) * 100,
+            f"{gl:.2f}" if gl else "n/a", expectancy_of(subset) * 100, max_drawdown_of(subset),
+        )
+
+
 def main():
     logger.info("=== Backtest combiné Haute Confiance (1h) + Squeeze Volatilité (15m), %d paires, %d jours ===",
                 len(BACKTEST_PAIRS), VALIDATION_DAYS)
@@ -356,18 +478,7 @@ def main():
     trades = simulate_combined_portfolio(hc_dfs, squeeze_dfs, max_active_trades=config.MAX_ACTIVE_TRADES)
     trades = filter_correlated_trades(trades, total_pairs=len(BACKTEST_PAIRS))
 
-    hc_trades = [t for t in trades if t["engine"] == "high_confidence"]
-    sq_trades = [t for t in trades if t["engine"] == "squeeze_15m"]
-
-    for label, subset in [("🎯 Haute Confiance seul", hc_trades), ("⚡ Squeeze 15M seul", sq_trades), ("COMBINÉ", trades)]:
-        wr = win_rate_of(subset)
-        gl = gain_loss_ratio_of(subset)
-        dd = max_drawdown_of(subset)
-        logger.info(
-            "%s -> %d trades (%.2f/jour), win rate TP1 = %.1f%%, ratio gain/perte = %s, drawdown max = %.1f%%",
-            label, len(subset), len(subset) / VALIDATION_DAYS, wr * 100,
-            f"{gl:.2f}" if gl else "n/a", dd,
-        )
+    report(trades)
 
     combined_wr = win_rate_of(trades) * 100
     combined_dd = max_drawdown_of(trades)
