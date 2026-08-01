@@ -43,27 +43,30 @@ export async function dispatchWeeklyRecap(env: Env): Promise<void> {
   }, 0);
   const sign = paperPnlPct >= 0 ? "+" : "";
 
+  // "Sécurisé" = TP1 atteint, donc stop remonté au prix d'entrée : le trade ne
+  // peut plus finir perdant. C'est le chiffre signature du produit (voir
+  // MULTI_TP_TP1_WEIGHT côté signals/config.py) et il manquait au récap, qui
+  // n'affichait que TP/SL — deux issues finales, alors que la sécurisation est
+  // justement ce qui distingue cette gestion de sortie.
+  const secured = resolved.filter((s) => s.tp1_hit_at != null).length;
+  const securedPct = resolved.length ? Math.round((secured / resolved.length) * 100) : 0;
+
+  const escapedUsername = env.TELEGRAM_BOT_USERNAME?.replace(/_/g, "\\_");
+  const cta = escapedUsername ? `\n@${escapedUsername} pour des signaux en temps réel` : "";
+
   const text = [
     "📅 *Récap de la semaine*",
     "",
     `📡 ${emitted.length} signal(aux) émis`,
+    `🔒 ${secured} trade(s) sécurisé(s) (TP1 atteint, ne peut plus finir perdant) — ${securedPct}% des clôturés`,
     `✅ ${tpCount} take profit touché(s) — ❌ ${slCount} stop loss touché(s)`,
     `💼 Portefeuille fictif (10%/trade, non composé) : ${sign}${paperPnlPct.toFixed(1)}%`,
     `⚡ ${momentumAlerts.length} alerte(s) momentum envoyée(s)`,
     "",
     "⚠️ Pas un conseil en investissement. Performance passée ne garantit pas les résultats futurs.",
+    cta,
   ].join("\n");
 
   await sendMessage(env.TELEGRAM_BOT_TOKEN, Number(env.TELEGRAM_CHANNEL_ID), text, { markdown: true });
   await recordWeeklyRecapPost(db);
-
-  // Bloc 19 : en plus du canal, envoye aussi en DM aux abonnes actifs n'ayant
-  // pas desactive "Recap hebdomadaire" dans /prefs (active par defaut).
-  // Le récapitulatif est publié sur le canal, sans notification privée.
-  const recipientIds: number[] = [];
-  await Promise.all(
-    recipientIds.map((id) => sendMessage(env.TELEGRAM_BOT_TOKEN, id, text, { markdown: true }).catch((err) =>
-      console.error(`[weekly-recap] Échec DM à ${id}:`, err)
-    ))
-  );
 }
