@@ -182,6 +182,28 @@ MULTI_TP_TP3_WEIGHT = 0.2
 ENABLE_PORTFOLIO_LOCK = True
 MAX_ACTIVE_TRADES = 5
 
+# Fenêtre de rattrapage (audit du 01/08/2026, correctif de perte de signaux).
+# Constat : detect_signal() n'examinait que la DERNIÈRE bougie close, alors
+# que le cron GitHub Actions ne se déclenche en pratique qu'environ 12 fois
+# par jour au lieu de 24 (déclenchements planifiés retardés ou purement
+# sautés -- mesuré sur l'historique réel des exécutions : 02:15, 03:42,
+# 06:37, 09:12...). Chaque bougie jamais évaluée emportait définitivement
+# ses croisements : sur 7 jours, ~10 signaux étaient attendus par la
+# stratégie et 0 avaient réellement été émis.
+# Le générateur balaie donc désormais les N dernières bougies closes à
+# chaque cycle (voir strategy.detect_signals_with_catchup) : un cycle manqué
+# est rattrapé au suivant. 6 bougies horaires = 6h de tolérance, largement
+# au-delà du pire écart observé entre deux exécutions (~3h).
+SIGNAL_CATCHUP_CANDLES = 6
+
+# Garde-fou d'honnêteté du rattrapage : un signal détecté sur une bougie
+# passée n'est diffusé que s'il reste réellement prenable au prix actuel
+# (stop pas déjà touché, TP1 pas déjà atteint, et pas plus de cette fraction
+# du chemin vers TP1 déjà parcourue). Sans lui, on annoncerait une entrée à
+# un prix que le marché a déjà quitté -- malhonnête pour l'abonné, et
+# faussement flatteur pour les statistiques publiées.
+SIGNAL_MAX_DRIFT_TO_TP1 = 0.35
+
 # Amélioration 5 (MACD 12/26/9) : voir résultat backtest ci-dessous une fois testé.
 ENABLE_MACD_FILTER = False
 

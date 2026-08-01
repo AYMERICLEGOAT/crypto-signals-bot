@@ -38,7 +38,7 @@ import correlation_guard
 import momentum
 import alerts
 from indicators import compute_all_indicators, ema
-from strategy import detect_signal
+from strategy import detect_signals_with_catchup, is_still_actionable
 from squeeze_engine import detect_squeeze_signal
 from confidence import compute_confidence_score
 from chart_generator import generate_chart
@@ -274,6 +274,14 @@ def run_once(params: dict) -> tuple[int, int]:
     volatility_suspensions = []
     pairs_with_data = 0
 
+    # Anti-doublon de la fenêtre de rattrapage : une seule lecture par cycle
+    # (voir storage.pairs_signalled_since). La fenêtre de déduplication couvre
+    # exactement la profondeur balayée par detect_signals_with_catchup — les
+    # bougies étant horaires, N bougies = N heures — pour ne jamais réémettre
+    # un croisement déjà diffusé au cycle précédent.
+    dedup_hours = config.SIGNAL_CATCHUP_CANDLES  # bougies 1h -> heures
+    recent_signalled_pairs = storage.pairs_signalled_since(dedup_hours)
+
     for pair, coin_id in config.PAIRS.items():
         df = fetch_recent_prices(pair, coin_id)
         if df is not None:
@@ -302,10 +310,31 @@ def run_once(params: dict) -> tuple[int, int]:
                 continue
 
         htf_ema50 = fetch_htf_ema50(pair) if config.ENABLE_HTF_FILTER else None
-        signal_dict = detect_signal(
+
+        # Fenêtre de rattrapage (voir config.SIGNAL_CATCHUP_CANDLES) : on
+        # balaie les dernières bougies closes, pas seulement la dernière, pour
+        # ne plus perdre les croisements des cycles cron sautés. Le plus
+        # RÉCENT d'abord : si plusieurs bougies de la fenêtre ont produit un
+        # signal sur la même paire, c'est le plus frais qui est le plus
+        # pertinent (et une seule position par paire est ouverte de toute façon).
+        found = detect_signals_with_catchup(
             enriched, pair, params["rsi_buy_threshold"], params["rsi_sell_threshold"],
             htf_ema50=htf_ema50,
         )
+        signal_dict = None
+        if found and pair in recent_signalled_pairs:
+            logger.info("↩️ %s : signal déjà émis dans la fenêtre, rattrapage ignoré (anti-doublon).", pair)
+            found = []
+        for candidate in reversed(found):
+            if not is_still_actionable(candidate, curr_price):
+                logger.info(
+                    "⏭️ %s : signal du %s ignoré, le marché a déjà quitté la zone d'entrée (prix %.8f vs entrée %.8f).",
+                    pair, candidate.get("candle_ts_ms"), curr_price, candidate["entry_price"],
+                )
+                continue
+            signal_dict = candidate
+            break
+
         if signal_dict:
             # Amélioration 9 : score de confiance (0-100), purement informatif
             # (voir confidence.py — jamais présenté comme une probabilité de gain).
@@ -382,6 +411,10 @@ def run_once(params: dict) -> tuple[int, int]:
     failed_inserts = 0
     for signal_dict, enriched in candidates:
         signal_dict["chart_url"] = _generate_and_upload_chart(enriched, signal_dict, now_ms)
+        # Métadonnée interne à la détection (fraîcheur/anti-doublon de la
+        # fenêtre de rattrapage), sans colonne correspondante en base : la
+        # laisser ferait échouer l'insertion entière du signal.
+        signal_dict.pop("candle_ts_ms", None)
         if not storage.insert_signal(signal_dict):
             failed_inserts += 1
 

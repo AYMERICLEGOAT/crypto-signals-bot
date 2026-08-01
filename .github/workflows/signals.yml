@@ -1,8 +1,20 @@
-name: Signaux crypto (horaire)
+name: Signaux crypto (toutes les 30 min)
 
+# Cadence portée de 1h à 30 min (audit du 01/08/2026). Mesuré sur
+# l'historique réel des exécutions : le cron horaire ne se déclenchait
+# qu'environ 12 fois par jour au lieu de 24 (les déclenchements planifiés
+# GitHub Actions sont "best effort" et sont régulièrement retardés ou
+# purement sautés -- observé : 02:15, 03:42, 06:37, 09:12). Chaque bougie
+# horaire jamais évaluée perdait définitivement ses croisements.
+# Deux protections combinées désormais :
+#   1. cette cadence doublée, qui donne deux chances par bougie horaire ;
+#   2. la fenêtre de rattrapage côté code (config.SIGNAL_CATCHUP_CANDLES),
+#      qui rattrape les bougies des cycles malgré tout manqués.
+# Le surcoût est nul : dépôt public = minutes GitHub Actions illimitées, et
+# un run dure ~1 min depuis que Coinbase est passé devant CoinGecko.
 on:
   schedule:
-    - cron: "5 * * * *"
+    - cron: "*/30 * * * *"
   workflow_dispatch: {}
 
 # Race condition trouvée dans l'audit du 29/07 : ce workflow n'avait aucune

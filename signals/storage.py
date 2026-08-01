@@ -5,6 +5,8 @@ de compiler de driver PostgreSQL natif).
 """
 
 import logging
+from datetime import datetime, timedelta, timezone
+
 from supabase import create_client, Client
 
 import config
@@ -46,6 +48,34 @@ def insert_signal(signal: dict) -> bool:
     except Exception:
         logger.exception("Échec de l'insertion du signal dans Supabase: %s", signal)
         return False
+
+
+def pairs_signalled_since(hours: int) -> set:
+    """
+    Paires ayant déjà reçu un signal dans les `hours` dernières heures.
+    Anti-doublon de la fenêtre de rattrapage (voir
+    config.SIGNAL_CATCHUP_CANDLES) : sans ce garde-fou, chaque cycle
+    réémettrait les mêmes croisements tant qu'ils restent dans la fenêtre
+    balayée. Une seule requête par cycle plutôt qu'une par paire.
+
+    En cas d'échec, retourne un ensemble VIDE : ce sens de dégradation est
+    délibéré côté "on laisse passer" plutôt que "on bloque tout" — un doublon
+    occasionnel est gênant, un blocage total de la génération le serait
+    beaucoup plus (même logique que count_open_at_risk_trades ci-dessous).
+    """
+    since = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    try:
+        resp = (
+            get_client()
+            .table("signals")
+            .select("pair")
+            .gte("created_at", since)
+            .execute()
+        )
+        return {row["pair"] for row in (resp.data or [])}
+    except Exception:
+        logger.exception("Échec de la lecture des signaux récents (anti-doublon), traité comme aucun.")
+        return set()
 
 
 def count_open_at_risk_trades() -> int:
