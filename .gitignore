@@ -3,5 +3,3 @@ _ancien-crypto-signals-bot.env
 .env
 ops_routine.log
 signals/data/
-signals/_sweep_rsi.py
-signals/_walkforward_rsi.py
