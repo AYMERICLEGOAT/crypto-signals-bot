@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Backtest : comment savoir si une stratégie tient vraiment la route</title>
+  <meta name="description" content="Ce qu&#x27;un backtest prouve, ce qu&#x27;il ne prouve pas, et comment repérer les chiffres de performance gonflés dans une offre de signaux.">
+  <meta name="keywords" content="backtest crypto, surapprentissage overfitting, performance stratégie trading, walk-forward">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://crypto-signals-bot-site.signalytics.workers.dev/guides/backtest-et-surapprentissage.html">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Backtest : comment savoir si une stratégie tient vraiment la route">
+  <meta property="og:description" content="Ce qu&#x27;un backtest prouve, ce qu&#x27;il ne prouve pas, et comment repérer les chiffres de performance gonflés dans une offre de signaux.">
+  <meta property="og:url" content="https://crypto-signals-bot-site.signalytics.workers.dev/guides/backtest-et-surapprentissage.html">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "Article", "headline": "Backtest et surapprentissage : lire les chiffres correctement", "description": "Ce qu'un backtest prouve, ce qu'il ne prouve pas, et comment repérer les chiffres de performance gonflés dans une offre de signaux.", "mainEntityOfPage": {"@type": "WebPage", "@id": "https://crypto-signals-bot-site.signalytics.workers.dev/guides/backtest-et-surapprentissage.html"}, "inLanguage": "fr", "isAccessibleForFree": true}</script>
+  <style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 780px;
+         margin: 0 auto; padding: 24px 16px 64px; line-height: 1.55; }
+  h1 { font-size: 1.7rem; margin-bottom: 4px; }
+  h2 { font-size: 1.25rem; margin-top: 2.5rem; border-bottom: 2px solid #6366f1; padding-bottom: 6px; }
+  .subtitle { color: #666; margin-top: 0; }
+  .lang-switch { text-align: right; font-size: 0.85rem; }
+  .signal-card { border: 1px solid #d8d8e0; border-radius: 10px; padding: 16px 18px; margin: 16px 0; }
+  .signal-card.buy { border-left: 5px solid #16a34a; }
+  .signal-card.sell { border-left: 5px solid #dc2626; }
+  .signal-header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+  .signal-pair { font-weight: 700; font-size: 1.1rem; }
+  .badge { padding: 2px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; color: white; }
+  .badge.buy { background: #16a34a; }
+  .badge.sell { background: #dc2626; }
+  .prices { display: flex; gap: 18px; margin: 10px 0; flex-wrap: wrap; font-size: 0.92rem; }
+  .prices span b { display: block; font-size: 1rem; }
+  .signal-chart { max-width: 100%; border-radius: 8px; margin: 10px 0; }
+  .cta { background: linear-gradient(135deg, #6366f1, #4338ca); color: white; padding: 24px;
+         border-radius: 12px; text-align: center; margin: 2.5rem 0; }
+  .cta a { color: white; font-weight: 700; font-size: 1.1rem; text-decoration: underline; }
+  .backtest { background: #f5f5ff; border: 1px solid #e0e0f5; border-radius: 12px; padding: 18px 20px; margin: 1.5rem 0; }
+  .backtest h2 { margin-top: 0; border-bottom: none; }
+  .backtest-stat { font-size: 1.4rem; font-weight: 700; color: #4338ca; margin: 4px 0; }
+  .perf-stats { display: flex; gap: 24px; flex-wrap: wrap; margin: 16px 0; }
+  .perf-stat { text-align: center; }
+  .perf-stat b { display: block; font-size: 1.6rem; }
+  table.recent { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 12px; }
+  table.recent th, table.recent td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #e5e5ef; }
+  .outcome-win { color: #16a34a; font-weight: 700; }
+  .outcome-loss { color: #dc2626; font-weight: 700; }
+  .disclaimer { font-size: 0.82rem; color: #777; margin-top: 3rem; border-top: 1px solid #e5e5ef; padding-top: 12px; }
+  footer { margin-top: 2rem; font-size: 0.85rem; color: #999; }
+
+  .guide-body h2 { font-size: 1.2rem; margin-top: 2.2rem; }
+  .guide-body p { margin: 0.9rem 0; }
+  .guide-body ul, .guide-body ol { padding-left: 1.3rem; }
+  .guide-body li { margin: 8px 0; }
+  .breadcrumb { font-size: 0.85rem; color: #666; margin-bottom: 8px; }
+  .breadcrumb a { color: #4338ca; }
+  .guide-cta { background: linear-gradient(135deg, #6366f1, #4338ca); color: white;
+               padding: 20px; border-radius: 12px; margin: 2.5rem 0 1.5rem; }
+  .guide-cta a { color: white; font-weight: 700; }
+  .guide-cta p { margin: 6px 0; }
+  .related { border-top: 1px solid #e5e5ef; margin-top: 2.5rem; padding-top: 1rem; }
+  .related li { margin: 10px 0; }
+  .guide-disclaimer { font-size: 0.85rem; color: #777; border-top: 1px solid #e5e5ef;
+                      margin-top: 2rem; padding-top: 12px; }
+</style>
+</head>
+<body>
+  <p class="breadcrumb"><a href="/">Accueil</a> › <a href="/guides/">Guides</a> › Backtest et surapprentissage : lire les chiffres correctement</p>
+  <header>
+    <h1>Backtest et surapprentissage : lire les chiffres correctement</h1>
+    <p class="subtitle">Ce qu&#x27;un backtest prouve, ce qu&#x27;il ne prouve pas, et comment repérer les chiffres de performance gonflés dans une offre de signaux.</p>
+  </header>
+
+  <article class="guide-body">
+
+<p>Un backtest simule une stratégie sur des données passées pour estimer ce qu'elle aurait rapporté. C'est un outil indispensable — et le plus facile à truquer, souvent sans même le vouloir.</p>
+
+<h2>Le surapprentissage, en une phrase</h2>
+<p>C'est le fait d'ajuster une stratégie jusqu'à ce qu'elle colle parfaitement aux données passées, au point de perdre toute capacité à réagir correctement à des données nouvelles.</p>
+<p>Le symptôme est paradoxal : <b>une stratégie trop parfaite en backtest est un signal d'alerte, pas de confiance</b>. Avec assez de paramètres et assez d'essais, on finit toujours par trouver une combinaison qui aurait magnifiquement fonctionné dans le passé. Elle ne fonctionnera pas demain, parce qu'elle a mémorisé du hasard.</p>
+
+<h2>« In-sample » et « out-of-sample »</h2>
+<p>Un test est dit <i>in-sample</i> quand il est effectué sur les mêmes données qui ont servi à choisir les paramètres. Ses résultats sont, par construction, optimistes.</p>
+<p>Le test qui compte est <i>out-of-sample</i> : on choisit les réglages sur une période, puis on les évalue sur une période différente, jamais utilisée pour les choisir. Si la performance s'effondre, la stratégie ne contenait pas d'avantage réel.</p>
+<p>La version robuste s'appelle le <b>walk-forward</b> : découper l'historique en plusieurs tranches successives et vérifier que l'avantage tient sur <i>chacune</i>. Un avantage qui n'apparaît que sur une tranche est un artefact de période, pas un edge.</p>
+
+<h2>L'erreur de régime</h2>
+<p>Un exemple concret, très courant. Sur une période où le marché a globalement baissé, une stratégie qui vend à découvert affichera d'excellents résultats. On en conclut qu'elle a un avantage sur les ventes. Mais elle n'a fait que suivre la direction du marché — et elle s'effondrera dès la première phase haussière.</p>
+<p>C'est pourquoi tout test sérieux doit couvrir <b>plusieurs régimes de marché</b> : hausse marquée, baisse marquée, phases plates. Douze mois d'historique ne suffisent souvent pas : ils peuvent ne contenir qu'un seul régime.</p>
+
+<h2>Ce qu'un backtest ne capture jamais</h2>
+<ul>
+  <li><b>Les frais et le slippage</b> — sur une stratégie à haute fréquence, ils peuvent à eux seuls transformer un résultat positif en résultat négatif.</li>
+  <li><b>La liquidité réelle</b> — passer un ordre important déplace le prix, ce que la simulation ignore.</li>
+  <li><b>Le facteur humain</b> — un backtest ne renonce jamais après six pertes consécutives. Vous, si.</li>
+  <li><b>Le drawdown vécu</b> — voir « chute maximale : 45 % » sur un graphique n'a rien à voir avec traverser ces 45 % en temps réel.</li>
+</ul>
+
+<h2>Les questions à poser à un fournisseur de signaux</h2>
+<p>Si un service met en avant sa performance, ces quatre questions permettent de trier très vite :</p>
+<ol>
+  <li>Le taux de réussite est-il donné <b>avec</b> le rapport gains moyens / pertes moyennes ? Sans lui, il ne veut rien dire.</li>
+  <li>Le test est-il in-sample ou out-of-sample ? La réponse est rarement affichée spontanément.</li>
+  <li>Quelle est la chute maximale (drawdown) ? Une performance flatteuse avec 80 % de drawdown est intenable en pratique.</li>
+  <li>Les <b>résultats réels</b> sont-ils publiés, pertes comprises — ou seulement le backtest ?</li>
+</ol>
+<p>Un service qui ne publie que ses gains ne publie pas ses résultats : il publie sa communication.</p>
+
+  </article>
+
+  
+    <div class="guide-cta">
+      <p><b>Envie de voir ces principes appliqués concrètement ?</b></p>
+      <p>Notre bot Telegram publie ses signaux avec entrée, stop loss et objectifs
+         définis à l'avance — et publie <b>tous</b> les résultats, gains comme pertes.</p>
+      <p><a href="https://t.me/ProVIPSignals_bot">Voir le bot sur Telegram →</a></p>
+    </div>
+  
+    <nav class="related">
+      <h2>Autres guides</h2>
+      <ul>
+      <li><a href="/guides/comment-lire-un-signal-crypto.html">Comment lire un signal de trading crypto</a></li>
+      <li><a href="/guides/gestion-du-risque-crypto.html">Gestion du risque en trading crypto</a></li>
+      <li><a href="/guides/rsi-et-moyennes-mobiles-expliques.html">RSI et moyennes mobiles, expliqués simplement</a></li>
+      <li><a href="/guides/erreurs-debutant-trading-crypto.html">Les 8 erreurs qui ruinent les débutants</a></li>
+      </ul>
+    </nav>
+
+  <p class="guide-disclaimer">
+    Contenu pédagogique. Rien sur cette page ne constitue un conseil en investissement.
+    Le trading de cryptoactifs comporte un risque de perte en capital.
+    Les performances passées ne préjugent pas des performances futures.
+  </p>
+  <footer>
+    <p><a href="/">← Retour à l'accueil</a> — <a href="/transparency.html">Transparence</a>
+       — <a href="/terms.html">Conditions générales</a></p>
+  </footer>
+</body>
+</html>
