@@ -26,6 +26,7 @@ from archives_generator import build_archives_page, build_waiting_homepage
 from transparency_generator import build_transparency_page
 from sitemap_generator import build_sitemap, build_robots_txt
 import guides_generator
+import pages_generator
 import github_publisher
 
 
@@ -149,6 +150,13 @@ def main():
     # d'aucune donnée externe -- il est donc toujours présent, y compris
     # pendant les périodes sans signal, et donne au site de quoi être
     # référencé (la page d'accueil seule faisait 744 mots).
+    # Pages de fond (comment ça marche, à propos, glossaire) : contenu
+    # permanent, indépendant des signaux, publié à chaque cycle.
+    static_pages = pages_generator.build_all_pages()
+    files_to_publish += static_pages
+    sitemap_pages += pages_generator.sitemap_entries(today_str)
+    print(f"   + {len(static_pages)} page(s) de fond.")
+
     guide_files = guides_generator.build_all_guide_files()
     files_to_publish += guide_files
     sitemap_pages += guides_generator.sitemap_entries(today_str)
