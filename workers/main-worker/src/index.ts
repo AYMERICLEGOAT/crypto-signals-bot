@@ -28,6 +28,7 @@ import { ensureChannelPinned } from "./cron/ensureChannelPinned";
 import { postChannelReminder } from "./cron/postChannelReminder";
 import { dispatchVipBriefing } from "./cron/dispatchVipBriefing";
 import { dispatchSelectivityDigest } from "./cron/dispatchSelectivityDigest";
+import { monthlyRecap } from "./cron/monthlyRecap";
 import { rotateVipInviteLinkIfDue } from "./bot/vipChannel";
 import { pingSupabase } from "./supabaseRest";
 import { dbConfig } from "./env";
@@ -119,6 +120,7 @@ export default {
           await postChannelReminder(env).catch((err) => console.error("[cron] Erreur postChannelReminder:", err));
           await dispatchVipBriefing(env).catch((err) => console.error("[cron] Erreur dispatchVipBriefing:", err));
           await dispatchSelectivityDigest(env).catch((err) => console.error("[cron] Erreur dispatchSelectivityDigest:", err));
+          await monthlyRecap(env).catch((err) => console.error("[cron] Erreur monthlyRecap:", err));
           await rotateVipInviteLinkIfDue(env).catch((err) => console.error("[cron] Erreur rotateVipInviteLinkIfDue:", err));
         })()
       );

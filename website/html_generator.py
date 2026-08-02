@@ -528,7 +528,7 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
   <p class="disclaimer">{s["disclaimer"]}</p>
 
   <footer>
-    <p>{s["footer"](footer_ts)} — <a href="/privacy.html">{s["privacy_link"]}</a> — <a href="/terms.html">{s["terms_link"]}</a> — <a href="/transparency.html">{s["transparency_link"]}</a> — <a href="/guides/">{s["guides_link"]}</a> — <a href="/comment-ca-marche.html">{s["how_link"]}</a> — <a href="/glossaire.html">{s["glossary_link"]}</a> — <a href="/a-propos.html">{s["about_link"]}</a> — <a href="/mentions-legales.html">Mentions légales</a></p>
+    <p>{s["footer"](footer_ts)} — <a href="/privacy.html">{s["privacy_link"]}</a> — <a href="/terms.html">{s["terms_link"]}</a> — <a href="/transparency.html">{s["transparency_link"]}</a> — <a href="/guides/">{s["guides_link"]}</a> — <a href="/comment-ca-marche.html">{s["how_link"]}</a> — <a href="/faq.html">FAQ</a> — <a href="/glossaire.html">{s["glossary_link"]}</a> — <a href="/a-propos.html">{s["about_link"]}</a> — <a href="/mentions-legales.html">Mentions légales</a></p>
   </footer>
 </body>
 </html>"""

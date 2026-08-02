@@ -27,6 +27,7 @@ from transparency_generator import build_transparency_page
 from sitemap_generator import build_sitemap, build_robots_txt
 import guides_generator
 import pages_generator
+import faq_generator
 import github_publisher
 
 
@@ -141,6 +142,7 @@ def main():
         {"path": "/mentions-legales.html", "lastmod": today_str},
         {"path": "/archives.html", "lastmod": today_str},
         {"path": "/transparency.html", "lastmod": today_str},
+        {"path": "/faq", "lastmod": today_str},
     ]
     if signals:
         sitemap_pages.append({"path": "/en/", "lastmod": today_str})
@@ -153,6 +155,10 @@ def main():
     # Pages de fond (comment ça marche, à propos, glossaire) : contenu
     # permanent, indépendant des signaux, publié à chaque cycle.
     static_pages = pages_generator.build_all_pages()
+    # FAQ : balisage schema.org/FAQPage, qui permet à Google d'afficher les
+    # questions en extraits enrichis — l'un des rares gains de visibilité
+    # encore accessibles sans budget, sur des requêtes à forte intention.
+    static_pages.append(("faq.html", faq_generator.build_faq_page()))
     files_to_publish += static_pages
     sitemap_pages += pages_generator.sitemap_entries(today_str)
     print(f"   + {len(static_pages)} page(s) de fond.")
