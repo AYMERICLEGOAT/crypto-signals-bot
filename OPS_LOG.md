@@ -115,3 +115,61 @@ Proposé sans implémenter (section 5, 1er du mois) : publier l'espérance
 réalisée (`edge_guard`) sur la page transparence plutôt que seulement le
 taux de réussite backtest, pour rendre visible la préférence qualité que
 l'admin n'a pas explicitement validée.
+
+## 2026-08-02
+
+Run propre : aucun bug trouvé nécessitant un correctif de code (santé,
+argent, croissance, performance tous vérifiés sains). Santé : Worker
+`/health` 200, webhook Telegram propre, heartbeat `signals` à jour (cycle
+de 30 min), 5 flux de contenu quotidiens (crypto_facts, educational_posts,
+fear_greed_posts, no_signal_status_posts, posted_content/Discord) publiés
+normalement aujourd'hui. Argent : relu `cron/pollPayments.ts` en détail —
+le "marque confirmé avant d'activer" qui inquiétait la routine (2.2) est
+en réalité une réclamation atomique protégée par un `revertPendingPayment`
+si `activateSubscription` échoue ensuite (retry garanti au prochain cycle,
+jamais de paiement confirmé orphelin) ; 0 paiement confirmé en base de
+toute façon (business toujours pré-traction). Anti-abus parrainage
+(2.5) : couvert pour USDT et Litecoin (wallet_address renseigné des deux
+côtés), Monero reste structurellement indétectable (propriété de sa
+confidentialité, pas un manque de code, déjà documenté dans
+`referral.ts`). Prix cohérents partout (`plans.ts` → `keyboards.ts` dérive
+dynamiquement, `terms.html`/`faq.html`/générateur site alignés à 19/39/5
+USDT). `promo_codes` : RELANCE50 a désormais une `expires_at` (29/10),
+plus de risque d'offre "limitée" tournant indéfiniment. `strategy_params`
+actif sain (G6, inchangé depuis le 01/08).
+
+Performance (section 4) : toujours 0 signal clôturé en base (4 signaux au
+total dans l'historique complet, les 2 plus anciens — LTC #2, DOGE #3 du
+26/07 — encore ouverts). Point résolu qui trainait depuis le 31/07 :
+`last_status_update_at` reste NULL sur ces deux signaux par conception
+(`trackSignalOutcomes.ts` ne l'écrit que sur un changement d'état réel —
+TP touché ou clôture —, jamais sur un cycle "toujours ouvert, rien de
+nouveau"), donc NULL ne prouve pas un cron cassé ; le timeout à 10 jours
+n'est pas encore atteint (7 jours écoulés). Pas assez de trades clôturés
+pour calculer un win rate live — la comparaison au backtest (48.7%) n'est
+donc pas encore possible, honnêtement affiché "n/a" sur le site.
+
+Croissance : blocage Reddit/Twitter inchangé pour la 6e fois consécutive
+(identifiants/permissions admin manquants, voir `GROWTH_IDEAS.md`) ;
+confirmé cette fois par le log réel du run du matin (Reddit "success" en
+apparence mais `[ERROR] canal NON CONFIGURÉ` à l'intérieur — faux vert
+connu et assumé, `reddit_daily.py` sort proprement en code 0 plutôt que de
+re-spammer une alerte identique chaque jour depuis 6 jours). Nouveau
+essai découvert : kit de soumission aux annuaires Telegram déjà présent
+dans le dépôt (`traffic/directory_submit.py`), mais bloqué lui aussi —
+canal à 4 abonnés, sous le seuil minimum (10-50) exigé par ces annuaires.
+Aucune action de croissance exécutable ce run sans nouvelle décision
+admin — question reposée (voir rapport du jour).
+
+Audit thématique du jour (dimanche = stratégie, réflexion seule, pas
+d'implémentation) : le vrai goulot d'étranglement du projet n'est plus
+technique (santé/argent/produit tous sains depuis plusieurs jours) mais
+la croissance, elle-même bloquée par deux actions ponctuelles que seul
+l'admin peut faire (Reddit, Twitter) — 6 jours d'inaction dessus coûtent
+plus cher en opportunité que n'importe quel bug de code restant. Idée
+proposée sans implémenter : tant que Reddit/Twitter restent bloqués et le
+canal trop petit pour les annuaires, la page transparence gagnerait à
+afficher les signaux OUVERTS en cours (P&L non réalisé en direct) plutôt
+que seulement "n/a" en l'absence de clôtures — donne quelque chose de
+concret à montrer à un visiteur pendant cette phase creuse, sans rien
+promettre de plus que ce qui est vrai aujourd'hui.

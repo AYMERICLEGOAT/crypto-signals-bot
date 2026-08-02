@@ -132,3 +132,46 @@ inchangé). 0 paiement confirmé, 0 revenu. `reviews` : 2 votes "up", tous
 deux du compte admin, aucun commentaire texte — pas assez de signal pour
 l'optimisation de contenu (3.4) ni pour une proposition produit fondée
 sur du feedback réel (voir section 5 du rapport du jour à la place).
+
+## 2026-08-02
+
+**Aucune nouvelle action d'acquisition ce run, blocage inchangé pour la
+6e fois consécutive** : `REDDIT_CLIENT_ID/SECRET/USERNAME/PASSWORD`
+toujours vides dans `traffic/.env` — confirmé par le log réel du run
+`reddit.yml` de ce matin (10:11 UTC) : `[ERROR] Reddit : canal NON
+CONFIGURÉ, publication impossible`, alors que le workflow GitHub Actions
+lui-même s'affiche "success" (voir `OPS_LOG.md` de ce jour — faux vert
+déjà connu, `reddit_daily.py` sort avec le code 0 par choix assumé plutôt
+que de spammer une alerte identique chaque jour). Twitter toujours cassé
+côté permissions OAuth1 app (Developer Portal), rouge et alerté
+correctement cette fois. Discord a publié normalement aujourd'hui (seul
+canal automatisé réellement fonctionnel).
+
+**Nouveau essai (déjà présent dans le dépôt, pas encore exploité)** :
+`traffic/directory_submit.py` + `directory_kit.json` (dossier de
+soumission aux annuaires Telegram TGStat/Telemetr.io/tlgrm.eu/
+Telegramme.fr) existent déjà et tournent honnêtement — mais le script
+lui-même refuse de recommander une soumission : le canal
+`@ProSignauxPublic` n'a que 4 abonnés, sous le seuil minimum (10-50)
+qu'exigent la plupart de ces annuaires. Soumettre maintenant ferait
+perdre la candidature pour rien. Combot (indexation automatique, pas de
+formulaire) n'a besoin d'aucune action. Rien d'exécutable de plus ici
+tant que le nombre d'abonnés n'a pas augmenté — pousser une soumission
+prématurée serait contre-productif, pas juste inutile.
+
+**Constat structurel** : les 3 leviers de croissance existants sont soit
+bloqués par une action admin ponctuelle (Reddit : créer une app "script"
+sur reddit.com/prefs/apps ; Twitter : élever les permissions OAuth1 sur
+le Developer Portal — aucun des deux ne se corrige par du code), soit
+mécaniquement indisponibles avant une base d'abonnés minimale (annuaires).
+Question reposée à l'admin aujourd'hui (voir rapport du jour) après 6
+jours de blocage identique.
+
+**Métriques observées** : 2 comptes au total (1 admin plan Standard
+expiré depuis le 01/08 — cycle normal de test, pas un client réel ; 1
+essai gratuit expiré le 29/07). Le "compte de test" créé le 31/07
+n'apparaît plus dans `users` (probablement supprimé via
+`/delete_my_data`, cohérent avec son statut de test). 0 paiement
+confirmé, 0 revenu, 4e jour consécutif à confirmer le même constat.
+`referral_rewards`/`exit_surveys` toujours vides — rien à tirer pour
+3.4 cette semaine non plus.
