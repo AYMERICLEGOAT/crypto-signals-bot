@@ -52,6 +52,9 @@ describe("handleStart — séquence de 3 messages (refonte UX du 01/08/2026)", (
 
     expect(sentMessages).toHaveLength(3);
     expect(sentMessages[0].text).toContain("stratégie backtestée");
+    // Le taux de réussite ayant baissé de 61% à ~49% avec la nouvelle géométrie
+    // (mathématiquement plus saine), le premier message pose le cadre d'emblée.
+    expect(sentMessages[0].text).toContain("taux de réussite gonflé");
     expect(sentMessages[1].text).toContain("comment ça marche");
     expect(sentMessages[2].text).toContain("/help");
 

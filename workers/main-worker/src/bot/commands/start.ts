@@ -34,7 +34,9 @@ export async function handleStart(env: Env, telegramId: number, referralPayload?
   await sendMessage(
     env.TELEGRAM_BOT_TOKEN,
     telegramId,
-    "📊 Bot de signaux crypto — stratégie backtestée, sécurisation automatique des trades.",
+    "📊 Bot de signaux crypto — stratégie backtestée, sécurisation automatique des trades.\n\n" +
+      "Notre priorité : ce que rapporte réellement un trade, pas un taux de réussite gonflé. " +
+      "Un taux élevé ne sert à rien si les gagnants rapportent moins que ce que coûtent les perdants.",
     { keyboard: buildStartMessage1Keyboard(showTrial) }
   );
 
