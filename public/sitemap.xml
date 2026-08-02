@@ -36,6 +36,21 @@
     <changefreq>daily</changefreq>
   </url>
   <url>
+    <loc>https://crypto-signals-bot-site.signalytics.workers.dev/comment-ca-marche</loc>
+    <lastmod>2026-08-02</lastmod>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://crypto-signals-bot-site.signalytics.workers.dev/a-propos</loc>
+    <lastmod>2026-08-02</lastmod>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
+    <loc>https://crypto-signals-bot-site.signalytics.workers.dev/glossaire</loc>
+    <lastmod>2026-08-02</lastmod>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
     <loc>https://crypto-signals-bot-site.signalytics.workers.dev/guides/</loc>
     <lastmod>2026-08-02</lastmod>
     <changefreq>daily</changefreq>
@@ -101,6 +116,11 @@
     <changefreq>daily</changefreq>
   </url>
   <url>
+    <loc>https://crypto-signals-bot-site.signalytics.workers.dev/signaux/2026-08-02.html</loc>
+    <lastmod>2026-08-02</lastmod>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
     <loc>https://crypto-signals-bot-site.signalytics.workers.dev/en/signals/2026-07-26.html</loc>
     <lastmod>2026-07-26</lastmod>
     <changefreq>daily</changefreq>
@@ -133,11 +153,6 @@
   <url>
     <loc>https://crypto-signals-bot-site.signalytics.workers.dev/en/signals/2026-08-01.html</loc>
     <lastmod>2026-08-01</lastmod>
-    <changefreq>daily</changefreq>
-  </url>
-  <url>
-    <loc>https://crypto-signals-bot-site.signalytics.workers.dev/signaux/2026-08-02.html</loc>
-    <lastmod>2026-08-02</lastmod>
     <changefreq>daily</changefreq>
   </url>
   <url>
