@@ -25,11 +25,14 @@ export async function ensureChannelPinned(env: Env): Promise<void> {
   if (await getHeartbeat(db, JOB_NAME)) return; // déjà épinglé une fois, ne jamais recommencer
 
   const channelId = Number(env.TELEGRAM_CHANNEL_ID);
+  // Raccourci le 02/08/2026 : l'ancienne version faisait 262 caractères et
+  // était tronquée dans l'aperçu épinglé qu'affiche Telegram en haut du
+  // canal — donc l'essentiel (le lien vers le bot) n'était pas toujours
+  // visible sans ouvrir le message. Trois lignes, un lien, une action.
   const text =
-    "👋 Bienvenue sur le canal !\n\n" +
-    "Ici : signaux différés, alertes momentum, contenu éducatif.\n\n" +
-    `📡 Pour recevoir les signaux en TEMPS RÉEL (dès leur détection, pas en différé) : @${env.TELEGRAM_BOT_USERNAME}\n` +
-    "Tape /start pour commencer, /demo pour voir un exemple sans engagement.";
+    "📊 Signaux crypto — ici en différé.\n\n" +
+    `⚡ En temps réel + TP/SL suivis : @${env.TELEGRAM_BOT_USERNAME}\n` +
+    "🎁 /trial — essai gratuit 3 jours";
 
   const messageId = await sendMessageAndGetId(env.TELEGRAM_BOT_TOKEN, channelId, text);
   await pinChatMessage(env.TELEGRAM_BOT_TOKEN, channelId, messageId);
