@@ -180,6 +180,69 @@ Ce que cela implique concrètement :
    pas (flux d'ordres, taux d'emprunt, IV) — plusieurs de ces pistes ont
    déjà été bloquées faute de clé API (#126, #127, #131, #132, #133).
 
+## Les frais changent la conclusion (02/08/2026)
+
+Toutes les mesures ci-dessus étaient **avant frais**. Recalcul avec la
+configuration exacte de production, sur 24 mois et 40 paires :
+
+| | |
+|---|---|
+| Trades | 1 765 (2,42/jour) |
+| Gagnants | 48,1 % |
+| Espérance brute | −0,0112 % / trade |
+| Cumulé brut | −19,7 % |
+
+Un aller-retour coûte 0,05 à 0,10 % sur un exchange courant :
+
+| Frais / trade | Espérance | Cumulé 24 mois |
+|---|---|---|
+| 0 % | −0,011 % | −19,7 % |
+| 0,05 % | −0,061 % | **−107,9 %** |
+| 0,10 % | −0,111 % | **−196,2 %** |
+
+−107,9 % cumulé signifie compte vidé. La raison est arithmétique : l'edge
+est de 0,011 % par trade, les frais de 0,05 à 0,10 %. **Les frais sont 5 à
+10 fois plus gros que l'avantage.** À 2,4 trades/jour, ils écrasent tout.
+
+### Piste testée : changer d'unité de temps
+
+Hypothèse : les frais étant un pourcentage de la POSITION et non du
+MOUVEMENT capturé, des bougies plus longues (ATR plus grand, objectifs plus
+larges) devaient rendre les frais marginaux.
+
+Testé sur 24 mois, 4 périodes, frais de 0,10 % comptés
+(`backtest_timeframes.py`) :
+
+| Unité | Signaux/j | Net après frais | Périodes positives |
+|---|---|---|---|
+| 1h (production) | 2,42 | −0,109 % | 1 / 4 |
+| 4h | 0,55 | **−0,570 %** | **0 / 4** |
+| 1 jour | 0,09 | +1,036 % | 2 / 4 |
+
+**Hypothèse réfutée.** Le 4h est nettement PIRE, pas meilleur. Le journalier
+n'affiche un chiffre flatteur que sur 69 trades en 24 mois — dont une période
+à 2 trades : statistiquement vide, et négatif sur deux périodes sur quatre.
+
+Le résultat le plus instructif est la dégradation en 4h. Un signal doté d'un
+réel pouvoir prédictif tient mieux sur des bougies plus larges, où le bruit
+diminue. Celui-ci se dégrade : c'est la signature d'un signal **sans pouvoir
+prédictif**, dont les résultats horaires n'étaient que du bruit centré autour
+de zéro. Agrandir les mouvements n'a pas créé d'avantage — cela a seulement
+augmenté la variance.
+
+### Conclusion consolidée
+
+Après ~35 pistes explorées (#111-#137, puis direction, régime de marché,
+géométrie TP/SL, unités de temps), aucune configuration de cette famille de
+stratégie ne produit une espérance positive nette de frais et stable dans le
+temps. Le correctif de géométrie reste un vrai gain relatif (ratio
+gain/perte 0,67 → 1,10), mais il améliore une base sans avantage.
+
+Ce qui reste vendable honnêtement : la discipline (niveaux fixés à l'avance,
+sécurisation automatique), la transparence intégrale et la pédagogie. Pas la
+performance.
+
+
 ## Le point qui demande une décision produit
 
 Le walk-forward révèle autre chose, indépendant de tout ce qui précède :
