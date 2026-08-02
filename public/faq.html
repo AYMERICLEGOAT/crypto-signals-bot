@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>FAQ — les questions qu'on nous pose vraiment</title>
+  <meta name="description" content="Est-ce rentable ? Est-ce une arnaque ? Combien ça coûte ? Les réponses franches aux questions qu&#x27;on nous pose vraiment sur nos signaux crypto — y compris quand elles desservent notre argumentaire.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://crypto-signals-bot-site.signalytics.workers.dev/faq">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="FAQ — les questions qu&#x27;on nous pose vraiment">
+  <meta property="og:description" content="Est-ce rentable ? Est-ce une arnaque ? Combien ça coûte ? Les réponses franches aux questions qu&#x27;on nous pose vraiment sur nos signaux crypto — y compris quand elles desservent notre argumentaire.">
+  <meta property="og:url" content="https://crypto-signals-bot-site.signalytics.workers.dev/faq">
+  <meta property="og:site_name" content="Signaux Crypto Gratuits">
+  <meta property="og:locale" content="fr_FR">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="FAQ — les questions qu&#x27;on nous pose vraiment">
+  <meta name="twitter:description" content="Est-ce rentable ? Est-ce une arnaque ? Combien ça coûte ? Les réponses franches aux questions qu&#x27;on nous pose vraiment sur nos signaux crypto — y compris quand elles desservent notre argumentaire.">
+  <meta name="theme-color" content="#0b0e14">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Est-ce que je vais gagner de l'argent ?", "acceptedAnswer": {"@type": "Answer", "text": "Nous ne le promettons pas. Sur 24 mois de données réelles, gains et pertes se compensent quasiment : la stratégie n'a pas démontré de rentabilité, et nous publions ce résultat. Le service apporte des niveaux définis à l'avance, un suivi automatique et la publication de tous les résultats — un cadre de discipline, pas une machine à gains."}}, {"@type": "Question", "name": "Comment savoir que ce n'est pas une arnaque ?", "acceptedAnswer": {"@type": "Answer", "text": "Trois vérifications : le code est intégralement public sur GitHub, y compris les analyses qui concluent que l'avantage n'est pas démontré ; tous les résultats sont publiés, pertes comprises ; et l'essai de 3 jours ne demande aucun moyen de paiement."}}, {"@type": "Question", "name": "Pourquoi le taux de réussite affiché ne suffit-il pas ?", "acceptedAnswer": {"@type": "Answer", "text": "Un taux de réussite seul ne dit rien de la rentabilité. Une stratégie qui gagne 7 fois sur 10 avec des gains de 1 EUR et des pertes de 3 EUR fait +7 contre -9 sur 10 trades : elle est perdante avec 70% de réussite. Ce qui compte est le taux ET le rapport entre gains et pertes moyens."}}, {"@type": "Question", "name": "Combien ça coûte et comment payer ?", "acceptedAnswer": {"@type": "Answer", "text": "Standard : 19 USDT pour 30 jours. Découverte : 5 USDT pour 14 jours, en nombre limité. Paiement en cryptomonnaie uniquement (USDT sur Polygon, Litecoin ou Monero) : pas encore de carte bancaire. Aucun prélèvement automatique, l'abonnement s'arrête seul à échéance."}}, {"@type": "Question", "name": "Combien de signaux par jour ?", "acceptedAnswer": {"@type": "Answer", "text": "Environ 2 à 3 par jour en moyenne, sans garantie : la stratégie se déclenche selon le marché, pas selon un quota. Certains jours n'en produisent aucun, et ces journées sont annoncées plutôt que passées sous silence."}}, {"@type": "Question", "name": "Faut-il de l'expérience pour suivre les signaux ?", "acceptedAnswer": {"@type": "Answer", "text": "Non pour lire un signal, oui pour l'utiliser correctement : savoir calculer une taille de position à partir de son stop est indispensable. Nos guides gratuits couvrent ce point."}}, {"@type": "Question", "name": "Que se passe-t-il après l'ouverture d'un signal ?", "acceptedAnswer": {"@type": "Answer", "text": "Le suivi est automatique jusqu'à la clôture, avec notification à chaque étape : premier objectif atteint (le stop remonte au prix d'entrée, la position ne peut plus finir perdante), objectifs suivants, ou stop touché. Clôture automatique après 10 jours sans issue."}}, {"@type": "Question", "name": "Est-ce un conseil en investissement ?", "acceptedAnswer": {"@type": "Answer", "text": "Non. Les signaux sont une information générale diffusée à l'identique à tous les abonnés, sans tenir compte de votre situation, vos objectifs ni votre tolérance au risque. Le trading de cryptoactifs comporte un risque de perte en capital."}}, {"@type": "Question", "name": "Comment arrêter et supprimer mes données ?", "acceptedAnswer": {"@type": "Answer", "text": "Rien à résilier : l'abonnement s'arrête seul à échéance. /cancel stoppe en plus les relances. /delete_my_data efface les données personnelles immédiatement, en détaillant ce qui est conservé pour obligations légales."}}]}</script>
+  <style>
+  /* Refonte visuelle du 02/08/2026. L'ancienne feuille était fonctionnelle
+     mais neutre : fond blanc, texte noir, un seul accent violet. Dans un
+     secteur où la première impression décide en quelques secondes, un site
+     qui ressemble à une page de documentation ne donne pas envie d'essayer.
+
+     Parti pris : sombre par défaut (attendu dans l'univers crypto/trading),
+     accents bleu et or, hiérarchie typographique nette. Tout est en CSS pur
+     — aucune police externe, aucun script : le site reste instantané et
+     fonctionne sans JavaScript. */
+  :root {
+    --bg: #0b0e14;
+    --bg-soft: #131822;
+    --bg-card: #171d29;
+    --border: #252d3d;
+    --text: #e6ebf4;
+    --text-dim: #98a2b8;
+    --accent: #4f8cff;
+    --accent-soft: #1e3a6b;
+    --gold: #f0b429;
+    --win: #22c55e;
+    --loss: #ef4444;
+    --radius: 14px;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    max-width: 860px; margin: 0 auto; padding: 28px 18px 72px;
+    line-height: 1.65; font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+
+  /* Apparition douce au défilement, sans JavaScript : l'animation se
+     déclenche au chargement, décalée par section. Respecte
+     prefers-reduced-motion. */
+  header, section, .cta, .backtest { animation: fade-up .5s ease-out both; }
+  section:nth-of-type(2) { animation-delay: .06s; }
+  section:nth-of-type(3) { animation-delay: .12s; }
+  section:nth-of-type(4) { animation-delay: .18s; }
+  @keyframes fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+    html { scroll-behavior: auto; }
+  }
+
+  h1 {
+    font-size: clamp(1.9rem, 5vw, 2.6rem); line-height: 1.15; margin: 0 0 10px;
+    letter-spacing: -0.02em; font-weight: 800;
+    background: linear-gradient(120deg, var(--text) 30%, var(--accent));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  h2 {
+    font-size: 1.3rem; margin-top: 2.8rem; padding-bottom: 8px; font-weight: 700;
+    border-bottom: 1px solid var(--border); letter-spacing: -0.01em;
+  }
+  .subtitle { color: var(--text-dim); margin-top: 0; font-size: 1.05rem; }
+  .lang-switch { text-align: right; font-size: 0.85rem; color: var(--text-dim); }
+
+  .signal-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 20px; margin: 16px 0;
+    transition: border-color .2s, transform .2s;
+  }
+  .signal-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .signal-card.buy { border-left: 4px solid var(--win); }
+  .signal-card.sell { border-left: 4px solid var(--loss); }
+  .signal-header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+  .signal-pair { font-weight: 700; font-size: 1.15rem; }
+  .badge { padding: 3px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; color: #08111f; }
+  .badge.buy { background: var(--win); }
+  .badge.sell { background: var(--loss); color: #fff; }
+  .prices { display: flex; gap: 22px; margin: 14px 0; flex-wrap: wrap; font-size: 0.86rem; color: var(--text-dim); }
+  .prices span b { display: block; font-size: 1.05rem; color: var(--text); font-variant-numeric: tabular-nums; }
+  .signal-chart { max-width: 100%; border-radius: 10px; margin: 12px 0; border: 1px solid var(--border); }
+
+  .cta {
+    background: linear-gradient(135deg, var(--accent-soft), #0f2547);
+    border: 1px solid var(--accent); color: var(--text);
+    padding: 30px 24px; border-radius: var(--radius); text-align: center; margin: 3rem 0;
+  }
+  .cta a {
+    display: inline-block; margin-top: 10px; padding: 13px 30px;
+    background: var(--accent); color: #06101f; font-weight: 800;
+    border-radius: 999px; text-decoration: none; font-size: 1.05rem;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .cta a:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(79,140,255,.35); }
+
+  .backtest { background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin: 2rem 0; }
+  .backtest h2 { margin-top: 0; border-bottom: none; }
+  .backtest-stat { font-size: 1.5rem; font-weight: 800; color: var(--gold); margin: 6px 0; letter-spacing: -0.01em; }
+
+  .perf-stats { display: flex; gap: 14px; flex-wrap: wrap; margin: 18px 0; }
+  .perf-stat {
+    flex: 1 1 120px; text-align: center; background: var(--bg-card);
+    border: 1px solid var(--border); border-radius: 12px; padding: 16px 10px;
+    font-size: .82rem; color: var(--text-dim);
+  }
+  .perf-stat b { display: block; font-size: 1.7rem; color: var(--text); font-variant-numeric: tabular-nums; }
+
+  table.recent { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 14px; }
+  table.recent th { text-align: left; padding: 9px 10px; color: var(--text-dim); font-weight: 600; border-bottom: 1px solid var(--border); }
+  table.recent td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); }
+  .outcome-win { color: var(--win); font-weight: 700; }
+  .outcome-loss { color: var(--loss); font-weight: 700; }
+
+  .disclaimer { font-size: 0.82rem; color: var(--text-dim); margin-top: 3rem; border-top: 1px solid var(--border); padding-top: 14px; }
+  footer { margin-top: 2rem; font-size: 0.85rem; color: var(--text-dim); }
+  footer a { color: var(--text-dim); }
+
+  @media (max-width: 600px) {
+    body { padding: 20px 14px 56px; }
+    .prices { gap: 14px; }
+    .perf-stat b { font-size: 1.45rem; }
+  }
+
+  details {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; margin: 12px 0; padding: 0 18px;
+    transition: border-color .2s;
+  }
+  details[open] { border-color: var(--accent); }
+  summary {
+    cursor: pointer; padding: 16px 0; font-weight: 700; font-size: 1.02rem;
+    list-style: none; display: flex; justify-content: space-between; gap: 12px;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; color: var(--accent); font-size: 1.4rem; line-height: 1; }
+  details[open] summary::after { content: "−"; }
+  details > *:not(summary) { color: var(--text-dim); margin-bottom: 16px; }
+  details ul { padding-left: 1.2rem; }
+  .breadcrumb { font-size: .85rem; color: var(--text-dim); margin-bottom: 10px; }
+</style>
+</head>
+<body>
+  <p class="breadcrumb"><a href="/">Accueil</a> › FAQ</p>
+  <header>
+    <h1>Questions fréquentes</h1>
+    <p class="subtitle">Les vraies questions, avec des réponses franches — y compris quand elles
+       ne nous arrangent pas.</p>
+  </header>
+
+  <section>
+    <details>
+      <summary>Est-ce que je vais gagner de l&#x27;argent ?</summary>
+      <p><b>Nous ne le promettons pas, et personne ne devrait vous le promettre.</b> Notre stratégie est testée sur 24 mois de données réelles, et sur cette période les gains et les pertes se compensent quasiment — elle n'a pas démontré de rentabilité. Nous publions ce résultat plutôt que de le cacher.</p><p>Ce que le service apporte concrètement : des niveaux d'entrée, de stop loss et d'objectifs définis <i>à l'avance</i>, un suivi automatique jusqu'à la clôture, et la publication de <b>tous</b> les résultats. C'est un cadre de discipline, pas une machine à gains.</p>
+    </details>
+    <details>
+      <summary>Comment savoir que ce n&#x27;est pas une arnaque ?</summary>
+      <p>Trois vérifications possibles sans nous croire sur parole :</p><ul><li><b>Le code est public.</b> L'intégralité du projet est sur <a href="https://github.com/AYMERICLEGOAT/crypto-signals-bot" rel="noopener">GitHub</a> : la stratégie, les backtests, et jusqu'aux analyses qui concluent que l'avantage n'est pas démontré.</li><li><b>Les résultats sont publiés en entier</b>, pertes comprises, sur le canal public et la page <a href="/transparency.html">Transparence</a>. Un service qui ne publie que ses gains ne publie pas ses résultats : il publie sa communication.</li><li><b>Essai gratuit de 3 jours</b>, sans moyen de paiement demandé.</li></ul>
+    </details>
+    <details>
+      <summary>Pourquoi le taux de réussite affiché ne suffit-il pas ?</summary>
+      <p>Parce qu'un taux de réussite seul ne dit rien de la rentabilité.</p><p>Prenons une stratégie qui gagne 7 fois sur 10, avec des gains de 1 € et des pertes de 3 €. Sur 10 trades : +7 € contre −9 €. Elle est <b>perdante</b>, avec 70 % de réussite.</p><p>Ce qui compte est le produit du taux de réussite <i>et</i> du rapport entre gains et pertes moyens. Méfiez-vous de tout service qui met en avant un pourcentage sans jamais mentionner l'autre moitié de l'équation.</p>
+    </details>
+    <details>
+      <summary>Combien ça coûte et comment payer ?</summary>
+      <p>L'abonnement Standard est à 19 USDT pour 30 jours. Une offre Découverte à 5 USDT pour 14 jours est proposée en nombre limité.</p><p>Le paiement se fait en cryptomonnaie : USDT (réseau Polygon), Litecoin ou Monero. Nous n'acceptons pas encore la carte bancaire — c'est une limite assumée, et nous préférons le dire ici plutôt que vous le faire découvrir au moment de payer.</p><p>Aucun prélèvement automatique : l'abonnement s'arrête tout seul à échéance. Il n'y a rien à résilier.</p>
+    </details>
+    <details>
+      <summary>Combien de signaux par jour ?</summary>
+      <p>Environ 2 à 3 par jour en moyenne, mais ce nombre <b>n'est pas garanti</b> : la stratégie se déclenche selon les conditions de marché, pas selon un quota.</p><p>Certains jours n'en produisent aucun. C'est normal et voulu — forcer des signaux pour tenir une promesse de fréquence reviendrait à dégrader délibérément leur qualité. Les journées sans signal sont annoncées, pas passées sous silence.</p>
+    </details>
+    <details>
+      <summary>Faut-il de l&#x27;expérience pour suivre les signaux ?</summary>
+      <p>Non pour lire un signal — chacun indique l'entrée, le stop loss et les objectifs. Mais oui pour l'utiliser correctement : savoir calculer une taille de position à partir de son stop est indispensable, sinon un seul trade peut coûter une part disproportionnée du capital.</p><p>Nos <a href="/guides/">guides gratuits</a> couvrent exactement ce point. Commencez par la gestion du risque avant de suivre le moindre signal.</p>
+    </details>
+    <details>
+      <summary>Que se passe-t-il après l&#x27;ouverture d&#x27;un signal ?</summary>
+      <p>Le suivi est automatique jusqu'à la clôture. Vous êtes notifié à chaque étape : premier objectif atteint (le stop remonte alors au prix d'entrée, la position ne peut plus finir perdante), objectifs suivants, ou stop loss touché.</p><p>Un signal qui n'atteint ni son objectif ni son stop est clôturé automatiquement au bout de 10 jours.</p>
+    </details>
+    <details>
+      <summary>Est-ce un conseil en investissement ?</summary>
+      <p>Non. Les signaux sont une information générale, diffusée à l'identique à tous les abonnés. Ils ne tiennent compte ni de votre situation financière, ni de vos objectifs, ni de votre tolérance au risque — c'est précisément ce qui distingue une information d'un conseil personnalisé.</p><p>Aucune décision d'investissement ne devrait être prise sur cette seule base. Le trading de cryptoactifs comporte un risque de perte en capital, y compris de la totalité des sommes engagées.</p>
+    </details>
+    <details>
+      <summary>Comment arrêter et supprimer mes données ?</summary>
+      <p>Il n'y a rien à résilier : sans prélèvement automatique, l'abonnement s'arrête seul à échéance. La commande <code>/cancel</code> stoppe en plus les relances, tout en conservant l'accès déjà payé jusqu'à sa date de fin.</p><p>Pour effacer vos données personnelles, <code>/delete_my_data</code> le fait immédiatement. Le message de confirmation indique précisément ce qui est supprimé et ce qui est conservé pour des obligations légales.</p>
+    </details>
+  </section>
+
+  <div class="cta">
+    <p><b>Une question qui n'est pas ici ?</b></p>
+    <p>Pose-la directement au bot, il répond aussi via la commande /faq.</p>
+    <a href="https://t.me/ProVIPSignals_bot">Ouvrir le bot Telegram →</a>
+  </div>
+
+  <p class="disclaimer">Rien sur cette page ne constitue un conseil en investissement. Le trading
+     de cryptoactifs comporte un risque de perte en capital, y compris totale.</p>
+  <footer>
+    <p><a href="/">← Accueil</a> — <a href="/guides/">Guides</a> —
+       <a href="/comment-ca-marche.html">Comment ça marche</a> —
+       <a href="/transparency.html">Transparence</a></p>
+  </footer>
+</body>
+</html>
