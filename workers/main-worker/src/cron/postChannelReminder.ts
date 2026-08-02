@@ -21,12 +21,33 @@
 
 import { Env, dbConfig } from "../env";
 import { getHeartbeat } from "../db/systemHeartbeats";
-import { upsertRow, SupabaseConfig } from "../supabaseRest";
+import { upsertRow, selectRows, SupabaseConfig } from "../supabaseRest";
 import { sendMessage } from "../telegram";
 import { isQuietHours } from "../utils/quietHours";
 
 const JOB_NAME = "channel_reminder";
 const REMINDER_INTERVAL_HOURS = 3;
+// Un signal publié dans cette fenêtre rend le rappel superflu : il porte
+// déjà son propre appel à l'action.
+const QUIET_BEFORE_REMINDER_HOURS = 3;
+
+async function hasRecentChannelSignal(db: SupabaseConfig, hours: number): Promise<boolean> {
+  const since = new Date(Date.now() - hours * 3_600_000).toISOString();
+  try {
+    const rows = await selectRows<{ id: number }>(db, "signals", {
+      sent_to_channel: "eq.true",
+      created_at: `gte.${since}`,
+      select: "id",
+      limit: "1",
+    });
+    return rows.length > 0;
+  } catch (err) {
+    // En cas d'échec de lecture, on laisse passer le rappel : mieux vaut un
+    // message de trop qu'un canal muet.
+    console.error("[channel-reminder] Lecture des signaux récents impossible:", err);
+    return false;
+  }
+}
 
 async function recordReminderSent(db: SupabaseConfig): Promise<void> {
   await upsertRow(db, "system_heartbeats", { job_name: JOB_NAME, last_run_at: new Date().toISOString(), alerted: false }, "job_name");
@@ -42,6 +63,15 @@ export async function postChannelReminder(env: Env): Promise<void> {
     const hoursSinceLastReminder = (Date.now() - new Date(heartbeat.last_run_at).getTime()) / (60 * 60 * 1000);
     if (hoursSinceLastReminder < REMINDER_INTERVAL_HOURS) return;
   }
+
+  // Ce rappel COMBLE les silences, il ne s'ajoute pas au contenu. À 3 h
+  // d'intervalle sur une plage de 16 h, il partirait jusqu'à 5 fois par jour
+  // — un message identique répété cinq fois est exactement le spam qu'on
+  // cherche à éliminer. S'il y a eu un vrai signal publié récemment, le
+  // visiteur a déjà sous les yeux ce que fait le service ET son CTA : le
+  // rappel n'apporterait rien.
+  const recentSignal = await hasRecentChannelSignal(db, QUIET_BEFORE_REMINDER_HOURS);
+  if (recentSignal) return;
 
   await sendMessage(
     env.TELEGRAM_BOT_TOKEN,

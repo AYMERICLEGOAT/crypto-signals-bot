@@ -104,3 +104,55 @@ describe("Heures calmes du canal public (23h-7h UTC)", () => {
     vi.useRealTimers();
   });
 });
+
+/**
+ * Le rappel COMBLE les silences du canal. À 3h d'intervalle sur une plage de
+ * 16h il partirait 5 fois par jour : un message identique répété cinq fois
+ * est exactement le spam qu'on cherche à éliminer.
+ */
+describe("Le rappel de canal ne double pas le contenu existant", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it("se tait si un signal vient d'être publié sur le canal", async () => {
+    vi.setSystemTime(new Date(Date.UTC(2026, 7, 2, 12, 0)));
+    let sends = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("system_heartbeats")) return jsonResponse([]);
+        if (url.includes("/signals")) return jsonResponse([{ id: 1 }]); // signal récent
+        if (url.includes("api.telegram.org")) {
+          sends++;
+          return jsonResponse({ ok: true, result: {} });
+        }
+        return jsonResponse([]);
+      })
+    );
+
+    await postChannelReminder(env);
+    expect(sends).toBe(0);
+  });
+
+  it("parle quand le canal est resté silencieux", async () => {
+    vi.setSystemTime(new Date(Date.UTC(2026, 7, 2, 12, 0)));
+    let sends = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("system_heartbeats")) return jsonResponse([]);
+        if (url.includes("/signals")) return jsonResponse([]); // aucun signal récent
+        if (url.includes("api.telegram.org")) {
+          sends++;
+          return jsonResponse({ ok: true, result: {} });
+        }
+        return jsonResponse([]);
+      })
+    );
+
+    await postChannelReminder(env);
+    expect(sends).toBe(1);
+  });
+});

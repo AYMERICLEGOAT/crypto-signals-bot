@@ -90,6 +90,27 @@ export async function handlePurchaseConsent(env: Env, telegramId: number, data: 
       `renonciation_retractation=true horodatage=${new Date().toISOString()}`
   );
 
+  // Guide court AVANT le choix du moyen de paiement (02/08/2026). Le message
+  // se réduisait à « Choisis ton moyen de paiement : » — or le paiement en
+  // crypto est la première marche du tunnel, et ce projet n'a jamais
+  // enregistré la moindre tentative de paiement. Quelqu'un qui n'a jamais
+  // payé en crypto abandonne devant un choix qu'il ne sait pas arbitrer.
+  // Trois lignes suffisent à lever l'essentiel : quoi choisir si on ne sait
+  // pas, combien de temps ça prend, et ce qui se passe ensuite.
+  await sendMessage(
+    env.TELEGRAM_BOT_TOKEN,
+    telegramId,
+    "💳 *Comment ça se passe*\n\n" +
+      "1️⃣ Tu choisis ta cryptomonnaie ci-dessous\n" +
+      "2️⃣ Je te donne une adresse et le montant exact\n" +
+      "3️⃣ Tu envoies depuis ton exchange ou ton wallet\n" +
+      "4️⃣ Ton accès s'active tout seul dès confirmation (quelques minutes)\n\n" +
+      "_Dans le doute, choisis USDT (Polygon) : frais de quelques centimes et " +
+      "disponible sur la plupart des plateformes._\n\n" +
+      "Aucun prélèvement automatique : l'abonnement s'arrête seul à échéance.",
+    { markdown: true }
+  );
+
   await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, "Choisis ton moyen de paiement :", {
     keyboard: paymentMethodKeyboard(plan),
   });
