@@ -1,24 +1,32 @@
 /**
- * Retour admin (30/07) : les visiteurs du canal public doivent comprendre
- * immédiatement comment accéder au bot. Les signaux et Alertes Momentum ont
- * déjà chacun leur propre CTA (voir signalFormat.ts et
- * dispatchMomentumAlerts.ts), mais le canal peut rester plusieurs heures
- * sans nouveau signal (0 signal pendant des heures est un état normal, voir
- * checkSignalFreshness.ts) -- ce rappel autonome garantit qu'un visiteur qui
- * arrive à un moment calme voit quand même l'info dans les REMINDER_INTERVAL_HOURS
- * dernières heures, sans dépendre du rythme des signaux.
+ * Rappel unique dans le canal public : comment accéder au bot.
  *
- * Réutilise system_heartbeats (job_name dédié) comme horloge "dernier envoi"
- * plutôt qu'une nouvelle table, cohérent avec checkSignalFreshness.ts.
+ * Les visiteurs du canal doivent comprendre immédiatement où aller. Les
+ * signaux et alertes portent déjà leur propre CTA, mais le canal peut rester
+ * plusieurs heures sans rien publier (0 signal pendant des heures est un état
+ * normal, voir checkSignalFreshness.ts) : ce rappel autonome garantit qu'un
+ * visiteur arrivé pendant une période calme voit quand même l'information.
+ *
+ * FUSION du 02/08/2026 — deux rappels coexistaient et se doublonnaient dans
+ * le canal : celui-ci (« 📡 Pour recevoir ces signaux en temps réel », toutes
+ * les 6 h) et un dispatchChannelCta ajouté la veille (« 🔒 Pour recevoir… »,
+ * toutes les 3 h via un déclencheur cron dédié). Un seul message subsiste,
+ * ici, avec le contenu le plus complet des deux et la cadence de 3 h. Le
+ * module et le déclencheur cron en double ont été supprimés.
+ *
+ * L'horloge reste system_heartbeats (job_name dédié) plutôt qu'un cron à
+ * l'heure fixe : l'intervalle se rattrape tout seul si un cycle est sauté,
+ * ce qui est fréquent sur les déclencheurs planifiés GitHub/Cloudflare.
  */
 
 import { Env, dbConfig } from "../env";
 import { getHeartbeat } from "../db/systemHeartbeats";
 import { upsertRow, SupabaseConfig } from "../supabaseRest";
 import { sendMessage } from "../telegram";
+import { isQuietHours } from "../utils/quietHours";
 
 const JOB_NAME = "channel_reminder";
-const REMINDER_INTERVAL_HOURS = 6;
+const REMINDER_INTERVAL_HOURS = 3;
 
 async function recordReminderSent(db: SupabaseConfig): Promise<void> {
   await upsertRow(db, "system_heartbeats", { job_name: JOB_NAME, last_run_at: new Date().toISOString(), alerted: false }, "job_name");
@@ -26,6 +34,7 @@ async function recordReminderSent(db: SupabaseConfig): Promise<void> {
 
 export async function postChannelReminder(env: Env): Promise<void> {
   if (!env.TELEGRAM_CHANNEL_ID || !env.TELEGRAM_BOT_USERNAME) return;
+  if (isQuietHours()) return;
 
   const db = dbConfig(env);
   const heartbeat = await getHeartbeat(db, JOB_NAME);
@@ -37,7 +46,8 @@ export async function postChannelReminder(env: Env): Promise<void> {
   await sendMessage(
     env.TELEGRAM_BOT_TOKEN,
     Number(env.TELEGRAM_CHANNEL_ID),
-    `📡 Pour recevoir ces signaux en temps réel : @${env.TELEGRAM_BOT_USERNAME}`
+    `🔒 Pour recevoir ces signaux en temps réel, avec TP/SL et sécurisation automatique : @${env.TELEGRAM_BOT_USERNAME}\n` +
+      "🎁 Essai gratuit de 3 jours avec /trial"
   );
   await recordReminderSent(db);
 }

@@ -12,6 +12,7 @@
 import { Env, dbConfig } from "../env";
 import { getUnsentMomentumAlerts, markMomentumAlertSent, countMomentumAlertsSentSince, MomentumAlertRecord } from "../db/momentumAlerts";
 import { sendMessage } from "../telegram";
+import { isQuietHours } from "../utils/quietHours";
 
 function formatMomentumAlert(alert: MomentumAlertRecord): string {
   return [
@@ -30,7 +31,10 @@ function formatMomentumAlert(alert: MomentumAlertRecord): string {
 // compter contre le plafond quotidien, cycle de 5 min après cycle de 5 min.
 // Corrigé (sent_at). Abaissée à 3 en plus (30/07) pour étaler davantage tout
 // pic ponctuel : aucune alerte n'est perdue, juste diffusée plus lentement.
-const MAX_ALERTS_PER_DISPATCH = 3;
+// Ramené de 3 à 2 le 02/08/2026 : le canal public recevait des rafales
+// d'alertes perçues comme du spam. Le surplus n'est pas perdu -- il reste
+// en base non envoyé et part au cycle suivant, étalé dans le temps.
+const MAX_ALERTS_PER_DISPATCH = 2;
 
 // Retour admin (29/07) : étaler sur plusieurs cycles de 5 min ne suffisait pas
 // -- avec 28 paires et le cron toutes les 5 min, la pile peut se reconstituer
@@ -48,6 +52,11 @@ function startOfTodayUtcIso(): string {
 }
 
 export async function dispatchMomentumAlerts(env: Env): Promise<void> {
+  // Aucune publication dans le canal public la nuit (voir
+  // utils/quietHours.ts). Le drapeau "deja envoye" en base fait que
+  // sauter un cycle nocturne DIFFERE la publication au premier cycle
+  // apres 7h UTC, il ne la perd pas.
+  if (isQuietHours()) return;
   if (!env.TELEGRAM_CHANNEL_ID) return; // canal non configuré, rien à faire
 
   const db = dbConfig(env);

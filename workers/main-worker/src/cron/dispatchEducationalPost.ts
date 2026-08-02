@@ -1,6 +1,7 @@
 import { Env, dbConfig } from "../env";
 import { sendMessage } from "../telegram";
 import { getNextEducationalPost, markEducationalPostSent, hasSentEducationalPostToday } from "../db/educationalPosts";
+import { isQuietHours } from "../utils/quietHours";
 
 // Retour admin (30/07, post reçu à 22h) : sans fenêtre horaire, le seul gate
 // "déjà envoyé aujourd'hui" laisse le post partir sur le premier cycle utile
@@ -28,6 +29,11 @@ function isWithinDispatchWindow(): boolean {
  * alertes momentum -- occasion de conversion perdue à chaque post.
  */
 export async function dispatchEducationalPost(env: Env): Promise<void> {
+  // Aucune publication dans le canal public la nuit (voir
+  // utils/quietHours.ts). Le drapeau "deja envoye" en base fait que
+  // sauter un cycle nocturne DIFFERE la publication au premier cycle
+  // apres 7h UTC, il ne la perd pas.
+  if (isQuietHours()) return;
   if (!env.TELEGRAM_CHANNEL_ID) return;
   if (!isWithinDispatchWindow()) return;
 

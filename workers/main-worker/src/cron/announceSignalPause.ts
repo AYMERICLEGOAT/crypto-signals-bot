@@ -1,6 +1,7 @@
 import { Env, dbConfig } from "../env";
 import { sendMessage } from "../telegram";
 import { selectRows, updateRows } from "../supabaseRest";
+import { isQuietHours } from "../utils/quietHours";
 
 interface SignalPauseRow {
   id: number;
@@ -16,6 +17,11 @@ interface SignalPauseRow {
  * (gate via announced=false).
  */
 export async function announceSignalPause(env: Env): Promise<void> {
+  // Aucune publication dans le canal public la nuit (voir
+  // utils/quietHours.ts). Le drapeau "deja envoye" en base fait que
+  // sauter un cycle nocturne DIFFERE la publication au premier cycle
+  // apres 7h UTC, il ne la perd pas.
+  if (isQuietHours()) return;
   if (!env.TELEGRAM_CHANNEL_ID) return;
 
   const db = dbConfig(env);

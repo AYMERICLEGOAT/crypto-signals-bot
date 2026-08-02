@@ -10,6 +10,7 @@ import { Env, dbConfig } from "../env";
 import { hasPostedLeaderboardThisWeek, recordLeaderboardPost } from "../db/leaderboardPosts";
 import { getTopReferrersSince, TopReferrer } from "../db/referralRewards";
 import { sendMessage } from "../telegram";
+import { isQuietHours } from "../utils/quietHours";
 
 const WINDOW_DAYS = 7;
 const MEDALS = ["🥇", "🥈", "🥉"];
@@ -29,6 +30,11 @@ function formatLeaderboard(top: TopReferrer[]): string {
 }
 
 export async function postLeaderboard(env: Env): Promise<void> {
+  // Aucune publication dans le canal public la nuit (voir
+  // utils/quietHours.ts). Le drapeau "deja envoye" en base fait que
+  // sauter un cycle nocturne DIFFERE la publication au premier cycle
+  // apres 7h UTC, il ne la perd pas.
+  if (isQuietHours()) return;
   if (!env.TELEGRAM_CHANNEL_ID) return; // canal non configuré, rien à faire
 
   const db = dbConfig(env);

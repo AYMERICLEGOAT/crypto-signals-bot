@@ -8,6 +8,7 @@
 import { Env, dbConfig } from "../env";
 import { getUnsentVolatilitySuspensions, markVolatilitySuspensionSent, VolatilitySuspensionRecord } from "../db/volatilitySuspensions";
 import { sendMessage } from "../telegram";
+import { isQuietHours } from "../utils/quietHours";
 
 function formatSuspensionMessage(event: VolatilitySuspensionRecord): string {
   const pct = (event.atr_pct * 100).toFixed(1);
@@ -18,6 +19,11 @@ function formatSuspensionMessage(event: VolatilitySuspensionRecord): string {
 }
 
 export async function dispatchVolatilitySuspensions(env: Env): Promise<void> {
+  // Aucune publication dans le canal public la nuit (voir
+  // utils/quietHours.ts). Le drapeau "deja envoye" en base fait que
+  // sauter un cycle nocturne DIFFERE la publication au premier cycle
+  // apres 7h UTC, il ne la perd pas.
+  if (isQuietHours()) return;
   if (!env.TELEGRAM_CHANNEL_ID) return;
 
   const db = dbConfig(env);

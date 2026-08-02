@@ -8,6 +8,7 @@
 import { Env, dbConfig } from "../env";
 import { sendMessage } from "../telegram";
 import { hasPostedFearGreedToday, recordFearGreedPost } from "../db/fearGreedPosts";
+import { isQuietHours } from "../utils/quietHours";
 
 const FEAR_GREED_API_URL = "https://api.alternative.me/fng/?limit=1";
 
@@ -35,6 +36,11 @@ function translateClassification(classification: string): string {
 }
 
 export async function dispatchFearGreed(env: Env): Promise<void> {
+  // Aucune publication dans le canal public la nuit (voir
+  // utils/quietHours.ts). Le drapeau "deja envoye" en base fait que
+  // sauter un cycle nocturne DIFFERE la publication au premier cycle
+  // apres 7h UTC, il ne la perd pas.
+  if (isQuietHours()) return;
   if (!env.TELEGRAM_CHANNEL_ID) return;
 
   const db = dbConfig(env);

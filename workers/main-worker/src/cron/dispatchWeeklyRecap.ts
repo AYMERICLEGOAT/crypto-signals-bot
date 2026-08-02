@@ -12,12 +12,18 @@ import { hasPostedWeeklyRecapRecently, recordWeeklyRecapPost } from "../db/weekl
 import { getSignalsCreatedSince, getSignalsResolvedSince } from "../db/signals";
 import { getMomentumAlertsSince } from "../db/momentumAlerts";
 import { computePnlPct } from "../signalMath";
+import { isQuietHours } from "../utils/quietHours";
 
 const RECAP_WEEKDAY_UTC = 0; // dimanche
 const RECAP_HOUR_UTC = 18;
 const PAPER_POSITION_SIZE_PCT = 0.1; // même convention que website/equity_curve.py
 
 export async function dispatchWeeklyRecap(env: Env): Promise<void> {
+  // Aucune publication dans le canal public la nuit (voir
+  // utils/quietHours.ts). Le drapeau "deja envoye" en base fait que
+  // sauter un cycle nocturne DIFFERE la publication au premier cycle
+  // apres 7h UTC, il ne la perd pas.
+  if (isQuietHours()) return;
   if (!env.TELEGRAM_CHANNEL_ID) return;
 
   const now = new Date();

@@ -12,7 +12,6 @@ import { dispatchWeeklyRecap } from "./cron/dispatchWeeklyRecap";
 import { trackSignalOutcomes } from "./cron/trackSignalOutcomes";
 import { announceSignalPause } from "./cron/announceSignalPause";
 import { dispatchEducationalPost } from "./cron/dispatchEducationalPost";
-import { dispatchChannelCta } from "./cron/dispatchChannelCta";
 import { dispatchNoSignalStatus } from "./cron/dispatchNoSignalStatus";
 import { runLuckyVipDay } from "./cron/luckyVipDay";
 import { revertLuckyVip } from "./cron/revertLuckyVip";
@@ -119,11 +118,6 @@ export default {
           await rotateVipInviteLinkIfDue(env).catch((err) => console.error("[cron] Erreur rotateVipInviteLinkIfDue:", err));
         })()
       );
-      return;
-    }
-
-    if (event.cron === "0 */3 * * *") {
-      ctx.waitUntil(dispatchChannelCta(env).catch((err) => console.error("[cron] Erreur dispatchChannelCta:", err)));
     }
   },
 };
