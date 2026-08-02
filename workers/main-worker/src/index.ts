@@ -27,6 +27,7 @@ import { checkSignalFreshness } from "./cron/checkSignalFreshness";
 import { ensureChannelPinned } from "./cron/ensureChannelPinned";
 import { postChannelReminder } from "./cron/postChannelReminder";
 import { dispatchVipBriefing } from "./cron/dispatchVipBriefing";
+import { dispatchSelectivityDigest } from "./cron/dispatchSelectivityDigest";
 import { rotateVipInviteLinkIfDue } from "./bot/vipChannel";
 import { pingSupabase } from "./supabaseRest";
 import { dbConfig } from "./env";
@@ -117,6 +118,7 @@ export default {
           await ensureChannelPinned(env).catch((err) => console.error("[cron] Erreur ensureChannelPinned:", err));
           await postChannelReminder(env).catch((err) => console.error("[cron] Erreur postChannelReminder:", err));
           await dispatchVipBriefing(env).catch((err) => console.error("[cron] Erreur dispatchVipBriefing:", err));
+          await dispatchSelectivityDigest(env).catch((err) => console.error("[cron] Erreur dispatchSelectivityDigest:", err));
           await rotateVipInviteLinkIfDue(env).catch((err) => console.error("[cron] Erreur rotateVipInviteLinkIfDue:", err));
         })()
       );

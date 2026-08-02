@@ -1,28 +1,16 @@
 /**
- * Bloc 3 : diffuse les Alertes Momentum (signals/momentum.py) sur le canal
- * public gratuit. Ce ne sont pas des trades (pas de stop loss/take profit),
- * juste du contenu d'engagement pour garder le canal actif entre deux vrais
- * signaux ; le format (⚡, pas de BUY/SELL) évite toute confusion avec
- * cron/dispatchSignals.ts.
+ * Alertes Momentum (signals/momentum.py) — contexte de marché, PAS des
+ * trades (ni stop loss ni take profit). Le format (⚡, pas de BUY/SELL)
+ * évite toute confusion avec cron/dispatchSignals.ts.
  *
- * Bloc 19 : en plus du canal, envoyé aussi en DM aux abonnés actifs n'ayant
- * pas désactivé "Alertes Momentum" dans /prefs (activé par défaut).
+ * Diffusées sur le canal VIP uniquement depuis le 02/08/2026 : voir le
+ * commentaire dans la fonction pour le raisonnement complet.
  */
 
 import { Env, dbConfig } from "../env";
 import { getUnsentMomentumAlerts, markMomentumAlertSent, countMomentumAlertsSentSince, MomentumAlertRecord } from "../db/momentumAlerts";
 import { sendMessage } from "../telegram";
 import { isQuietHours } from "../utils/quietHours";
-
-function formatMomentumAlert(alert: MomentumAlertRecord): string {
-  return [
-    `⚡ *Alerte Momentum — ${alert.pair}*`,
-    alert.detail,
-    "",
-    "ℹ️ Information sur la dynamique du marché, PAS un signal de trading (pas de stop loss/take profit). " +
-      "Signaux réels + suivi complet : /subscribe",
-  ].join("\n");
-}
 
 /** Même contenu, sans l'appel à l'abonnement : le lecteur est déjà abonné. */
 function formatVipMomentumAlert(alert: MomentumAlertRecord): string {
@@ -31,7 +19,7 @@ function formatVipMomentumAlert(alert: MomentumAlertRecord): string {
     alert.detail,
     "",
     "ℹ️ Dynamique de marché, PAS un signal de trading (ni stop loss ni take profit).",
-    "🔑 Alerte réservée aux abonnés : le canal public est plafonné à 2 par cycle.",
+    "🔑 Réservé aux abonnés : le canal public ne reçoit qu'un bilan agrégé en fin de journée.",
   ].join("\n");
 }
 
@@ -39,7 +27,6 @@ function formatVipMomentumAlert(alert: MomentumAlertRecord): string {
 // Volontairement modeste : l'objectif est de donner un avantage réel aux
 // abonnés, pas de reproduire en VIP le spam qu'on vient de retirer du canal
 // public.
-const MAX_VIP_OVERFLOW_PER_DISPATCH = 3;
 
 // Retour admin (29/07 puis 30/07, "120 messages d'un coup") : le vrai bug
 // n'était pas cette limite mais countMomentumAlertsSentSince (voir
@@ -51,7 +38,7 @@ const MAX_VIP_OVERFLOW_PER_DISPATCH = 3;
 // Ramené de 3 à 2 le 02/08/2026 : le canal public recevait des rafales
 // d'alertes perçues comme du spam. Le surplus n'est pas perdu -- il reste
 // en base non envoyé et part au cycle suivant, étalé dans le temps.
-const MAX_ALERTS_PER_DISPATCH = 2;
+const MAX_ALERTS_PER_DISPATCH = 3;
 
 // Retour admin (29/07) : étaler sur plusieurs cycles de 5 min ne suffisait pas
 // -- avec 28 paires et le cron toutes les 5 min, la pile peut se reconstituer
@@ -69,48 +56,32 @@ function startOfTodayUtcIso(): string {
 }
 
 export async function dispatchMomentumAlerts(env: Env): Promise<void> {
-  // Aucune publication dans le canal public la nuit (voir
-  // utils/quietHours.ts). Le drapeau "deja envoye" en base fait que
-  // sauter un cycle nocturne DIFFERE la publication au premier cycle
-  // apres 7h UTC, il ne la perd pas.
+  // Aucune publication la nuit (voir utils/quietHours.ts).
   if (isQuietHours()) return;
-  if (!env.TELEGRAM_CHANNEL_ID) return; // canal non configuré, rien à faire
+  // Canal VIP UNIQUEMENT depuis le 02/08/2026. Ces alertes sont les
+  // configurations que la stratégie a examinées puis ÉCARTÉES : non
+  // actionnables par construction (ni entrée, ni stop, ni objectif), et
+  // jusqu'à 8 par jour contre ~2,5 vrais signaux, elles noyaient le canal
+  // public sous ses propres rejets. Le canal public reçoit désormais un
+  // BILAN quotidien agrégé à la place (voir dispatchSelectivityDigest.ts),
+  // qui transforme le même fait en preuve de sélectivité.
+  //
+  // Elles gardent en revanche une vraie valeur pour un abonné qui trade
+  // activement : le contexte de marché en temps réel. C'est exactement le
+  // type de différence qui justifie un abonnement.
+  if (!env.TELEGRAM_VIP_CHANNEL_ID) return;
 
   const db = dbConfig(env);
-  const channelId = Number(env.TELEGRAM_CHANNEL_ID);
+  const vipChannelId = Number(env.TELEGRAM_VIP_CHANNEL_ID);
 
   const sentToday = await countMomentumAlertsSentSince(db, startOfTodayUtcIso());
   const remainingToday = MAX_ALERTS_PER_DAY - sentToday;
   if (remainingToday <= 0) return;
 
-  // On récupère AU-DELÀ du plafond public : les premières partent sur le
-  // canal gratuit, le surplus va au canal VIP (voir plus bas). Sans cette
-  // marge, le surplus attendait simplement le cycle suivant et les abonnés
-  // payants n'avaient jamais rien de plus que les autres.
-  const publicQuota = Math.min(MAX_ALERTS_PER_DISPATCH, remainingToday);
-  const due = await getUnsentMomentumAlerts(db, publicQuota + MAX_VIP_OVERFLOW_PER_DISPATCH);
+  const due = await getUnsentMomentumAlerts(db, Math.min(MAX_ALERTS_PER_DISPATCH, remainingToday));
   if (due.length === 0) return;
 
-  const forPublic = due.slice(0, publicQuota);
-  const forVip = due.slice(publicQuota);
-
-  for (const alert of forPublic) {
-    try {
-      await sendMessage(env.TELEGRAM_BOT_TOKEN, channelId, formatMomentumAlert(alert), { markdown: true });
-      await markMomentumAlertSent(db, alert.id);
-    } catch (err) {
-      console.error(`[momentum-alerts] Échec de diffusion pour l'alerte #${alert.id}:`, err);
-    }
-  }
-
-  // Surplus réservé aux abonnés payants (demande du 02/08/2026). Le canal
-  // public est volontairement limité à 2 alertes par cycle pour ne pas
-  // ressembler à du spam ; les alertes suivantes, plutôt que d'attendre,
-  // deviennent un avantage concret du canal VIP — qui ne recevait jusqu'ici
-  // QUE des messages de célébration, donc presque rien.
-  if (!env.TELEGRAM_VIP_CHANNEL_ID || forVip.length === 0) return;
-  const vipChannelId = Number(env.TELEGRAM_VIP_CHANNEL_ID);
-  for (const alert of forVip) {
+  for (const alert of due) {
     try {
       await sendMessage(env.TELEGRAM_BOT_TOKEN, vipChannelId, formatVipMomentumAlert(alert), { markdown: true });
       await markMomentumAlertSent(db, alert.id);

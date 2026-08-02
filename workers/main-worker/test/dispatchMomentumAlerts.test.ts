@@ -10,12 +10,13 @@ const env = {
   SUPABASE_URL: "https://fake-supabase.test",
   SUPABASE_KEY: "k",
   TELEGRAM_CHANNEL_ID: "-100123456",
+  TELEGRAM_VIP_CHANNEL_ID: "-100999",
 } as any;
 
 describe("dispatchMomentumAlerts", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("poste chaque alerte non envoyée sur le canal public et la marque envoyée", async () => {
+  it("poste chaque alerte non envoyée sur le canal VIP et la marque envoyée", async () => {
     const posted: { chatId: number; text: string }[] = [];
     let marked = false;
 
@@ -49,16 +50,19 @@ describe("dispatchMomentumAlerts", () => {
     await dispatchMomentumAlerts(env);
 
     expect(posted).toHaveLength(1);
-    expect(posted[0].chatId).toBe(-100123456);
+    // Canal VIP uniquement depuis le 02/08/2026 : ces alertes sont les
+    // configurations ECARTEES par la strategie, non actionnables. Le canal
+    // public recoit un bilan agrege a la place (dispatchSelectivityDigest).
+    expect(posted[0].chatId).toBe(-100999);
     expect(posted[0].text).toContain("Alerte Momentum");
     expect(posted[0].text).toContain("PAS un signal de trading");
     expect(marked).toBe(true);
   });
 
-  it("ne fait rien si le canal public n'est pas configuré", async () => {
+  it("ne fait rien si le canal VIP n'est pas configuré", async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
-    await dispatchMomentumAlerts({ ...env, TELEGRAM_CHANNEL_ID: undefined });
+    await dispatchMomentumAlerts({ ...env, TELEGRAM_VIP_CHANNEL_ID: undefined });
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 

@@ -25,6 +25,19 @@ export async function markMomentumAlertSent(db: SupabaseConfig, id: number): Pro
 }
 
 /** Bloc 12.3 — récap hebdomadaire : alertes momentum envoyées depuis `sinceIso`. */
+/**
+ * Comme getMomentumAlertsSince mais avec le contenu, pour le bilan de
+ * sélectivité (voir cron/dispatchSelectivityDigest.ts). Fonction distincte :
+ * celle ci-dessus ne sert qu'à compter et ne doit pas rapatrier plus que
+ * nécessaire.
+ */
+export async function getMomentumAlertDetailsSince(db: SupabaseConfig, sinceIso: string): Promise<MomentumAlertRecord[]> {
+  return selectRows<MomentumAlertRecord>(db, "momentum_alerts", {
+    created_at: `gte.${sinceIso}`,
+    order: "created_at.desc",
+  });
+}
+
 export async function getMomentumAlertsSince(db: SupabaseConfig, sinceIso: string): Promise<{ id: number }[]> {
   return selectRows<{ id: number }>(db, "momentum_alerts", { created_at: `gte.${sinceIso}`, select: "id" });
 }

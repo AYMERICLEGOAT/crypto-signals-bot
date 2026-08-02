@@ -25,7 +25,7 @@ describe("Valeur du canal VIP", () => {
     vi.useRealTimers();
   });
 
-  it("le surplus d'alertes momentum va en VIP, le canal public reste plafonné à 2", async () => {
+  it("les alertes momentum vont exclusivement en VIP, jamais sur le canal public", async () => {
     vi.setSystemTime(new Date(Date.UTC(2026, 7, 2, 12, 0)));
     const publicSent: string[] = [];
     const vipSent: string[] = [];
@@ -33,13 +33,13 @@ describe("Valeur du canal VIP", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
-        if (url.includes("momentum_alerts") && url.includes("sent_at")) return jsonResponse([]); // 0 envoyée aujourd'hui
+        if (url.includes("momentum_alerts") && url.includes("sent_at")) return jsonResponse([]);
         if (url.includes("momentum_alerts") && (!init || init.method === undefined)) {
           return jsonResponse(
-            [1, 2, 3, 4, 5].map((i) => ({ id: i, pair: `P${i}/USDT`, detail: `détail ${i}` }))
+            [1, 2, 3].map((i) => ({ id: i, pair: `P${i}/USDT`, detail: `détail ${i}` }))
           );
         }
-        if (url.includes("momentum_alerts")) return jsonResponse([]); // marquage
+        if (url.includes("momentum_alerts")) return jsonResponse([]);
         if (url.includes("api.telegram.org")) {
           const body = JSON.parse(init!.body as string);
           (String(body.chat_id) === "-100222" ? vipSent : publicSent).push(body.text);
@@ -51,10 +51,10 @@ describe("Valeur du canal VIP", () => {
 
     await dispatchMomentumAlerts(env);
 
-    expect(publicSent).toHaveLength(2);
+    expect(publicSent).toHaveLength(0);
     expect(vipSent.length).toBeGreaterThan(0);
     // Le message VIP n'invite pas à s'abonner : le lecteur l'est déjà.
-    expect(vipSent[0]).toContain("réservée aux abonnés");
+    expect(vipSent[0]).toContain("Réservé aux abonnés");
     expect(vipSent[0]).not.toContain("/subscribe");
   });
 
