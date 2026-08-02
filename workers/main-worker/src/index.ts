@@ -26,6 +26,7 @@ import { monitorSignalsHeartbeat } from "./cron/monitorSignalsHeartbeat";
 import { checkSignalFreshness } from "./cron/checkSignalFreshness";
 import { ensureChannelPinned } from "./cron/ensureChannelPinned";
 import { postChannelReminder } from "./cron/postChannelReminder";
+import { dispatchVipBriefing } from "./cron/dispatchVipBriefing";
 import { rotateVipInviteLinkIfDue } from "./bot/vipChannel";
 import { pingSupabase } from "./supabaseRest";
 import { dbConfig } from "./env";
@@ -115,6 +116,7 @@ export default {
           await runDailyMaintenance(env).catch((err) => console.error("[cron] Erreur runDailyMaintenance:", err));
           await ensureChannelPinned(env).catch((err) => console.error("[cron] Erreur ensureChannelPinned:", err));
           await postChannelReminder(env).catch((err) => console.error("[cron] Erreur postChannelReminder:", err));
+          await dispatchVipBriefing(env).catch((err) => console.error("[cron] Erreur dispatchVipBriefing:", err));
           await rotateVipInviteLinkIfDue(env).catch((err) => console.error("[cron] Erreur rotateVipInviteLinkIfDue:", err));
         })()
       );
