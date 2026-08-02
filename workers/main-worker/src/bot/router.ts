@@ -18,6 +18,7 @@ import { handleCancelCommand } from "./commands/cancel";
 import { handleDeleteMyDataCommand } from "./commands/deleteMyData";
 import { handleHelpCommand } from "./commands/help";
 import { handleFaqCommand } from "./commands/faq";
+import { handlePaymentGuideCommand } from "./commands/paymentGuide";
 import { handleTrustCommand } from "./commands/trust";
 import { handleExitSurveyResponse } from "./commands/exitSurveyResponse";
 import { handlePrefsCommand, handlePrefsToggle } from "./commands/prefs";
@@ -82,6 +83,8 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
       await handleHelpCommand(env, chatId);
     } else if (text === "/faq") {
       await handleFaqCommand(env, chatId);
+    } else if (text === "/guide_paiement") {
+      await handlePaymentGuideCommand(env, chatId);
     } else if (text === "/trust") {
       await handleTrustCommand(env, chatId);
     } else if (text === "/prefs") {
@@ -134,6 +137,9 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
     else if (data === "start:help") await handleHelpCommand(env, chatId);
     else if (data.startsWith("plan:")) await handlePlanSelection(env, chatId, data);
     else if (data.startsWith("consent:")) await handlePurchaseConsent(env, chatId, data);
+    // Avant le préfixe générique "pay:" : "pay:guide" n'est pas un choix de
+    // moyen de paiement et serait sinon capté par le handler suivant.
+    else if (data === "pay:guide") await handlePaymentGuideCommand(env, chatId);
     else if (data.startsWith("pay:")) await handlePaymentMethodSelection(env, chatId, data);
     else if (data.startsWith("survey:")) await handleSurveyResponse(env, chatId, data);
     else if (data.startsWith("exit_survey:")) await handleExitSurveyResponse(env, chatId, data);

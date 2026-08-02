@@ -90,30 +90,45 @@ export async function handlePurchaseConsent(env: Env, telegramId: number, data: 
       `renonciation_retractation=true horodatage=${new Date().toISOString()}`
   );
 
-  // Guide court AVANT le choix du moyen de paiement (02/08/2026). Le message
-  // se réduisait à « Choisis ton moyen de paiement : » — or le paiement en
-  // crypto est la première marche du tunnel, et ce projet n'a jamais
-  // enregistré la moindre tentative de paiement. Quelqu'un qui n'a jamais
-  // payé en crypto abandonne devant un choix qu'il ne sait pas arbitrer.
-  // Trois lignes suffisent à lever l'essentiel : quoi choisir si on ne sait
-  // pas, combien de temps ça prend, et ce qui se passe ensuite.
+  // Tunnel de paiement refondu (02/08/2026). Constat qui l'a motivé : la
+  // table pending_payments est VIDE depuis le début du projet — pas une
+  // seule tentative. Le message se réduisait à « Choisis ton moyen de
+  // paiement : » face à trois cryptomonnaies, ce qui n'est pas un choix
+  // mais un mur pour qui n'a jamais fait de transaction crypto.
+  //
+  // Le message répond maintenant aux quatre questions qui bloquent
+  // réellement : comment on fait, quoi prendre si on ne sait pas, combien de
+  // temps ça prend, et à quoi on s'engage. Le détail complet (réseaux,
+  // pièges, frais de retrait) part dans un guide séparé accessible en un
+  // bouton, pour ne pas noyer ceux qui savent déjà.
   await sendMessage(
     env.TELEGRAM_BOT_TOKEN,
     telegramId,
-    "💳 *Comment ça se passe*\n\n" +
+    "💳 *Paiement en 3 étapes*\n\n" +
       "1️⃣ Tu choisis ta cryptomonnaie ci-dessous\n" +
-      "2️⃣ Je te donne une adresse et le montant exact\n" +
-      "3️⃣ Tu envoies depuis ton exchange ou ton wallet\n" +
-      "4️⃣ Ton accès s'active tout seul dès confirmation (quelques minutes)\n\n" +
-      "_Dans le doute, choisis USDT (Polygon) : frais de quelques centimes et " +
-      "disponible sur la plupart des plateformes._\n\n" +
-      "Aucun prélèvement automatique : l'abonnement s'arrête seul à échéance.",
-    { markdown: true }
+      "2️⃣ Je te donne l'adresse et le montant exact\n" +
+      "3️⃣ Tu envoies depuis ton exchange ou ton wallet\n\n" +
+      "⚡ *Le plus simple : USDT sur Polygon* — frais d'environ 0,01 $, " +
+      "disponible sur Binance, Coinbase, Kraken et la plupart des plateformes.\n\n" +
+      "⏱️ Ton abonnement sera actif en *2 à 5 minutes* après confirmation, " +
+      "automatiquement — rien à envoyer, aucun justificatif.\n\n" +
+      "🛡️ *Aucun prélèvement automatique, aucun engagement.* L'abonnement " +
+      "s'arrête tout seul à échéance : il n'y a rien à résilier.",
+    { markdown: true, keyboard: [[{ text: "📖 Guide de paiement complet", callback_data: "pay:guide" }]] }
   );
 
   await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, "Choisis ton moyen de paiement :", {
     keyboard: paymentMethodKeyboard(plan),
   });
+
+  // Filet de rassurance : même automatisé, savoir qu'on peut « répondre »
+  // lève une hésitation réelle au moment de payer.
+  await sendMessage(
+    env.TELEGRAM_BOT_TOKEN,
+    telegramId,
+    "❓ Un doute ? Réponds simplement à ce message, l'administrateur le verra. " +
+      "Et /check_payment te donne à tout moment l'état de ta transaction."
+  );
 }
 
 /** data au format "pay:USDT:1", "pay:XMR:2", "pay:LTC:3" etc. */
