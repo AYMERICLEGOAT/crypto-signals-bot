@@ -485,15 +485,47 @@ describe("trackSignalOutcomes", () => {
     expect(closedPatch.outcome_price).toBe(104);
   });
 
-  it("échoue proprement (sans planter) si Binance est indisponible", async () => {
+  it("bascule sur Kraken quand Binance est bloqué (HTTP 403 depuis Cloudflare)", async () => {
+    // Cas réel observé en production le 03/08 : Binance refuse les IP
+    // Cloudflare, et le suivi post-trade dépend entièrement du repli.
+    const appels: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        appels.push(url);
+        if (url.includes("signals") && url.includes("outcome=is.null")) return jsonResponse([recentSignal]);
+        if (url.includes("binance.com")) return new Response("blocked", { status: 403 });
+        if (url.includes("kraken.com")) {
+          return jsonResponse({ error: [], result: { XBTUSDT: { c: ["104", "1"] } } });
+        }
+        if (url.includes("rest/v1/signals") && init?.method === "PATCH") return jsonResponse([{}]);
+        return jsonResponse([]);
+      })
+    );
+
+    await trackSignalOutcomes(env);
+
+    expect(appels.some((u) => u.includes("binance.com"))).toBe(true);
+    expect(appels.some((u) => u.includes("kraken.com"))).toBe(true);
+    // Un seul appel Kraken : la requête est groupée, pas une par paire.
+    expect(appels.filter((u) => u.includes("kraken.com")).length).toBe(1);
+    // Kraken ayant répondu, Coinbase ne doit pas être sollicité du tout.
+    expect(appels.some((u) => u.includes("exchange.coinbase.com"))).toBe(false);
+  });
+
+  it("échoue proprement (sans planter) si les trois sources de prix sont indisponibles", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) => {
         if (url.includes("signals") && url.includes("outcome=is.null")) return jsonResponse([recentSignal]);
-        if (url.includes("binance.com")) return new Response("erreur", { status: 500 });
+        if (url.includes("binance.com") || url.includes("kraken.com") || url.includes("exchange.coinbase.com")) {
+          return new Response("erreur", { status: 500 });
+        }
         throw new Error(`URL inattendue: ${url}`);
       })
     );
-    await trackSignalOutcomes(env);
+    // Aucune exception ne doit remonter : un signal sans prix reste ouvert et
+    // sera réévalué au cycle suivant, ce qui vaut mieux qu'un cron qui plante.
+    await expect(trackSignalOutcomes(env)).resolves.toBeUndefined();
   });
 });
