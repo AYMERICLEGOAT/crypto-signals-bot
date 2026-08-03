@@ -41,6 +41,7 @@ import alerts
 from indicators import compute_all_indicators, ema
 from strategy import detect_signals_with_catchup, is_still_actionable
 from squeeze_engine import detect_squeeze_signal
+from relative_strength import detect_relative_strength_signals
 from confidence import compute_confidence_score
 from chart_generator import generate_chart
 
@@ -201,6 +202,78 @@ def fetch_recent_prices_15m(pair: str):
     return None
 
 
+def fetch_daily_candles(pair: str):
+    """
+    Bougies JOURNALIÈRES pour le moteur Force Relative (relative_strength.py).
+
+    Aucun repli sur les autres sources, contrairement aux fetchers horaires.
+    C'est délibéré : ce moteur classe les paires les unes CONTRE les autres, et
+    mélanger des clôtures Binance avec des clôtures Coinbase ou Kraken — qui
+    n'ont ni le même instant de découpe ni exactement le même prix — fausserait
+    le classement lui-même. Mieux vaut une paire absente du classement qu'une
+    paire mal classée. Si Binance est indisponible, le moteur ne tourne pas ce
+    jour-là, ce que le seuil RS_MIN_RANKED_PAIRS garantit.
+    """
+    symbol = binance_client.pair_to_symbol(pair)
+    try:
+        candles = binance_client.get_klines(symbol, interval="1d", limit=KLINES_LOOKBACK)
+    except Exception:
+        logger.warning("Binance (1d) indisponible pour %s : paire exclue du classement.", pair, exc_info=True)
+        return None
+    if not candles:
+        return None
+    df = pd.DataFrame(
+        [(ts, o, high, low, close) for ts, o, high, low, close, _vol in candles],
+        columns=["ts_ms", "open", "high", "low", "close"],
+    )
+    # La bougie du jour est encore ouverte : la garder ferait entrer dans le
+    # classement un prix non définitif, et le backtest n'a validé que des
+    # clôtures. On la retire systématiquement.
+    df = only_closed_candles(df.rename(columns={"close": "price"}), 24 * 60 * 60 * 1000)
+    return df.rename(columns={"price": "close"}) if df is not None and len(df) else None
+
+
+def run_relative_strength_engine() -> list:
+    """
+    Fait tourner le moteur Force Relative une fois par jour, après la clôture.
+
+    Cadence. Le backtest évalue le classement UNE fois par jour sur des
+    clôtures journalières. Le faire tourner à chaque cycle de 5 minutes
+    diffuserait une stratégie différente de celle qui a été validée — le
+    classement bouge en cours de journée et on émettrait sur du bruit
+    intrajournalier. D'où la fenêtre étroite juste après la clôture UTC.
+
+    Anti-doublon et positions ouvertes sont le MÊME mécanisme ici : une paire
+    signalée il y a moins de RS_HOLD_DAYS jours est considérée détenue, donc ne
+    redéclenche pas. C'est exactement le comportement du backtest, qui ne
+    compte que les entrées réelles.
+    """
+    now = datetime.now(timezone.utc)
+    if now.hour != config.RS_RUN_HOUR_UTC or now.minute >= config.RS_RUN_WINDOW_MINUTES:
+        return []
+
+    held = storage.pairs_signalled_by_engine("relative_strength", config.RS_HOLD_DAYS * 24)
+    daily_by_pair = {}
+    for pair in config.PAIRS:
+        df = fetch_daily_candles(pair)
+        if df is not None and len(df) >= config.RS_RSI_PERIOD + 5:
+            daily_by_pair[pair] = df
+
+    btc_daily = daily_by_pair.get("BTC/USDT")
+    if btc_daily is None:
+        logger.warning(
+            "[relative_strength] Bougies BTC indisponibles : impossible d'évaluer le filtre "
+            "de tendance, aucun signal émis."
+        )
+        return []
+
+    logger.info(
+        "[relative_strength] Passage quotidien : %d paires récupérées, %d déjà en position.",
+        len(daily_by_pair), len(held),
+    )
+    return detect_relative_strength_signals(daily_by_pair, btc_daily, already_open=held)
+
+
 def fetch_htf_ema50(pair: str) -> float | None:
     """
     Amélioration 1 (expérimentale, voir config.ENABLE_HTF_FILTER) : EMA50 sur
@@ -231,6 +304,12 @@ def _generate_and_upload_chart(enriched_df, signal_dict: dict, now_ms: int) -> s
     Ne bloque jamais l'insertion du signal si ça échoue (graphique manquant
     != signal manquant) : retourne None dans ce cas.
     """
+    # Le moteur Force Relative travaille sur des bougies journalières et ne
+    # produit pas de DataFrame horaire enrichi. Sortir tout de suite évite une
+    # trace d'exception par signal, qui ferait croire à une panne dans les logs.
+    if enriched_df is None:
+        return None
+
     os.makedirs(config.CHART_TMP_DIR, exist_ok=True)
     pair_slug = signal_dict["pair"].replace("/", "-")
     local_path = os.path.join(config.CHART_TMP_DIR, f"{pair_slug}-{now_ms}.png")
@@ -374,6 +453,21 @@ def run_once(params: dict) -> tuple[int, int]:
             if squeeze_signal:
                 candidates.append((squeeze_signal, enriched15))
 
+    # 📈 Moteur Force Relative (voir relative_strength.py). Seul moteur du
+    # projet reposant sur un avantage effectivement mesuré : +83,3 %/an composé
+    # sur 6 ans, aucune année perdante, contre une famille de règles techniques
+    # absolues dont ~35 variantes ont toutes échoué. Il tourne en journalier et
+    # une seule fois par jour, d'où le fait qu'il ne rende rien la quasi-totalité
+    # des cycles. Ses candidats rejoignent le même `candidates` que les autres
+    # moteurs, donc le même filtre anti-corrélation et le même verrou de
+    # portefeuille juste en dessous.
+    if config.ENABLE_RELATIVE_STRENGTH_ENGINE:
+        for rs_signal in run_relative_strength_engine():
+            # Pas de DataFrame enrichi horaire pour ces signaux : ils sont
+            # construits sur des bougies journalières. Le None est accepté en
+            # aval (le graphique est optionnel, voir generate_chart).
+            candidates.append((rs_signal, None))
+
     if momentum_alerts:
         storage.insert_momentum_alerts(momentum_alerts)
         logger.info("%d alerte(s) momentum détectée(s) ce cycle.", len(momentum_alerts))
@@ -416,6 +510,12 @@ def run_once(params: dict) -> tuple[int, int]:
         # fenêtre de rattrapage), sans colonne correspondante en base : la
         # laisser ferait échouer l'insertion entière du signal.
         signal_dict.pop("candle_ts_ms", None)
+        # Même raison pour les métadonnées du moteur Force Relative : rang dans
+        # le classement, RSI et durée de détention prévue n'ont pas de colonne
+        # en base. Elles sont utiles au débogage et au message envoyé aux
+        # abonnés, mais les laisser ferait échouer l'insertion entière.
+        for key in ("rs_rank", "rs_rsi", "rs_hold_days"):
+            signal_dict.pop(key, None)
         if not storage.insert_signal(signal_dict):
             failed_inserts += 1
 

@@ -78,6 +78,42 @@ def pairs_signalled_since(hours: int) -> set:
         return set()
 
 
+def pairs_signalled_by_engine(engine: str, hours: int) -> set:
+    """
+    Paires signalées par un moteur donné dans les `hours` dernières heures.
+
+    Sert au moteur Force Relative (relative_strength.py), où anti-doublon et
+    « position déjà ouverte » sont le même mécanisme : la stratégie validée
+    détient chaque paire RS_HOLD_DAYS jours et ne compte que les ENTRÉES
+    réelles. Le filtrage par moteur est indispensable — une paire signalée par
+    le moteur Haute Confiance ne doit pas empêcher le moteur Force Relative de
+    l'inclure dans son classement, les deux stratégies étant indépendantes.
+
+    Même sens de dégradation que pairs_signalled_since : en cas d'échec on
+    retourne un ensemble VIDE, donc « rien n'est ouvert ». Ici ce choix est
+    moins anodin, puisqu'il peut produire un doublon de signal ; il reste
+    préférable à un blocage total, et le verrou de portefeuille en aval
+    (config.MAX_ACTIVE_TRADES) plafonne les dégâts.
+    """
+    since = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    try:
+        resp = (
+            get_client()
+            .table("signals")
+            .select("pair")
+            .eq("engine", engine)
+            .gte("created_at", since)
+            .execute()
+        )
+        return {row["pair"] for row in (resp.data or [])}
+    except Exception:
+        logger.exception(
+            "Échec de la lecture des signaux récents du moteur %s, traité comme aucun. "
+            "Un doublon est possible ce cycle.", engine,
+        )
+        return set()
+
+
 def count_open_at_risk_trades() -> int:
     """
     Verrou de portefeuille (voir config.MAX_ACTIVE_TRADES) : nombre de

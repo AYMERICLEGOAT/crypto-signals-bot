@@ -334,6 +334,45 @@ BOLLINGER_STD = 2
 STOP_LOSS_PCT = 0.02      # -2 %
 TAKE_PROFIT_PCT = 0.04    # +4 %
 
+# --- Moteur Force Relative (voir relative_strength.py) ---
+# Premier moteur du projet reposant sur un avantage effectivement mesuré et
+# non sur une règle technique supposée. Chaque valeur ci-dessous provient d'un
+# backtest nommé ; aucune n'a été choisie parce qu'elle embellissait la courbe.
+# Ne modifier aucune de ces constantes sans relancer le module correspondant.
+ENABLE_RELATIVE_STRENGTH_ENGINE = True
+
+# Le moteur travaille en JOURNALIER, pas en intrajournalier. C'est essentiel :
+# à 0,10 % de frais aller-retour, seuls des mouvements de plusieurs jours
+# laissent un avantage net. Les moteurs horaires payaient 5 à 10 fois leur edge
+# en frais (voir backtest_timeframes.py).
+RS_RSI_PERIOD = 21          # backtest_rsi_long : 18/18 combinaisons positives
+RS_TOP_N = 5                # backtest_final_portefeuille : meilleur rendement/risque
+RS_HOLD_DAYS = 7            # sortie TEMPORELLE, c'est ce qui a été validé
+RS_TREND_MA_PERIOD = 200    # filtre absolu, Antonacci (2014) — règle extérieure au projet
+RS_MIN_RANKED_PAIRS = 15    # en dessous, le classement transversal n'a pas de sens
+
+# Cadence. Le backtest évalue le classement UNE fois par jour sur des clôtures
+# journalières. Le faire tourner à chaque cycle de 5 minutes diffuserait une
+# stratégie différente de celle qui a été validée : le classement bouge en
+# cours de journée et on émettrait sur du bruit intrajournalier. La fenêtre
+# s'ouvre une heure après la clôture UTC, le temps que la bougie soit close et
+# disponible chez Binance, et reste ouverte assez longtemps pour tolérer deux
+# ou trois échecs de récupération sans perdre la journée.
+RS_RUN_HOUR_UTC = 1
+RS_RUN_WINDOW_MINUTES = 15
+
+# Géométrie mesurée par backtest_stop_impact sur 6 ans. Contre-intuitif mais
+# net : plus le stop est serré, plus il coûte cher. À 1 x ATR l'espérance tombe
+# à +2,05 % par trade contre +2,74 % à 4 x ATR, parce que le stop coupe des
+# positions qui seraient revenues. Un objectif serré est pire encore : à
+# 3 x ATR il détruit 87 % de l'avantage, les gains venant de rares très gros
+# mouvements. Les objectifs ci-dessous ne déclenchent que 2 % des sorties : ils
+# jalonnent la progression pour l'abonné, ils ne pilotent pas la clôture.
+RS_SL_ATR_MULT = 4.0        # protection catastrophe : 5 % des sorties seulement
+RS_TP1_ATR_MULT = 4.0
+RS_TP2_ATR_MULT = 8.0
+RS_TP3_ATR_MULT = 12.0
+
 # --- Exécution (GitHub Actions, une passe par heure) ---
 # Nombre de points minimum requis dans l'historique récupéré avant de
 # pouvoir calculer des indicateurs fiables (EMA21 + marge).
