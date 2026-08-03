@@ -183,14 +183,8 @@ export async function trackSignalOutcomes(env: Env): Promise<void> {
   const open = await getOpenSignals(db);
   if (open.length === 0) return;
 
-  const symbols = Array.from(new Set(open.map((s) => pairToSymbol(s.pair))));
-  let prices: Record<string, number>;
-  try {
-    prices = await getCurrentPrices(symbols);
-  } catch (err) {
-    console.error("[post-trade] Échec de récupération des prix Binance, nouvelle tentative au prochain cycle:", err);
-    return;
-  }
+  const pairs = Array.from(new Set(open.map((s) => s.pair)));
+  const prices = await getCurrentPrices(pairs);
 
   const now = Date.now();
 
