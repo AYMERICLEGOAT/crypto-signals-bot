@@ -399,14 +399,19 @@ RS_TREND_MA_PERIOD = 200    # filtre absolu, Antonacci (2014) — règle extéri
 RS_MIN_RANKED_PAIRS = 15    # en dessous, le classement transversal n'a pas de sens
 
 # Cadence. Le backtest évalue le classement UNE fois par jour sur des clôtures
-# journalières. Le faire tourner à chaque cycle de 5 minutes diffuserait une
-# stratégie différente de celle qui a été validée : le classement bouge en
-# cours de journée et on émettrait sur du bruit intrajournalier. La fenêtre
-# s'ouvre une heure après la clôture UTC, le temps que la bougie soit close et
-# disponible chez Binance, et reste ouverte assez longtemps pour tolérer deux
-# ou trois échecs de récupération sans perdre la journée.
+# journalières. Le faire tourner à chaque cycle diffuserait une stratégie
+# différente de celle qui a été validée : le classement bouge en cours de
+# journée et on émettrait sur du bruit intrajournalier.
+#
+# Heure la plus tôt à laquelle le passage quotidien peut avoir lieu, soit une
+# heure après la clôture UTC — le temps que la bougie de la veille soit close et
+# disponible. Ce n'est PAS une fenêtre : le premier passage à partir de cette
+# heure déclenche le moteur, quel que soit le retard du cron, et les suivants
+# sont ignorés grâce au marqueur en base (storage.daily_job_already_ran_today).
+# Une fenêtre de 15 minutes avait été essayée d'abord ; les crons GitHub Actions
+# étant retardés de 10 à 20 minutes de façon routinière, elle faisait passer des
+# journées entières sans le moindre signal, sans rien signaler.
 RS_RUN_HOUR_UTC = 1
-RS_RUN_WINDOW_MINUTES = 15
 
 # Géométrie mesurée par backtest_stop_impact sur 6 ans. Contre-intuitif mais
 # net : plus le stop est serré, plus il coûte cher. À 1 x ATR l'espérance tombe

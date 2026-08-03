@@ -238,18 +238,21 @@ def run_relative_strength_engine() -> list:
     Fait tourner le moteur Force Relative une fois par jour, après la clôture.
 
     Cadence. Le backtest évalue le classement UNE fois par jour sur des
-    clôtures journalières. Le faire tourner à chaque cycle de 5 minutes
-    diffuserait une stratégie différente de celle qui a été validée — le
-    classement bouge en cours de journée et on émettrait sur du bruit
-    intrajournalier. D'où la fenêtre étroite juste après la clôture UTC.
+    clôtures journalières. Le faire tourner à chaque cycle diffuserait une
+    stratégie différente de celle qui a été validée — le classement bouge en
+    cours de journée et on émettrait sur du bruit intrajournalier.
+
+    Le déclenchement ne repose pas sur une fenêtre horaire mais sur un marqueur
+    « déjà tourné aujourd'hui » (voir storage.daily_job_already_ran_today) : les
+    crons GitHub Actions sont régulièrement retardés de 10 à 20 minutes, et une
+    fenêtre étroite faisait passer des journées entières sans aucun signal.
 
     Anti-doublon et positions ouvertes sont le MÊME mécanisme ici : une paire
     signalée il y a moins de RS_HOLD_DAYS jours est considérée détenue, donc ne
     redéclenche pas. C'est exactement le comportement du backtest, qui ne
     compte que les entrées réelles.
     """
-    now = datetime.now(timezone.utc)
-    if now.hour != config.RS_RUN_HOUR_UTC or now.minute >= config.RS_RUN_WINDOW_MINUTES:
+    if storage.daily_job_already_ran_today("relative_strength", config.RS_RUN_HOUR_UTC):
         return []
 
     held = storage.pairs_signalled_by_engine("relative_strength", config.RS_HOLD_DAYS * 24)
@@ -284,7 +287,16 @@ def run_relative_strength_engine() -> list:
     if should_alert:
         alerts.maybe_alert_data_outage(consecutive_failures)
 
-    return detect_relative_strength_signals(daily_by_pair, btc_daily, already_open=held)
+    signals = detect_relative_strength_signals(daily_by_pair, btc_daily, already_open=held)
+
+    # Marque le passage du jour AVANT de rendre les signaux, et même quand il
+    # n'y en a aucun. C'est le cas le plus fréquent — le filtre de tendance est
+    # fermé 41 % du temps — et ne pas le marquer relancerait le moteur à chaque
+    # cycle de 30 minutes jusqu'au lendemain, soit une cinquantaine de passages
+    # à 40 appels d'API pour rien.
+    storage.record_heartbeat("relative_strength")
+
+    return signals
 
 
 def fetch_htf_ema50(pair: str) -> float | None:

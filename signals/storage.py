@@ -226,6 +226,54 @@ def record_source_health(pairs_with_data: int, total_pairs: int) -> tuple[int, b
     return new_count, should_alert
 
 
+def daily_job_already_ran_today(job_name: str, hour_utc: int) -> bool:
+    """
+    Ce job quotidien a-t-il déjà tourné depuis l'heure cible d'aujourd'hui ?
+
+    Pourquoi ce détour plutôt qu'une simple fenêtre horaire. Le moteur Force
+    Relative ne doit tourner qu'une fois par jour, après la clôture. La première
+    version le déclenchait quand l'horloge était entre RS_RUN_HOUR_UTC h 00 et
+    h 15. C'était fragile au point d'être faux : le workflow GitHub Actions est
+    planifié toutes les 30 minutes mais ses déclenchements sont régulièrement
+    retardés de 10 à 20 minutes — l'en-tête de .github/workflows/signals.yml le
+    documente déjà. Un retard de plus de 15 minutes faisait rater la fenêtre, et
+    le suivant tombait à h 30, hors fenêtre lui aussi : la journée entière
+    passait sans le moindre signal, silencieusement.
+
+    Ici on ne demande plus « quelle heure est-il » mais « est-ce déjà fait ».
+    Le premier passage à partir de l'heure cible déclenche le moteur, quel que
+    soit le retard, et les suivants sont ignorés.
+
+    En cas d'échec de lecture, retourne True — donc on ne tourne PAS. Ce sens
+    de dégradation est l'inverse des autres fonctions de ce module, et c'est
+    délibéré : ne pas émettre coûte une journée de signaux, tandis qu'émettre en
+    boucle sur une base injoignable enverrait le même signal à répétition aux
+    abonnés.
+    """
+    now = datetime.now(timezone.utc)
+    if now.hour < hour_utc:
+        return True  # trop tôt dans la journée, l'heure cible n'est pas atteinte
+    cible = now.replace(hour=hour_utc, minute=0, second=0, microsecond=0)
+    try:
+        resp = (
+            get_client().table("system_heartbeats")
+            .select("last_run_at")
+            .eq("job_name", job_name)
+            .execute()
+        )
+        if not resp.data or not resp.data[0].get("last_run_at"):
+            return False
+        dernier = datetime.fromisoformat(resp.data[0]["last_run_at"].replace("Z", "+00:00"))
+        return dernier >= cible
+    except Exception:
+        logger.exception(
+            "Échec de lecture du dernier passage de %s : le moteur ne tourne pas ce cycle "
+            "(mieux vaut une journée sans signal qu'une répétition envoyée aux abonnés).",
+            job_name,
+        )
+        return True
+
+
 def record_heartbeat(job_name: str) -> None:
     """
     Bloc 8 — surveillance de fraîcheur GitHub Actions : marque que ce job a
