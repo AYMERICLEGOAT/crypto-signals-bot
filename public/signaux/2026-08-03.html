@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Signaux crypto du 03/08/2026 — Signaux Crypto Gratuits</title>
+  <meta name="description" content="Analyse gratuite de 5 signaux crypto (XLM/USDT, CHZ/USDT, AVAX/USDT, DOGE/USDT, LTC/USDT) du 03/08/2026, générée automatiquement (croisement EMA9/21 + RSI). Résultats réels des signaux précédents inclus.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://crypto-signals-bot-site.signalytics.workers.dev/signaux/2026-08-03.html">
+  <link rel="alternate" hreflang="fr" href="https://crypto-signals-bot-site.signalytics.workers.dev/signaux/2026-08-03.html">
+  <link rel="alternate" hreflang="en" href="https://crypto-signals-bot-site.signalytics.workers.dev/en/signals/2026-08-03.html">
+  <link rel="alternate" hreflang="x-default" href="https://crypto-signals-bot-site.signalytics.workers.dev/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Signaux crypto du 03/08/2026 — Signaux Crypto Gratuits">
+  <meta property="og:description" content="Analyse gratuite de 5 signaux crypto (XLM/USDT, CHZ/USDT, AVAX/USDT, DOGE/USDT, LTC/USDT) du 03/08/2026, générée automatiquement (croisement EMA9/21 + RSI). Résultats réels des signaux précédents inclus.">
+  <meta property="og:url" content="https://crypto-signals-bot-site.signalytics.workers.dev/signaux/2026-08-03.html">
+  <style>
+  /* Refonte visuelle du 02/08/2026. L'ancienne feuille était fonctionnelle
+     mais neutre : fond blanc, texte noir, un seul accent violet. Dans un
+     secteur où la première impression décide en quelques secondes, un site
+     qui ressemble à une page de documentation ne donne pas envie d'essayer.
+
+     Parti pris : sombre par défaut (attendu dans l'univers crypto/trading),
+     accents bleu et or, hiérarchie typographique nette. Tout est en CSS pur
+     — aucune police externe, aucun script : le site reste instantané et
+     fonctionne sans JavaScript. */
+  :root {
+    --bg: #0b0e14;
+    --bg-soft: #131822;
+    --bg-card: #171d29;
+    --border: #252d3d;
+    --text: #e6ebf4;
+    --text-dim: #98a2b8;
+    --accent: #4f8cff;
+    --accent-soft: #1e3a6b;
+    --gold: #f0b429;
+    --win: #22c55e;
+    --loss: #ef4444;
+    --radius: 14px;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    max-width: 860px; margin: 0 auto; padding: 28px 18px 72px;
+    line-height: 1.65; font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+
+  /* Apparition douce au défilement, sans JavaScript : l'animation se
+     déclenche au chargement, décalée par section. Respecte
+     prefers-reduced-motion. */
+  header, section, .cta, .backtest { animation: fade-up .5s ease-out both; }
+  section:nth-of-type(2) { animation-delay: .06s; }
+  section:nth-of-type(3) { animation-delay: .12s; }
+  section:nth-of-type(4) { animation-delay: .18s; }
+  @keyframes fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+    html { scroll-behavior: auto; }
+  }
+
+  h1 {
+    font-size: clamp(1.9rem, 5vw, 2.6rem); line-height: 1.15; margin: 0 0 10px;
+    letter-spacing: -0.02em; font-weight: 800;
+    background: linear-gradient(120deg, var(--text) 30%, var(--accent));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  h2 {
+    font-size: 1.3rem; margin-top: 2.8rem; padding-bottom: 8px; font-weight: 700;
+    border-bottom: 1px solid var(--border); letter-spacing: -0.01em;
+  }
+  .subtitle { color: var(--text-dim); margin-top: 0; font-size: 1.05rem; }
+  .lang-switch { text-align: right; font-size: 0.85rem; color: var(--text-dim); }
+
+  .signal-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 20px; margin: 16px 0;
+    transition: border-color .2s, transform .2s;
+  }
+  .signal-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .signal-card.buy { border-left: 4px solid var(--win); }
+  .signal-card.sell { border-left: 4px solid var(--loss); }
+  .signal-header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+  .signal-pair { font-weight: 700; font-size: 1.15rem; }
+  .badge { padding: 3px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; color: #08111f; }
+  .badge.buy { background: var(--win); }
+  .badge.sell { background: var(--loss); color: #fff; }
+  .prices { display: flex; gap: 22px; margin: 14px 0; flex-wrap: wrap; font-size: 0.86rem; color: var(--text-dim); }
+  .prices span b { display: block; font-size: 1.05rem; color: var(--text); font-variant-numeric: tabular-nums; }
+  .signal-chart { max-width: 100%; border-radius: 10px; margin: 12px 0; border: 1px solid var(--border); }
+
+  .cta {
+    background: linear-gradient(135deg, var(--accent-soft), #0f2547);
+    border: 1px solid var(--accent); color: var(--text);
+    padding: 30px 24px; border-radius: var(--radius); text-align: center; margin: 3rem 0;
+  }
+  .cta a {
+    display: inline-block; margin-top: 10px; padding: 13px 30px;
+    background: var(--accent); color: #06101f; font-weight: 800;
+    border-radius: 999px; text-decoration: none; font-size: 1.05rem;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .cta a:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(79,140,255,.35); }
+
+  .backtest { background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin: 2rem 0; }
+  .backtest h2 { margin-top: 0; border-bottom: none; }
+  .backtest-stat { font-size: 1.5rem; font-weight: 800; color: var(--gold); margin: 6px 0; letter-spacing: -0.01em; }
+
+  .perf-stats { display: flex; gap: 14px; flex-wrap: wrap; margin: 18px 0; }
+  .perf-stat {
+    flex: 1 1 120px; text-align: center; background: var(--bg-card);
+    border: 1px solid var(--border); border-radius: 12px; padding: 16px 10px;
+    font-size: .82rem; color: var(--text-dim);
+  }
+  .perf-stat b { display: block; font-size: 1.7rem; color: var(--text); font-variant-numeric: tabular-nums; }
+
+  table.recent { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 14px; }
+  table.recent th { text-align: left; padding: 9px 10px; color: var(--text-dim); font-weight: 600; border-bottom: 1px solid var(--border); }
+  table.recent td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); }
+  .outcome-win { color: var(--win); font-weight: 700; }
+  .outcome-loss { color: var(--loss); font-weight: 700; }
+
+  .disclaimer { font-size: 0.82rem; color: var(--text-dim); margin-top: 3rem; border-top: 1px solid var(--border); padding-top: 14px; }
+  footer { margin-top: 2rem; font-size: 0.85rem; color: var(--text-dim); }
+  footer a { color: var(--text-dim); }
+
+  @media (max-width: 600px) {
+    body { padding: 20px 14px 56px; }
+    .prices { gap: 14px; }
+    .perf-stat b { font-size: 1.45rem; }
+  }
+</style>
+</head>
+<body>
+  <p class="lang-switch"><a href="/en/signals/2026-08-03.html">English version</a></p>
+  <header>
+    <h1>Signaux crypto gratuits — 03/08/2026</h1>
+    <p class="subtitle">Analyse technique automatique (EMA 9/21 + RSI) sur les paires les plus tradées. Contenu généré et mis à jour chaque jour.</p>
+  </header>
+
+  
+
+  <section>
+    <h2>🔎 Les 5 derniers signaux</h2>
+    
+    <article class="signal-card sell">
+      <div class="signal-header">
+        <span class="signal-pair">XLM/USDT</span>
+        <span class="badge sell">VENTE</span>
+      </div>
+      <div class="prices">
+        <span>Entrée<b>0.174100</b></span>
+        <span>Stop loss<b>0.175404</b></span>
+        <span>Take profit<b>0.170296</b></span>
+      </div>
+      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/XLM-USDT-1785711675198.png" alt="XLM/USDT chart" loading="lazy">
+      <p>Le signal VENTE sur XLM/USDT a été déclenché par un croisement baissier : le prix est repassé sous sa moyenne mobile exponentielle à 21 périodes alors que le RSI sortait de la zone de surachat, signalant un possible retournement baissier à court terme. Entrée autour de 0.174100, stop loss à 0.175404 (+0.7%), take profit à 0.170296 (-2.2%).</p>
+    </article>
+    <article class="signal-card buy">
+      <div class="signal-header">
+        <span class="signal-pair">CHZ/USDT</span>
+        <span class="badge buy">ACHAT</span>
+      </div>
+      <div class="prices">
+        <span>Entrée<b>0.012810</b></span>
+        <span>Stop loss<b>0.012694</b></span>
+        <span>Take profit<b>0.013150</b></span>
+      </div>
+      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/CHZ-USDT-1785639941363.png" alt="CHZ/USDT chart" loading="lazy">
+      <p>Le signal ACHAT sur CHZ/USDT a été déclenché par un croisement haussier : le prix est repassé au-dessus de sa moyenne mobile exponentielle à 21 périodes pendant que le RSI sortait de la zone de survente, une configuration technique classique de retournement à court terme. Entrée autour de 0.012810, avec un stop loss à 0.012694 (-0.9%) et un objectif de take profit à 0.013150 (+2.7%).</p>
+    </article>
+    <article class="signal-card buy">
+      <div class="signal-header">
+        <span class="signal-pair">AVAX/USDT</span>
+        <span class="badge buy">ACHAT</span>
+      </div>
+      <div class="prices">
+        <span>Entrée<b>6.33</b></span>
+        <span>Stop loss<b>6.26</b></span>
+        <span>Take profit<b>6.51</b></span>
+      </div>
+      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/AVAX-USDT-1785639941363.png" alt="AVAX/USDT chart" loading="lazy">
+      <p>AVAX/USDT vient de valider un croisement EMA9/EMA21 haussier avec confirmation du RSI (sortie de survente), ce qui correspond aux critères du signal ACHAT généré ici : entrée proche de 6.33, protection (stop loss) à 6.26, objectif (take profit) à 6.51.</p>
+    </article>
+    <article class="signal-card sell">
+      <div class="signal-header">
+        <span class="signal-pair">DOGE/USDT</span>
+        <span class="badge sell">VENTE</span>
+      </div>
+      <div class="prices">
+        <span>Entrée<b>0.072697</b></span>
+        <span>Stop loss<b>0.072997</b></span>
+        <span>Take profit<b>0.072099</b></span>
+      </div>
+      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/DOGE-USDT-1785092203325.png" alt="DOGE/USDT chart" loading="lazy">
+      <p>Le signal VENTE sur DOGE/USDT a été déclenché par un croisement baissier : le prix est repassé sous sa moyenne mobile exponentielle à 21 périodes alors que le RSI sortait de la zone de surachat, signalant un possible retournement baissier à court terme. Entrée autour de 0.072697, stop loss à 0.072997 (+0.4%), take profit à 0.072099 (-0.8%).</p>
+    </article>
+    <article class="signal-card sell">
+      <div class="signal-header">
+        <span class="signal-pair">LTC/USDT</span>
+        <span class="badge sell">VENTE</span>
+      </div>
+      <div class="prices">
+        <span>Entrée<b>46.64</b></span>
+        <span>Stop loss<b>46.80</b></span>
+        <span>Take profit<b>46.31</b></span>
+      </div>
+      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/LTC-USDT-1785076069021.png" alt="LTC/USDT chart" loading="lazy">
+      <p>Sur LTC/USDT, l&#x27;EMA rapide (9 périodes) est repassée sous l&#x27;EMA lente (21 périodes) pendant que le RSI indiquait une sortie de zone de surachat, déclenchant ce signal VENTE. Entrée proche de 46.64, stop loss à 46.80, take profit visé à 46.31.</p>
+    </article>
+  </section>
+
+  
+    <section>
+      <h2>📊 Performance réelle des signaux passés</h2>
+      <p>Les premiers signaux sont en cours d'évaluation — reviens bientôt pour voir les premiers résultats réels.</p>
+    </section>
+
+  
+
+  
+    <section class="testimonials">
+      <h2>💬 Ce qu'ils en pensent</h2>
+      <blockquote><p>« J&#x27;étais sceptique, mais le signal BTC/USDT de la semaine dernière m&#x27;a fait +4% en 48h. Je reste abonné. »</p><cite>— Thomas D.</cite></blockquote><blockquote><p>« Ce que j&#x27;apprécie, c&#x27;est que le stop loss est toujours indiqué à l&#x27;avance. Pas de mauvaise surprise. »</p><cite>— Sarah L.</cite></blockquote><blockquote><p>« Les signaux sont moins fréquents que je pensais, mais au moins ils sont expliqués et pas juste balancés sans contexte. »</p><cite>— Karim B.</cite></blockquote><blockquote><p>« J&#x27;ai commencé avec l&#x27;essai gratuit avant de passer au plan payant. Le format Telegram est pratique au quotidien. »</p><cite>— Julie M.</cite></blockquote>
+      <p style="font-size:0.82rem;color:#777;">⚠️ Exemples fictifs illustrant le format des retours utilisateurs — pas de vrais témoignages.</p>
+    </section>
+
+  <div class="cta">
+    <p>📡 Reçois ces signaux en temps réel, dès qu'ils sont détectés :</p>
+    <a href="https://t.me/ProVIPSignals_bot">Rejoindre @ProVIPSignals_bot sur Telegram</a>
+    <p><a href="https://t.me/ProSignauxPublic">📖 Journal de trading public — chaque signal ouvert et clôturé, gains comme pertes, sans filtre</a></p>
+  </div>
+
+  <p class="disclaimer">⚠️ Ce contenu est fourni à titre informatif et pédagogique, il ne constitue pas un conseil en investissement. Le trading de cryptoactifs comporte un risque de perte en capital. Les performances passées ne préjugent pas des performances futures.</p>
+
+  <footer>
+    <p>Page générée automatiquement le 03/08/2026. — <a href="/privacy.html">Politique de confidentialité</a> — <a href="/terms.html">Conditions générales</a> — <a href="/transparency.html">Transparence</a> — <a href="/guides/">Guides</a> — <a href="/comment-ca-marche.html">Comment ça marche</a> — <a href="/faq.html">FAQ</a> — <a href="/glossaire.html">Glossaire</a> — <a href="/a-propos.html">À propos</a> — <a href="/mentions-legales.html">Mentions légales</a></p>
+  </footer>
+</body>
+</html>
