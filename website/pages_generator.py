@@ -1,8 +1,7 @@
 """
-Pages de fond du site : « Comment ça marche », « À propos », glossaire.
+Pages de fond du site : « Comment ça marche », « À propos », glossaire, CGV.
 
-Ces trois pages manquaient. Elles répondent chacune à un moment précis du
-parcours d'un visiteur :
+Ces pages répondent chacune à un moment précis du parcours d'un visiteur :
 
   - Comment ça marche : « concrètement, il se passe quoi si je m'inscris ? »
     C'est la question qui bloque juste avant l'essai.
@@ -12,6 +11,11 @@ parcours d'un visiteur :
   - Glossaire : cible les recherches de débutants (« c'est quoi un stop
     loss », « ATR trading ») qui amènent exactement le public visé, et sert
     de maillage interne vers les guides.
+  - CGV : les conditions de vente. Générées ici depuis le 03/08/2026 (elles
+    étaient auparavant un fichier HTML écrit à la main dans public/, donc
+    jamais mis à jour quand la stratégie changeait) — c'est le document que
+    l'abonné est censé lire AVANT de payer, il ne peut pas décrire un moteur
+    qui n'existe plus.
 
 Aucune de ces pages ne promet de performance : elles décrivent le
 fonctionnement et l'état réel du projet, y compris ses limites.
@@ -38,6 +42,15 @@ _EXTRA = """
   .glossary dd { margin: 4px 0 0; color: var(--text-dim); }
   .note { background: var(--bg-soft); border-left: 3px solid var(--gold);
           border-radius: 8px; padding: 14px 16px; margin: 20px 0; color: var(--text-dim); }
+  /* Bloc rouge, réservé à ce qui coûte de l'argent à l'abonné s'il ne le lit
+     pas — aujourd'hui la clause des périodes sans aucun signal. Une clause
+     décisive noyée dans le corps du texte est une clause cachée. */
+  .warn { background: var(--bg-soft); border-left: 3px solid var(--loss);
+          border-radius: 8px; padding: 16px 18px; margin: 22px 0; }
+  .warn p { margin: 0 0 10px; }
+  .warn p:last-child { margin-bottom: 0; }
+  code { background: var(--bg-soft); border: 1px solid var(--border);
+         padding: 1px 6px; border-radius: 4px; font-size: .9em; }
 """
 
 
@@ -67,19 +80,36 @@ def _shell(title, description, path, body, kind="website", jsonld=None):
 """
 
 
+# État du filtre de tendance affiché sur le site. Volontairement DATÉ plutôt
+# qu'écrit au présent (« aujourd'hui le filtre est fermé ») : ces pages sont
+# régénérées tous les jours mais ces deux valeurs, elles, sont saisies à la
+# main. Un « aujourd'hui » figé deviendrait faux dès le lendemain — exactement
+# le type de chiffre périmé affiché comme actuel que ce projet s'interdit.
+# À mettre à jour à chaque changement d'état du filtre.
+FILTER_STATE_DATE = "3 août 2026"
+FILTER_STATE_GAP = "10,7 %"
+
 STEPS = [
-    ("La stratégie surveille le marché",
-     "40 paires crypto sont analysées en continu sur des bougies horaires. Le moteur cherche "
-     "un croisement de moyennes mobiles confirmé par le RSI, filtré par le régime de marché (ADX)."),
-    ("Un signal n'est émis que si tout concorde",
-     "La plupart des configurations sont écartées. C'est voulu : un signal forcé pour faire du "
-     "volume n'a aucune valeur. Certaines journées ne produisent aucun signal, et c'est annoncé."),
+    ("D'abord, le filtre de tendance décide si le canal ouvre",
+     "Une seule question avant tout le reste : le Bitcoin est-il au-dessus de sa moyenne mobile "
+     "200 jours ? S'il est en dessous, aucun signal n'est émis ce jour-là, quelles que soient les "
+     "opportunités apparentes. Sur les 6 dernières années mesurées, ce filtre a été fermé 41 % du "
+     "temps, et sa plus longue fermeture a duré 381 jours d'affilée."),
+    ("Les 40 paires sont classées par force relative",
+     "Une fois par jour, sur des clôtures journalières, les 40 paires suivies sont classées de la "
+     "plus forte à la plus faible selon leur progression récente. C'est du momentum, rien de plus : "
+     "un simple classement par rendement passé donne le même résultat. Aucun indicateur secret."),
+    ("Les 12 premières du classement déclenchent un signal",
+     "Le moteur achète le haut du classement — 12 paires sur 40 — et ignore les 28 autres. Quand le "
+     "filtre est ouvert, cela représente 8,0 signaux par semaine en moyenne sur la période mesurée."),
     ("Tu reçois le signal complet sur Telegram",
      "Paire, sens, prix d'entrée, stop loss et trois objectifs — tous définis AVANT l'ouverture, "
      "jamais ajustés après coup."),
-    ("Le suivi est automatique jusqu'à la clôture",
-     "Premier objectif atteint : le stop remonte au prix d'entrée, la position ne peut plus finir "
-     "perdante. Tu es notifié à chaque étape, y compris si le stop est touché."),
+    ("La position est tenue 7 jours, puis clôturée sur le temps",
+     "La sortie est TEMPORELLE : on ne sort pas parce qu'un prix est atteint, mais parce que 7 jours "
+     "se sont écoulés. Le stop, large (4 x ATR), n'est là que contre l'accident : il ne provoque que "
+     "5 % des sorties. Les objectifs (4, 8 et 12 x ATR) jalonnent la progression, ils ne pilotent pas "
+     "la clôture."),
     ("Tout est publié, gains comme pertes",
      "Chaque résultat apparaît sur le canal public et la page Transparence. Un service qui ne "
      "publie que ses gains ne publie pas ses résultats."),
@@ -97,7 +127,8 @@ def build_how_it_works():
     body = f"""  <p class="breadcrumb"><a href="/">Accueil</a> › Comment ça marche</p>
   <header>
     <h1>Comment ça marche</h1>
-    <p class="subtitle">Du signal détecté à la position clôturée, étape par étape.</p>
+    <p class="subtitle">Acheter ce qui monte déjà, ne rien faire quand le marché baisse.
+       Étape par étape, et avec les chiffres.</p>
   </header>
 
   <section>
@@ -105,22 +136,99 @@ def build_how_it_works():
   </section>
 
   <section>
+    <h2>Le filtre de tendance, en détail</h2>
+    <p>C'est la pièce centrale, et c'est aussi celle qui déplaît le plus&nbsp;: <b>41 % du temps,
+       ce canal n'émet rien du tout.</b> Pas parce qu'il est en panne, mais parce que le Bitcoin
+       est sous sa moyenne mobile 200 jours et que la stratégie a interdiction d'acheter dans ces
+       conditions.</p>
+    <p>Ces silences peuvent être très longs. Sur 6 ans&nbsp;: 11 fermetures d'au moins une semaine,
+       de durée médiane 25 jours, dont une de <b>381 jours consécutifs — 12,7 mois</b>, du
+       28/12/2021 au 13/01/2023. Les autres fermetures longues ont duré 273 jours (celle en cours,
+       ouverte le 03/11/2025), 80 jours, 47 jours et 29 jours.</p>
+    <div class="warn">
+      <p><b>Au {FILTER_STATE_DATE}, le filtre est fermé.</b> Le Bitcoin est {FILTER_STATE_GAP} sous
+         sa moyenne 200 jours&nbsp;: le canal n'émettra aucun signal tant qu'elle n'est pas
+         franchie, et personne ne sait quand cela arrivera.</p>
+      <p>Si tu cherches un service qui envoie quelque chose tous les jours, ce n'est pas celui-ci.</p>
+    </div>
+    <p>Pourquoi accepter ça&nbsp;? Parce que c'est ce filtre qui fait la différence. Sans lui, la
+       stratégie n'est positive que 4 années sur 7. Avec lui, elle n'a <b>aucune année perdante sur
+       les 6 années mesurées</b> — en 2022 et en 2026 elle n'a tout simplement rien émis, pendant
+       que détenir ces mêmes cryptos coûtait -70,9 % puis -39,4 %.</p>
+    <p>Ne rien envoyer est donc une décision, pas un incident. On préfère un abonné qui trouve le
+       canal silencieux à un abonné qui perd son capital pour avoir reçu du contenu.</p>
+  </section>
+
+  <section>
+    <h2>Ce que le classement apporte vraiment</h2>
+    <p>Honnêtement&nbsp;: peu. L'essentiel du résultat vient du filtre de tendance. Classer les
+       paires par force relative plutôt que de les prendre au hasard n'ajoute qu'environ
+       <b>1,1 point</b>. C'est réel, c'est mesuré, mais ce n'est pas là que se joue la partie.</p>
+    <p>Et ce n'est pas un indicateur magique. Nous utilisons le RSI pour construire le classement,
+       mais un simple tri par rendement passé fait aussi bien&nbsp;: c'est du momentum, point. Toute
+       présentation qui vend un indicateur comme l'ingrédient secret devrait être lue avec méfiance,
+       y compris la nôtre.</p>
+  </section>
+
+  <section>
+    <h2>Ce que disent les mesures</h2>
+    <p>Backtest sur 6 ans (2020-2026), univers non contaminé par le biais du survivant, entrée
+       décalée d'un jour, net de 0,10 % de frais aller-retour. Quand le filtre est ouvert&nbsp;:</p>
+    <div class="perf-stats">
+      <div class="perf-stat"><b>8,0</b> signaux par semaine</div>
+      <div class="perf-stat"><b>47,7 %</b> de réussite</div>
+      <div class="perf-stat"><b>+3,22 %</b> par signal, net de frais</div>
+      <div class="perf-stat"><b>+16,88 %</b> gagnant moyen</div>
+      <div class="perf-stat"><b>-9,24 %</b> perdant moyen</div>
+    </div>
+    <p>Moins d'un signal sur deux est gagnant. C'est normal pour cette famille de stratégies&nbsp;:
+       ce qui compte n'est pas le taux de réussite mais le rapport entre ce que rapporte un gagnant
+       et ce que coûte un perdant.</p>
+    <p>Un portefeuille composé sur ces 6 ans complets aurait progressé de 83,3 % par an, avec une
+       chute maximale de -62,9 % en cours de route. <b>Ce chiffre ne décrit pas ce que gagnera un
+       abonné</b>&nbsp;: il suppose d'être entré au premier jour du backtest et d'avoir tout traversé
+       sans jamais s'arrêter, y compris la perte de près des deux tiers du capital. Personne n'entre
+       au début d'un backtest.</p>
+  </section>
+
+  <section>
+    <h2>Ce qu'un abonné peut réellement attendre</h2>
+    <p>Le chiffre honnête n'est pas le rendement annuel, c'est celui-ci&nbsp;: si tu commences à
+       suivre les signaux à une date tirée au hasard dans ces 6 ans, voici ce qui t'arrive.</p>
+    <table class="recent">
+      <thead><tr><th>Après…</th><th>Résultat médian</th><th>Entrées gagnantes</th><th>Pire cas observé</th></tr></thead>
+      <tbody>
+        <tr><td>3 mois</td><td>0,0 %</td><td>43 %</td><td class="outcome-loss">-49,0 %</td></tr>
+        <tr><td>6 mois</td><td>+5,0 %</td><td>53 %</td><td class="outcome-loss">-61,7 %</td></tr>
+      </tbody>
+    </table>
+    <p>À trois mois, l'entrée médiane est à zéro et une majorité d'entrées est perdante. À six mois,
+       la médiane passe à +5,0 % et un peu plus d'une entrée sur deux est gagnante. Et dans le pire
+       cas mesuré, on perd plus de la moitié du capital engagé.</p>
+    <div class="note">
+      Autrement dit&nbsp;: c'est une stratégie qui demande de la durée et de la tolérance à la
+      perte. Les résultats passés, backtestés ou réels, ne préjugent en rien de l'avenir, et rien
+      ici n'est garanti.
+    </div>
+  </section>
+
+  <section>
     <h2>Ce que le service ne fait pas</h2>
     <p>Il ne passe aucun ordre à ta place et n'a jamais accès à tes fonds ni à ton exchange.
        Tu restes seul décisionnaire de chaque position.</p>
-    <p>Il ne promet aucune performance. Sur les 24 derniers mois de données simulées, les gains
-       et les pertes se compensent quasiment&nbsp;: la stratégie n'a pas démontré de rentabilité,
-       et nous publions ce résultat plutôt que de le cacher.</p>
-    <div class="note">
-      Ce qui est réellement démontrable&nbsp;: des niveaux définis à l'avance, une sécurisation
-      automatique au premier objectif, et la publication intégrale des résultats. C'est un cadre
-      de discipline, pas une machine à gains.
-    </div>
+    <p>Il ne te dit pas quoi faire de ton argent&nbsp;: ce sont des signaux informatifs, pas un
+       conseil en investissement personnalisé. Il ne promet aucun gain, et il ne cherche pas à
+       occuper le canal quand la stratégie dit de ne rien faire.</p>
+    <p>Le moteur précédent, qui achetait au contraire les paires au RSI bas, a été désactivé le
+       3 août 2026 après qu'une mesure sur 6 ans l'a désigné comme la jambe perdante&nbsp;: de
+       -24,9 % à +16,9 % par an selon les réglages, majoritairement négative. Nous l'écrivons ici
+       plutôt que de réécrire discrètement cette page comme si de rien n'était.</p>
   </section>
 
   <div class="cta">
     <p><b>Teste sans payer</b></p>
-    <p>Essai gratuit de 3 jours, aucun moyen de paiement demandé.</p>
+    <p>Essai gratuit de 3 jours, aucun moyen de paiement demandé.
+       Vérifie d'abord l'état du filtre&nbsp;: fermé, tu ne recevras rien.</p>
     <a href="https://t.me/{TELEGRAM_BOT_USERNAME}">Ouvrir le bot Telegram →</a>
   </div>
 """
@@ -132,8 +240,8 @@ def build_how_it_works():
                  for i, (t, d) in enumerate(STEPS, 1)],
     }
     return _shell(
-        "Comment ça marche — du signal à la clôture",
-        "Le fonctionnement complet du bot de signaux crypto : détection, émission, suivi automatique jusqu'à la clôture, publication de tous les résultats.",
+        "Comment ça marche — force relative et filtre de tendance",
+        "Le fonctionnement réel du bot : classement des 40 paires par force relative, achat des 12 plus fortes, sortie après 7 jours, et aucun signal quand le Bitcoin est sous sa moyenne 200 jours (41 % du temps).",
         "/comment-ca-marche", body, jsonld=jsonld,
     )
 
@@ -157,13 +265,33 @@ def build_about():
 
   <section>
     <h2>Comment c'est construit</h2>
-    <p>Tout est automatisé : la détection tourne toutes les 30 minutes sur des données de marché
-       réelles, la diffusion et le suivi des positions sont gérés par un service qui ne dort
-       jamais. Aucune intervention humaine ne décide d'un signal.</p>
+    <p>Tout est automatisé : une fois par jour, après la clôture journalière, le moteur classe
+       40 paires par force relative et retient les 12 premières ; la diffusion et le suivi des
+       positions sont gérés par un service qui ne dort jamais. Aucune intervention humaine ne
+       décide d'un signal — et aucune n'en force un quand le filtre de tendance est fermé.</p>
     <p>Le code source est intégralement public sur
        <a href="https://github.com/AYMERICLEGOAT/crypto-signals-bot" rel="noopener">GitHub</a> :
-       la stratégie, les backtests, et jusqu'aux analyses qui concluent que l'avantage n'est pas
-       démontré. Tu peux vérifier toi-même ce qui est fait, plutôt que nous croire sur parole.</p>
+       la stratégie, les backtests, et jusqu'aux analyses qui ont conclu que le moteur précédent
+       était perdant et l'ont fait désactiver. Tu peux vérifier toi-même ce qui est fait, plutôt
+       que nous croire sur parole.</p>
+  </section>
+
+  <section>
+    <h2>Ce qui a changé le 3 août 2026</h2>
+    <p>Le moteur d'origine achetait les paires dont le RSI était bas — la logique classique du
+       « c'est tombé, ça va remonter ». Mesuré sur 6 ans et 18 paires non contaminées par le biais
+       du survivant, c'est la jambe <b>perdante</b> : de -24,9 % à +16,9 % par an selon les
+       réglages, majoritairement négative. Continuer à le diffuser à des abonnés payants n'était
+       pas défendable. Il a été désactivé.</p>
+    <p>Le moteur actuel fait l'inverse : il achète ce qui monte déjà. Il classe les 40 paires par
+       force relative, garde les 12 plus fortes, les tient 7 jours puis sort sur le temps.
+       Le détail complet est sur la page
+       <a href="/comment-ca-marche.html">Comment ça marche</a>.</p>
+    <p>Et surtout, il ne fait rien quand le Bitcoin est sous sa moyenne mobile 200 jours — soit
+       41 % du temps sur les 6 dernières années, avec une fermeture record de 381 jours
+       consécutifs. C'est ce filtre qui fait la majeure partie du travail : le classement par force
+       relative, lui, n'apporte qu'environ 1,1 point. Nous préférons le dire que laisser croire à
+       un indicateur miracle.</p>
   </section>
 
   <section>
@@ -171,9 +299,14 @@ def build_about():
     <p>Le service est jeune et le nombre d'abonnés est faible. Nous ne gonflons aucun chiffre :
        la page <a href="/transparency.html">Transparence</a> affiche les résultats réels, même
        quand ils sont modestes ou négatifs.</p>
-    <p>La mesure la plus récente, sur 24 mois de données, montre que gains et pertes se
-       compensent quasiment. Nous aurions pu ne publier que la période favorable. Nous préférons
-       afficher l'ensemble et laisser chacun juger.</p>
+    <p>Le nouveau moteur n'a, à ce jour, <b>aucun historique en direct</b> : tout ce que nous
+       publions à son sujet vient d'un backtest sur 6 ans. Ce backtest n'a aucune année perdante,
+       mais un abonné entrant à une date au hasard obtient, six mois plus tard, une médiane de
+       +5,0 % — et, dans le pire cas mesuré, -61,7 %. C'est cette fourchette-là qui décrit une
+       expérience réelle, pas un rendement annuel.</p>
+    <p>Au {FILTER_STATE_DATE}, le filtre est fermé et le canal n'émet rien. Un service commercial
+       ordinaire cacherait cette période. Nous l'affichons, parce qu'elle fait partie de la
+       stratégie.</p>
     <div class="note">
       Ce n'est pas un conseil en investissement. Le trading de cryptoactifs comporte un risque de
       perte en capital, y compris de la totalité des sommes engagées.
@@ -188,7 +321,7 @@ def build_about():
 """
     return _shell(
         "À propos — l'histoire et les limites du projet",
-        "Pourquoi ce bot de signaux crypto existe, comment il est construit, et où en est réellement le projet — sans chiffres gonflés.",
+        "Pourquoi ce bot de signaux crypto existe, pourquoi son moteur a été remplacé le 3 août 2026, et où en est réellement le projet — sans chiffres gonflés.",
         "/a-propos", body,
     )
 
@@ -292,16 +425,206 @@ def build_glossary():
     )
 
 
+# Date affichée en tête des CGV. À changer à chaque modification de fond du
+# texte — pas à chaque régénération quotidienne, sinon la date ne veut plus
+# rien dire et l'abonné ne peut plus savoir ce qui a bougé depuis sa lecture.
+TERMS_LAST_UPDATE = "2026-08-03"
+
+
+def build_terms():
+    """
+    Conditions générales de vente et d'utilisation.
+
+    Générées depuis le 03/08/2026 (avant : public/terms.html, écrit à la main).
+    Le déclencheur est la section 2 ci-dessous : le moteur Force Relative
+    n'émet aucun signal quand le Bitcoin est sous sa moyenne 200 jours, soit
+    41 % du temps, une fois pendant 381 jours d'affilée. Vendre un abonnement
+    de 30 jours sans avoir écrit noir sur blanc qu'il peut ne rien contenir
+    serait une omission trompeuse (art. L121-3 du code de la consommation) —
+    et, plus simplement, une façon de prendre l'argent de quelqu'un qui n'a pas
+    compris ce qu'il achetait.
+    """
+    body = f"""  <p class="breadcrumb"><a href="/">Accueil</a> › Conditions générales</p>
+  <header>
+    <h1>Conditions générales de vente et d'utilisation</h1>
+    <p class="subtitle">Dernière mise à jour : {TERMS_LAST_UPDATE}</p>
+  </header>
+
+  <p>Ces conditions régissent l'accès et l'utilisation du bot Telegram
+     @{TELEGRAM_BOT_USERNAME} et de ce site. En utilisant le canal gratuit, en démarrant un essai
+     ou en payant un abonnement, tu acceptes les termes ci-dessous.</p>
+
+  <section>
+    <h2>1. Objet du service</h2>
+    <p>Le service diffuse, de façon automatisée, des signaux d'analyse technique crypto sur
+       40 paires USDT, ainsi qu'un canal public gratuit à diffusion différée. La stratégie classe
+       chaque jour ces 40 paires par force relative (momentum) sur données journalières, retient
+       les 12 plus fortes, et clôture chaque position au bout de 7 jours. Un stop large
+       (4 x ATR) protège contre l'accident&nbsp;; les objectifs affichés jalonnent la progression
+       mais ne déclenchent pas la clôture.</p>
+    <p>Ce contenu est <strong>éducatif et informatif</strong>&nbsp;: il ne constitue en aucun cas un
+       conseil en investissement, une recommandation personnalisée, ni une incitation à acheter ou
+       vendre un actif. Tu décides seul de tes positions. Le trading de cryptoactifs comporte un
+       risque de perte en capital, pouvant aller jusqu'à la perte totale des sommes engagées.</p>
+  </section>
+
+  <section>
+    <h2>2. Périodes sans aucun signal — à lire avant de payer</h2>
+    <p><strong>Ce service peut ne diffuser aucun signal pendant des périodes prolongées, y compris
+       pendant la totalité d'un abonnement payé.</strong></p>
+    <p>La stratégie n'émet aucun signal tant que le Bitcoin est sous sa moyenne mobile 200 jours.
+       Sur les 6 dernières années mesurées, cette condition d'arrêt a été remplie <strong>41 % du
+       temps</strong>. Il y a eu 11 périodes d'arrêt d'au moins une semaine, de durée médiane
+       25 jours, dont une de <strong>381 jours consécutifs</strong> (12,7 mois, du 28/12/2021 au
+       13/01/2023).</p>
+    <div class="warn">
+      <p><b>L'abonnement court pendant ces périodes.</b> La durée achetée (14 ou 30 jours) s'écoule
+         au calendrier. Elle n'est ni suspendue, ni prolongée, ni remboursée, même si aucun signal
+         n'est émis du premier au dernier jour. Il est donc parfaitement possible de payer un
+         abonnement de 30 jours et de ne recevoir aucun signal.</p>
+      <p><b>Ce n'est pas une panne, c'est le comportement voulu de la stratégie.</b> Sans cette
+         règle d'arrêt, la stratégie n'est positive que 4 années sur 7&nbsp;; avec elle, elle n'a
+         aucune année perdante sur les 6 années mesurées. En 2022 et en 2026 elle n'a rien émis,
+         pendant que détenir ces mêmes cryptos coûtait -70,9 % puis -39,4 %. Ne rien envoyer est
+         la protection, pas le défaut.</p>
+      <p><b>Tu en es informé avant tout paiement.</b> Au {FILTER_STATE_DATE}, cette condition
+         d'arrêt est active&nbsp;: le Bitcoin est {FILTER_STATE_GAP} sous sa moyenne 200 jours et
+         le service n'émet aucun signal. Personne ne peut prévoir la date de reprise. N'achète pas
+         d'abonnement en pariant sur une reprise à une échéance donnée.</p>
+    </div>
+    <p>L'état de cette condition (active ou non) est annoncé sur le canal et expliqué en détail sur
+       la page <a href="/comment-ca-marche.html">Comment ça marche</a>. Une interruption due à un
+       incident technique (section 9) est une chose différente et sera signalée comme telle.</p>
+  </section>
+
+  <section>
+    <h2>3. Accès et capacité à contracter</h2>
+    <p>Le canal public gratuit et l'essai gratuit sont accessibles à toute personne disposant d'un
+       compte Telegram. Les offres payantes (section 4) impliquent un paiement irréversible et
+       supposent donc la capacité juridique de contracter au sens de la loi applicable&nbsp;; un
+       mineur souhaitant y souscrire doit obtenir au préalable l'accord de son représentant légal.
+       Nous ne demandons ni ne vérifions de justificatif d'identité (voir
+       <a href="/privacy.html">politique de confidentialité</a>)&nbsp;: c'est à l'utilisateur de
+       respecter cette condition.</p>
+  </section>
+
+  <section>
+    <h2>4. Offres et tarifs</h2>
+    <table class="recent">
+      <thead><tr><th>Offre</th><th>Durée</th><th>Prix</th></tr></thead>
+      <tbody>
+        <tr><td>Essai gratuit (<code>/trial</code>)</td><td>3 jours</td><td>Gratuit — une fois par wallet</td></tr>
+        <tr><td>Découverte</td><td>14 jours</td><td>5 USDT — offre de lancement, quantité limitée, une fois par wallet</td></tr>
+        <tr><td>Standard</td><td>30 jours</td><td>19 USDT</td></tr>
+        <tr><td>Pro</td><td>30 jours</td><td>39 USDT (accès prioritaire aux signaux) — temporairement masqué dans <code>/subscribe</code></td></tr>
+      </tbody>
+    </table>
+    <p>Les prix sont fixés en USDT (stablecoin indexé sur le dollar américain)&nbsp;; les paiements
+       en Monero (XMR) ou Litecoin (LTC) sont convertis au montant équivalent au moment de
+       l'émission de la facture. Ces tarifs peuvent évoluer&nbsp;: la commande <code>/subscribe</code>
+       affiche toujours les prix en vigueur au moment de l'achat, parmi les offres qui y sont
+       visibles.</p>
+  </section>
+
+  <section>
+    <h2>5. Paiement</h2>
+    <p>Les paiements se font exclusivement en cryptoactifs (USDT sur le réseau Polygon, Monero ou
+       Litecoin), directement depuis ton propre wallet vers l'adresse fournie par le bot — nous ne
+       stockons ni ne manipulons jamais tes fonds ni tes clés privées. Une transaction blockchain
+       est <strong>irréversible</strong> par construction&nbsp;: il est de ta responsabilité de
+       vérifier l'adresse, le montant et le réseau avant d'envoyer les fonds. Un envoi vers une
+       mauvaise adresse ou un mauvais réseau ne peut pas être annulé ni récupéré par nos soins.</p>
+  </section>
+
+  <section>
+    <h2>6. Absence de droit de rétractation</h2>
+    <p>L'abonnement est un contenu numérique dont l'exécution démarre immédiatement dès
+       confirmation du paiement sur la blockchain (activation automatique de l'accès), à ta demande
+       expresse. Conformément aux exceptions prévues pour la fourniture immédiate de contenu
+       numérique non fourni sur support matériel, tu reconnais renoncer à ton droit de rétractation
+       à compter de cette activation. Aucun remboursement n'est possible une fois le paiement
+       confirmé — y compris en cas d'erreur d'envoi de ta part (section 5) et y compris si aucun
+       signal n'est émis pendant la période souscrite (section 2).</p>
+  </section>
+
+  <section>
+    <h2>7. Durée, non-reconduction et résiliation</h2>
+    <p>Les abonnements ne se renouvellent <strong>jamais automatiquement</strong>&nbsp;: à
+       l'expiration, l'accès aux signaux payants s'arrête et il faut repasser par
+       <code>/subscribe</code> pour se réabonner. Des rappels sont envoyés avant l'expiration
+       (48 h, 24 h, 2 h), sans jamais déclencher de prélèvement automatique — aucun moyen de
+       paiement n'est d'ailleurs mémorisé par le bot. Tu peux arrêter les relances à tout moment
+       avec <code>/cancel</code>&nbsp;; ton accès déjà payé reste valable jusqu'à sa date
+       d'expiration normale.</p>
+  </section>
+
+  <section>
+    <h2>8. Absence de garantie de résultat</h2>
+    <p>Les signaux reposent sur une stratégie testée sur données historiques (voir
+       <a href="/comment-ca-marche.html">Comment ça marche</a> et
+       <a href="/transparency.html">Transparence</a>). Les résultats passés — qu'ils viennent du
+       backtest ou du suivi réel — ne préjugent en rien des performances futures. Aucun taux de
+       réussite, aucun rendement, aucun nombre de signaux ne sont garantis, ni pour la durée de
+       l'abonnement ni au-delà.</p>
+    <p>La stratégie actuelle a remplacé la précédente le 3 août 2026, celle-ci ayant été mesurée
+       comme perdante. Nous nous réservons le droit d'ajuster ou de remplacer la stratégie
+       (paramètres, paires suivies, moteur) sans préavis&nbsp;; tout changement de fond est publié
+       sur le site et sur le canal.</p>
+  </section>
+
+  <section>
+    <h2>9. Responsabilité</h2>
+    <p>Le service est fourni « en l'état ». Nous ne pouvons être tenus responsables&nbsp;: des
+       pertes financières résultant de décisions de trading prises à partir des signaux, d'une
+       interruption temporaire du service (maintenance, panne d'un fournisseur tiers — Telegram,
+       Cloudflare, Supabase, fournisseurs de données de marché — ou congestion d'un réseau
+       blockchain), ou d'un envoi de fonds vers une mauvaise adresse par l'utilisateur. Le code
+       source de ce projet est
+       <a href="https://github.com/AYMERICLEGOAT/crypto-signals-bot" rel="noopener">public sur
+       GitHub</a> — tu peux l'auditer toi-même avant de payer.</p>
+  </section>
+
+  <section>
+    <h2>10. Résiliation par l'éditeur</h2>
+    <p>Nous nous réservons le droit de suspendre l'accès d'un compte en cas d'abus manifeste
+       (contournement des limites anti-abus par wallet, tentative de perturbation du service),
+       sans obligation de remboursement du temps d'abonnement restant dans ce cas.</p>
+  </section>
+
+  <section>
+    <h2>11. Droit applicable</h2>
+    <p>Ces conditions sont régies par le droit français. Tout litige sera, à défaut de résolution
+       amiable via le bot, soumis aux tribunaux compétents.</p>
+  </section>
+
+  <div class="cta">
+    <p><b>Une question sur ces conditions ?</b></p>
+    <p>Pose-la avant de payer, pas après.</p>
+    <a href="https://t.me/{TELEGRAM_BOT_USERNAME}">Écrire à @{TELEGRAM_BOT_USERNAME} →</a>
+  </div>
+"""
+    return _shell(
+        "Conditions générales de vente et d'utilisation",
+        "Conditions d'accès, tarifs, paiement et résiliation. Contient la clause des périodes sans aucun signal : le service n'émet rien quand le Bitcoin est sous sa moyenne 200 jours, historiquement 41 % du temps.",
+        "/terms.html", body,
+    )
+
+
 def build_all_pages():
     """[(chemin relatif, contenu)] pour publication."""
     return [
         ("comment-ca-marche.html", build_how_it_works()),
         ("a-propos.html", build_about()),
         ("glossaire.html", build_glossary()),
+        ("terms.html", build_terms()),
     ]
 
 
 def sitemap_entries(lastmod):
+    # /terms.html n'est volontairement PAS listé ici : main.py le déclare déjà
+    # dans sa liste de pages fixes (sitemap_pages), et les deux listes sont
+    # concaténées telles quelles — l'ajouter ici produirait deux <loc>
+    # identiques dans sitemap.xml. La page reste donc bien référencée.
     return [
         {"path": "/comment-ca-marche", "lastmod": lastmod},
         {"path": "/a-propos", "lastmod": lastmod},

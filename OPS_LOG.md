@@ -173,3 +173,51 @@ afficher les signaux OUVERTS en cours (P&L non réalisé en direct) plutôt
 que seulement "n/a" en l'absence de clôtures — donne quelque chose de
 concret à montrer à un visiteur pendant cette phase creuse, sans rien
 promettre de plus que ce qui est vrai aujourd'hui.
+
+## 2026-08-03
+
+**Bug critique trouvé et corrigé (priorité 1)** : le suivi post-trade
+(`cron/trackSignalOutcomes.ts`) était mort depuis son déploiement — Binance
+bloque géographiquement les requêtes depuis les IP Cloudflare Workers
+(HTTP 451/403), exactement comme il bloque déjà les runners GitHub Actions,
+mais ce cron-là n'avait aucun repli. Conséquence réelle : aucun signal
+n'avait jamais pu se clôturer sur un vrai TP/SL, seulement par le timeout de
+10 jours — les 2 tout premiers signaux du canal (LTC, DOGE, 26/07) étaient
+ouverts depuis 8 jours alors que leur take-profit avait été franchi depuis
+longtemps (vérifié en comparant au prix Coinbase courant avant correctif).
+Corrigé par un repli Coinbase Exchange puis Kraken (identique à l'ordre de
+`signals/main.py::fetch_recent_prices`), déployé et vérifié en conditions
+réelles via `wrangler tail` : les 5 signaux existants se sont immédiatement
+résolus (LTC/DOGE gagnants, CHZ perdant, AVAX/XLM en cours vers TP1/TP2).
+Tous les résultats de suivi accumulés avant ce correctif sont à considérer
+comme non représentatifs.
+
+**Trouvaille de recherche majeure, non déployée** : des scripts de backtest
+laissés en suspens d'une session précédente (`signals/backtest_rsi_*.py`,
+déjà présents en local au début de ce run) concluent — après un protocole de
+validation complet (bêta, délai d'exécution, biais d'univers, walk-forward,
+concentration temporelle, tous 18/18) — qu'un moteur force-relative
+journalier (achète le RSI HAUT avec filtre de tendance BTC>MM200, hold 7j,
+stops larges 4×ATR) aurait fait +83,3 %/an sur 6 ans sans année perdante,
+signe inverse de la production actuelle. Le code (`relative_strength.py`)
+et son intégration dans `main.py`/`config.py`/`storage.py` étaient déjà
+écrits et testés (voir `DECOUVERTE_FORCE_RELATIVE_2026-08-03.md` pour le
+détail et les 4 réserves d'honnêteté explicitement documentées) mais
+activés par défaut — je l'ai désactivé (`ENABLE_RELATIVE_STRENGTH_ENGINE =
+False`) avant de pousser : c'est un changement de nature du produit
+(fréquence, durée de détention, stops) avec zéro historique EN DIRECT, une
+décision commerciale substantielle qui revient à l'admin, pas à activer
+seul même si le moteur reste de toute façon silencieux tant que BTC est
+sous sa MM200. Question posée dans `admin_notes` (#10).
+
+Reste du run : santé/argent/croissance sans changement notable (Worker
+`/health` 200, webhook propre, 5 workflows verts sauf Twitter — 403 OAuth1
+toujours bloqué côté admin, 8e jour identique). Audit du jour (lundi =
+sécurité) propre : webhook secret vérifié en timing-safe, rate limiting
+(10 cmd/min) actif au niveau du routeur, commandes admin correctement
+gated, secrets Cloudflare tous présents, aucun secret en dur dans le code
+tracké. Repéré en passant (UX du lundi) : la FAQ/CGV affirment encore que
+"la stratégie n'a pas démontré de rentabilité" — copie antérieure à la
+géométrie G6 du 01/08 et probablement à revoir, mais laissé tel quel
+aujourd'hui (changement de discours commercial, pas un bug mécanique) —
+noté pour l'audit conformité de mercredi plutôt que corrigé à la volée.

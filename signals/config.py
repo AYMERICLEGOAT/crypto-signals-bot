@@ -322,6 +322,29 @@ SQUEEZE_HTF_EMA_PERIOD = 0            # 0 = pas de filtre de tendance ; sinon EM
 # message est publié sur le canal public via volatility_suspensions.
 VOLATILITY_SUSPENSION_ATR_PCT = 0.05
 
+# --- Moteur Haute Confiance (croisement EMA confirmé par un RSI BAS) ---
+# DÉSACTIVÉ le 03/08/2026, remplacé par le moteur Force Relative.
+#
+# Ce moteur achetait sur RSI < RSI_BUY_THRESHOLD, c'est-à-dire le quintile RSI
+# le plus bas. Mesuré sur 6 ans et 18 paires non contaminées par le biais du
+# survivant, c'est la jambe PERDANTE : de -24,9 % à +16,9 % par an selon les
+# réglages, majoritairement négative, contre +45,6 % à +104,4 % pour le sens
+# inverse. L'écart est de +69,6 points par an et il est positif sur 18
+# combinaisons de paramètres sur 18 (backtest_rsi_attaque, attaque 3).
+#
+# Réserve à conserver telle quelle, parce qu'elle est réelle : ce moteur opère
+# en 1 heure, pas en journalier transversal. Que le sens « RSI bas » perde à
+# l'horizon journalier ne PROUVE pas formellement qu'il perde au sien. Ce qui
+# est établi, en revanche, c'est qu'aucune des ~35 variantes de cette famille
+# n'a jamais passé le protocole de validation, et que le test des unités de
+# temps montrait une dégradation du 1h vers le 4h — signature d'une absence de
+# pouvoir prédictif. Continuer à diffuser à des abonnés payants une direction
+# que nos propres mesures désignent comme perdante n'était plus défendable.
+#
+# Les constantes ci-dessous sont conservées : elles servent encore aux backtests
+# de comparaison et au moteur Squeeze.
+ENABLE_HIGH_CONFIDENCE_ENGINE = False
+
 # --- Paramètres de la stratégie (valeurs par défaut, ajustables par le backtest) ---
 EMA_FAST_PERIOD = 9
 EMA_SLOW_PERIOD = 21
@@ -339,6 +362,13 @@ TAKE_PROFIT_PCT = 0.04    # +4 %
 # non sur une règle technique supposée. Chaque valeur ci-dessous provient d'un
 # backtest nommé ; aucune n'a été choisie parce qu'elle embellissait la courbe.
 # Ne modifier aucune de ces constantes sans relancer le module correspondant.
+#
+# Activé le 03/08/2026 sur décision explicite de l'admin, après lui avoir
+# présenté les mesures ET leurs contreparties : changement de nature du produit
+# (signaux journaliers tenus 7 jours avec stops larges, au lieu d'horaires),
+# aucun historique en direct, et surtout 41 % du temps sans aucun signal — la
+# plus longue fermeture ayant duré 381 jours. Ces contreparties sont désormais
+# assumées et écrites noir sur blanc côté abonné (site, CGV, /start).
 ENABLE_RELATIVE_STRENGTH_ENGINE = True
 
 # Le moteur travaille en JOURNALIER, pas en intrajournalier. C'est essentiel :
@@ -346,8 +376,25 @@ ENABLE_RELATIVE_STRENGTH_ENGINE = True
 # laissent un avantage net. Les moteurs horaires payaient 5 à 10 fois leur edge
 # en frais (voir backtest_timeframes.py).
 RS_RSI_PERIOD = 21          # backtest_rsi_long : 18/18 combinaisons positives
-RS_TOP_N = 5                # backtest_final_portefeuille : meilleur rendement/risque
 RS_HOLD_DAYS = 7            # sortie TEMPORELLE, c'est ce qui a été validé
+
+# Nombre de positions : le curseur quantité/qualité, mesuré sur l'univers de
+# PRODUCTION à 40 paires (backtest_frontiere_production). Les mesures d'origine
+# portaient sur 18 paires, où « top 5 » sélectionnait 28 % de l'univers ; sur
+# 40 paires le même 5 n'en sélectionne plus que 12,5 %, ce qui n'est ni la même
+# sélectivité ni la même quantité. La frontière complète, filtre actif :
+#
+#     top  5 / 7j :  3,5 signaux/sem | 49,7 % | +3,33 % | 4/5 années positives
+#     top 10 / 7j :  6,9 signaux/sem | 47,6 % | +3,38 % | 4/5
+#     top 12 / 7j :  8,0 signaux/sem | 47,7 % | +3,22 % | 4/5   <- retenu
+#     top 15 / 7j :  9,5 signaux/sem | 47,7 % | +2,76 % | 4/5
+#     top 20 / 5j : 15,3 signaux/sem | 47,4 % | +1,74 % | 4/5
+#
+# Toutes restent à 4/5 années positives : la qualité se dégrade progressivement,
+# pas brutalement. Passer de 5 à 12 multiplie les signaux par 2,3 pour 0,11
+# point d'espérance — le meilleur compromis quand la quantité compte autant que
+# la qualité. Au-delà de 15 la dégradation s'accélère nettement.
+RS_TOP_N = 12
 RS_TREND_MA_PERIOD = 200    # filtre absolu, Antonacci (2014) — règle extérieure au projet
 RS_MIN_RANKED_PAIRS = 15    # en dessous, le classement transversal n'a pas de sens
 

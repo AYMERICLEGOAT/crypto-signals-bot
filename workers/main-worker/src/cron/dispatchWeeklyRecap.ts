@@ -12,6 +12,7 @@ import { hasPostedWeeklyRecapRecently, recordWeeklyRecapPost } from "../db/weekl
 import { getSignalsCreatedSince, getSignalsResolvedSince } from "../db/signals";
 import { getMomentumAlertsSince } from "../db/momentumAlerts";
 import { computePnlPct } from "../signalMath";
+import { getTrendFilterState } from "../market/trendFilter";
 import { isQuietHours } from "../utils/quietHours";
 
 const RECAP_WEEKDAY_UTC = 0; // dimanche
@@ -40,6 +41,35 @@ export async function dispatchWeeklyRecap(env: Env): Promise<void> {
     getMomentumAlertsSince(db, weekAgoIso),
   ]);
 
+  // Semaine entièrement vide : le filtre de tendance a tenu la stratégie hors
+  // marché du lundi au dimanche. La grille habituelle alignerait alors six
+  // zéros -- et le referait CHAQUE dimanche pendant toute la fermeture, qui a
+  // déjà duré 381 jours d'affilée une fois en 6 ans. Un récap qui explique
+  // vaut mieux qu'un tableau vide répété cinquante fois.
+  //
+  // Pas d'appel commercial dans cette variante, à la différence du récap
+  // normal : proposer « des signaux en temps réel » au bas d'un bilan qui
+  // annonce zéro signal est incohérent, et le CTA existe déjà par ailleurs
+  // (cron/postChannelReminder.ts).
+  if (emitted.length === 0 && resolved.length === 0) {
+    const state = await getTrendFilterState();
+    const silentText = [
+      "📅 *Récap de la semaine — aucun signal émis*",
+      "",
+      state?.isClosed
+        ? `Le Bitcoin est resté sous sa moyenne mobile 200 jours (${Math.abs(state.gapPct).toFixed(1).replace(".", ",")} % en dessous à la dernière clôture). Le filtre de tendance a donc tenu la stratégie hors marché toute la semaine.`
+        : "Aucune configuration n'a rempli les critères de la stratégie cette semaine.",
+      "",
+      "Ce filtre est fermé 41 % du temps. Sans lui, la stratégie n'est positive que 4 années sur 7 ; avec lui, elle n'a aucune année perdante sur 6 ans.",
+      "",
+      "⚠️ Pas un conseil en investissement. Performance passée ne garantit pas les résultats futurs.",
+    ].join("\n");
+
+    await sendMessage(env.TELEGRAM_BOT_TOKEN, Number(env.TELEGRAM_CHANNEL_ID), silentText, { markdown: true });
+    await recordWeeklyRecapPost(db);
+    return;
+  }
+
   const tpCount = resolved.filter((s) => s.close_reason === "tp_hit").length;
   const slCount = resolved.filter((s) => s.close_reason === "sl_hit").length;
 
@@ -47,7 +77,6 @@ export async function dispatchWeeklyRecap(env: Env): Promise<void> {
     if (s.outcome_price == null) return sum;
     return sum + computePnlPct(s.type, s.entry_price, s.outcome_price) * PAPER_POSITION_SIZE_PCT;
   }, 0);
-  const sign = paperPnlPct >= 0 ? "+" : "";
 
   // "Sécurisé" = TP1 atteint, donc stop remonté au prix d'entrée : le trade ne
   // peut plus finir perdant. C'est le chiffre signature du produit (voir
@@ -60,18 +89,39 @@ export async function dispatchWeeklyRecap(env: Env): Promise<void> {
   const escapedUsername = env.TELEGRAM_BOT_USERNAME?.replace(/_/g, "\\_");
   const cta = escapedUsername ? `\n@${escapedUsername} pour des signaux en temps réel` : "";
 
-  const text = [
-    "📅 *Récap de la semaine*",
-    "",
-    `📡 ${emitted.length} signal(aux) émis`,
-    `🔒 ${secured} trade(s) sécurisé(s) (TP1 atteint, ne peut plus finir perdant) — ${securedPct}% des clôturés`,
-    `✅ ${tpCount} take profit touché(s) — ❌ ${slCount} stop loss touché(s)`,
-    `💼 Portefeuille fictif (10%/trade, non composé) : ${sign}${paperPnlPct.toFixed(1)}%`,
-    `⚡ ${momentumAlerts.length} alerte(s) momentum envoyée(s)`,
+  const lines = ["📅 *Récap de la semaine*", "", `📡 ${emitted.length} signal(aux) émis`];
+
+  // Les lignes de clôture n'ont de sens que s'il y a eu des clôtures. Le moteur
+  // Force Relative tient ses positions 7 jours : la semaine qui suit une
+  // réouverture du filtre a normalement des signaux émis et AUCUN résolu --
+  // afficher alors « 0 % des clôturés » (un pourcentage calculé sur zéro),
+  // « 0 take profit / 0 stop loss » et un portefeuille à +0,0 % décrirait
+  // comme un résultat ce qui n'est qu'une absence de données.
+  if (resolved.length > 0) {
+    const sign = paperPnlPct >= 0 ? "+" : "";
+    lines.push(
+      `🔒 ${secured} trade(s) sécurisé(s) (TP1 atteint, ne peut plus finir perdant) — ${securedPct}% des clôturés`,
+      `✅ ${tpCount} take profit touché(s) — ❌ ${slCount} stop loss touché(s)`,
+      `💼 Portefeuille fictif (10%/trade, non composé) : ${sign}${paperPnlPct.toFixed(1)}%`
+    );
+  } else {
+    lines.push("⏳ Aucune position clôturée cette semaine (les positions sont tenues 7 jours).");
+  }
+
+  // Les alertes momentum proviennent des moteurs Haute Confiance et Squeeze,
+  // tous deux désactivés depuis le 03/08 (voir signals/config.py) : la ligne
+  // afficherait désormais « 0 alerte » toutes les semaines. On ne la garde que
+  // si elle a quelque chose à dire.
+  if (momentumAlerts.length > 0) {
+    lines.push(`⚡ ${momentumAlerts.length} alerte(s) momentum envoyée(s)`);
+  }
+
+  lines.push(
     "",
     "⚠️ Pas un conseil en investissement. Performance passée ne garantit pas les résultats futurs.",
-    cta,
-  ].join("\n");
+    cta
+  );
+  const text = lines.join("\n");
 
   await sendMessage(env.TELEGRAM_BOT_TOKEN, Number(env.TELEGRAM_CHANNEL_ID), text, { markdown: true });
   await recordWeeklyRecapPost(db);

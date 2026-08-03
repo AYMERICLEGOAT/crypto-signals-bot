@@ -61,7 +61,12 @@ describe("checkSignalFreshness (Audit#30 -- alerte 6h sans signal, distincte du 
 
     await checkSignalFreshness(env);
 
-    expect(alertText).toContain("6h");
+    expect(alertText).toContain("72h");
+    // Le message doit orienter vers la cause attendue (filtre de tendance
+    // fermé) au lieu d'envoyer déboguer des seuils sains : depuis le
+    // remplacement du moteur, l'absence de signaux est le comportement normal
+    // 41 % du temps.
+    expect(alertText).toContain("filtre de tendance");
     expect(marked).toBe(true);
   });
 

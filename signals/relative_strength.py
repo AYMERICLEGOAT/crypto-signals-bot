@@ -51,6 +51,27 @@ les paires au lieu des 5 meilleures rapporte encore +2,24 % par signal, ce qui
 signifie que le filtre de tendance fait la majeure partie du travail et que le
 classement n'ajoute qu'environ 1,1 point. Ne jamais raconter l'inverse.
 
+LE POINT LE PLUS IMPORTANT, ET LE PLUS FACILE À CACHER. L'espérance de +3,22 %
+par signal est une MOYENNE, et la distribution est extrêmement asymétrique :
+
+    moyenne  +3,22 %      médiane  -0,69 %
+    déciles : 10 % à -14,8 | 25 % à -8,0 | 50 % à -0,7 | 75 % à +8,4 | 90 % à +22,4
+    les 5 % meilleurs signaux apportent 113 % du gain total
+    sans eux, l'espérance tombe à -0,42 %
+
+Autrement dit : le signal MÉDIAN perd de l'argent, et toute la rentabilité vient
+d'une petite minorité de très gros gagnants. La conséquence est directe et non
+négociable pour l'abonné — il faut prendre TOUS les signaux, mécaniquement. En
+choisir quelques-uns, si évident que paraisse le tri, revient statistiquement à
+ne garder que la partie perdante de la distribution. C'est la chose la plus
+importante à dire à un abonné, et c'est aussi celle qu'un vendeur aurait le plus
+envie de taire.
+
+Ce que cela implique aussi pour ce module : ne jamais introduire de filtre
+supplémentaire « de bon sens » qui écarterait des signaux sans avoir été mesuré.
+Écarter les signaux qui semblent mauvais, c'est exactement le mécanisme qui
+détruit l'avantage.
+
 Modules de validation correspondants, à relire avant toute modification :
 backtest_rsi_inverse, backtest_rsi_long, backtest_rsi_attaque,
 backtest_rsi_production, backtest_dual_momentum, backtest_final_portefeuille,

@@ -175,3 +175,29 @@ n'apparaît plus dans `users` (probablement supprimé via
 confirmé, 0 revenu, 4e jour consécutif à confirmer le même constat.
 `referral_rewards`/`exit_surveys` toujours vides — rien à tirer pour
 3.4 cette semaine non plus.
+
+## 2026-08-03
+
+**Aucune nouvelle action d'acquisition ce run, blocage inchangé pour la
+7e fois consécutive** : `REDDIT_CLIENT_ID/SECRET/USERNAME/PASSWORD`
+toujours vides dans `traffic/.env`, Twitter toujours cassé côté
+permissions OAuth1 (Developer Portal). La question posée le 02/08
+(`admin_notes` #9 — prioriser le déblocage ou mettre en pause) est
+toujours sans réponse (`read_at` null) ; pas de nouvelle relance
+identique aujourd'hui, elle reste ouverte et couvre déjà le sujet.
+Canal public toujours à 4 abonnés (sous le seuil 10-50 des annuaires
+Telegram, `traffic/directory_submit.py` toujours en attente pour cette
+raison, inchangé).
+
+**Budget du run consacré ailleurs** : un vrai bug critique a été trouvé
+et corrigé aujourd'hui (voir `OPS_LOG.md`) — le suivi post-trade des
+signaux était mort depuis le déploiement du cron (Binance bloque aussi
+les IP Cloudflare Workers, HTTP 451, comme il bloque déjà GitHub
+Actions). Fixer un pipeline qui empêchait TOUT signal de se clôturer
+correctement (donc toute notification de gain/perte réelle aux abonnés)
+prime sur la prospection tant que le produit lui-même a un angle mort de
+cette taille — priorité 1/3 du mandat avant priorité 4.
+
+**Métriques observées** : identiques à hier (2 comptes, 0 paiement
+confirmé, 0 revenu). `posted_content` : 7 lignes au total (6 Discord + 1
+macro-summary), encore insuffisant pour l'optimisation 3.4.

@@ -13,6 +13,9 @@ import {
 import { setPendingAction } from "../../db/pendingActions";
 import { buildReferralLink } from "../referral";
 import { addDays } from "../../utils/date";
+// Source unique de l'état du filtre de tendance : le dupliquer ici garantirait
+// qu'une des deux copies devienne fausse (voir commands/subscribe.ts).
+import { TREND_FILTER_STATUS } from "./subscribe";
 
 const TRIAL_DURATION_DAYS = 3;
 
@@ -76,7 +79,37 @@ export async function handleTrialCommand(env: Env, telegramId: number): Promise<
   }
 
   await setPendingAction(db, telegramId, { type: "awaiting_wallet_trial" });
-  await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, "Envoie-moi ton adresse de wallet Polygon (0x...) pour activer ton essai gratuit de 3 jours.");
+
+  // Refonte du 03/08/2026 (moteur Force Relative). L'ancien message promettait
+  // implicitement des signaux dès l'activation ; or 41 % du temps le filtre de
+  // tendance est fermé et il n'en part aucun. Trois jours d'essai déclenchés
+  // pendant une fermeture, c'est un essai brûlé pour rien — et un abonné qui
+  // en conclut, à tort, que le bot ne fonctionne pas.
+  //
+  // La mécanique de facturation n'est PAS touchée : l'essai reste 3 jours
+  // calendaires posés à l'activation. Ce qui change, c'est que l'utilisateur
+  // sait qu'il choisit le moment. Il n'y a rien à réserver côté serveur —
+  // trial_used n'est marqué qu'à l'activation (voir activateTrialForWallet),
+  // donc attendre ne coûte ni ne risque rien.
+  await sendMessage(
+    env.TELEGRAM_BOT_TOKEN,
+    telegramId,
+    "Ton essai dure 3 jours calendaires à partir de l'activation — ce sont 3 jours, pas 3 signaux.\n\n" +
+      "À savoir avant de le déclencher : aucun signal n'est émis quand le Bitcoin est sous sa moyenne " +
+      "200 jours, ce qui arrive 41 % du temps (la plus longue fermeture observée a duré 381 jours). " +
+      "C'est voulu : sur 6 ans, ce filtre est ce qui évite les années perdantes. On préfère ne rien " +
+      "envoyer plutôt que de te faire perdre de l'argent.\n\n" +
+      (TREND_FILTER_STATUS.closed
+        ? `Au ${TREND_FILTER_STATUS.measuredOn}, le filtre est fermé : ${TREND_FILTER_STATUS.detail}. ` +
+          "Autrement dit, un essai activé maintenant a toutes les chances de se terminer sans un seul signal.\n\n"
+        : `Au ${TREND_FILTER_STATUS.measuredOn}, le filtre est ouvert.\n\n`) +
+      "Ton essai ne s'annule pas et ne se périme pas : il t'attend. Tu peux tout à fait le garder pour le " +
+      "jour où les signaux reprennent — ils réapparaissent aussi sur le canal public, tu verras donc la " +
+      "reprise — et retaper /trial à ce moment-là pour profiter de tes 3 jours quand il se passe quelque " +
+      "chose.\n\n" +
+      "Si tu préfères l'activer tout de suite, envoie-moi ton adresse de wallet Polygon (0x...).\n\n" +
+      "En attendant, /demo montre la forme exacte d'un signal et /subscribe détaille les chiffres mesurés."
+  );
 }
 
 /**
@@ -120,5 +153,16 @@ export async function activateTrialForWallet(env: Env, telegramId: number, walle
   await activateSubscription(db, telegramId, 0, addDays(new Date(), TRIAL_DURATION_DAYS));
   await markTrialUsed(db, telegramId);
 
-  await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, "🎉 Essai gratuit de 3 jours activé ! Tu vas recevoir les signaux automatiquement.");
+  // « Tu vas recevoir les signaux automatiquement » était faux dès que le
+  // filtre de tendance est fermé (41 % du temps). Formulation exacte : tu
+  // reçois tout ce qui sort pendant tes 3 jours, et il peut ne rien sortir.
+  await sendMessage(
+    env.TELEGRAM_BOT_TOKEN,
+    telegramId,
+    "🎉 Essai gratuit de 3 jours activé.\n\n" +
+      "Tu recevras automatiquement tout signal émis pendant ces 3 jours. Il peut aussi n'y en avoir " +
+      "aucun : rien n'est envoyé quand le Bitcoin est sous sa moyenne 200 jours, et c'est justement ce " +
+      "qui a évité les années perdantes sur les 6 dernières années.\n\n" +
+      "Le silence n'est donc pas une panne. /demo montre la forme d'un signal, /status l'état de ton essai."
+  );
 }

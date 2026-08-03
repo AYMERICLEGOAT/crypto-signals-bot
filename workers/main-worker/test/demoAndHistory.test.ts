@@ -11,20 +11,20 @@ const env = { TELEGRAM_BOT_TOKEN: "fake-token", SUPABASE_URL: "https://fake-supa
 describe("handleDemoCommand", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("formate un exemple à partir d'un vrai trade du backtest, marqué comme exemple", async () => {
+  // La commande ne tire plus d'exemple de backtest_trades. Cette table est
+  // remplie par l'ANCIEN moteur (achat sur RSI bas, objectif serré, ventes a
+  // decouvert), desactive le 03/08/2026 apres avoir ete mesure comme la jambe
+  // perdante. Afficher un de ces trades sous « voici ce que vous recevrez »
+  // montrerait une geometrie et un sens de position que le nouveau moteur
+  // n'emet jamais. Les tests suivants verifient donc la nouvelle intention :
+  // decrire la FORME du signal, sans aucun appel a la base.
+  function stubTelegramOnly() {
     let sentText = "";
+    const appels: string[] = [];
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
-        if (url.includes("backtest_trades")) {
-          return jsonResponse([{
-            id: 1, pair: "TRX/USDT", side: "SELL", entry_price: 0.2954, exit_price: 0.283584,
-            outcome: "WIN", pnl_pct: 0.04, entered_at: "2026-01-26T09:00:00+00:00", exited_at: "2026-02-02T03:00:00+00:00",
-          }]);
-        }
-        if (url.includes("strategy_params")) {
-          return jsonResponse([{ win_rate: 0.3333, trade_count: 3, tp_pct: 0.04, sl_pct: 0.02 }]);
-        }
+        appels.push(url);
         if (url.includes("api.telegram.org")) {
           sentText = JSON.parse(init!.body as string).text;
           return jsonResponse({ ok: true, result: {} });
@@ -32,29 +32,37 @@ describe("handleDemoCommand", () => {
         throw new Error(`URL inattendue: ${url}`);
       })
     );
+    return { texte: () => sentText, appels };
+  }
+
+  it("decrit la geometrie reelle du moteur Force Relative, sans interroger la base", async () => {
+    const s = stubTelegramOnly();
 
     await handleDemoCommand(env, 42);
-    expect(sentText).toContain("EXEMPLE");
-    expect(sentText).toContain("TRX/USDT");
-    expect(sentText).toContain("VENTE");
+
+    expect(s.texte()).toContain("EXEMPLE");
+    expect(s.texte()).toContain("ACHAT");
+    // La geometrie mesuree par backtest_stop_impact, celle reellement emise.
+    expect(s.texte()).toContain("4 x ATR");
+    expect(s.texte()).toContain("7 jours");
+    // Aucun appel a backtest_trades : plus aucun trade de l'ancien moteur
+    // ne peut se glisser dans l'exemple.
+    expect(s.appels.some((u) => u.includes("backtest_trades"))).toBe(false);
   });
 
-  it("répond proprement si aucun trade de backtest n'existe encore", async () => {
-    let sentText = "";
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string, init?: RequestInit) => {
-        if (url.includes("backtest_trades")) return jsonResponse([]);
-        if (url.includes("api.telegram.org")) {
-          sentText = JSON.parse(init!.body as string).text;
-          return jsonResponse({ ok: true, result: {} });
-        }
-        throw new Error(`URL inattendue: ${url}`);
-      })
-    );
+  it("annonce la contrepartie avant l'abonnement, sans promettre de gain", async () => {
+    const s = stubTelegramOnly();
 
     await handleDemoCommand(env, 42);
-    expect(sentText).toContain("Aucun exemple");
+    const texte = s.texte();
+
+    // Un prospect doit lire les trois contreparties AVANT de payer : la
+    // majorite de perdants, le silence en marche baissier et sa duree.
+    expect(texte).toContain("47,7 %");
+    expect(texte).toContain("41 %");
+    expect(texte).toContain("381 jours");
+    expect(texte).toMatch(/majorité de perdants/i);
+    expect(texte).toMatch(/pas une promesse|risque de perte/i);
   });
 });
 

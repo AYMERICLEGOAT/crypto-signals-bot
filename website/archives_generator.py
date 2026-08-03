@@ -96,6 +96,35 @@ def _trade_row_html(trade):
     </div>"""
 
 
+def _relative_strength_stats_html():
+    """
+    Les chiffres du moteur réellement en service (voir signals/relative_strength.py
+    et DECOUVERTE_FORCE_RELATIVE_2026-08-03.md), mesurés sur 6 ans nets de frais.
+
+    La médiane figure à côté de la moyenne, et pas en petit. C'est le fait le
+    plus important et le plus facile à taire : le signal médian perd 0,69 %,
+    tandis que les 5 % de meilleurs signaux apportent la totalité du gain. Un
+    visiteur qui ne lit que « +3,22 % en moyenne » se fait une idée fausse de ce
+    qu'il va vivre.
+    """
+    return """
+  <div class="engine-stats">
+    <h2>Ce que mesurent 6 ans de données</h2>
+    <ul>
+      <li><strong>47,7 %</strong> de signaux gagnants — donc une majorité de perdants</li>
+      <li>Gagnant moyen <strong>+16,88 %</strong>, perdant moyen <strong>-9,24 %</strong>, net de 0,10 % de frais</li>
+      <li>Moyenne <strong>+3,22 %</strong> par signal — mais <strong>médiane -0,69 %</strong></li>
+      <li><strong>8,0 signaux par semaine</strong> quand le marché est porteur, <strong>aucun</strong> sinon</li>
+    </ul>
+    <p class="engine-warn">La moyenne et la médiane disent des choses différentes, et les deux sont
+      vraies&nbsp;: les 5&nbsp;% de meilleurs signaux apportent la totalité du gain. Sans eux,
+      l'espérance tombe à -0,42 %. Autrement dit, il faut prendre <strong>tous</strong> les signaux&nbsp;;
+      en trier quelques-uns revient statistiquement à ne garder que la partie perdante.</p>
+    <p class="engine-note">Chiffres mesurés sur données historiques, arrêtés au 3 août 2026. Le moteur
+      actuel a été mis en service ce jour-là&nbsp;: il n'a pas encore d'historique en direct.</p>
+  </div>"""
+
+
 def build_waiting_homepage(backtest_stats, telegram_bot_username):
     """
     Page d'accueil utilisée tant qu'aucun signal réel n'a encore été généré.
@@ -106,16 +135,19 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
     canonical_url = f"{SITE_BASE_URL}/"
     title = f"{SITE_NAME} — Analyses techniques automatisées sur Telegram"
     description = (
-        "Signaux crypto générés automatiquement (croisement EMA9/21 + RSI) sur 40 paires, "
-        "diffusés sur Telegram. Essai gratuit, sans engagement."
+        "Signaux crypto générés automatiquement : 40 paires classées chaque jour par force "
+        "relative, les 12 plus fortes conservées 7 jours. Aucun signal quand le marché est "
+        "baissier. Essai gratuit, sans engagement."
     )
 
-    if backtest_stats:
-        win_rate_pct = float(backtest_stats["win_rate"]) * 100
-        trade_count = int(backtest_stats["trade_count"])
-        stats_html = _backtest_stat_html(win_rate_pct, trade_count)
-    else:
-        stats_html = ""
+    # Le taux de réussite de `strategy_params` provient du backtest de l'ANCIEN
+    # moteur (achat sur RSI bas), désactivé le 03/08/2026 après avoir été mesuré
+    # comme la jambe perdante. L'afficher ici décrirait une stratégie qui n'est
+    # plus diffusée — c'est exactement le mécanisme qui a laissé un « 61,2 % de
+    # réussite » sur ce site pendant des mois. Il est donc remplacé par les
+    # chiffres du moteur réellement en service, et par celui qui compte le plus
+    # pour un visiteur : ce que vaut le signal MÉDIAN, pas la moyenne.
+    stats_html = _relative_strength_stats_html()
 
     # Précision au jour (pas à la minute) : voir Audit#11, github_publisher.py
     # compare le contenu généré à l'octet près pour éviter un commit à chaque
@@ -145,6 +177,15 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
     .pairs {{ color: #555; font-size: 0.92rem; }}
     .status {{ display: inline-block; background: #eef2ff; color: #4338ca; font-size: 0.8rem;
               font-weight: 600; padding: 3px 12px; border-radius: 999px; margin-bottom: 1rem; }}
+    /* Encadré rouge réservé à ce qui coûte de l'argent si on ne le lit pas :
+       ici, le fait que l'abonnement court pendant les périodes sans signal. */
+    .filter-closed {{ border: 2px solid #dc2626; border-radius: 12px; padding: 18px 20px; margin: 2rem 0; }}
+    .filter-closed h2 {{ margin-top: 0; font-size: 1.15rem; color: #dc2626; }}
+    .engine-stats {{ background: #f8f9fc; border-radius: 12px; padding: 18px 20px; margin: 2rem 0; }}
+    .engine-stats h2 {{ margin-top: 0; font-size: 1.15rem; }}
+    .engine-stats li {{ margin-bottom: 6px; }}
+    .engine-warn {{ border-left: 3px solid #dc2626; padding-left: 12px; margin-top: 14px; }}
+    .engine-note {{ font-size: 0.85rem; color: #666; margin-bottom: 0; }}
     .disclaimer {{ font-size: 0.82rem; color: #777; margin-top: 3rem; border-top: 1px solid #e5e5ef; padding-top: 12px; }}
     footer {{ margin-top: 2rem; font-size: 0.85rem; color: #999; }}
     a {{ color: #4338ca; }}
@@ -153,13 +194,30 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
 <body>
   <span class="status">🟢 Bot en ligne</span>
   <h1>Signaux Crypto Gratuits</h1>
-  <p class="subtitle">Analyses techniques automatisées (EMA, RSI, Bandes de Bollinger) sur 40 paires, diffusées sur Telegram.</p>
+  <p class="subtitle">Les 40 paires suivies sont classées chaque jour par force relative&nbsp;; les 12 plus fortes
+  sont achetées et conservées 7 jours. Diffusion sur Telegram.</p>
+
+  <div class="filter-closed">
+    <h2>Aucun signal en ce moment — et c'est voulu</h2>
+    <p>Le moteur ne publie rien tant que le Bitcoin est sous sa moyenne mobile 200 jours. Ce n'est pas
+    une panne, c'est la règle centrale de la stratégie.</p>
+    <p><strong>Ce silence est fréquent et il peut être long.</strong> Sur les 6 dernières années, ce filtre
+    a été fermé <strong>41 % du temps</strong>. Il y a eu 11 fermetures d'au moins une semaine, d'une durée
+    médiane de 25 jours — et la plus longue a duré <strong>381 jours</strong>, soit 12,7 mois, du 28 décembre
+    2021 au 13 janvier 2023.</p>
+    <p>Pourquoi l'assumer&nbsp;: sans ce filtre, la stratégie n'est positive que 4 années sur 7. Avec lui,
+    elle n'a aucune année perdante sur la période — en 2022 et en 2026 elle n'a simplement rien émis,
+    pendant que détenir les mêmes cryptos coûtait -70,9 % et -39,4 %.</p>
+    <p class="engine-note">À lire avant de vous abonner&nbsp;: l'abonnement court au calendrier. Il est
+    parfaitement possible de payer 30 jours et de ne recevoir aucun signal. Les
+    <a href="/terms.html">conditions générales</a> le disent noir sur blanc.</p>
+  </div>
 
   {stats_html}
 
-  <p>Le bot de génération de signaux tourne en continu et surveille le marché 24h/24. Consulte les
-  <a href="/archives.html">archives du backtest</a> pour voir des exemples de trades avec leurs vraies dates
-  historiques, ou tape <code>/demo</code> sur le bot pour voir le format d'un signal.</p>
+  <p>Le classement est recalculé une fois par jour, après la clôture journalière. Tape <code>/marche</code>
+  sur le bot pour connaître l'état du filtre en direct, <code>/demo</code> pour voir la forme exacte d'un
+  signal, ou consulte <a href="/how-it-works.html">le fonctionnement détaillé</a>.</p>
 
   <div class="cta">
     <p>Essayez gratuitement sur Telegram</p>

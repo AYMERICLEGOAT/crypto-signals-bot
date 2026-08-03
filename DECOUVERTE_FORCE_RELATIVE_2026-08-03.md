@@ -121,6 +121,83 @@ détenir a coûté −70,9 % (2022), −51,4 % (2025) et −39,4 % (2026).
 
 ---
 
+## 6 bis. Trois questions tranchées après l'activation
+
+### Combien de positions ? Top 12, mesuré sur l'univers de production
+
+Les mesures d'établissement portaient sur 18 paires, où « top 5 » sélectionnait
+28 % de l'univers. Sur les 40 paires de production, le même 5 n'en sélectionne
+que 12,5 % — ni la même sélectivité, ni la même quantité.
+
+| top | détention | signaux/sem | réussite | espérance | années + |
+|---|---|---|---|---|---|
+| 5 | 7 j | 3,5 | 49,7 % | +3,33 % | 4/5 |
+| **12** | **7 j** | **8,0** | **47,7 %** | **+3,22 %** | **4/5** |
+| 15 | 7 j | 9,5 | 47,7 % | +2,76 % | 4/5 |
+| 20 | 5 j | 15,3 | 47,4 % | +1,74 % | 4/5 |
+
+Toutes restent à 4/5 années positives : la qualité se dégrade progressivement,
+pas brutalement. Top 12 multiplie les signaux par 2,3 pour 0,11 point.
+
+### Peut-on émettre pendant les 41 % de fermeture ? Non — testé et réfuté
+
+L'hypothèse symétrique était séduisante : si acheter les plus fortes marche,
+vendre à découvert les plus faibles pendant un marché baissier devrait marcher
+aussi. `backtest_faiblesse_baissier.py` :
+
+| variante | signaux/sem | réussite | espérance | années + |
+|---|---|---|---|---|
+| VENTE des plus faibles, filtre fermé | 6,3 | 50,3 % | **−0,88 %** | 2/6 |
+| ACHAT des plus fortes, filtre fermé *(contrôle)* | 6,4 | 44,7 % | **−0,03 %** | 4/6 |
+| ACHAT des plus fortes, filtre ouvert *(référence)* | 8,3 | 48,0 % | **+2,83 %** | 4/5 |
+
+Permutation : **40 tirages au hasard sur 40 font mieux que la sélection par
+faiblesse, p = 1,000**. Pire que le hasard, et insensible au coût du short comme
+à la largeur du stop.
+
+Le contrôle est le plus instructif : la même sélection qui rapporte +2,83 %
+filtre ouvert ne rapporte plus rien filtre fermé. **Le filtre capture une vraie
+différence de régime.** Il n'existe pas de moyen défendable de remplir ces 41 %.
+
+### Élargir l'univers ? Thèse soutenue, mais non validable sur 6 ans
+
+Prendre la même fraction d'un univers plus large augmente la quantité sans
+diluer la sélectivité. Sur 2023-2026, où l'univers large existe réellement :
+24 → 45 paires à sélectivité constante double les signaux (5,5 → 10,9/sem) sans
+dégrader la qualité (+1,11 % → +1,07 %).
+
+Mais c'est **invalidable sur 6 ans** : parmi les 120 paires les plus liquides
+aujourd'hui, seules 24 étaient cotées en août 2020. Élargir reviendrait à
+sélectionner l'univers sur le volume d'aujourd'hui, soit un look-ahead massif.
+Piste conservée, non appliquée.
+
+---
+
+## 6 ter. La distribution, ou pourquoi il faut prendre TOUS les signaux
+
+C'est le fait le plus important du dossier, et le plus facile à taire.
+
+| | production (40 paires) | univers propre (18) |
+|---|---|---|
+| moyenne | +3,22 % | +2,24 % |
+| **médiane** | **−0,69 %** | **−0,94 %** |
+| les 5 % meilleurs signaux | **113 % du gain total** | 136 % |
+| espérance sans eux | **−0,42 %** | −0,86 % |
+
+Déciles : 10 % à −14,8 | 25 % à −8,0 | 50 % à −0,7 | 75 % à +8,4 | 90 % à +22,4.
+
+**Le signal médian perd de l'argent.** Toute la rentabilité vient d'une petite
+minorité de très gros gagnants. Conséquence directe et non négociable : l'abonné
+doit prendre **tous** les signaux, mécaniquement. En choisir quelques-uns — si
+évident que paraisse le tri — revient statistiquement à ne garder que la partie
+perdante de la distribution.
+
+Corollaire pour le code : ne jamais ajouter de filtre « de bon sens » non mesuré
+au moteur. Écarter les signaux qui semblent mauvais est exactement le mécanisme
+qui détruit l'avantage.
+
+---
+
 ## 7. Ce qu'il ne faut PAS dire
 
 Quatre honnêtetés qui doivent rester attachées à cette stratégie. Les oublier

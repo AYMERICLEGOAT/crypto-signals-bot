@@ -271,6 +271,19 @@ def run_relative_strength_engine() -> list:
         "[relative_strength] Passage quotidien : %d paires récupérées, %d déjà en position.",
         len(daily_by_pair), len(held),
     )
+
+    # Santé des sources. Depuis la désactivation du moteur Haute Confiance,
+    # plus aucune boucle de 5 minutes n'interroge les APIs : ce passage
+    # quotidien est devenu le seul point de mesure. Une panne est donc détectée
+    # en un jour et non en quelques minutes — c'est le prix de ne plus faire
+    # 11 520 appels quotidiens pour rien, et c'est acceptable puisque le moteur
+    # lui-même ne décide qu'une fois par jour.
+    consecutive_failures, should_alert = storage.record_source_health(
+        len(daily_by_pair), len(config.PAIRS)
+    )
+    if should_alert:
+        alerts.maybe_alert_data_outage(consecutive_failures)
+
     return detect_relative_strength_signals(daily_by_pair, btc_daily, already_open=held)
 
 
@@ -360,9 +373,19 @@ def run_once(params: dict) -> tuple[int, int]:
     # bougies étant horaires, N bougies = N heures — pour ne jamais réémettre
     # un croisement déjà diffusé au cycle précédent.
     dedup_hours = config.SIGNAL_CATCHUP_CANDLES  # bougies 1h -> heures
-    recent_signalled_pairs = storage.pairs_signalled_since(dedup_hours)
+    recent_signalled_pairs = (
+        storage.pairs_signalled_since(dedup_hours) if config.ENABLE_HIGH_CONFIDENCE_ENGINE else set()
+    )
 
-    for pair, coin_id in config.PAIRS.items():
+    # Moteur Haute Confiance désactivé (voir config.ENABLE_HIGH_CONFIDENCE_ENGINE) :
+    # la boucle horaire entière est court-circuitée, y compris ses 40 appels
+    # d'API par cycle de 5 minutes. `pairs_with_data` reste alors à None plutôt
+    # qu'à 0, pour que le suivi de santé des sources sache faire la différence
+    # entre « aucune source ne répond » et « on n'a rien demandé ».
+    if not config.ENABLE_HIGH_CONFIDENCE_ENGINE:
+        pairs_with_data = None
+
+    for pair, coin_id in config.PAIRS.items() if config.ENABLE_HIGH_CONFIDENCE_ENGINE else ():
         df = fetch_recent_prices(pair, coin_id)
         if df is not None:
             df = only_closed_candles(df, 60 * 60 * 1000)
@@ -556,12 +579,23 @@ def main():
 
     params = load_active_params()
     signals_found, pairs_with_data = run_once(params)
-    logger.info("Terminé : %d signal(aux) détecté(s) sur ce cycle (%d/%d paires avec donnée).",
-                signals_found, pairs_with_data, len(config.PAIRS))
+    logger.info(
+        "Terminé : %d signal(aux) détecté(s) sur ce cycle (%s).",
+        signals_found,
+        f"{pairs_with_data}/{len(config.PAIRS)} paires avec donnée"
+        if pairs_with_data is not None
+        else "boucle horaire désactivée, aucune donnée demandée",
+    )
 
-    consecutive_failures, should_alert = storage.record_source_health(pairs_with_data, len(config.PAIRS))
-    if should_alert:
-        alerts.maybe_alert_data_outage(consecutive_failures)
+    # `None` signifie « on n'a interrogé aucune source ce cycle », ce qui arrive
+    # à chaque cycle depuis la désactivation du moteur Haute Confiance. Le
+    # traiter comme 0 déclencherait une alerte de panne de données toutes les
+    # 5 minutes. La santé des sources est désormais mesurée par le moteur Force
+    # Relative lors de son passage quotidien (voir run_relative_strength_engine).
+    if pairs_with_data is not None:
+        consecutive_failures, should_alert = storage.record_source_health(pairs_with_data, len(config.PAIRS))
+        if should_alert:
+            alerts.maybe_alert_data_outage(consecutive_failures)
 
     storage.record_heartbeat("signals")
 

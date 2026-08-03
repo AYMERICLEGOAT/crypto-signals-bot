@@ -15,23 +15,42 @@ from testimonials import EXAMPLE_TESTIMONIALS, EXAMPLE_TESTIMONIALS_EN
 
 TELEGRAM_URL = f"https://t.me/{TELEGRAM_BOT_USERNAME}"
 
-# Audit#4 : doit rester synchronisé avec signals/backtest.py (MIN_SIGNIFICANT_TRADES).
-# En dessous de ce seuil, un taux de réussite (même 0% ou 100%) n'est pas fiable
-# statistiquement — l'afficher tel quel serait trompeur (positif comme négatif).
-MIN_SIGNIFICANT_TRADES = 15
+# Refonte du 03/08/2026 : le moteur « RSI bas » a été désactivé et remplacé par
+# le moteur Force Relative (voir signals/relative_strength.py et
+# DECOUVERTE_FORCE_RELATIVE_2026-08-03.md). Tous les textes décrivant la
+# stratégie ci-dessous ont été réécrits en conséquence. Chaque chiffre qu'ils
+# contiennent provient d'une mesure sur 6 ans (2020-2026) — aucun n'est arrondi
+# à l'avantage, aucun n'est repris d'un autre moteur.
+#
+# Le seuil MIN_SIGNIFICANT_TRADES a disparu d'ici : la section backtest
+# n'affiche plus le taux de réussite stocké en base, donc il n'y a plus
+# d'échantillon variable à protéger (voir _backtest_section_html). Le seuil
+# reste en vigueur là où il sert encore : signals/backtest.py et
+# website/archives_generator.py.
 
 _STRINGS = {
     "fr": {
         "html_lang": "fr",
         "page_title": lambda date_str: f"Signaux crypto du {date_str} — {SITE_NAME}",
+        # Les jours sans signal ne sont pas un cas dégradé : le filtre de
+        # tendance est fermé 41 % du temps. La description doit donc rester
+        # juste ET compréhensible avec zéro signal, sinon les moteurs de
+        # recherche indexent « 0 signaux » sans la moindre explication.
         "meta_description": lambda n, pairs, date_str: (
-            f"Analyse gratuite de {n} signaux crypto ({pairs}) du {date_str}, générée "
-            f"automatiquement (croisement EMA9/21 + RSI). Résultats réels des signaux précédents inclus."
+            f"Analyse gratuite de {n} signaux crypto ({pairs}) du {date_str} : les paires les plus fortes "
+            f"d'un classement quotidien de 40 cryptos, conservées 7 jours. Résultats réels inclus."
+            if n
+            else f"Aucun signal crypto publié le {date_str} : le moteur n'émet rien tant que le Bitcoin est "
+            f"sous sa moyenne mobile 200 jours. Pourquoi ce silence, et combien de temps il peut durer."
         ),
         "h1": lambda date_str: f"Signaux crypto gratuits — {date_str}",
-        "subtitle": "Analyse technique automatique (EMA 9/21 + RSI) sur les paires les plus tradées. "
-        "Contenu généré et mis à jour chaque jour.",
+        "subtitle": "Classement quotidien de 40 paires par force relative : les 12 plus fortes, conservées 7 jours. "
+        "Aucun signal tant que le Bitcoin est sous sa moyenne mobile 200 jours. Mis à jour chaque jour.",
         "signals_heading": lambda n: f"🔎 Les {n} derniers signaux",
+        "signals_note": "Chaque signal est l'une des 12 paires les plus fortes du classement du jour. La position "
+        "est conservée 7 jours : la sortie est temporelle, pas sur objectif de prix. Le stop à 4x l'ATR est une "
+        "protection contre l'accident (il ne se déclenche que dans 5 % des cas) et les objectifs à 4x, 8x et 12x "
+        "l'ATR sont des jalons de suivi.",
         "buy_label": "ACHAT",
         "sell_label": "VENTE",
         "entry": "Entrée",
@@ -48,6 +67,13 @@ _STRINGS = {
         "perf_table_result": "Résultat",
         "perf_note": "Résultat déterminé automatiquement en comparant le prix courant de chaque "
         "signal à son stop loss et son take profit (pas une analyse tick par tick de l'historique intrabar).",
+        # Sans cette précision, un visiteur attribue naturellement ces résultats
+        # vécus à la stratégie décrite plus haut. Ce sont deux moteurs
+        # différents : les mélanger serait exactement la faute du
+        # « 61,2 % de réussite ».
+        "perf_engine_note": "Ces résultats peuvent inclure des signaux émis par le moteur précédent, désactivé "
+        "le 3 août 2026. Ils ne décrivent donc pas la stratégie Force Relative présentée plus haut, qui n'a pas "
+        "encore d'historique en direct.",
         "perf_secured": lambda count, pct: f"🔒 {count} ({pct:.0f}%) trades sécurisés (TP1 atteint, break-even ou mieux)",
         "paper_heading": "💼 Performance en direct (portefeuille fictif)",
         "paper_detail": lambda n, pct: (
@@ -62,34 +88,90 @@ _STRINGS = {
         "testimonials_real_disclaimer": "✅ Avis réels laissés via /review par des abonnés (anonymisés).",
         "review_up": "👍",
         "review_down": "👎",
-        "backtest_heading": "🧪 Backtest de la stratégie",
-        # Audit du 01/08/2026 : un taux de réussite affiché SEUL est la façon
-        # la plus trompeuse de présenter une stratégie. 61% de réussite avec un
-        # ratio gain/perte de 0,67 n'est PAS rentable (61 x 0,67 = 40,9 contre
-        # 39 x 1,0 = 39,0, soit l'équilibre au cheveu près). Mesuré sur ces
-        # mêmes 24 mois, l'espérance de la stratégie est négative
-        # (-0,019%/trade, voir signals/DIAGNOSTIC_SIGNAUX_2026-08-01.md).
-        # Vendre un abonnement sur ce chiffre serait une pratique commerciale
-        # trompeuse (art. L121-2 code de la consommation). Le taux reste
-        # affiché — il est factuel — mais accompagné de ce qu'il faut pour ne
-        # pas le confondre avec une promesse de gain.
-        "backtest_stat": lambda win_rate, trades: (
-            f"{win_rate:.1f}% des trades atteignent leur premier objectif ({trades} trades simulés sur 24 mois)"
+        "backtest_heading": "🧪 La stratégie, mesurée sur 6 ans",
+        # Audit du 01/08/2026, toujours en vigueur : un taux de réussite affiché
+        # SEUL est la façon la plus trompeuse de présenter une stratégie — le
+        # « 61,2 % de réussite » resté des mois sur ce site en est la preuve.
+        # La règle tenue ici : le chiffre mis en avant est celui que vit un
+        # abonné entrant à une date au hasard, JAMAIS le rendement annuel de la
+        # stratégie, qui suppose d'avoir traversé les six années entières dès
+        # le premier jour. Présenter ce rendement comme un gain d'abonné serait
+        # une pratique commerciale trompeuse (art. L121-2 code de la
+        # consommation).
+        "backtest_lead": "Le chiffre qui compte n'est pas le rendement annuel de la stratégie, c'est ce qu'a "
+        "vécu quelqu'un qui a commencé à une date tirée au hasard :",
+        "backtest_stat": "Après six mois : +5,0 % en médiane",
+        "backtest_subscriber": "53 % des entrées sont gagnantes à six mois, et le pire cas mesuré est -61,7 %. "
+        "À trois mois, la médiane tombe à 0,0 %, 43 % des entrées sont gagnantes et le pire cas est -49,0 %. "
+        "Ce n'est pas un produit qui enrichit vite : c'est un produit qui limite la casse, et il peut faire mal.",
+        "backtest_how_heading": "Ce que fait le moteur",
+        "backtest_how": "Chaque jour, les 40 paires suivies sont classées par force relative — leur momentum, "
+        "mesuré sur des données journalières. Les 12 plus fortes sont achetées et conservées 7 jours. La sortie "
+        "est temporelle : on ne revend pas sur objectif de prix. Le stop est volontairement large, à 4x l'ATR, "
+        "car c'est une protection contre l'accident : il ne se déclenche que dans 5 % des cas.",
+        "backtest_tiles": (
+            ("8,0", "signaux par semaine, filtre ouvert"),
+            ("47,7 %", "de signaux gagnants"),
+            ("+3,22 %", "espérance par signal, net de frais"),
+            ("+16,88 %", "gagnant moyen, contre -9,24 % pour un perdant"),
         ),
-        "backtest_winrate_caveat": (
-            "⚠️ Un taux de réussite élevé ne signifie pas rentable : ce qui compte est le rapport entre "
-            "ce que rapportent les trades gagnants et ce que coûtent les perdants. Sur cette période simulée, "
-            "les deux se compensent quasiment — la stratégie n'a pas démontré de rentabilité. "
-            "Aucune performance n'est promise."
+        "backtest_filter_heading": "Pourquoi le canal se tait parfois pendant des mois",
+        "backtest_filter": "Aucun signal n'est émis quand le Bitcoin est sous sa moyenne mobile 200 jours. Ce "
+        "filtre est fermé 41 % du temps et sa plus longue fermeture a duré 381 jours. Sans lui, la stratégie "
+        "n'est positive que 4 années sur 7 ; avec lui, elle n'a aucune année perdante sur 6 ans. En 2022 et en "
+        "2026, elle n'a tout simplement rien émis — pendant que détenir les mêmes cryptos coûtait -70,9 %, puis "
+        "-39,4 %.",
+        "backtest_honesty_heading": "Ce qu'il faut savoir avant de s'abonner",
+        "backtest_honesty": (
+            "Le portefeuille composé affiche +83,3 % par an sur ces 6 ans, avec une chute maximale de -62,9 % "
+            "et aucune année perdante. <b>Ce n'est pas ce que gagnera un abonné</b> : ce chiffre suppose "
+            "d'avoir traversé les six années entières, dès le premier jour.",
+            "Il n'y a pas d'ingrédient secret : c'est du momentum, rien de plus. Un simple classement par "
+            "rendement passé fait aussi bien.",
+            "C'est le filtre de tendance qui fait la majeure partie du travail. Le classement des paires "
+            "n'ajoute qu'environ 1,1 point.",
+            "Ce moteur a été mis en service le 3 août 2026 : ces chiffres sont mesurés sur l'historique, ils "
+            "n'ont pas encore été vécus en direct.",
         ),
-        "backtest_insignificant": lambda trades, min_trades: (
-            f"Échantillon encore trop petit pour être significatif ({trades} trades sur 24 mois) "
-            f"— taux de réussite non affiché tant que le seuil de {min_trades} trades n'est pas atteint."
+        "backtest_detail": "Mesuré sur 6 ans (2020-2026), en données journalières, net de 0,10 % de frais "
+        "aller-retour, avec une entrée décalée d'un jour après le signal, sur un univers de paires non "
+        "contaminé par le biais du survivant.",
+        "backtest_note": "⚠️ Une performance passée ne préjuge pas des performances futures. Ces chiffres "
+        "proviennent de simulations sur données historiques : ils ne sont ni une promesse, ni une garantie de "
+        "gain. Le trading de cryptoactifs peut faire perdre tout ou partie du capital engagé.",
+        # Bloc affiché les jours sans signal. Il est écrit avec le même soin
+        # qu'une page de vente parce que c'est le moment exact où l'abonné se
+        # demande à quoi il paie — et parce que c'est vrai : ces jours-là sont
+        # ceux où la stratégie lui rend le plus service.
+        "filter_heading": "🔇 Aucun signal aujourd'hui — et c'est voulu",
+        "filter_lead": "Ce silence n'est pas une panne. Le moteur n'achète rien tant que le Bitcoin évolue sous "
+        "sa moyenne mobile 200 jours : tant que ce niveau n'est pas repassé, il n'y a rien à publier ici, et "
+        "rien ne sera inventé pour remplir la page.",
+        "filter_tiles": (
+            ("41 %", "du temps sans aucun signal"),
+            ("381 j", "la plus longue fermeture (28/12/2021 → 13/01/2023)"),
+            ("25 j", "durée médiane d'une fermeture d'au moins une semaine"),
+            ("11", "fermetures d'au moins une semaine en 6 ans"),
         ),
-        "backtest_detail": "Simulé sur 40 paires, données horaires réelles Binance des 24 derniers mois.",
-        "backtest_note": "⚠️ Résultat d'une optimisation \"in-sample\" (sur les données ayant servi à choisir "
-        "les paramètres) : une performance passée ne garantit pas un résultat identique en conditions réelles. "
-        "Ce backtest est mis à jour automatiquement à chaque nouvelle exécution.",
+        "filter_duration_heading": "Combien de temps ça peut durer",
+        "filter_duration": "Sur les 6 dernières années, ce filtre a été fermé 41 % du temps. La plus longue "
+        "fermeture a duré 381 jours, soit 12,7 mois, du 28/12/2021 au 13/01/2023. Les autres fermetures longues "
+        "ont duré 273 jours (commencée le 03/11/2025), 80 jours, 47 jours et 29 jours. Un abonnement peut donc "
+        "traverser plusieurs mois d'affilée sans le moindre signal : c'est à prévoir, pas une anomalie.",
+        "filter_why_heading": "Pourquoi ne rien envoyer vaut mieux",
+        "filter_why": "Sans ce filtre, la stratégie n'est positive que 4 années sur 7. Avec lui, elle n'a aucune "
+        "année perdante sur 6 ans. En 2022 et en 2026, elle n'a tout simplement rien émis — pendant que détenir "
+        "les mêmes cryptos coûtait -70,9 %, puis -39,4 %. Ne rien envoyer est exactement ce qui a évité ces "
+        "deux années-là.",
+        "filter_resume_heading": "Ce qui se passe ensuite",
+        "filter_resume": "Quand le Bitcoin repasse au-dessus de sa moyenne 200 jours, le moteur redémarre seul, "
+        "au rythme mesuré d'environ 8,0 signaux par semaine tant que le filtre reste ouvert. Il n'y a rien à "
+        "surveiller ni à réactiver : cette page et le canal reprennent automatiquement.",
+        "filter_measured": "Chiffres mesurés sur 2020-2026, arrêtés au 3 août 2026 — jour de la mise en service "
+        "de ce moteur, où le Bitcoin cotait 10,7 % sous sa moyenne mobile 200 jours.",
+        "filter_note": "Nous préférons ne rien publier plutôt que de vous faire perdre de l'argent en marché "
+        "baissier. Les signaux publiés ici sont informatifs et ne constituent pas un conseil en investissement : "
+        "vous seul décidez de vos positions.",
         "cta_text": "📡 Reçois ces signaux en temps réel, dès qu'ils sont détectés :",
         "cta_link": lambda username: f"Rejoindre @{username} sur Telegram",
         "journal_link": "📖 Journal de trading public — chaque signal ouvert et clôturé, gains comme pertes, sans filtre",
@@ -111,14 +193,21 @@ _STRINGS = {
     "en": {
         "html_lang": "en",
         "page_title": lambda date_str: f"Crypto Signals for {date_str} — {SITE_NAME}",
+        # Voir le commentaire de la version française ci-dessus.
         "meta_description": lambda n, pairs, date_str: (
-            f"Free analysis of {n} crypto signals ({pairs}) for {date_str}, automatically generated "
-            f"(EMA9/21 crossover + RSI). Real track record of past signals included."
+            f"Free analysis of {n} crypto signals ({pairs}) for {date_str}: the strongest pairs from a daily "
+            f"ranking of 40 cryptos, held for 7 days. Real track record included."
+            if n
+            else f"No crypto signal published on {date_str}: the engine stays silent while Bitcoin trades below "
+            f"its 200-day moving average. Why the silence, and how long it can last."
         ),
         "h1": lambda date_str: f"Free Crypto Signals — {date_str}",
-        "subtitle": "Automated technical analysis (EMA 9/21 + RSI) on the most traded pairs. "
-        "Content generated and updated daily.",
+        "subtitle": "Daily ranking of 40 pairs by relative strength: the 12 strongest, held for 7 days. "
+        "No signal while Bitcoin trades below its 200-day moving average. Updated daily.",
         "signals_heading": lambda n: f"🔎 Latest {n} signals",
+        "signals_note": "Each signal is one of the 12 strongest pairs in today's ranking. The position is held "
+        "for 7 days: the exit is time-based, not price-target based. The 4x ATR stop is disaster protection "
+        "(it only triggers in 5% of cases) and the 4x, 8x and 12x ATR targets are tracking milestones.",
         "buy_label": "BUY",
         "sell_label": "SELL",
         "entry": "Entry",
@@ -135,6 +224,10 @@ _STRINGS = {
         "perf_table_result": "Result",
         "perf_note": "Result determined automatically by comparing each signal's current price to "
         "its stop loss and take profit (not a tick-by-tick intrabar analysis).",
+        # Voir le commentaire de la version française ci-dessus.
+        "perf_engine_note": "These results may include signals produced by the previous engine, switched off on "
+        "3 August 2026. They therefore do not describe the Relative Strength strategy above, which has no live "
+        "track record yet.",
         "perf_secured": lambda count, pct: f"🔒 {count} ({pct:.0f}%) secured trades (TP1 reached, break-even or better)",
         "paper_heading": "💼 Live performance (paper portfolio)",
         "paper_detail": lambda n, pct: (
@@ -149,24 +242,75 @@ _STRINGS = {
         "testimonials_real_disclaimer": "✅ Real reviews left via /review by subscribers (anonymized).",
         "review_up": "👍",
         "review_down": "👎",
-        "backtest_heading": "🧪 Strategy backtest",
+        "backtest_heading": "🧪 The strategy, measured over 6 years",
         # Voir le commentaire de la version française ci-dessus.
-        "backtest_stat": lambda win_rate, trades: (
-            f"{win_rate:.1f}% of trades reach their first target ({trades} simulated trades over 24 months)"
+        "backtest_lead": "The number that matters is not the strategy's annual return, it is what someone who "
+        "started on a randomly picked date actually lived through:",
+        "backtest_stat": "After six months: +5.0% median",
+        "backtest_subscriber": "53% of entries are profitable after six months, and the worst case measured is "
+        "-61.7%. After three months the median drops to 0.0%, 43% of entries are profitable and the worst case "
+        "is -49.0%. This is not a product that makes you rich fast: it limits the damage, and it can still hurt.",
+        "backtest_how_heading": "What the engine does",
+        "backtest_how": "Every day the 40 tracked pairs are ranked by relative strength — their momentum, "
+        "measured on daily data. The 12 strongest are bought and held for 7 days. The exit is time-based: "
+        "positions are not sold on a price target. The stop is deliberately wide, at 4x ATR, because it is "
+        "disaster protection: it only triggers in 5% of cases.",
+        "backtest_tiles": (
+            ("8.0", "signals per week while the filter is open"),
+            ("47.7%", "winning signals"),
+            ("+3.22%", "expectancy per signal, net of fees"),
+            ("+16.88%", "average winner, versus -9.24% for a loser"),
         ),
-        "backtest_winrate_caveat": (
-            "⚠️ A high win rate does not mean profitable: what matters is how much winners earn versus "
-            "how much losers cost. Over this simulated period the two roughly cancel out — the strategy "
-            "has not demonstrated profitability. No performance is promised."
+        "backtest_filter_heading": "Why the channel sometimes goes quiet for months",
+        "backtest_filter": "No signal is issued while Bitcoin trades below its 200-day moving average. That "
+        "filter is closed 41% of the time and its longest closure lasted 381 days. Without it the strategy is "
+        "only positive in 4 years out of 7; with it, it has no losing year over 6 years. In 2022 and in 2026 it "
+        "simply issued nothing — while holding the same cryptos cost -70.9%, then -39.4%.",
+        "backtest_honesty_heading": "What you should know before subscribing",
+        "backtest_honesty": (
+            "The compounded portfolio shows +83.3% per year over those 6 years, with a maximum drop of -62.9% "
+            "and no losing year. <b>This is not what a subscriber will earn</b>: that figure assumes going "
+            "through all six years, from day one.",
+            "There is no secret ingredient: this is momentum, nothing more. A plain ranking by past return "
+            "does just as well.",
+            "The trend filter does most of the work. Ranking the pairs only adds about 1.1 point.",
+            "This engine went live on 3 August 2026: these figures are measured on historical data, they have "
+            "not been lived through in real time yet.",
         ),
-        "backtest_insignificant": lambda trades, min_trades: (
-            f"Sample still too small to be statistically significant ({trades} trades over 24 months) "
-            f"— win rate hidden until the {min_trades}-trade threshold is reached."
+        "backtest_detail": "Measured over 6 years (2020-2026) on daily data, net of 0.10% round-trip fees, with "
+        "entry delayed by one day after the signal, on a pair universe free of survivorship bias.",
+        "backtest_note": "⚠️ Past performance does not guarantee future results. These figures come from "
+        "simulations on historical data: they are neither a promise nor a guarantee of profit. Trading "
+        "cryptoassets can cost you part or all of the capital committed.",
+        # Voir le commentaire de la version française ci-dessus.
+        "filter_heading": "🔇 No signal today — and that is on purpose",
+        "filter_lead": "This silence is not a failure. The engine buys nothing while Bitcoin trades below its "
+        "200-day moving average: until that level is reclaimed there is nothing to publish here, and nothing "
+        "will be invented to fill the page.",
+        "filter_tiles": (
+            ("41%", "of the time with no signal at all"),
+            ("381 d", "longest closure (28/12/2021 → 13/01/2023)"),
+            ("25 d", "median length of a closure of at least one week"),
+            ("11", "closures of at least one week in 6 years"),
         ),
-        "backtest_detail": "Simulated on 28 pairs, real hourly Binance data from the last 24 months.",
-        "backtest_note": "⚠️ Result of an \"in-sample\" optimization (using the same data that chose the "
-        "parameters): past performance does not guarantee identical real-world results. This backtest is "
-        "updated automatically on every new run.",
+        "filter_duration_heading": "How long this can last",
+        "filter_duration": "Over the last 6 years this filter has been closed 41% of the time. The longest "
+        "closure lasted 381 days — 12.7 months, from 28/12/2021 to 13/01/2023. The other long closures lasted "
+        "273 days (started on 03/11/2025), 80 days, 47 days and 29 days. A subscription can therefore go "
+        "several months in a row without a single signal: expect it, it is not a malfunction.",
+        "filter_why_heading": "Why sending nothing is better",
+        "filter_why": "Without this filter the strategy is only positive in 4 years out of 7. With it, it has no "
+        "losing year over 6 years. In 2022 and in 2026 it simply issued nothing — while holding the same cryptos "
+        "cost -70.9%, then -39.4%. Sending nothing is precisely what avoided those two years.",
+        "filter_resume_heading": "What happens next",
+        "filter_resume": "Once Bitcoin closes back above its 200-day moving average the engine restarts on its "
+        "own, at the measured pace of about 8.0 signals per week while the filter stays open. There is nothing "
+        "to monitor and nothing to switch back on: this page and the channel resume automatically.",
+        "filter_measured": "Figures measured over 2020-2026, as of 3 August 2026 — the day this engine went "
+        "live, with Bitcoin trading 10.7% below its 200-day moving average.",
+        "filter_note": "We would rather publish nothing than make you lose money in a bear market. The signals "
+        "published here are informational and do not constitute investment advice: you alone decide on your "
+        "positions.",
         "cta_text": "📡 Get these signals in real time, the moment they're detected:",
         "cta_link": lambda username: f"Join @{username} on Telegram",
         "journal_link": "📖 Public trading journal — every signal opened and closed, wins and losses, no filtering",
@@ -283,6 +427,36 @@ _STYLE = """
   .backtest { background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin: 2rem 0; }
   .backtest h2 { margin-top: 0; border-bottom: none; }
   .backtest-stat { font-size: 1.5rem; font-weight: 800; color: var(--gold); margin: 6px 0; letter-spacing: -0.01em; }
+  .backtest ul { padding-left: 1.15rem; margin: 8px 0 0; }
+  .backtest li { margin: 8px 0; }
+  .backtest-detail { font-size: 0.88rem; color: var(--text-dim); }
+  /* L'encadré d'avertissement était écrit en couleurs claires en dur
+     (#fffbeb sur #b45309), hérité du thème blanc : un rectangle blanc au
+     milieu d'une page sombre. Mêmes rôles visuels, variables du thème. */
+  .backtest-caveat {
+    font-size: 0.88rem; color: var(--text-dim); background: var(--bg-card);
+    border-left: 3px solid var(--gold); border-radius: 8px;
+    padding: 11px 13px; margin: 14px 0 0;
+  }
+  .sub-heading { font-weight: 700; color: var(--text); margin: 22px 0 4px; letter-spacing: -0.01em; }
+  .signals-note { font-size: 0.9rem; color: var(--text-dim); margin-top: 4px; }
+
+  /* Bloc des jours sans signal (filtre de tendance fermé). Ces jours-là
+     représentent 41 % du temps : l'explication doit être aussi visible qu'un
+     signal, pas reléguée en note de bas de page. L'or (--gold) est déjà la
+     couleur des chiffres qui comptent — aucune teinte nouvelle. */
+  .filter-closed {
+    background: var(--bg-soft); border: 1px solid var(--border);
+    border-left: 4px solid var(--gold); border-radius: var(--radius);
+    padding: 24px; margin: 2rem 0;
+  }
+  .filter-closed h2 { margin-top: 0; border-bottom: none; color: var(--gold); }
+  .filter-closed .lead { font-size: 1.08rem; }
+  .filter-closed .measured { font-size: 0.85rem; color: var(--text-dim); }
+  .filter-closed .note {
+    font-size: 0.9rem; color: var(--text-dim);
+    border-top: 1px solid var(--border); padding-top: 14px; margin-bottom: 0;
+  }
 
   .perf-stats { display: flex; gap: 14px; flex-wrap: wrap; margin: 18px 0; }
   .perf-stat {
@@ -367,7 +541,8 @@ def _performance_section_html(stats, s):
           <thead><tr><th>{s["perf_table_pair"]}</th><th>{s["perf_table_type"]}</th><th>{s["perf_table_result"]}</th></tr></thead>
           <tbody>{rows}</tbody>
         </table>
-        <p style="font-size:0.85rem;color:#777;">{s["perf_note"]}</p>"""
+        <p style="font-size:0.85rem;color:#777;">{s["perf_note"]}</p>
+        <p style="font-size:0.85rem;color:#777;">{s["perf_engine_note"]}</p>"""
 
     return f"""
     <section>
@@ -411,40 +586,76 @@ def _testimonials_section_html(s, lang, reviews=None):
 
 def _backtest_section_html(backtest_stats, s):
     """
-    backtest_stats : ligne active de la table strategy_params (win_rate en
-    fraction 0-1, trade_count entier), ou None si aucun backtest n'a encore
-    tourné — dans ce cas la section est simplement omise (jamais de chiffre
-    inventé).
+    Description de la stratégie Force Relative et de ses chiffres mesurés sur
+    6 ans (2020-2026).
+
+    `backtest_stats` (ligne active de strategy_params) ne sert plus qu'à
+    décider si la section est affichée : main.py ne la transmet que pour les
+    pages d'accueil, pas pour les archives. Ses champs win_rate/trade_count ne
+    sont volontairement PLUS lus. Ils proviennent du backtest de l'ancien
+    moteur horaire (croisement EMA + RSI bas), désactivé le 03/08/2026 : les
+    afficher sous une description du moteur Force Relative lui attribuerait des
+    résultats qui ne sont pas les siens — exactement le mécanisme qui a laissé
+    un « 61,2 % de réussite » sur le site pendant des mois.
     """
     if not backtest_stats:
         return ""
 
-    win_rate_pct = float(backtest_stats["win_rate"]) * 100
-    trades = int(backtest_stats["trade_count"])
-    significant = trades >= MIN_SIGNIFICANT_TRADES
-    stat_text = (
-        s["backtest_stat"](win_rate_pct, trades)
-        if significant
-        else s["backtest_insignificant"](trades, MIN_SIGNIFICANT_TRADES)
+    tiles_html = "".join(
+        f'<div class="perf-stat"><b>{value}</b>{label}</div>'
+        for value, label in s["backtest_tiles"]
     )
-
-    # L'avertissement n'accompagne le chiffre que lorsqu'un chiffre est
-    # réellement affiché (sinon il n'y a rien à nuancer).
-    caveat_html = (
-        f'<p class="backtest-caveat" style="font-size:0.9rem;color:#b45309;'
-        f'background:#fffbeb;border-left:3px solid #f59e0b;padding:10px 12px;'
-        f'border-radius:6px;margin:10px 0;">{s["backtest_winrate_caveat"]}</p>'
-        if significant
-        else ""
-    )
+    honesty_html = "".join(f"<li>{item}</li>" for item in s["backtest_honesty"])
 
     return f"""
     <section class="backtest">
       <h2>{s["backtest_heading"]}</h2>
-      <p class="backtest-stat">{stat_text}</p>
-      {caveat_html}
-      <p>{s["backtest_detail"]}</p>
-      <p style="font-size:0.85rem;color:#777;">{s["backtest_note"]}</p>
+      <p>{s["backtest_lead"]}</p>
+      <p class="backtest-stat">{s["backtest_stat"]}</p>
+      <p>{s["backtest_subscriber"]}</p>
+      <p class="sub-heading">{s["backtest_how_heading"]}</p>
+      <p>{s["backtest_how"]}</p>
+      <div class="perf-stats">{tiles_html}</div>
+      <p class="sub-heading">{s["backtest_filter_heading"]}</p>
+      <p>{s["backtest_filter"]}</p>
+      <p class="sub-heading">{s["backtest_honesty_heading"]}</p>
+      <ul>{honesty_html}</ul>
+      <p class="backtest-detail">{s["backtest_detail"]}</p>
+      <p class="backtest-caveat">{s["backtest_note"]}</p>
+    </section>"""
+
+
+def _no_signal_section_html(s):
+    """
+    Bloc affiché les jours SANS signal, c'est-à-dire quand le filtre de
+    tendance est fermé (Bitcoin sous sa moyenne mobile 200 jours).
+
+    Ces jours-là représentent 41 % du temps et peuvent s'enchaîner pendant des
+    mois — 381 jours pour la plus longue fermeture mesurée. Les traiter comme
+    un incident (page vide, ou pire, signal de remplissage) serait malhonnête
+    et ferait fuir l'abonné au moment précis où le filtre lui rend le plus
+    service. Le silence est donc expliqué avec le même soin qu'un signal : sa
+    durée possible, y compris la pire mesurée, et la raison pour laquelle il
+    est voulu.
+    """
+    tiles_html = "".join(
+        f'<div class="perf-stat"><b>{value}</b>{label}</div>'
+        for value, label in s["filter_tiles"]
+    )
+
+    return f"""
+    <section class="filter-closed">
+      <h2>{s["filter_heading"]}</h2>
+      <p class="lead">{s["filter_lead"]}</p>
+      <div class="perf-stats">{tiles_html}</div>
+      <p class="sub-heading">{s["filter_duration_heading"]}</p>
+      <p>{s["filter_duration"]}</p>
+      <p class="sub-heading">{s["filter_why_heading"]}</p>
+      <p>{s["filter_why"]}</p>
+      <p class="sub-heading">{s["filter_resume_heading"]}</p>
+      <p>{s["filter_resume"]}</p>
+      <p class="measured">{s["filter_measured"]}</p>
+      <p class="note">{s["filter_note"]}</p>
     </section>"""
 
 
@@ -455,6 +666,11 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
     `alternate_path` : chemin de la page équivalente dans l'autre langue (pour hreflang + lien de bascule).
     `resolved_signals` : voir supabase_client.get_all_resolved_signals() -- portefeuille fictif (Bloc 11.1).
     `reviews` : voir supabase_client.get_recent_reviews() -- Étape 3, avis réels /review.
+
+    `signals` peut être vide : depuis le 03/08/2026 le moteur ne publie rien
+    tant que le Bitcoin est sous sa moyenne mobile 200 jours, ce qui arrive
+    41 % du temps. La page reste alors complète et explique le silence
+    (_no_signal_section_html) au lieu d'afficher une section de signaux vide.
     """
     s = _STRINGS[lang]
     date_str = page_date.strftime(s["date_format"])
@@ -463,7 +679,19 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
     description = s["meta_description"](len(signals), pairs_list, date_str)
     canonical_url = f"{SITE_BASE_URL}{canonical_path}"
 
-    cards_html = "".join(_signal_card_html(sig, s, lang) for sig in signals)
+    # Deux états possibles, et le second n'est pas un cas dégradé : soit des
+    # signaux du jour, soit l'explication du filtre de tendance fermé.
+    if signals:
+        cards_html = "".join(_signal_card_html(sig, s, lang) for sig in signals)
+        signals_html = f"""
+    <section>
+      <h2>{s["signals_heading"](len(signals))}</h2>
+      <p class="signals-note">{s["signals_note"]}</p>
+      {cards_html}
+    </section>"""
+    else:
+        signals_html = _no_signal_section_html(s)
+
     performance_html = _performance_section_html(performance_stats, s)
     paper_html = build_live_performance_section(resolved_signals or [], s)
     testimonials_html = _testimonials_section_html(s, lang, reviews=reviews)
@@ -508,10 +736,7 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
 
   {backtest_html}
 
-  <section>
-    <h2>{s["signals_heading"](len(signals))}</h2>
-    {cards_html}
-  </section>
+  {signals_html}
 
   {performance_html}
 
