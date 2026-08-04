@@ -332,32 +332,33 @@ def run_carry_engine() -> list:
         logger.warning("[carry_funding] Univers indisponible ce cycle, aucun signal.")
         return []
 
-    funding_par_symbole = {}
+    taux_par_symbole, sources = {}, {}
     for symbole in symboles:
-        versements = carry_engine.fetch_funding_history(symbole, config.CARRY_LOOKBACK_DAYS)
-        if versements:
-            funding_par_symbole[symbole] = versements
+        taux, source = carry_engine.fetch_funding_daily(symbole, config.CARRY_LOOKBACK_DAYS)
+        if taux is not None:
+            taux_par_symbole[symbole] = taux
+            sources[symbole] = source
 
     # Le prix spot n'est demandé que pour les candidats réellement retenus :
     # inutile d'appeler l'API pour cent vingt symboles dont quelques-uns
     # passeront le plancher.
-    classement = carry_engine.classer_paires(funding_par_symbole)
+    classement = carry_engine.classer_paires(taux_par_symbole)
     prix_spot = {}
     for symbole, _taux in classement[: places_libres + len(ouvertes)]:
         prix = carry_engine.fetch_spot_price(symbole)
         if prix:
             prix_spot[symbole] = prix
 
-    funding_par_paire = funding_par_symbole
-
+    plateformes = ", ".join(sorted({s for s in sources.values()})) or "aucune"
     logger.info(
-        "[carry_funding] Passage quotidien : %d paires avec financement, %d classables, "
-        "%d position(s) ouverte(s), %d place(s) libre(s).",
-        len(funding_par_paire), len(classement), len(ouvertes), places_libres,
+        "[carry_funding] Passage quotidien : %d symboles avec financement (source : %s), "
+        "%d classables, %d position(s) ouverte(s), %d place(s) libre(s).",
+        len(taux_par_symbole), plateformes, len(classement), len(ouvertes), places_libres,
     )
 
     signaux = carry_engine.detect_carry_signals(
-        funding_par_paire, prix_spot, already_open=ouvertes, places_libres=places_libres
+        taux_par_symbole, prix_spot, already_open=ouvertes,
+        places_libres=places_libres, sources=sources,
     )
     storage.record_heartbeat("carry_funding")
     return signaux
@@ -624,7 +625,8 @@ def run_once(params: dict) -> tuple[int, int]:
         # le classement, RSI et durée de détention prévue n'ont pas de colonne
         # en base. Elles sont utiles au débogage et au message envoyé aux
         # abonnés, mais les laisser ferait échouer l'insertion entière.
-        for key in ("rs_rank", "rs_rsi", "rs_hold_days", "carry_rate_per_day", "carry_rank"):
+        for key in ("rs_rank", "rs_rsi", "rs_hold_days", "carry_rate_per_day",
+                    "carry_rank", "carry_source"):
             signal_dict.pop(key, None)
         if not storage.insert_signal(signal_dict):
             failed_inserts += 1

@@ -162,6 +162,7 @@ _MIROIRS_SPOT = (
 
 _BYBIT_TICKERS = "https://api.bybit.com/v5/market/tickers?category=linear"
 _BYBIT_FUNDING = "https://api.bybit.com/v5/market/funding/history"
+_HYPERLIQUID = "https://api.hyperliquid.xyz/info"
 
 
 def _univers_bybit(taille: int) -> list:
@@ -184,6 +185,25 @@ def _funding_bybit(symbole: str, jours: int) -> list | None:
         return None
     lignes = data.get("result", {}).get("list", [])
     return [float(l["fundingRate"]) * 100 for l in lignes] if lignes else None
+
+
+def _univers_hyperliquid(taille: int) -> list:
+    """
+    Marchés Hyperliquid classés par volume sur 24 h, ramenés à la notation
+    "XXXUSDT" pour rester homogènes avec le reste du moteur.
+    """
+    try:
+        meta = _hyperliquid({"type": "metaAndAssetCtxs"})
+    except Exception:
+        return []
+    noms = [u["name"] for u in meta[0].get("universe", [])]
+    contextes = meta[1] if len(meta) > 1 else []
+    lignes = [
+        (n, float(c.get("dayNtlVlm") or 0))
+        for n, c in zip(noms, contextes)
+    ]
+    lignes.sort(key=lambda x: -x[1])
+    return [f"{n}USDT" for n, _v in lignes[:taille] if f"{n}USDT" not in _STABLES]
 
 
 def univers_carry(taille: int) -> list:
@@ -223,6 +243,15 @@ def univers_carry(taille: int) -> list:
                 ENGINE_NAME, len(bybit),
             )
             return bybit
+        hl = _univers_hyperliquid(taille)
+        if hl:
+            logger.info(
+                "[%s] Binance et Bybit injoignables : univers construit depuis Hyperliquid "
+                "(%d marchés). C'est le cas normal depuis les runners GitHub Actions, dont "
+                "les IP américaines sont bloquées par les deux plateformes centralisées.",
+                ENGINE_NAME, len(hl),
+            )
+            return hl
         secours = [p.replace("/", "") for p in config.PAIRS]
         logger.warning(
             "[%s] Aucune plateforme joignable : repli sur les %d paires du projet. "
@@ -255,30 +284,98 @@ def univers_carry(taille: int) -> list:
     return [d["symbol"] for d in candidats[:taille]]
 
 
-def fetch_funding_history(symbole: str, jours: int) -> list | None:
-    """
-    Taux de financement des `jours` derniers jours, en pourcentage par versement.
-
-    Retourne None si aucune source ne répond — et non une liste vide, pour que
-    l'appelant distingue « pas de données » de « financement nul ».
-    """
+def _funding_binance(symbole: str, jours: int):
+    """Binance verse toutes les 8 h : 3 versements par jour."""
     depuis = int((datetime.now(timezone.utc) - timedelta(days=jours + 2)).timestamp() * 1000)
     for base in _ENDPOINTS:
-        url = f"{base}?symbol={symbole}&startTime={depuis}&limit=1000"
         try:
-            lignes = _lire_json(url)
-        except urllib.error.HTTPError as err:
-            logger.warning("[%s] %s a répondu %s pour %s.", ENGINE_NAME, base, err.code, symbole)
-            continue
+            lignes = _lire_json(f"{base}?symbol={symbole}&startTime={depuis}&limit=1000")
         except Exception:
-            logger.warning("[%s] %s injoignable pour %s.", ENGINE_NAME, base, symbole, exc_info=True)
             continue
         if lignes:
-            return [float(l["fundingRate"]) * 100 for l in lignes]
+            taux = [float(l["fundingRate"]) * 100 for l in lignes]
+            return sum(taux) / len(taux) * 3
+    return None
 
-    # Binance muet sur tous ses miroirs : c'est le cas depuis les runners
-    # GitHub Actions, où le moteur tourne réellement.
-    return _funding_bybit(symbole, jours)
+
+def _funding_bybit(symbole: str, jours: int):
+    """Bybit verse aussi toutes les 8 h."""
+    depuis = int((datetime.now(timezone.utc) - timedelta(days=jours + 2)).timestamp() * 1000)
+    url = f"{_BYBIT_FUNDING}?category=linear&symbol={symbole}&startTime={depuis}&limit=200"
+    data = _lire_json_multi((url,), timeout=20)
+    lignes = (data or {}).get("result", {}).get("list", [])
+    if not lignes:
+        return None
+    taux = [float(l["fundingRate"]) * 100 for l in lignes]
+    return sum(taux) / len(taux) * 3
+
+
+def _hyperliquid(payload: dict):
+    corps = json.dumps(payload).encode()
+    requete = urllib.request.Request(
+        _HYPERLIQUID, headers={**_HEADERS, "Content-Type": "application/json"}, data=corps
+    )
+    with urllib.request.urlopen(requete, timeout=25) as reponse:
+        return json.load(reponse)
+
+
+def _funding_hyperliquid(symbole: str, jours: int):
+    """
+    Hyperliquid verse toutes les HEURES, pas toutes les 8 heures : le taux
+    quotidien se calcule donc sur 24 versements et non 3. Confondre les deux
+    diviserait le taux par huit et écarterait toutes les paires au plancher.
+    """
+    coin = symbole[:-4] if symbole.endswith("USDT") else symbole
+    depuis = int((datetime.now(timezone.utc) - timedelta(days=jours + 2)).timestamp() * 1000)
+    try:
+        lignes = _hyperliquid({"type": "fundingHistory", "coin": coin, "startTime": depuis})
+    except Exception:
+        return None
+    if not lignes:
+        return None
+    taux = [float(l["fundingRate"]) * 100 for l in lignes]
+    return sum(taux) / len(taux) * 24
+
+
+# Sources de financement, essayées dans l'ordre. Chacune normalise son propre
+# rythme de versement et rend un taux en % PAR JOUR.
+#
+# Pourquoi trois. Binance est bloqué depuis les runners GitHub Actions (451) et
+# depuis Cloudflare (403). Bybit l'est aussi : les runners GitHub sont sur des
+# IP américaines, et les deux plateformes bloquent les États-Unis. Hyperliquid
+# est décentralisé, donc joignable de partout — c'est le seul repli qui tienne
+# vraiment, et il est volontairement en dernier parce que ses taux sont les plus
+# éloignés de ceux du backtest.
+_SOURCES_FUNDING = (
+    ("Binance", _funding_binance),
+    ("Bybit", _funding_bybit),
+    ("Hyperliquid", _funding_hyperliquid),
+)
+
+
+def fetch_funding_daily(symbole: str, jours: int):
+    """
+    Financement moyen en % PAR JOUR sur les `jours` derniers jours, et le nom de
+    la plateforme d'où vient la mesure.
+
+    Le nom compte : les taux diffèrent sensiblement d'une plateforme à l'autre
+    (sur BTC, +0,0094 %/jour chez Bybit contre +0,0237 % chez Hyperliquid le
+    04/08/2026). L'abonné exécute sur SA plateforme, donc lui annoncer un
+    chiffre sans dire où il a été mesuré serait trompeur. Le classement RELATIF
+    entre paires, lui, reste bien plus stable que le niveau absolu — c'est ce
+    qui rend la sélection valide malgré l'écart.
+
+    Retourne (None, None) si aucune source ne répond : l'absence de donnée ne
+    doit jamais être confondue avec un financement nul.
+    """
+    for nom, recuperer in _SOURCES_FUNDING:
+        try:
+            taux = recuperer(symbole, jours)
+        except Exception:
+            continue
+        if taux is not None:
+            return taux, nom
+    return None, None
 
 
 def format_pair(symbole: str) -> str:
@@ -327,53 +424,41 @@ def fetch_spot_price(symbole: str) -> float | None:
     return None
 
 
-def taux_moyen_journalier(versements: list) -> float | None:
+def classer_paires(taux_par_symbole: dict) -> list:
     """
-    Financement moyen par JOUR, à partir des versements toutes les 8 heures.
+    Classe les symboles par financement quotidien décroissant, après plancher,
+    plafond et espérance annoncée minimale.
 
-    Trois versements par jour : la moyenne par versement est donc multipliée
-    par trois. Sur un historique tronqué (paire récemment listée) le calcul
-    reste juste, puisqu'il ne dépend pas du nombre total de lignes.
-    """
-    if not versements:
-        return None
-    return sum(versements) / len(versements) * 3
-
-
-def classer_paires(funding_par_paire: dict) -> list:
-    """
-    Classe les paires par financement journalier décroissant, après application
-    du plancher et du plafond. Une paire sans données est écartée plutôt que
-    classée au pire rang : la faire figurer serait inventer une information.
+    `taux_par_symbole` associe chaque symbole à son taux en % PAR JOUR, déjà
+    normalisé selon le rythme de versement de sa plateforme (voir
+    fetch_funding_daily). Un symbole sans donnée est écarté plutôt que classé
+    au pire rang : le faire figurer serait inventer une information.
     """
     scores = {}
-    for pair, versements in funding_par_paire.items():
-        taux = taux_moyen_journalier(versements)
+    for symbole, taux in taux_par_symbole.items():
         if taux is None:
             continue
         if taux < config.CARRY_MIN_FUNDING_PCT_PER_DAY:
             continue  # ne couvre même pas ses frais
-        # Garde-fou indépendant du plancher : jamais de signal dont le gain
-        # ANNONCÉ serait nul ou dérisoire. Le plancher arithmétique laisse
-        # passer des positions à +0,01 % attendu, ce qui est exact et pourtant
-        # absurde à envoyer.
-        attendu = taux * config.CARRY_HOLD_DAYS - config.CARRY_ROUND_TRIP_COST_PCT
-        if attendu < config.CARRY_MIN_EXPECTED_PCT:
-            continue
         if taux > config.CARRY_MAX_FUNDING_PCT_PER_DAY:
             logger.info(
                 "[%s] %s écartée : financement de %.4f %%/jour au-dessus du plafond de %.4f. "
                 "Un taux extrême signale une manie, pas une bonne affaire — c'est là que se "
                 "logent les pertes rares et énormes.",
-                ENGINE_NAME, pair, taux, config.CARRY_MAX_FUNDING_PCT_PER_DAY,
+                ENGINE_NAME, symbole, taux, config.CARRY_MAX_FUNDING_PCT_PER_DAY,
             )
             continue
-        scores[pair] = taux
+        # Garde-fou indépendant du plancher : jamais de signal dont le gain
+        # ANNONCÉ serait nul ou dérisoire.
+        attendu = taux * config.CARRY_HOLD_DAYS - config.CARRY_ROUND_TRIP_COST_PCT
+        if attendu < config.CARRY_MIN_EXPECTED_PCT:
+            continue
+        scores[symbole] = taux
     return sorted(scores.items(), key=lambda kv: -kv[1])
 
 
 def build_signal(pair: str, prix_spot: float, taux_journalier: float, rang: int,
-                 timestamp=None) -> dict:
+                 timestamp=None, source: str = "Binance") -> dict:
     """
     Construit le signal de carry.
 
@@ -403,12 +488,13 @@ def build_signal(pair: str, prix_spot: float, taux_journalier: float, rang: int,
         # Métadonnées de journalisation, retirées avant insertion.
         "carry_rate_per_day": round(taux_journalier, 5),
         "carry_rank": rang,
+        "carry_source": source,
     }
 
 
-def detect_carry_signals(funding_par_paire: dict, prix_spot: dict,
+def detect_carry_signals(taux_par_symbole: dict, prix_spot: dict,
                          already_open: set = None, places_libres: int = None,
-                         timestamp=None) -> list:
+                         timestamp=None, sources: dict = None) -> list:
     """
     Point d'entrée. Rend la liste des carrys à ouvrir aujourd'hui.
 
@@ -425,7 +511,7 @@ def detect_carry_signals(funding_par_paire: dict, prix_spot: dict,
                     ENGINE_NAME, len(already_open), config.CARRY_MAX_POSITIONS)
         return []
 
-    classement = classer_paires(funding_par_paire)
+    classement = classer_paires(taux_par_symbole)
     if not classement:
         logger.info(
             "[%s] Aucune paire ne dépasse le plancher de %.4f %%/jour : le financement "
@@ -450,7 +536,8 @@ def detect_carry_signals(funding_par_paire: dict, prix_spot: dict,
         if not prix or prix <= 0:
             logger.warning("[%s] %s : prix spot indisponible, position non ouverte.", ENGINE_NAME, pair)
             continue
-        signaux.append(build_signal(pair, prix, taux, rang, timestamp))
+        signaux.append(build_signal(pair, prix, taux, rang, timestamp,
+                                    source=(sources or {}).get(pair, "Binance")))
 
     if signaux:
         logger.info(

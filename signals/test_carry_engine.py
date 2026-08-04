@@ -33,15 +33,20 @@ def verifie(condition, message):
 
 
 def versements(taux_journalier, jours=21):
-    """Reconstruit une liste de versements 8h à partir d'un taux quotidien."""
-    return [taux_journalier / 3] * (jours * 3)
+    """
+    Le moteur reçoit désormais des taux déjà normalisés en % PAR JOUR : chaque
+    source convertit son propre rythme de versement avant de rendre la valeur
+    (8 heures chez Binance et Bybit, 1 heure chez Hyperliquid). Confondre les
+    deux diviserait le taux par huit et viderait le classement.
+    """
+    return taux_journalier
 
 
-print("\n=== 1. Conversion des versements en taux quotidien ===")
-verifie(abs(ce.taux_moyen_journalier(versements(0.03)) - 0.03) < 1e-9,
-        "trois versements de 8 h par jour -> taux quotidien correct")
-verifie(ce.taux_moyen_journalier([]) is None,
-        "aucun versement -> None, et non zéro (l'absence n'est pas un taux nul)")
+print("\n=== 1. Notation des symboles ===")
+verifie(ce.format_pair("BTCUSDT") == "BTC/USDT",
+        "symbole de plateforme converti vers la notation du projet")
+verifie(ce.format_pair("BTC/USDT") == "BTC/USDT",
+        "un symbole déjà converti reste inchangé")
 
 print("\n=== 2. Plancher et plafond ===")
 univers = {
