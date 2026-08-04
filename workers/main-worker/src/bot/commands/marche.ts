@@ -1,14 +1,26 @@
 /**
- * /marche — état EN DIRECT du filtre de tendance du moteur Force Relative.
+ * /marche — état EN DIRECT du filtre de tendance des familles directionnelles.
  *
- * Pourquoi cette commande existe. Le moteur n'émet aucun signal tant que le
- * Bitcoin clôture sous sa moyenne mobile 200 jours (voir
+ * Pourquoi cette commande existe. Les trois familles directionnelles (force
+ * relative, cassure de canal, expansion de volatilité) n'émettent rien tant que
+ * le Bitcoin clôture sous sa moyenne mobile 200 jours (voir
  * signals/relative_strength.py::is_market_in_uptrend). Ce filtre est fermé
  * 41 % du temps, et sa plus longue fermeture a duré 381 jours : sans un
  * endroit où l'abonné peut vérifier lui-même l'état du filtre, un silence de
  * plusieurs mois ressemble à une panne. Il faut pouvoir répondre « le filtre
  * est fermé, voici depuis quand, voici pourquoi » à la demande, avec un
  * chiffre recalculé sur le moment et non un état stocké qui peut être périmé.
+ *
+ * Correction du 04/08/2026 — la plus importante de ce fichier. Ce message
+ * décrivait un moteur à UNE famille : filtre fermé signifiait donc « rien ne
+ * fonctionne ». C'est faux depuis l'ajout du carry de financement (voir
+ * signals/carry_engine.py), qui n'est PAS filtré parce qu'il ne parie sur
+ * aucune direction — il ouvre deux jambes qui s'annulent et encaisse le
+ * financement. Laisser croire à un abonné, un jour de filtre fermé, que le
+ * produit entier est à l'arrêt, c'est lui cacher la seule famille qui produit
+ * précisément ce jour-là. Les deux messages nomment donc explicitement ce qui
+ * s'arrête ET ce qui continue, et la commande va lire en base les carrys
+ * réellement ouverts : un fait vérifiable vaut mieux qu'une affirmation.
  *
  * Le calcul reproduit EXACTEMENT celui du moteur : dernière clôture
  * journalière comparée à la moyenne des 200 dernières clôtures journalières.
@@ -29,9 +41,10 @@
  * marché baissier, ce que ce filtre existe précisément pour éviter.
  */
 
-import { Env } from "../../env";
+import { Env, dbConfig } from "../../env";
 import { sendMessage } from "../../telegram";
 import { pairToSymbol } from "../../market/binancePrices";
+import { getOpenCarrySignals } from "../../db/signals";
 
 const BINANCE_BASE_URL = "https://api.binance.com";
 const COINBASE_BASE_URL = "https://api.exchange.coinbase.com";
@@ -45,7 +58,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const TREND_MA_PERIOD = 200;
 
 // C'est le RÉGIME DE MARCHÉ qui est mesuré, pas la force d'une paire en
-// particulier : le filtre du moteur ne regarde que le Bitcoin.
+// particulier : le filtre du moteur ne regarde que le Bitcoin. Et il ne
+// commande QUE les trois familles directionnelles — le carry de financement
+// tourne dans les deux régimes (voir signals/carry_engine.py).
 const BTC_PAIR = "BTC/USDT";
 
 // On demande bien plus que les 200 bougies du calcul : au-delà de l'état
@@ -251,70 +266,148 @@ function computeTrendState(candles: DailyCandle[]): TrendState | null {
 
 const DISCLAIMER = "⚠️ Signaux informatifs — ni conseil en investissement, ni promesse de gain. Performance passée ne garantit pas les performances futures.";
 
-function buildOpenMessage(state: TrendState): string {
+// Description du carry répétée dans les deux états du filtre : c'est la seule
+// famille qui tourne dans les deux, et l'abonné qui tape /marche un jour de
+// fermeture doit la lire au moment exact où il croit que tout est à l'arrêt.
+const CARRY_EXPLANATION =
+  "Le carry de financement, lui, n'est pas filtré — et c'est volontaire. Il ne parie sur aucune direction : " +
+  "il ouvre deux jambes du même montant sur la même crypto, un achat au comptant et une vente à découvert du " +
+  "perpétuel. Ce que l'une gagne, l'autre le perd : le prix ne rentre pas dans l'équation. Ce qui est encaissé, " +
+  "c'est le financement, versé toutes les huit heures par les acheteurs de perpétuels aux vendeurs.";
+
+const CARRY_RISK =
+  "Ce n'est pas « sans risque », et on ne l'écrira jamais. La jambe vendeuse peut être liquidée si la marge " +
+  "devient insuffisante, et il reste un risque de plateforme. La pire position mesurée sur ces 6 ans a perdu 19,86 %.";
+
+/**
+ * Les carrys réellement ouverts, lus en base au moment de la commande.
+ *
+ * Pourquoi aller chercher ça plutôt que de l'affirmer en texte : un jour de
+ * filtre fermé, « le carry continue » est exactement le genre de phrase qu'un
+ * visiteur méfiant lit comme une excuse commerciale. Trois noms de cryptos
+ * qu'il peut vérifier sur n'importe quelle plateforme, non.
+ *
+ * Toute erreur est avalée : cette commande doit répondre sur l'état du filtre
+ * même si Supabase hoquette. Mieux vaut une ligne en moins qu'un /marche muet.
+ */
+async function buildOpenCarryLine(env: Env): Promise<string | null> {
+  try {
+    const carries = await getOpenCarrySignals(dbConfig(env));
+    if (carries.length === 0) return null;
+    // On n'affiche que la base de la paire (ZRO plutôt que ZRO/USDT) : c'est
+    // la crypto qui parle à l'abonné, la contrepartie en dollars est implicite.
+    const pairs = carries.map((signal) => signal.pair.split("/")[0]).join(", ");
+    return carries.length === 1
+      ? `👉 En ce moment, 1 carry est ouvert : ${pairs}.`
+      : `👉 En ce moment, ${carries.length} carrys sont ouverts : ${pairs}.`;
+  } catch (err) {
+    console.error("[marche] Lecture des carrys ouverts impossible:", err);
+    return null;
+  }
+}
+
+function joinLines(lines: Array<string | null>): string {
+  return lines.filter((line): line is string => line !== null).join("\n");
+}
+
+function buildOpenMessage(state: TrendState, carryLine: string | null): string {
   const duration = state.sinceIsLowerBound
     ? `depuis au moins ${state.runDays} jour${state.runDays > 1 ? "s" : ""} (notre historique de prix ne remonte pas plus loin)`
     : `depuis le ${frDate(state.sinceMs)}, soit ${state.runDays} jour${state.runDays > 1 ? "s" : ""}`;
 
-  return [
-    "📈 *Marché favorable — les signaux sont actifs*",
+  return joinLines([
+    "📈 *Marché favorable — les quatre familles émettent*",
     "",
     `Le Bitcoin clôture ${fr(state.gapPct)} % au-dessus de sa moyenne mobile 200 jours (clôture du ${frDate(state.asOfMs)}). C'est la condition d'ouverture du filtre de tendance, et elle est remplie ${duration}.`,
     "",
-    "Ce que ça veut dire concrètement : le moteur classe les 40 paires par force relative, achète les 12 plus fortes et les tient 7 jours. Sur 6 ans, filtre ouvert, ça donne 8,0 signaux par semaine, 47,7 % de gagnants et +3,22 % d'espérance par signal net de frais.",
+    "*Ce qui tourne*",
+    "Trois familles directionnelles : la force relative (les 40 paires suivies sont classées, on achète les 12 plus fortes et on les tient 7 jours), la cassure du plus haut 50 jours, et l'expansion de volatilité après une phase de compression.",
     "",
-    "Le chiffre qui te concerne vraiment, ce n'est pas le rendement de la stratégie mais celui d'une entrée à une date au hasard : après six mois, médiane +5,0 %, 53 % des entrées gagnantes, et pire cas -61,7 %. Après trois mois, médiane 0,0 %, 43 % de gagnantes, pire cas -49,0 %.",
+    CARRY_EXPLANATION,
+    carryLine,
     "",
-    "Et le filtre se refermera : il est fermé 41 % du temps. Quand ce sera le cas, tu ne recevras plus rien, et ce sera normal.",
+    "*Le débit mesuré sur 6 ans*",
+    "• dans un marché comme aujourd'hui : 4,35 signaux par jour",
+    "• quand le filtre se referme : 1,15 par jour, tous issus du carry",
+    "• en moyenne : 2,99 par jour, et 80 % des jours ont au moins un signal",
+    "",
+    "*Ce qu'il faut savoir sur les signaux directionnels*",
+    "Ils réussissent environ une fois sur deux, et le signal médian PERD 0,69 %. Tout le résultat vient d'une minorité de gros gagnants : il faut donc les prendre TOUS. En trier quelques-uns revient statistiquement à ne garder que la partie perdante.",
+    "",
+    "Le chiffre qui te concerne vraiment, ce n'est pas le rendement de la stratégie mais celui d'une entrée à une date au hasard : après six mois, médiane +5,0 %, 53 % des entrées gagnantes, et pire cas -61,7 %.",
+    "",
+    "Et le filtre se refermera : il est fermé 41 % du temps, jusqu'à 381 jours d'affilée. Ce jour-là, les trois familles directionnelles se tairont et seul le carry continuera. Ce sera normal, et /marche te le dira.",
     "",
     DISCLAIMER,
-  ].join("\n");
+  ]);
 }
 
-function buildClosedMessage(state: TrendState): string {
+function buildClosedMessage(state: TrendState, carryLine: string | null): string {
   const duration = state.sinceIsLowerBound
     ? `Fermé depuis au moins ${state.runDays} jour${state.runDays > 1 ? "s" : ""} — notre historique de prix ne remonte pas plus loin, la vraie durée est donc supérieure.`
     : `Fermé depuis le ${frDate(state.sinceMs)}, soit ${state.runDays} jour${state.runDays > 1 ? "s" : ""}.`;
 
-  return [
-    "🚫 *Aucun signal en ce moment — et c'est voulu*",
+  return joinLines([
+    "🔻 *Filtre de tendance fermé — mais le canal n'est pas muet*",
     "",
-    `Le Bitcoin clôture ${fr(Math.abs(state.gapPct))} % SOUS sa moyenne mobile 200 jours (clôture du ${frDate(state.asOfMs)}). Tant que c'est le cas, le canal n'émet aucun signal.`,
-    "",
+    `Le Bitcoin clôture ${fr(Math.abs(state.gapPct))} % SOUS sa moyenne mobile 200 jours (clôture du ${frDate(state.asOfMs)}).`,
     duration,
     "",
-    "*Pourquoi*",
-    "La stratégie achète les cryptos les plus fortes du moment : ça ne fonctionne qu'en marché porteur. Sans ce filtre, elle n'est positive que 4 années sur 7. Avec, elle n'a aucune année perdante en 6 ans — non pas parce qu'elle gagne en marché baissier, mais parce qu'en 2022 et en 2026 elle n'a simplement rien émis, pendant que détenir les mêmes cryptos coûtait -70,9 % et -39,4 %.",
+    "*Ce qui s'arrête*",
+    "Les trois familles directionnelles — force relative, cassure du plus haut 50 jours, expansion de volatilité — n'émettent plus rien. Elles achètent, et acheter ne paie pas dans ce régime. On préfère ne rien t'envoyer plutôt que de te faire perdre.",
     "",
-    "C'est le filtre qui fait la majeure partie du travail ; le classement des paires n'ajoute qu'environ 1,1 point. Autrement dit : savoir quand ne PAS acheter compte plus que savoir quoi acheter.",
+    "*Ce qui continue*",
+    CARRY_EXPLANATION,
+    carryLine,
     "",
-    "*Ce que ça coûte*",
-    "Ce filtre est fermé 41 % du temps. Sur 6 ans il y a eu 11 fermetures d'au moins une semaine, de 25 jours en médiane, et la plus longue a duré 381 jours — 12,7 mois, du 28/12/2021 au 13/01/2023. Personne ne peut te dire quand celle-ci se terminera.",
+    "*Les chiffres mesurés sur 6 ans*",
+    "• dans un marché comme aujourd'hui : 1,15 signal par jour en moyenne, tous issus du carry",
+    "• dans un marché favorable : 4,35 par jour, les quatre familles réunies",
+    "• sur l'ensemble de la période : 2,99 par jour, et 80 % des jours ont au moins un signal",
+    "• carry seul : 84,2 % de positions gagnantes, +0,572 % net par position, six années positives sur sept — la septième, 2022, est à -0,046 %, donc plate et non perdante",
     "",
-    "On préfère ne rien t'envoyer plutôt que de te faire perdre.",
+    "*Ce que ce n'est pas*",
+    CARRY_RISK,
+    "",
+    "Quant au filtre directionnel, il est fermé 41 % du temps. La plus longue fermeture a duré 381 jours, du 28/12/2021 au 13/01/2023, et personne ne peut te dire quand celle-ci se terminera. C'est exactement pour ces périodes-là que le carry existe.",
     "",
     DISCLAIMER,
-  ].join("\n");
+  ]);
 }
 
-const UNKNOWN_MESSAGE = [
-  "❓ *État du marché indéterminé pour le moment*",
-  "",
-  "Impossible de récupérer les bougies journalières du Bitcoin : aucune de nos trois sources de prix (Binance, Kraken, Coinbase) n'a répondu correctement.",
-  "",
-  "On préfère te le dire plutôt que d'afficher un état par défaut : annoncer « marché favorable » sans l'avoir vérifié serait exactement le genre d'approximation que ce filtre existe pour éviter. Réessaie dans quelques minutes.",
-].join("\n");
+function buildUnknownMessage(carryLine: string | null): string {
+  return joinLines([
+    "❓ *État du filtre indéterminé pour le moment*",
+    "",
+    "Impossible de récupérer les bougies journalières du Bitcoin : aucune de nos trois sources de prix (Binance, Kraken, Coinbase) n'a répondu correctement.",
+    "",
+    "On préfère te le dire plutôt que d'afficher un état par défaut : annoncer « marché favorable » sans l'avoir vérifié serait exactement le genre d'approximation que ce filtre existe pour éviter. Réessaie dans quelques minutes.",
+    "",
+    // Même en cas de panne de prix, ce point reste vrai et vérifiable en base :
+    // ne pas le dire laisserait croire que tout le produit est hors service.
+    "À noter : ce filtre ne commande que les trois familles directionnelles. Le carry de financement, neutre au marché, ne dépend ni de cette moyenne ni de ces sources de prix.",
+    carryLine,
+  ]);
+}
 
-/** /marche — état en direct du filtre de tendance (ouvert = signaux actifs, fermé = aucun signal). */
+/**
+ * /marche — état en direct du filtre de tendance.
+ *
+ * Ouvert = les quatre familles émettent. Fermé = les trois directionnelles se
+ * taisent, le carry continue. Aucun des deux états ne signifie « le canal
+ * n'envoie rien ».
+ */
 export async function handleMarcheCommand(env: Env, telegramId: number): Promise<void> {
-  const candles = await getBtcDailyCandles();
+  // Les carrys ouverts sont lus dans tous les cas, y compris quand les sources
+  // de prix tombent : c'est justement le message le plus utile ce jour-là.
+  const [candles, carryLine] = await Promise.all([getBtcDailyCandles(), buildOpenCarryLine(env)]);
   const state = computeTrendState(candles);
 
   if (state === null) {
-    await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, UNKNOWN_MESSAGE, { markdown: true });
+    await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, buildUnknownMessage(carryLine), { markdown: true });
     return;
   }
 
-  const text = state.open ? buildOpenMessage(state) : buildClosedMessage(state);
+  const text = state.open ? buildOpenMessage(state, carryLine) : buildClosedMessage(state, carryLine);
   await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, text, { markdown: true });
 }

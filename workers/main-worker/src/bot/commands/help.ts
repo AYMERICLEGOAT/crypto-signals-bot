@@ -13,17 +13,32 @@ import { TREND_FILTER_STATUS } from "./subscribe";
  * d'accents graves ici pour la même raison.
  *
  * Bloc d'en-tête ajouté le 03/08/2026 : une liste de commandes ne dit rien du
- * fonctionnement, et le fonctionnement a changé de nature (signaux journaliers
- * tenus 7 jours, et surtout aucun signal en marché baissier). Quelqu'un qui
- * tape /help après plusieurs jours sans rien recevoir cherche cette
- * explication-là, pas la liste.
+ * fonctionnement, et quelqu'un qui tape /help après plusieurs jours sans rien
+ * recevoir cherche cette explication-là, pas la liste.
+ *
+ * Réécrit le 04/08/2026 (passage à quatre familles de signaux). L'en-tête
+ * précédent décrivait un bot à une seule famille et affirmait qu'AUCUN signal
+ * n'était émis sous la moyenne 200 jours : c'est devenu faux le jour où le
+ * carry de financement est entré en service, puisqu'il n'est pas soumis à ce
+ * filtre. Une personne qui recevait des carrys en marché baissier aurait lu ici
+ * que le bot ne peut rien envoyer — exactement le genre de contradiction qui
+ * fait douter du reste. Le carry occupe donc le haut de l'en-tête : c'est à la
+ * fois ce qui a le plus changé et ce qu'un lecteur a le plus de raisons
+ * d'ignorer, puisqu'il n'existe nulle part ailleurs.
+ *
+ * Le rythme est repris de la mesure 6 ans (2,99 signaux/jour en moyenne) et
+ * remplace l'ancien « 8,0 signaux par semaine », qui ne comptait qu'une seule
+ * famille et sous-estimait donc le service tout en étant faux.
  */
 export async function handleHelpCommand(env: Env, telegramId: number): Promise<void> {
   // Constat daté repris de TREND_FILTER_STATUS (commands/subscribe.ts) : aucune
   // valeur réécrite ici, sinon elle survivrait à la bascule du filtre. Ni
   // `detail` ni `measuredOn` ne contiennent de caractère à échapper en Markdown.
+  //
+  // Formulation revue avec l'arrivée du carry : filtre fermé ne veut plus dire
+  // « plus rien n'arrive », mais « plus rien de directionnel n'arrive ».
   const filterState = TREND_FILTER_STATUS.closed
-    ? `Au ${TREND_FILTER_STATUS.measuredOn} ce filtre est FERMÉ (${TREND_FILTER_STATUS.detail}) : rien ne sera envoyé jusqu'à ce qu'il repasse au-dessus.`
+    ? `Au ${TREND_FILTER_STATUS.measuredOn} ce filtre est FERMÉ (${TREND_FILTER_STATUS.detail}) : seuls des carrys peuvent encore partir.`
     : `Au ${TREND_FILTER_STATUS.measuredOn} ce filtre est ouvert, mais il peut se refermer sans préavis.`;
 
   await sendMessage(
@@ -31,9 +46,28 @@ export async function handleHelpCommand(env: Env, telegramId: number): Promise<v
     telegramId,
     "📖 *Commandes disponibles*\n\n" +
       "*Comment fonctionne le bot*\n" +
-      "Aucun signal n'est émis tant que le Bitcoin reste sous sa moyenne mobile 200 jours — sur 6 ans, c'est 41 % du temps. " +
-      "Quand ce filtre est ouvert : 8,0 signaux par semaine en moyenne, tenus 7 jours, avec une sortie à la date plutôt qu'à un objectif de prix.\n" +
-      `${filterState} Le détail est dans /faq.\n\n` +
+      "Quatre familles de signaux, toutes mesurées sur 6 ans de données et comparées à un tirage " +
+      "aléatoire pour vérifier qu'elles ne doivent rien au hasard. Trois parient sur la hausse : force " +
+      "relative, cassure de canal, expansion de volatilité. La quatrième ne parie pas sur le prix.\n\n" +
+      "*Le carry de financement, en deux phrases*\n" +
+      "Achat au comptant et vente à découvert du perpétuel, même montant : les deux jambes s'annulent, " +
+      "donc le prix n'entre pas dans l'équation. Ce que tu encaisses, c'est le financement que les " +
+      "acheteurs de perpétuels versent aux vendeurs toutes les 8 heures. Sur 6 ans : 84,2 % de positions " +
+      "gagnantes et +0,572 % net par position. Ce n'est pas sans risque pour autant — la jambe vendeuse " +
+      "peut être liquidée si ta marge devient insuffisante, il reste un risque de plateforme, et une " +
+      "journée de financement extrême a déjà coûté -19,86 % sur une position.\n\n" +
+      "*Le rythme*\n" +
+      "2,99 signaux par jour en moyenne : 4,35 quand le marché est porteur, 1,15 quand il ne l'est pas. " +
+      "80 % des jours ont au moins un signal.\n\n" +
+      "*Le silence*\n" +
+      "Les trois familles directionnelles sont coupées tant que le Bitcoin reste sous sa moyenne mobile " +
+      "200 jours — 41 % du temps sur 6 ans, jusqu'à 381 jours d'affilée du 28/12/2021 au 13/01/2023. Le " +
+      `carry, lui, n'est pas soumis à ce filtre : c'est la seule famille qui produit en marché baissier. ${filterState} ` +
+      "Le détail est dans /faq, et /marche recalcule cet état en direct.\n\n" +
+      "*À savoir avant de suivre les signaux directionnels*\n" +
+      "Ils réussissent environ une fois sur deux, et le signal MÉDIAN perd 0,69 %. La rentabilité vient " +
+      "d'une minorité de gros gagnants : il faut donc les prendre TOUS. En trier quelques-uns revient " +
+      "statistiquement à ne garder que la partie perdante.\n\n" +
       "*Abonnement*\n" +
       "/subscribe — voir les offres et s'abonner\n" +
       "/trial — essai gratuit de 3 jours (une fois par wallet)\n" +
@@ -45,10 +79,11 @@ export async function handleHelpCommand(env: Env, telegramId: number): Promise<v
       "/cancel — arrêter les relances (ton accès déjà payé reste valable jusqu'à expiration)\n\n" +
       "*Signaux*\n" +
       "/demo — voir un exemple de signal (issu du backtest)\n" +
+      "/marche — l'état du filtre de tendance recalculé en direct\n" +
       "/history — tes 5 derniers signaux reçus et leur résultat\n" +
       "/myperformance — ton bilan personnel complet (taux de réussite, cumul, badge)\n" +
       "/guide — comment suivre un signal pas à pas\n" +
-      "Pas de signal depuis plusieurs jours ? C'est probablement le filtre de tendance, pas une panne — voir /faq.\n\n" +
+      "Pas de signal directionnel depuis plusieurs jours ? C'est probablement le filtre de tendance, pas une panne — voir /marche.\n\n" +
       "*Parrainage*\n" +
       "/referral — ton lien de parrainage et ta progression\n\n" +
       "*Groupe VIP*\n" +
@@ -61,7 +96,7 @@ export async function handleHelpCommand(env: Env, telegramId: number): Promise<v
       "*Tes données*\n" +
       "/delete\\_my\\_data — supprimer tes données personnelles (RGPD)\n\n" +
       "*Aide*\n" +
-      "/faq — pourquoi aucun signal en ce moment, combien de temps ça dure, ce qui a changé\n" +
+      "/faq — pourquoi le bot se tait parfois, combien de temps ça dure, ce qui a changé\n" +
       "/help — cette liste",
     { markdown: true }
   );
