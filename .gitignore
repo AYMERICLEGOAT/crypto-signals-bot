@@ -13,3 +13,10 @@ signals/data/
 *.env
 !.env.example
 traffic/directory_kit.json
+
+# Caches de données de marché : reconstructibles depuis les API publiques,
+# et trop volumineux pour le dépôt (historique journalier + financement).
+signals/data/long_daily/
+signals/data/large_daily/
+signals/data/funding/
+signals/counts_live.json
