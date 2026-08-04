@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Crypto Signals for 08/03/2026 — Signaux Crypto Gratuits</title>
-  <meta name="description" content="Free analysis of 5 crypto signals (XLM/USDT, CHZ/USDT, AVAX/USDT, DOGE/USDT, LTC/USDT) for 08/03/2026, automatically generated (EMA9/21 crossover + RSI). Real track record of past signals included.">
+  <title>Crypto Signals for 08/04/2026 — Signaux Crypto Gratuits</title>
+  <meta name="description" content="Free analysis of 5 crypto signals (SOL/USDT, XLM/USDT, LINK/USDT, ETC/USDT, NEAR/USDT) for 08/04/2026: the strongest pairs from a daily ranking of 40 cryptos, held for 7 days. Real track record included.">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://crypto-signals-bot-site.signalytics.workers.dev/en/">
   <link rel="alternate" hreflang="en" href="https://crypto-signals-bot-site.signalytics.workers.dev/en/">
@@ -11,8 +11,8 @@
   <link rel="alternate" hreflang="x-default" href="https://crypto-signals-bot-site.signalytics.workers.dev/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Crypto Signals for 08/03/2026 — Signaux Crypto Gratuits">
-  <meta property="og:description" content="Free analysis of 5 crypto signals (XLM/USDT, CHZ/USDT, AVAX/USDT, DOGE/USDT, LTC/USDT) for 08/03/2026, automatically generated (EMA9/21 crossover + RSI). Real track record of past signals included.">
+  <meta property="og:title" content="Crypto Signals for 08/04/2026 — Signaux Crypto Gratuits">
+  <meta property="og:description" content="Free analysis of 5 crypto signals (SOL/USDT, XLM/USDT, LINK/USDT, ETC/USDT, NEAR/USDT) for 08/04/2026: the strongest pairs from a daily ranking of 40 cryptos, held for 7 days. Real track record included.">
   <meta property="og:url" content="https://crypto-signals-bot-site.signalytics.workers.dev/en/">
   <style>
   /* Refonte visuelle du 02/08/2026. L'ancienne feuille était fonctionnelle
@@ -110,6 +110,36 @@
   .backtest { background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin: 2rem 0; }
   .backtest h2 { margin-top: 0; border-bottom: none; }
   .backtest-stat { font-size: 1.5rem; font-weight: 800; color: var(--gold); margin: 6px 0; letter-spacing: -0.01em; }
+  .backtest ul { padding-left: 1.15rem; margin: 8px 0 0; }
+  .backtest li { margin: 8px 0; }
+  .backtest-detail { font-size: 0.88rem; color: var(--text-dim); }
+  /* L'encadré d'avertissement était écrit en couleurs claires en dur
+     (#fffbeb sur #b45309), hérité du thème blanc : un rectangle blanc au
+     milieu d'une page sombre. Mêmes rôles visuels, variables du thème. */
+  .backtest-caveat {
+    font-size: 0.88rem; color: var(--text-dim); background: var(--bg-card);
+    border-left: 3px solid var(--gold); border-radius: 8px;
+    padding: 11px 13px; margin: 14px 0 0;
+  }
+  .sub-heading { font-weight: 700; color: var(--text); margin: 22px 0 4px; letter-spacing: -0.01em; }
+  .signals-note { font-size: 0.9rem; color: var(--text-dim); margin-top: 4px; }
+
+  /* Bloc des jours sans signal (filtre de tendance fermé). Ces jours-là
+     représentent 41 % du temps : l'explication doit être aussi visible qu'un
+     signal, pas reléguée en note de bas de page. L'or (--gold) est déjà la
+     couleur des chiffres qui comptent — aucune teinte nouvelle. */
+  .filter-closed {
+    background: var(--bg-soft); border: 1px solid var(--border);
+    border-left: 4px solid var(--gold); border-radius: var(--radius);
+    padding: 24px; margin: 2rem 0;
+  }
+  .filter-closed h2 { margin-top: 0; border-bottom: none; color: var(--gold); }
+  .filter-closed .lead { font-size: 1.08rem; }
+  .filter-closed .measured { font-size: 0.85rem; color: var(--text-dim); }
+  .filter-closed .note {
+    font-size: 0.9rem; color: var(--text-dim);
+    border-top: 1px solid var(--border); padding-top: 14px; margin-bottom: 0;
+  }
 
   .perf-stats { display: flex; gap: 14px; flex-wrap: wrap; margin: 18px 0; }
   .perf-stat {
@@ -139,96 +169,159 @@
 <body>
   <p class="lang-switch"><a href="/">Version française</a></p>
   <header>
-    <h1>Free Crypto Signals — 08/03/2026</h1>
-    <p class="subtitle">Automated technical analysis (EMA 9/21 + RSI) on the most traded pairs. Content generated and updated daily.</p>
+    <h1>Free Crypto Signals — 08/04/2026</h1>
+    <p class="subtitle">Daily ranking of 40 pairs by relative strength: the 12 strongest, held for 7 days. No signal while Bitcoin trades below its 200-day moving average. Updated daily.</p>
   </header>
 
   
     <section class="backtest">
-      <h2>🧪 Strategy backtest</h2>
-      <p class="backtest-stat">48.7% of trades reach their first target (468 simulated trades over 24 months)</p>
-      <p class="backtest-caveat" style="font-size:0.9rem;color:#b45309;background:#fffbeb;border-left:3px solid #f59e0b;padding:10px 12px;border-radius:6px;margin:10px 0;">⚠️ A high win rate does not mean profitable: what matters is how much winners earn versus how much losers cost. Over this simulated period the two roughly cancel out — the strategy has not demonstrated profitability. No performance is promised.</p>
-      <p>Simulated on 28 pairs, real hourly Binance data from the last 24 months.</p>
-      <p style="font-size:0.85rem;color:#777;">⚠️ Result of an "in-sample" optimization (using the same data that chose the parameters): past performance does not guarantee identical real-world results. This backtest is updated automatically on every new run.</p>
+      <h2>🧪 The strategy, measured over 6 years</h2>
+      <p>The number that matters is not the strategy's annual return, it is what someone who started on a randomly picked date actually lived through:</p>
+      <p class="backtest-stat">After six months: +5.0% median</p>
+      <p>53% of entries are profitable after six months, and the worst case measured is -61.7%. After three months the median drops to 0.0%, 43% of entries are profitable and the worst case is -49.0%. This is not a product that makes you rich fast: it limits the damage, and it can still hurt.</p>
+      <p class="sub-heading">What the engine does</p>
+      <p>Every day the 40 tracked pairs are ranked by relative strength — their momentum, measured on daily data. The 12 strongest are bought and held for 7 days. The exit is time-based: positions are not sold on a price target. The stop is deliberately wide, at 4x ATR, because it is disaster protection: it only triggers in 5% of cases.</p>
+      <div class="perf-stats"><div class="perf-stat"><b>8.0</b>signals per week while the filter is open</div><div class="perf-stat"><b>47.7%</b>winning signals</div><div class="perf-stat"><b>+3.22%</b>expectancy per signal, net of fees</div><div class="perf-stat"><b>+16.88%</b>average winner, versus -9.24% for a loser</div></div>
+      <p class="sub-heading">Why the channel sometimes goes quiet for months</p>
+      <p>No signal is issued while Bitcoin trades below its 200-day moving average. That filter is closed 41% of the time and its longest closure lasted 381 days. Without it the strategy is only positive in 4 years out of 7; with it, it has no losing year over 6 years. In 2022 and in 2026 it simply issued nothing — while holding the same cryptos cost -70.9%, then -39.4%.</p>
+      <p class="sub-heading">What you should know before subscribing</p>
+      <ul><li>The compounded portfolio shows +83.3% per year over those 6 years, with a maximum drop of -62.9% and no losing year. <b>This is not what a subscriber will earn</b>: that figure assumes going through all six years, from day one.</li><li>There is no secret ingredient: this is momentum, nothing more. A plain ranking by past return does just as well.</li><li>The trend filter does most of the work. Ranking the pairs only adds about 1.1 point.</li><li>This engine went live on 3 August 2026: these figures are measured on historical data, they have not been lived through in real time yet.</li></ul>
+      <p class="backtest-detail">Measured over 6 years (2020-2026) on daily data, net of 0.10% round-trip fees, with entry delayed by one day after the signal, on a pair universe free of survivorship bias.</p>
+      <p class="backtest-caveat">⚠️ Past performance does not guarantee future results. These figures come from simulations on historical data: they are neither a promise nor a guarantee of profit. Trading cryptoassets can cost you part or all of the capital committed.</p>
     </section>
 
-  <section>
-    <h2>🔎 Latest 5 signals</h2>
-    
-    <article class="signal-card sell">
+  
+    <section>
+      <h2>🔎 Latest 5 signals</h2>
+      <p class="signals-note">Each signal is one of the 12 strongest pairs in today's ranking. The position is held for 7 days: the exit is time-based, not price-target based. The 4x ATR stop is disaster protection (it only triggers in 5% of cases) and the 4x, 8x and 12x ATR targets are tracking milestones.</p>
+      
+    <article class="signal-card buy">
+      <div class="signal-header">
+        <span class="signal-pair">SOL/USDT</span>
+        <span class="badge buy">BUY</span>
+      </div>
+      <div class="prices">
+        <span>Entry<b>73.26</b></span>
+        <span>Stop loss<b>72.79</b></span>
+        <span>Take profit<b>74.63</b></span>
+      </div>
+      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/SOL-USDT-1785779917079.png" alt="SOL/USDT chart" loading="lazy">
+      <p>On SOL/USDT, the fast EMA (9 periods) crossed above the slow EMA (21 periods) right as the RSI was leaving oversold territory, triggering this BUY signal. Entry price sits near 73.26, with a stop loss at 72.79 and a take profit target at 74.63.</p>
+    </article>
+    <article class="signal-card buy">
       <div class="signal-header">
         <span class="signal-pair">XLM/USDT</span>
-        <span class="badge sell">SELL</span>
-      </div>
-      <div class="prices">
-        <span>Entry<b>0.174100</b></span>
-        <span>Stop loss<b>0.175404</b></span>
-        <span>Take profit<b>0.170296</b></span>
-      </div>
-      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/XLM-USDT-1785711675198.png" alt="XLM/USDT chart" loading="lazy">
-      <p>XLM/USDT confirmed a bearish EMA9/EMA21 crossover with RSI confirmation (exiting overbought), matching the criteria for this SELL signal: entry near 0.174100, stop loss at 0.175404, take profit target at 0.170296.</p>
-    </article>
-    <article class="signal-card buy">
-      <div class="signal-header">
-        <span class="signal-pair">CHZ/USDT</span>
         <span class="badge buy">BUY</span>
       </div>
       <div class="prices">
-        <span>Entry<b>0.012810</b></span>
-        <span>Stop loss<b>0.012694</b></span>
-        <span>Take profit<b>0.013150</b></span>
+        <span>Entry<b>0.172400</b></span>
+        <span>Stop loss<b>0.171183</b></span>
+        <span>Take profit<b>0.175950</b></span>
       </div>
-      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/CHZ-USDT-1785639941363.png" alt="CHZ/USDT chart" loading="lazy">
-      <p>CHZ/USDT just confirmed a bullish EMA9/EMA21 crossover with RSI confirmation (exiting oversold), matching the criteria for this BUY signal: entry near 0.012810, stop loss at 0.012694, take profit target at 0.013150.</p>
+      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/XLM-USDT-1785771349405.png" alt="XLM/USDT chart" loading="lazy">
+      <p>The BUY signal on XLM/USDT was triggered by a bullish crossover: price moved back above its 21-period exponential moving average while the RSI was exiting oversold territory, a classic short-term reversal setup. Entry around 0.172400, with a stop loss at 0.171183 (-0.7%) and a take profit target at 0.175950 (+2.1%).</p>
     </article>
     <article class="signal-card buy">
       <div class="signal-header">
-        <span class="signal-pair">AVAX/USDT</span>
+        <span class="signal-pair">LINK/USDT</span>
         <span class="badge buy">BUY</span>
       </div>
       <div class="prices">
-        <span>Entry<b>6.33</b></span>
-        <span>Stop loss<b>6.26</b></span>
-        <span>Take profit<b>6.51</b></span>
+        <span>Entry<b>8.29</b></span>
+        <span>Stop loss<b>8.22</b></span>
+        <span>Take profit<b>8.48</b></span>
       </div>
-      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/AVAX-USDT-1785639941363.png" alt="AVAX/USDT chart" loading="lazy">
-      <p>On AVAX/USDT, the fast EMA (9 periods) crossed above the slow EMA (21 periods) right as the RSI was leaving oversold territory, triggering this BUY signal. Entry price sits near 6.33, with a stop loss at 6.26 and a take profit target at 6.51.</p>
+      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/LINK-USDT-1785771349405.png" alt="LINK/USDT chart" loading="lazy">
+      <p>On LINK/USDT, the fast EMA (9 periods) crossed above the slow EMA (21 periods) right as the RSI was leaving oversold territory, triggering this BUY signal. Entry price sits near 8.29, with a stop loss at 8.22 and a take profit target at 8.48.</p>
+    </article>
+    <article class="signal-card buy">
+      <div class="signal-header">
+        <span class="signal-pair">ETC/USDT</span>
+        <span class="badge buy">BUY</span>
+      </div>
+      <div class="prices">
+        <span>Entry<b>6.59</b></span>
+        <span>Stop loss<b>6.54</b></span>
+        <span>Take profit<b>6.73</b></span>
+      </div>
+      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/ETC-USDT-1785760366367.png" alt="ETC/USDT chart" loading="lazy">
+      <p>The BUY signal on ETC/USDT was triggered by a bullish crossover: price moved back above its 21-period exponential moving average while the RSI was exiting oversold territory, a classic short-term reversal setup. Entry around 6.59, with a stop loss at 6.54 (-0.7%) and a take profit target at 6.73 (+2.2%).</p>
     </article>
     <article class="signal-card sell">
       <div class="signal-header">
-        <span class="signal-pair">DOGE/USDT</span>
+        <span class="signal-pair">NEAR/USDT</span>
         <span class="badge sell">SELL</span>
       </div>
       <div class="prices">
-        <span>Entry<b>0.072697</b></span>
-        <span>Stop loss<b>0.072997</b></span>
-        <span>Take profit<b>0.072099</b></span>
+        <span>Entry<b>1.71</b></span>
+        <span>Stop loss<b>1.73</b></span>
+        <span>Take profit<b>1.67</b></span>
       </div>
-      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/DOGE-USDT-1785092203325.png" alt="DOGE/USDT chart" loading="lazy">
-      <p>On DOGE/USDT, the fast EMA (9 periods) crossed below the slow EMA (21 periods) while the RSI was leaving overbought territory, triggering this SELL signal. Entry near 0.072697, stop loss at 0.072997, take profit target at 0.072099.</p>
+      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/NEAR-USDT-1785760366367.png" alt="NEAR/USDT chart" loading="lazy">
+      <p>On NEAR/USDT, the fast EMA (9 periods) crossed below the slow EMA (21 periods) while the RSI was leaving overbought territory, triggering this SELL signal. Entry near 1.71, stop loss at 1.73, take profit target at 1.67.</p>
     </article>
-    <article class="signal-card sell">
-      <div class="signal-header">
-        <span class="signal-pair">LTC/USDT</span>
-        <span class="badge sell">SELL</span>
-      </div>
-      <div class="prices">
-        <span>Entry<b>46.64</b></span>
-        <span>Stop loss<b>46.80</b></span>
-        <span>Take profit<b>46.31</b></span>
-      </div>
-      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/LTC-USDT-1785076069021.png" alt="LTC/USDT chart" loading="lazy">
-      <p>On LTC/USDT, the fast EMA (9 periods) crossed below the slow EMA (21 periods) while the RSI was leaving overbought territory, triggering this SELL signal. Entry near 46.64, stop loss at 46.80, take profit target at 46.31.</p>
-    </article>
-  </section>
+    </section>
 
   
     <section>
       <h2>📊 Real performance of past signals</h2>
-      <p>The first signals are still being evaluated — check back soon for real results.</p>
+      
+        <div class="perf-stats">
+          <div class="perf-stat"><b>8</b>closed signals</div>
+          <div class="perf-stat"><b>50.0%</b>win rate</div>
+          <div class="perf-stat"><b>4</b>wins</div>
+          <div class="perf-stat"><b>4</b>losses</div>
+        </div>
+        <p class="perf-secured">🔒 2 (25%) secured trades (TP1 reached, break-even or better)</p>
+        <table class="recent">
+          <thead><tr><th>Pair</th><th>Type</th><th>Result</th></tr></thead>
+          <tbody><tr>
+                  <td>AVAX/USDT</td>
+                  <td>BUY</td>
+                  <td class="outcome-win">WIN</td>
+                </tr><tr>
+                  <td>SOL/USDT</td>
+                  <td>BUY</td>
+                  <td class="outcome-win">WIN</td>
+                </tr><tr>
+                  <td>LINK/USDT</td>
+                  <td>BUY</td>
+                  <td class="outcome-loss">LOSS</td>
+                </tr><tr>
+                  <td>XLM/USDT</td>
+                  <td>BUY</td>
+                  <td class="outcome-loss">LOSS</td>
+                </tr><tr>
+                  <td>NEAR/USDT</td>
+                  <td>SELL</td>
+                  <td class="outcome-loss">LOSS</td>
+                </tr><tr>
+                  <td>CHZ/USDT</td>
+                  <td>BUY</td>
+                  <td class="outcome-loss">LOSS</td>
+                </tr><tr>
+                  <td>DOGE/USDT</td>
+                  <td>SELL</td>
+                  <td class="outcome-win">WIN</td>
+                </tr><tr>
+                  <td>LTC/USDT</td>
+                  <td>SELL</td>
+                  <td class="outcome-win">WIN</td>
+                </tr></tbody>
+        </table>
+        <p style="font-size:0.85rem;color:#777;">Result determined automatically by comparing each signal's current price to its stop loss and take profit (not a tick-by-tick intrabar analysis).</p>
+        <p style="font-size:0.85rem;color:#777;">These results may include signals produced by the previous engine, switched off on 3 August 2026. They therefore do not describe the Relative Strength strategy above, which has no live track record yet.</p>
     </section>
 
   
+    <section class="paper-trading">
+      <h2>💼 Live performance (paper portfolio)</h2>
+      <p>If a paper portfolio had allocated 10% of its capital to each of the last 7 resolved signals (sent or not), here is its cumulative track record:</p>
+      <svg viewBox="0 0 640 200" width="100%" height="200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Courbe du portefeuille fictif, de 100 à 101.2"><line x1="10" y1="190.0" x2="630" y2="190.0" stroke="#d1d5db" stroke-width="1" stroke-dasharray="4,4"/><polyline points="10.0,190.0 87.5,105.8 165.0,36.2 242.5,50.2 320.0,63.6 397.5,74.5 475.0,86.7 552.5,86.7 630.0,10.0" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <p class="paper-result" style="color:#16a34a;font-weight:700;">+1.2%</p>
+      <p>📉 Worst cumulative drop observed (max drawdown): 0.3%</p>
+      <p style="font-size:0.82rem;color:#777;">⚠️ Illustrative simulation (fixed position sizing, no compounding of gains) — does not reflect a real account or fees/slippage. Not investment advice.</p>
+    </section>
 
   
     <section class="testimonials">
@@ -246,7 +339,7 @@
   <p class="disclaimer">⚠️ This content is provided for informational and educational purposes only, it does not constitute investment advice. Trading cryptoassets carries a risk of capital loss. Past performance does not guarantee future results.</p>
 
   <footer>
-    <p>Page automatically generated on 08/03/2026. — <a href="/privacy.html">Privacy Policy</a> — <a href="/terms.html">Terms of Service</a> — <a href="/transparency.html">Transparency</a> — <a href="/guides/">Guides</a> — <a href="/comment-ca-marche.html">How it works</a> — <a href="/faq.html">FAQ</a> — <a href="/glossaire.html">Glossary</a> — <a href="/a-propos.html">About</a> — <a href="/mentions-legales.html">Mentions légales</a></p>
+    <p>Page automatically generated on 08/04/2026. — <a href="/privacy.html">Privacy Policy</a> — <a href="/terms.html">Terms of Service</a> — <a href="/transparency.html">Transparency</a> — <a href="/guides/">Guides</a> — <a href="/comment-ca-marche.html">How it works</a> — <a href="/faq.html">FAQ</a> — <a href="/glossaire.html">Glossary</a> — <a href="/a-propos.html">About</a> — <a href="/mentions-legales.html">Mentions légales</a></p>
   </footer>
 </body>
 </html>
