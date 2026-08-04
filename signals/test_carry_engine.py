@@ -97,10 +97,14 @@ print("\n=== 5. Places disponibles et positions déjà ouvertes ===")
 # réellement testé (CARRY_MAX_POSITIONS vaut 40).
 large = {f"P{i}/USDT": versements(0.05 - i * 0.0002) for i in range(60)}
 prix = {f"P{i}/USDT": 10.0 for i in range(60)}
-verifie(len(ce.detect_carry_signals(large, prix)) == config.CARRY_MAX_POSITIONS,
-        f"jamais plus de CARRY_MAX_POSITIONS = {config.CARRY_MAX_POSITIONS} positions")
-verifie(len(ce.detect_carry_signals(large, prix, places_libres=3)) == 3,
-        "le nombre de places libres plafonne les ouvertures (cadence échelonnée)")
+verifie(len(ce.detect_carry_signals(large, prix)) == config.CARRY_MAX_NEW_PER_DAY,
+        f"au plus CARRY_MAX_NEW_PER_DAY = {config.CARRY_MAX_NEW_PER_DAY} ouvertures par jour, "
+        "même avec 40 places libres : un démarrage à froid ne doit pas produire de rafale")
+verifie(len(ce.detect_carry_signals(large, prix, places_libres=2)) == 2,
+        "moins de places libres que le plafond quotidien -> c'est le nombre de places qui borne")
+verifie(config.CARRY_MAX_NEW_PER_DAY < config.CARRY_MAX_POSITIONS,
+        "le plafond quotidien est bien plus bas que le nombre de places : c'est ce qui "
+        "étale le remplissage du carnet")
 verifie(ce.detect_carry_signals(large, prix, places_libres=0) == [],
         "aucune place libre -> aucun signal")
 deja = {"P0/USDT", "P1/USDT"}

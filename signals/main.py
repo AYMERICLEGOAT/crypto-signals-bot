@@ -601,7 +601,15 @@ def run_once(params: dict) -> tuple[int, int]:
     # (pas encore sécurisées à TP1) simultanément. Priorité aux candidats du
     # score de confiance le plus élevé si plusieurs se présentent au même
     # cycle et qu'il ne reste pas assez de slots pour tous.
-    if config.ENABLE_PORTFOLIO_LOCK:
+    # Les carrys sont exclus du verrou de portefeuille : celui-ci plafonne les
+    # positions à RISQUE DIRECTIONNEL, et un carry n'en est pas une — ses deux
+    # jambes s'annulent. Les y soumettre a fait silencieusement disparaître 27
+    # signaux sur 31 au premier passage en production, sans que rien ne le
+    # signale ailleurs que dans un log de comptage.
+    carrys = [c for c in candidates if c[0].get("engine") == "carry_funding"]
+    candidates = [c for c in candidates if c[0].get("engine") != "carry_funding"]
+
+    if config.ENABLE_PORTFOLIO_LOCK and candidates:
         open_at_risk = storage.count_open_at_risk_trades()
         available_slots = max(0, config.MAX_ACTIVE_TRADES - open_at_risk)
         if available_slots < len(candidates):
@@ -613,6 +621,8 @@ def run_once(params: dict) -> tuple[int, int]:
                 "%d slot(s) disponible(s), %d candidat(s) ignoré(s) ce cycle.",
                 open_at_risk, config.MAX_ACTIVE_TRADES, available_slots, skipped,
             )
+
+    candidates = candidates + carrys
 
     failed_inserts = 0
     for signal_dict, enriched in candidates:

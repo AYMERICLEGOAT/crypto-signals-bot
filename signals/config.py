@@ -494,6 +494,19 @@ CARRY_ROUND_TRIP_COST_PCT = 0.20
 # suite. C'est le risque résiduel assumé, et il doit être dit aux abonnés.
 CARRY_STOP_FUNDING_PCT = -1.5
 
+# Nombre maximal de NOUVELLES positions ouvertes par jour.
+#
+# Sans ce plafond, un démarrage à froid remplit les 40 places d'un seul coup :
+# observé en production le 04/08/2026, 31 carrys détectés en une fois. C'est
+# exactement la rafale que la forme échelonnée devait éviter, et pour un canal
+# c'est pire que peu de signaux — l'abonné en reçoit trente le premier jour puis
+# plus rien pendant trois semaines.
+#
+# Le régime permanent est de toute façon CARRY_MAX_POSITIONS / CARRY_HOLD_DAYS,
+# soit environ 1,9 ouverture par jour. Le plafond à 3 laisse de quoi rattraper
+# une journée manquée sans jamais produire de rafale.
+CARRY_MAX_NEW_PER_DAY = 3
+
 # Le moteur tourne une fois par jour, comme la force relative, et pour la même
 # raison : le classement est calculé sur des versements journaliers agrégés.
 CARRY_RUN_HOUR_UTC = 1

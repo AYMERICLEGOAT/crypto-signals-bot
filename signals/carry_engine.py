@@ -511,6 +511,19 @@ def detect_carry_signals(taux_par_symbole: dict, prix_spot: dict,
                     ENGINE_NAME, len(already_open), config.CARRY_MAX_POSITIONS)
         return []
 
+    # Plafond quotidien : le régime permanent ouvre CARRY_MAX_POSITIONS /
+    # CARRY_HOLD_DAYS positions par jour, mais un démarrage à froid — ou une
+    # reprise après plusieurs jours d'arrêt — voudrait tout ouvrir d'un coup.
+    # Pour un canal, trente signaux le même jour puis rien pendant trois
+    # semaines est pire que peu de signaux.
+    if places_libres > config.CARRY_MAX_NEW_PER_DAY:
+        logger.info(
+            "[%s] %d places libres, mais au plus %d ouvertures par jour : le carnet se "
+            "remplit progressivement au lieu d'arriver en rafale.",
+            ENGINE_NAME, places_libres, config.CARRY_MAX_NEW_PER_DAY,
+        )
+        places_libres = config.CARRY_MAX_NEW_PER_DAY
+
     classement = classer_paires(taux_par_symbole)
     if not classement:
         logger.info(
