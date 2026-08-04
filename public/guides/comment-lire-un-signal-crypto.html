@@ -84,6 +84,17 @@
   .signal-card:hover { border-color: var(--accent); transform: translateY(-2px); }
   .signal-card.buy { border-left: 4px solid var(--win); }
   .signal-card.sell { border-left: 4px solid var(--loss); }
+  /* Le carry a sa propre couleur, distincte du vert et du rouge : ce n'est ni
+     un pari haussier ni un pari baissier, et lui donner l'une des deux
+     couleurs directionnelles induirait exactement l'erreur qu'on cherche a
+     eviter. */
+  .signal-card.carry { border-left: 4px solid var(--accent); }
+  .badge.carry { background: var(--accent); }
+  .carry-neutral { color: var(--text-dim); font-style: italic; margin: 8px 0 12px; }
+  .carry-legs-heading, .carry-caveats-heading { margin: 12px 0 6px; }
+  .carry-legs, .carry-caveats { margin: 0 0 12px; padding-left: 20px; }
+  .carry-legs li, .carry-caveats li { margin-bottom: 6px; }
+  .carry-detail { color: var(--text-dim); font-size: 0.92rem; margin: 6px 0 12px; }
   .signal-header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
   .signal-pair { font-weight: 700; font-size: 1.15rem; }
   .badge { padding: 3px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; color: #08111f; }
