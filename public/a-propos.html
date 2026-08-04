@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <title>À propos — l&#x27;histoire et les limites du projet</title>
-  <meta name="description" content="Pourquoi ce bot de signaux crypto existe, comment il est construit, et où en est réellement le projet — sans chiffres gonflés.">
+  <meta name="description" content="Pourquoi ce bot de signaux crypto existe, pourquoi son moteur a été remplacé le 3 août 2026, et où en est réellement le projet — sans chiffres gonflés.">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://crypto-signals-bot-site.signalytics.workers.dev/a-propos">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta property="og:type" content="website">
   <meta property="og:title" content="À propos — l&#x27;histoire et les limites du projet">
-  <meta property="og:description" content="Pourquoi ce bot de signaux crypto existe, comment il est construit, et où en est réellement le projet — sans chiffres gonflés.">
+  <meta property="og:description" content="Pourquoi ce bot de signaux crypto existe, pourquoi son moteur a été remplacé le 3 août 2026, et où en est réellement le projet — sans chiffres gonflés.">
   <meta property="og:url" content="https://crypto-signals-bot-site.signalytics.workers.dev/a-propos">
   <meta property="og:site_name" content="Signaux Crypto Gratuits">
   <meta property="og:locale" content="fr_FR">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="À propos — l&#x27;histoire et les limites du projet">
-  <meta name="twitter:description" content="Pourquoi ce bot de signaux crypto existe, comment il est construit, et où en est réellement le projet — sans chiffres gonflés.">
+  <meta name="twitter:description" content="Pourquoi ce bot de signaux crypto existe, pourquoi son moteur a été remplacé le 3 août 2026, et où en est réellement le projet — sans chiffres gonflés.">
   <meta name="theme-color" content="#0b0e14">
   <style>
   /* Refonte visuelle du 02/08/2026. L'ancienne feuille était fonctionnelle
@@ -113,6 +113,36 @@
   .backtest { background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin: 2rem 0; }
   .backtest h2 { margin-top: 0; border-bottom: none; }
   .backtest-stat { font-size: 1.5rem; font-weight: 800; color: var(--gold); margin: 6px 0; letter-spacing: -0.01em; }
+  .backtest ul { padding-left: 1.15rem; margin: 8px 0 0; }
+  .backtest li { margin: 8px 0; }
+  .backtest-detail { font-size: 0.88rem; color: var(--text-dim); }
+  /* L'encadré d'avertissement était écrit en couleurs claires en dur
+     (#fffbeb sur #b45309), hérité du thème blanc : un rectangle blanc au
+     milieu d'une page sombre. Mêmes rôles visuels, variables du thème. */
+  .backtest-caveat {
+    font-size: 0.88rem; color: var(--text-dim); background: var(--bg-card);
+    border-left: 3px solid var(--gold); border-radius: 8px;
+    padding: 11px 13px; margin: 14px 0 0;
+  }
+  .sub-heading { font-weight: 700; color: var(--text); margin: 22px 0 4px; letter-spacing: -0.01em; }
+  .signals-note { font-size: 0.9rem; color: var(--text-dim); margin-top: 4px; }
+
+  /* Bloc des jours sans signal (filtre de tendance fermé). Ces jours-là
+     représentent 41 % du temps : l'explication doit être aussi visible qu'un
+     signal, pas reléguée en note de bas de page. L'or (--gold) est déjà la
+     couleur des chiffres qui comptent — aucune teinte nouvelle. */
+  .filter-closed {
+    background: var(--bg-soft); border: 1px solid var(--border);
+    border-left: 4px solid var(--gold); border-radius: var(--radius);
+    padding: 24px; margin: 2rem 0;
+  }
+  .filter-closed h2 { margin-top: 0; border-bottom: none; color: var(--gold); }
+  .filter-closed .lead { font-size: 1.08rem; }
+  .filter-closed .measured { font-size: 0.85rem; color: var(--text-dim); }
+  .filter-closed .note {
+    font-size: 0.9rem; color: var(--text-dim);
+    border-top: 1px solid var(--border); padding-top: 14px; margin-bottom: 0;
+  }
 
   .perf-stats { display: flex; gap: 14px; flex-wrap: wrap; margin: 18px 0; }
   .perf-stat {
@@ -151,6 +181,15 @@
   .glossary dd { margin: 4px 0 0; color: var(--text-dim); }
   .note { background: var(--bg-soft); border-left: 3px solid var(--gold);
           border-radius: 8px; padding: 14px 16px; margin: 20px 0; color: var(--text-dim); }
+  /* Bloc rouge, réservé à ce qui coûte de l'argent à l'abonné s'il ne le lit
+     pas — aujourd'hui la clause des périodes sans aucun signal. Une clause
+     décisive noyée dans le corps du texte est une clause cachée. */
+  .warn { background: var(--bg-soft); border-left: 3px solid var(--loss);
+          border-radius: 8px; padding: 16px 18px; margin: 22px 0; }
+  .warn p { margin: 0 0 10px; }
+  .warn p:last-child { margin-bottom: 0; }
+  code { background: var(--bg-soft); border: 1px solid var(--border);
+         padding: 1px 6px; border-radius: 4px; font-size: .9em; }
 </style>
 </head>
 <body>
@@ -172,13 +211,33 @@
 
   <section>
     <h2>Comment c'est construit</h2>
-    <p>Tout est automatisé : la détection tourne toutes les 30 minutes sur des données de marché
-       réelles, la diffusion et le suivi des positions sont gérés par un service qui ne dort
-       jamais. Aucune intervention humaine ne décide d'un signal.</p>
+    <p>Tout est automatisé : une fois par jour, après la clôture journalière, le moteur classe
+       40 paires par force relative et retient les 12 premières ; la diffusion et le suivi des
+       positions sont gérés par un service qui ne dort jamais. Aucune intervention humaine ne
+       décide d'un signal — et aucune n'en force un quand le filtre de tendance est fermé.</p>
     <p>Le code source est intégralement public sur
        <a href="https://github.com/AYMERICLEGOAT/crypto-signals-bot" rel="noopener">GitHub</a> :
-       la stratégie, les backtests, et jusqu'aux analyses qui concluent que l'avantage n'est pas
-       démontré. Tu peux vérifier toi-même ce qui est fait, plutôt que nous croire sur parole.</p>
+       la stratégie, les backtests, et jusqu'aux analyses qui ont conclu que le moteur précédent
+       était perdant et l'ont fait désactiver. Tu peux vérifier toi-même ce qui est fait, plutôt
+       que nous croire sur parole.</p>
+  </section>
+
+  <section>
+    <h2>Ce qui a changé le 3 août 2026</h2>
+    <p>Le moteur d'origine achetait les paires dont le RSI était bas — la logique classique du
+       « c'est tombé, ça va remonter ». Mesuré sur 6 ans et 18 paires non contaminées par le biais
+       du survivant, c'est la jambe <b>perdante</b> : de -24,9 % à +16,9 % par an selon les
+       réglages, majoritairement négative. Continuer à le diffuser à des abonnés payants n'était
+       pas défendable. Il a été désactivé.</p>
+    <p>Le moteur actuel fait l'inverse : il achète ce qui monte déjà. Il classe les 40 paires par
+       force relative, garde les 12 plus fortes, les tient 7 jours puis sort sur le temps.
+       Le détail complet est sur la page
+       <a href="/comment-ca-marche.html">Comment ça marche</a>.</p>
+    <p>Et surtout, il ne fait rien quand le Bitcoin est sous sa moyenne mobile 200 jours — soit
+       41 % du temps sur les 6 dernières années, avec une fermeture record de 381 jours
+       consécutifs. C'est ce filtre qui fait la majeure partie du travail : le classement par force
+       relative, lui, n'apporte qu'environ 1,1 point. Nous préférons le dire que laisser croire à
+       un indicateur miracle.</p>
   </section>
 
   <section>
@@ -186,9 +245,14 @@
     <p>Le service est jeune et le nombre d'abonnés est faible. Nous ne gonflons aucun chiffre :
        la page <a href="/transparency.html">Transparence</a> affiche les résultats réels, même
        quand ils sont modestes ou négatifs.</p>
-    <p>La mesure la plus récente, sur 24 mois de données, montre que gains et pertes se
-       compensent quasiment. Nous aurions pu ne publier que la période favorable. Nous préférons
-       afficher l'ensemble et laisser chacun juger.</p>
+    <p>Le nouveau moteur n'a, à ce jour, <b>aucun historique en direct</b> : tout ce que nous
+       publions à son sujet vient d'un backtest sur 6 ans. Ce backtest n'a aucune année perdante,
+       mais un abonné entrant à une date au hasard obtient, six mois plus tard, une médiane de
+       +5,0 % — et, dans le pire cas mesuré, -61,7 %. C'est cette fourchette-là qui décrit une
+       expérience réelle, pas un rendement annuel.</p>
+    <p>Au 3 août 2026, le filtre est fermé et le canal n'émet rien. Un service commercial
+       ordinaire cacherait cette période. Nous l'affichons, parce qu'elle fait partie de la
+       stratégie.</p>
     <div class="note">
       Ce n'est pas un conseil en investissement. Le trading de cryptoactifs comporte un risque de
       perte en capital, y compris de la totalité des sommes engagées.
