@@ -37,6 +37,70 @@ export async function isEligibleForTrial(env: Env, db: SupabaseConfig, telegramI
   return referrals >= 1;
 }
 
+/**
+ * Message d'activation. Il doit répondre, dans l'ordre, aux trois questions
+ * que se pose quelqu'un qui vient d'appuyer sur un bouton gratuit : jusqu'à
+ * quand ça dure, qu'est-ce que je vais recevoir concrètement, et à quel rythme.
+ *
+ * Le troisième point est celui qu'un vendeur arrondirait. On donne donc les
+ * débits mesurés dans les DEUX régimes, en disant que ce sont des moyennes sur
+ * 6 ans et pas une garantie sur trois jours. Un essai de 3 jours peut très bien
+ * tomber sur un trou : le dire maintenant coûte moins cher qu'un abonné qui le
+ * découvre seul et en conclut que le bot est cassé.
+ */
+function buildActivationMessage(endsAt: Date): string {
+  const fin = endsAt.toLocaleString("fr-FR");
+
+  const etatDuFiltre = TREND_FILTER_STATUS.closed
+    ? `Au ${TREND_FILTER_STATUS.measuredOn}, le filtre est FERMÉ : ${TREND_FILTER_STATUS.detail}. ` +
+      "Les trois familles directionnelles sont donc à l'arrêt en ce moment, et c'est le carry que tu vas " +
+      "voir passer. Tape /marche pour l'état recalculé en direct, et les carrys ouverts à cet instant."
+    : `Au ${TREND_FILTER_STATUS.measuredOn}, le filtre est ouvert : les quatre familles émettent. ` +
+      "Il peut se refermer n'importe quand — ce jour-là, le carry continuera seul. Tape /marche à tout moment.";
+
+  return (
+    "🎉 Essai gratuit activé. Tu reçois les signaux pendant 3 jours, jusqu'au " +
+    `${fin}.\n\n` +
+    "Ce que tu vas recevoir, concrètement — il y a deux formes de signal :\n\n" +
+    "1) DES ACHATS. Une paire parmi les plus fortes du moment, avec l'entrée, un stop large à 4 x ATR, " +
+    "trois jalons à 4, 8 et 12 x ATR, et une sortie au bout de 7 jours. Trois familles émettent ce " +
+    "format : force relative, cassure du plus haut 50 jours, expansion de volatilité.\n\n" +
+    "2) DES CARRYS DE FINANCEMENT. Une position neutre au marché, en deux jambes du même montant sur la " +
+    "même crypto : achat au comptant et vente à découvert du perpétuel. Le prix ne rentre pas dans " +
+    "l'équation, les deux jambes s'annulent. Ce qui est encaissé, c'est le financement versé toutes les " +
+    "huit heures par les acheteurs de perpétuels aux vendeurs. Clôture au bout de 21 jours.\n\n" +
+    "Une chose importante à savoir tout de suite : les trois familles d'achat se taisent quand le Bitcoin " +
+    "est sous sa moyenne 200 jours, ce qui arrive 41 % du temps (la plus longue fermeture a duré " +
+    "381 jours, du 28/12/2021 au 13/01/2023). C'est voulu : on préfère ne rien t'envoyer plutôt que de te " +
+    "faire perdre de l'argent. Le carry, lui, n'est pas filtré et continue dans les deux cas — c'est la " +
+    "seule famille qui produit en marché baissier.\n\n" +
+    `${etatDuFiltre}\n\n` +
+    "Le rythme mesuré sur 6 ans : 4,35 signaux par jour en marché favorable, 1,15 par jour en marché " +
+    "défavorable (tous issus du carry), soit 2,99 en moyenne, et 80 % des jours ont au moins un signal. " +
+    "Ce sont des moyennes, pas une garantie : trois jours, c'est court, et il est possible que tu tombes " +
+    "sur un jour creux.\n\n" +
+    "Le silence n'est donc jamais une panne. /demo montre la forme exacte des deux signaux, /marche l'état " +
+    "du marché en direct, /status où tu en es.\n\n" +
+    "⚠️ Ce ne sont pas des conseils en investissement : c'est toi qui décides, et il y a un risque de " +
+    "perte en capital."
+  );
+}
+
+/**
+ * Pose les 3 jours et envoie la confirmation.
+ *
+ * Ordre important : activer l'abonnement AVANT de marquer trial_used. Si
+ * activateSubscription échoue (hoquet Supabase transitoire), trial_used reste
+ * false et /trial reste retentable au prochain essai plutôt que de bloquer
+ * définitivement un utilisateur qui n'a jamais rien reçu.
+ */
+async function grantTrial(env: Env, db: SupabaseConfig, telegramId: number): Promise<void> {
+  const endsAt = addDays(new Date(), TRIAL_DURATION_DAYS);
+  await activateSubscription(db, telegramId, 0, endsAt);
+  await markTrialUsed(db, telegramId);
+  await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, buildActivationMessage(endsAt));
+}
+
 export async function handleTrialCommand(env: Env, telegramId: number): Promise<void> {
   const db = dbConfig(env);
   const user = await getOrCreateUser(db, telegramId);
@@ -65,59 +129,51 @@ export async function handleTrialCommand(env: Env, telegramId: number): Promise<
     await sendMessage(
       env.TELEGRAM_BOT_TOKEN,
       telegramId,
-      "Pour débloquer ton essai gratuit, choisis une option :\n\n" +
-        `1️⃣ Rejoins notre canal public : ${env.TELEGRAM_CHANNEL_URL ?? "(lien du canal)"}, puis retape /trial.\n\n` +
-        `2️⃣ Ou parraine un ami avec ton lien : ${referralLink}\n` +
-        "Dès qu'une personne démarre le bot via ce lien, ton essai se débloque automatiquement — retape /trial ensuite."
+      "Ton essai gratuit de 3 jours est prêt. Il ne reste qu'une porte à ouvrir, au choix :\n\n" +
+        `1️⃣ Rejoins le canal public : ${env.TELEGRAM_CHANNEL_URL ?? "(lien du canal)"}\n` +
+        "Tu y verras les vrais signaux, en différé. Retape /trial ensuite : l'essai démarre dans la seconde.\n\n" +
+        `2️⃣ Ou partage ton lien : ${referralLink}\n` +
+        "Dès qu'une personne démarre le bot avec, ton essai se débloque automatiquement — retape /trial ensuite.\n\n" +
+        "Et pour lever le doute tout de suite : l'essai ne demande ni carte bancaire, ni adresse crypto, ni " +
+        "moyen de paiement. Il n'y a rien à résilier non plus, il s'arrête tout seul au bout de 3 jours.\n\n" +
+        "En attendant, /demo montre la forme exacte des signaux et /marche l'état du marché en direct."
     );
     return;
   }
 
-  if (user.wallet_address) {
-    await activateTrialForWallet(env, telegramId, user.wallet_address);
-    return;
-  }
-
-  await setPendingAction(db, telegramId, { type: "awaiting_wallet_trial" });
-
-  // Refonte du 03/08/2026 (moteur Force Relative). L'ancien message promettait
-  // implicitement des signaux dès l'activation ; or 41 % du temps le filtre de
-  // tendance est fermé et il n'en part aucun. Trois jours d'essai déclenchés
-  // pendant une fermeture, c'est un essai brûlé pour rien — et un abonné qui
-  // en conclut, à tort, que le bot ne fonctionne pas.
+  // Refonte du 04/08/2026 — suppression de deux étapes.
   //
-  // La mécanique de facturation n'est PAS touchée : l'essai reste 3 jours
-  // calendaires posés à l'activation. Ce qui change, c'est que l'utilisateur
-  // sait qu'il choisit le moment. Il n'y a rien à réserver côté serveur —
-  // trial_used n'est marqué qu'à l'activation (voir activateTrialForWallet),
-  // donc attendre ne coûte ni ne risque rien.
-  await sendMessage(
-    env.TELEGRAM_BOT_TOKEN,
-    telegramId,
-    "Ton essai dure 3 jours calendaires à partir de l'activation — ce sont 3 jours, pas 3 signaux.\n\n" +
-      "À savoir avant de le déclencher : aucun signal n'est émis quand le Bitcoin est sous sa moyenne " +
-      "200 jours, ce qui arrive 41 % du temps (la plus longue fermeture observée a duré 381 jours). " +
-      "C'est voulu : sur 6 ans, ce filtre est ce qui évite les années perdantes. On préfère ne rien " +
-      "envoyer plutôt que de te faire perdre de l'argent.\n\n" +
-      (TREND_FILTER_STATUS.closed
-        ? `Au ${TREND_FILTER_STATUS.measuredOn}, le filtre est fermé : ${TREND_FILTER_STATUS.detail}. ` +
-          "Autrement dit, un essai activé maintenant a toutes les chances de se terminer sans un seul signal.\n\n"
-        : `Au ${TREND_FILTER_STATUS.measuredOn}, le filtre est ouvert.\n\n`) +
-      "Ton essai ne s'annule pas et ne se périme pas : il t'attend. Tu peux tout à fait le garder pour le " +
-      "jour où les signaux reprennent — ils réapparaissent aussi sur le canal public, tu verras donc la " +
-      "reprise — et retaper /trial à ce moment-là pour profiter de tes 3 jours quand il se passe quelque " +
-      "chose.\n\n" +
-      "Si tu préfères l'activer tout de suite, envoie-moi ton adresse de wallet Polygon (0x...).\n\n" +
-      "En attendant, /demo montre la forme exacte d'un signal et /subscribe détaille les chiffres mesurés."
-  );
+  // 1) L'adresse de wallet Polygon n'est plus demandée. Elle servait un
+  //    anti-abus "un essai par adresse" (hasWalletClaimedTrial), mais rien ne
+  //    vérifie que l'adresse saisie appartient à la personne : n'importe quelle
+  //    chaîne 0x d'un explorateur public passait. L'anti-abus était donc
+  //    largement théorique, alors que la friction, elle, était totale —
+  //    réclamer une adresse crypto pour un essai GRATUIT exclut d'emblée toute
+  //    personne qui n'a pas encore de wallet, c'est-à-dire exactement le
+  //    premier visiteur qu'on cherche à convaincre. trial_used reste posé par
+  //    compte Telegram, ce qui couvre le cas courant.
+  // 2) L'écran "réfléchis avant de déclencher" disparaît. Il existait parce
+  //    qu'un essai tombant pendant une fermeture du filtre était un essai brûlé
+  //    pour rien. Le carry de financement ayant supprimé ce cas — il produit
+  //    dans les deux régimes —, cet écran ne protégeait plus rien et coûtait un
+  //    aller-retour. Ce qu'il disait d'utile (le silence directionnel, sa
+  //    durée, l'état du jour) est conservé, mais dans le message d'activation.
+  //
+  // La mécanique de facturation n'est PAS touchée : 3 jours calendaires posés
+  // à l'activation, comme avant.
+  await grantTrial(env, db, telegramId);
 }
 
 /**
  * V2 100% off-chain : plus d'appel setTrial() sur le contrat (pas de gas,
- * pas de transaction à attendre). L'anti-abus "un essai par adresse" — que
- * garantissait le contrat via son mapping trialUsed — est reproduit ici
- * par hasWalletClaimedTrial() : une même adresse ne peut pas relancer un
- * essai via un second compte Telegram.
+ * pas de transaction à attendre).
+ *
+ * Ce chemin n'est plus emprunté par /trial depuis le 04/08/2026 (voir
+ * ci-dessus), mais il reste branché sur l'action en attente
+ * "awaiting_wallet_trial" (bot/walletAddressHandler.ts) : un utilisateur peut
+ * avoir cette action posée en base depuis l'ancien parcours, et sa prochaine
+ * adresse envoyée doit continuer d'aboutir plutôt que de tomber dans le vide.
+ * L'anti-abus par adresse y est donc conservé à l'identique.
  */
 export async function activateTrialForWallet(env: Env, telegramId: number, walletAddress: string): Promise<void> {
   const db = dbConfig(env);
@@ -146,23 +202,5 @@ export async function activateTrialForWallet(env: Env, telegramId: number, walle
   // réclamer un essai gratuit avec un nombre illimité de comptes Telegram.
   await setWalletAddress(db, telegramId, walletAddress);
 
-  // Ordre important : activer l'abonnement AVANT de marquer trial_used. Si
-  // activateSubscription échoue (hoquet Supabase transitoire), trial_used
-  // reste false et /trial reste retentable au prochain essai plutôt que de
-  // bloquer définitivement un utilisateur qui n'a jamais rien reçu.
-  await activateSubscription(db, telegramId, 0, addDays(new Date(), TRIAL_DURATION_DAYS));
-  await markTrialUsed(db, telegramId);
-
-  // « Tu vas recevoir les signaux automatiquement » était faux dès que le
-  // filtre de tendance est fermé (41 % du temps). Formulation exacte : tu
-  // reçois tout ce qui sort pendant tes 3 jours, et il peut ne rien sortir.
-  await sendMessage(
-    env.TELEGRAM_BOT_TOKEN,
-    telegramId,
-    "🎉 Essai gratuit de 3 jours activé.\n\n" +
-      "Tu recevras automatiquement tout signal émis pendant ces 3 jours. Il peut aussi n'y en avoir " +
-      "aucun : rien n'est envoyé quand le Bitcoin est sous sa moyenne 200 jours, et c'est justement ce " +
-      "qui a évité les années perdantes sur les 6 dernières années.\n\n" +
-      "Le silence n'est donc pas une panne. /demo montre la forme d'un signal, /status l'état de ton essai."
-  );
+  await grantTrial(env, db, telegramId);
 }

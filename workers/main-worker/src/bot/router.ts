@@ -3,6 +3,7 @@ import { TelegramUpdate, answerCallbackQuery, sendMessage } from "../telegram";
 import { isRateLimited } from "../db/rateLimit";
 import { handleStart } from "./commands/start";
 import { handleStatusCommand } from "./commands/status";
+import { handleCarryCommand } from "./commands/carry";
 import { handleMarcheCommand } from "./commands/marche";
 import { handleTrialCommand } from "./commands/trial";
 import { handleSubscribeCommand, handlePlanSelection, handlePurchaseConsent, handlePaymentMethodSelection } from "./commands/subscribe";
@@ -60,6 +61,8 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
       await handleStatusCommand(env, chatId);
     } else if (text === "/marche") {
       await handleMarcheCommand(env, chatId);
+    } else if (text === "/carry") {
+      await handleCarryCommand(env, chatId);
     } else if (text === "/trial") {
       await handleTrialCommand(env, chatId);
     } else if (text === "/pay") {

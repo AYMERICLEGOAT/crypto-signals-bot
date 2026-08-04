@@ -56,9 +56,13 @@ describe("handleDemoCommand", () => {
     await handleDemoCommand(env, 42);
     const texte = s.texte();
 
-    // Un prospect doit lire les trois contreparties AVANT de payer : la
-    // majorite de perdants, le silence en marche baissier et sa duree.
-    expect(texte).toContain("47,7 %");
+    // Un prospect doit lire les contreparties AVANT de payer. Depuis que
+    // /demo montre les DEUX formes de signal, le chiffre qui ouvre est celui
+    // du carry (84,2 %) et non plus celui des familles directionnelles : ce
+    // qui compte est que les deux faces soient dites, pas qu'un chiffre
+    // precis figure.
+    expect(texte).toContain("84,2 %");
+    expect(texte).toContain("0,69 %");   // le signal median des directionnelles PERD
     expect(texte).toContain("41 %");
     expect(texte).toContain("381 jours");
     expect(texte).toMatch(/majorité de perdants/i);

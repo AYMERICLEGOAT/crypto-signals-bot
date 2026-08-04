@@ -44,9 +44,15 @@ describe("message de carry", () => {
     expect(texte).not.toContain("NaN");
   });
 
-  it("annonce le financement attendu sans le présenter comme acquis", () => {
-    const texte = buildCarryMessage(carry);
-    expect(texte).toContain("+0.85 %");
+  it("annonce le rendement ANNUALISÉ d'abord, le montant sur la période ensuite", () => {
+    const texte = buildCarryMessage(carry, { avecExplication: true });
+    // +0,85 % sur 21 jours = +15,7 % par an. Affiché brut, le premier chiffre
+    // se lit comme dérisoire pour une position à deux jambes ; annualisé, il
+    // devient comparable à n'importe quel produit de rendement. Les deux sont
+    // vrais et les deux doivent figurer, dans cet ordre.
+    expect(texte).toContain("par an");
+    expect(texte).toContain("+0,8 %");   // 0,85 arrondi au dixieme
+    expect(texte).toContain("21 jours");
     // Les trois honnêtetés obligatoires (voir buildCarryMessage).
     expect(texte).toContain("41 %");
     expect(texte).toMatch(/n'est pas sans risque|liquidée/i);

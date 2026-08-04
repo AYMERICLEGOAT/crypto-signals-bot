@@ -1,4 +1,8 @@
 import { describe, it, expect } from "vitest";
+
+// Les pourcentages sont formatés à la française depuis le 04/08/2026 : virgule
+// décimale et espace insécable. Un même message affichait auparavant "+10.0%"
+// et "84,2 %" à deux lignes d'écart.
 import { buildSignalMessage, SUGGESTED_RISK_PCT } from "../src/signalFormat";
 
 const buySignal = {
@@ -22,8 +26,8 @@ describe("buildSignalMessage (UX — format de signal plus clair)", () => {
 
   it("affiche le take profit et le stop loss avec leur pourcentage", () => {
     const text = buildSignalMessage(buySignal);
-    expect(text).toContain("+10.0%"); // (110-100)/100
-    expect(text).toContain("-5.0%"); // (95-100)/100
+    expect(text).toContain("+10,0 %"); // (110-100)/100
+    expect(text).toContain("-5,0 %"); // (95-100)/100
   });
 
   it("inclut une ligne de risque conseillé à 2% avec la taille de position calculée", () => {
@@ -73,8 +77,8 @@ describe("buildSignalMessage (UX — format de signal plus clair)", () => {
     expect(text).toContain("🔴");
     expect(text).toContain("VENTE XRP/USDT");
     expect(text).toContain("baissière");
-    expect(text).toContain("+10.0%"); // (100-90)/100 pour le take profit
-    expect(text).toContain("-5.0%"); // (100-105)/100 pour le stop loss
+    expect(text).toContain("+10,0 %"); // (100-90)/100 pour le take profit
+    expect(text).toContain("-5,0 %"); // (100-105)/100 pour le stop loss
   });
 });
 

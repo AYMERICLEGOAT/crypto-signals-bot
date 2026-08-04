@@ -51,6 +51,21 @@ _EXTRA = """
   .warn p:last-child { margin-bottom: 0; }
   code { background: var(--bg-soft); border: 1px solid var(--border);
          padding: 1px 6px; border-radius: 4px; font-size: .9em; }
+  /* Les deux jambes du carry de financement. Grille auto-fit plutôt que deux
+     colonnes fixes : sur un téléphone les jambes se posent l'une sous l'autre
+     sans media query, et le schéma reste lisible. */
+  .legs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 12px; margin: 18px 0; }
+  .leg { background: var(--bg-card); border: 1px solid var(--border);
+         border-radius: 12px; padding: 14px 16px; }
+  .leg b { display: block; color: var(--text); margin-bottom: 4px; }
+  .leg span { font-size: .9rem; color: var(--text-dim); }
+  .leg-result { background: var(--bg-card); border: 1px dashed var(--accent);
+                border-radius: 12px; padding: 14px 16px; margin: 0 0 18px; color: var(--text-dim); }
+  /* Un tableau ne doit jamais élargir la page : il défile dans son conteneur. */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-wrap table.recent { min-width: 460px; }
+  body { overflow-wrap: anywhere; }
 """
 
 
@@ -80,36 +95,57 @@ def _shell(title, description, path, body, kind="website", jsonld=None):
 """
 
 
-# État du filtre de tendance affiché sur le site. Volontairement DATÉ plutôt
-# qu'écrit au présent (« aujourd'hui le filtre est fermé ») : ces pages sont
-# régénérées tous les jours mais ces deux valeurs, elles, sont saisies à la
-# main. Un « aujourd'hui » figé deviendrait faux dès le lendemain — exactement
-# le type de chiffre périmé affiché comme actuel que ce projet s'interdit.
+# État du marché affiché sur le site. Volontairement DATÉ plutôt qu'écrit au
+# présent (« aujourd'hui le filtre est fermé ») : ces pages sont régénérées
+# tous les jours mais cette valeur, elle, est saisie à la main. Un
+# « aujourd'hui » figé deviendrait faux dès le lendemain — exactement le type
+# de chiffre périmé affiché comme actuel que ce projet s'interdit.
 # À mettre à jour à chaque changement d'état du filtre.
-FILTER_STATE_DATE = "3 août 2026"
-FILTER_STATE_GAP = "10,7 %"
+#
+# L'écart chiffré entre le Bitcoin et sa moyenne 200 jours a été retiré le
+# 04/08/2026 : c'était la seule valeur du site que personne ne pouvait
+# vérifier ni recalculer, et elle vieillissait de plusieurs points par jour.
+# L'état binaire (au-dessus / en dessous) suffit à ce que le lecteur doit
+# comprendre, et <code>/marche</code> en donne la version vivante.
+FILTER_STATE_DATE = "4 août 2026"
 
+# Les quatre familles diffusées depuis le 04/08/2026. Avant cette date le
+# moteur n'en diffusait qu'une (la force relative), et cette page ne décrivait
+# donc plus le produit réellement vendu. Elles servent aussi de source unique
+# au balisage schema.org/HowTo plus bas : une seule liste, pas de divergence
+# possible entre ce qui est affiché et ce qui est déclaré aux moteurs.
 STEPS = [
-    ("D'abord, le filtre de tendance décide si le canal ouvre",
+    ("Quatre familles tournent en parallèle, pas une seule",
+     "Trois d'entre elles achètent (elles parient sur la hausse) et une est neutre au marché. "
+     "Elles ont été validées sur 6 ans face à un témoin aléatoire : une famille qui ne bat pas un "
+     "tirage au sort à contraintes égales est jetée, quelle que soit son espérance affichée. "
+     "Trois candidates l'ont été."),
+    ("Le filtre de tendance décide si les familles directionnelles ont le droit d'acheter",
      "Une seule question avant tout le reste : le Bitcoin est-il au-dessus de sa moyenne mobile "
-     "200 jours ? S'il est en dessous, aucun signal n'est émis ce jour-là, quelles que soient les "
-     "opportunités apparentes. Sur les 6 dernières années mesurées, ce filtre a été fermé 41 % du "
-     "temps, et sa plus longue fermeture a duré 381 jours d'affilée."),
-    ("Les 40 paires sont classées par force relative",
+     "200 jours ? S'il est en dessous, les trois familles acheteuses se taisent, quelles que soient "
+     "les opportunités apparentes. Sur les 6 dernières années mesurées, ce filtre a été fermé 41 % "
+     "du temps, et sa plus longue fermeture a duré 381 jours d'affilée."),
+    ("Famille 1 — Force relative : acheter ce qui monte déjà",
      "Une fois par jour, sur des clôtures journalières, les 40 paires suivies sont classées de la "
-     "plus forte à la plus faible selon leur progression récente. C'est du momentum, rien de plus : "
-     "un simple classement par rendement passé donne le même résultat. Aucun indicateur secret."),
-    ("Les 12 premières du classement déclenchent un signal",
-     "Le moteur achète le haut du classement — 12 paires sur 40 — et ignore les 28 autres. Quand le "
-     "filtre est ouvert, cela représente 8,0 signaux par semaine en moyenne sur la période mesurée."),
+     "plus forte à la plus faible selon leur progression récente. Les 12 premières sont achetées et "
+     "tenues 7 jours, puis clôturées sur le temps. C'est du momentum, rien de plus : aucun "
+     "indicateur secret."),
+    ("Famille 2 — Cassure de canal : acheter la sortie de range",
+     "Quand le prix franchit son plus haut des 50 derniers jours, la position s'ouvre. On "
+     "n'anticipe pas la cassure, on attend qu'elle ait eu lieu — c'est toute la différence."),
+    ("Famille 3 — Expansion de volatilité : entrer quand le marché se réveille",
+     "Après une longue phase de compression, où l'amplitude des mouvements s'est resserrée, le "
+     "retour de la volatilité déclenche l'entrée. C'est la plus rare des quatre familles."),
+    ("Famille 4 — Carry de financement : gagner sans dépendre du prix",
+     "Deux jambes de même montant : achat au comptant, et vente à découvert du contrat perpétuel. "
+     "Les deux s'annulent, donc le prix n'entre pas dans l'équation. Le gain vient du financement "
+     "que les acheteurs de perpétuels versent aux vendeurs toutes les 8 heures. C'est la seule "
+     "famille qui produise quand le marché baisse."),
     ("Tu reçois le signal complet sur Telegram",
-     "Paire, sens, prix d'entrée, stop loss et trois objectifs — tous définis AVANT l'ouverture, "
-     "jamais ajustés après coup."),
-    ("La position est tenue 7 jours, puis clôturée sur le temps",
-     "La sortie est TEMPORELLE : on ne sort pas parce qu'un prix est atteint, mais parce que 7 jours "
-     "se sont écoulés. Le stop, large (4 x ATR), n'est là que contre l'accident : il ne provoque que "
-     "5 % des sorties. Les objectifs (4, 8 et 12 x ATR) jalonnent la progression, ils ne pilotent pas "
-     "la clôture."),
+     "Paire, sens, prix d'entrée, stop loss et objectifs — tous définis AVANT l'ouverture, jamais "
+     "ajustés après coup. Sur les familles directionnelles, le stop est large (4 x ATR) : il n'est "
+     "là que contre l'accident, et les objectifs (4, 8 et 12 x ATR) jalonnent la progression sans "
+     "piloter la clôture."),
     ("Tout est publié, gains comme pertes",
      "Chaque résultat apparaît sur le canal public et la page Transparence. Un service qui ne "
      "publie que ses gains ne publie pas ses résultats."),
@@ -127,8 +163,8 @@ def build_how_it_works():
     body = f"""  <p class="breadcrumb"><a href="/">Accueil</a> › Comment ça marche</p>
   <header>
     <h1>Comment ça marche</h1>
-    <p class="subtitle">Acheter ce qui monte déjà, ne rien faire quand le marché baisse.
-       Étape par étape, et avec les chiffres.</p>
+    <p class="subtitle">Quatre familles de signaux, dont une qui ne dépend pas du prix.
+       Étape par étape, et avec les chiffres tels qu'ils ont été mesurés.</p>
   </header>
 
   <section>
@@ -136,75 +172,129 @@ def build_how_it_works():
   </section>
 
   <section>
-    <h2>Le filtre de tendance, en détail</h2>
-    <p>C'est la pièce centrale, et c'est aussi celle qui déplaît le plus&nbsp;: <b>41 % du temps,
-       ce canal n'émet rien du tout.</b> Pas parce qu'il est en panne, mais parce que le Bitcoin
-       est sous sa moyenne mobile 200 jours et que la stratégie a interdiction d'acheter dans ces
-       conditions.</p>
-    <p>Ces silences peuvent être très longs. Sur 6 ans&nbsp;: 11 fermetures d'au moins une semaine,
-       de durée médiane 25 jours, dont une de <b>381 jours consécutifs — 12,7 mois</b>, du
-       28/12/2021 au 13/01/2023. Les autres fermetures longues ont duré 273 jours (celle en cours,
-       ouverte le 03/11/2025), 80 jours, 47 jours et 29 jours.</p>
-    <div class="warn">
-      <p><b>Au {FILTER_STATE_DATE}, le filtre est fermé.</b> Le Bitcoin est {FILTER_STATE_GAP} sous
-         sa moyenne 200 jours&nbsp;: le canal n'émettra aucun signal tant qu'elle n'est pas
-         franchie, et personne ne sait quand cela arrivera.</p>
-      <p>Si tu cherches un service qui envoie quelque chose tous les jours, ce n'est pas celui-ci.</p>
+    <h2>Le carry de financement, en détail</h2>
+    <p>C'est la famille la plus récente, la plus régulière, et de loin la plus facile à comprendre.
+       Elle repose sur une idée simple&nbsp;: <b>faire en sorte que le prix ne compte plus.</b></p>
+
+    <div class="legs">
+      <div class="leg">
+        <b>Jambe 1 — achat au comptant</b>
+        <span>On détient réellement la crypto, pour un montant donné.</span>
+      </div>
+      <div class="leg">
+        <b>Jambe 2 — vente du perpétuel</b>
+        <span>On vend à découvert le contrat perpétuel du même actif, pour le même montant.</span>
+      </div>
     </div>
-    <p>Pourquoi accepter ça&nbsp;? Parce que c'est ce filtre qui fait la différence. Sans lui, la
-       stratégie n'est positive que 4 années sur 7. Avec lui, elle n'a <b>aucune année perdante sur
-       les 6 années mesurées</b> — en 2022 et en 2026 elle n'a tout simplement rien émis, pendant
-       que détenir ces mêmes cryptos coûtait -70,9 % puis -39,4 %.</p>
-    <p>Ne rien envoyer est donc une décision, pas un incident. On préfère un abonné qui trouve le
-       canal silencieux à un abonné qui perd son capital pour avoir reçu du contenu.</p>
+
+    <p class="leg-result">Si le prix monte, la jambe 1 gagne exactement ce que la jambe 2 perd. S'il
+       baisse, l'inverse. Les deux s'annulent&nbsp;: la position est <b>neutre au marché</b>.</p>
+
+    <p>Il reste alors une seule source de résultat. Sur un contrat perpétuel, un
+       <b>financement</b> est échangé toutes les 8 heures entre acheteurs et vendeurs. Comme les
+       acheteurs à levier sont structurellement plus nombreux, ce financement est le plus souvent
+       versé <i>aux</i> vendeurs. Nous sommes vendeurs&nbsp;: nous l'encaissons. La position est
+       tenue 21 jours, le temps que ce financement s'accumule et couvre largement les frais.</p>
+
+    <div class="perf-stats">
+      <div class="perf-stat"><b>84,2 %</b> de positions gagnantes</div>
+      <div class="perf-stat"><b>+0,572 %</b> net par position</div>
+      <div class="perf-stat"><b>6 / 7</b> années positives</div>
+    </div>
+    <p>La septième année, 2022, ressort à -0,046 % par position&nbsp;: plate, pas perdante. C'est
+       précisément l'année où les stratégies acheteuses ont été balayées. C'est aussi pour cela que
+       le carry n'est <b>pas</b> coupé par le filtre de tendance&nbsp;: il ne parie pas sur la
+       hausse, donc rien ne justifie de l'arrêter quand le marché baisse.</p>
+
+    <div class="warn">
+      <p><b>Le carry n'est pas « sans risque », et nous ne l'écrirons jamais.</b> La jambe vendeuse
+         est une position à marge&nbsp;: si la marge devient insuffisante, elle peut être liquidée,
+         et la couverture disparaît au pire moment. S'y ajoute le risque de plateforme — les fonds
+         sont déposés chez un exchange.</p>
+      <p>Le financement peut aussi <b>s'inverser</b> lors d'un emballement du marché&nbsp;: ce sont
+         alors les vendeurs qui paient, parfois plusieurs jours de suite. Un stop ferme les deux
+         jambes dès que la position a coûté 1,5 %, mais une seule journée à financement extrême peut
+         passer devant ce stop&nbsp;: <b>-19,86 % sur une position</b> reste le pire cas mesuré.</p>
+    </div>
   </section>
 
   <section>
-    <h2>Ce que le classement apporte vraiment</h2>
-    <p>Honnêtement&nbsp;: peu. L'essentiel du résultat vient du filtre de tendance. Classer les
-       paires par force relative plutôt que de les prendre au hasard n'ajoute qu'environ
-       <b>1,1 point</b>. C'est réel, c'est mesuré, mais ce n'est pas là que se joue la partie.</p>
-    <p>Et ce n'est pas un indicateur magique. Nous utilisons le RSI pour construire le classement,
-       mais un simple tri par rendement passé fait aussi bien&nbsp;: c'est du momentum, point. Toute
-       présentation qui vend un indicateur comme l'ingrédient secret devrait être lue avec méfiance,
-       y compris la nôtre.</p>
+    <h2>Le filtre de tendance, en détail</h2>
+    <p>C'est la pièce centrale des trois familles acheteuses, et celle qui déplaît le plus&nbsp;:
+       <b>41 % du temps, elles n'émettent rien du tout.</b> Pas parce qu'elles sont en panne, mais
+       parce que le Bitcoin est sous sa moyenne mobile 200 jours et qu'elles ont interdiction
+       d'acheter dans ces conditions.</p>
+    <p>Ces arrêts peuvent être très longs. Le plus long mesuré sur 6 ans a duré <b>381 jours
+       consécutifs</b>, du 28/12/2021 au 13/01/2023. Un abonné présent sur toute cette période
+       n'aurait reçu, pendant plus d'un an, aucun signal directionnel.</p>
+    <div class="warn">
+      <p><b>Au {FILTER_STATE_DATE}, le filtre est fermé&nbsp;:</b> le Bitcoin est sous sa moyenne
+         200 jours. Les trois familles acheteuses sont donc à l'arrêt, et personne ne sait quand
+         elles reprendront. Tape <code>/marche</code> sur le bot pour l'état en direct.</p>
+      <p>Le carry, lui, continue&nbsp;: en marché défavorable, le service produit encore
+         <b>1,15 signal par jour</b> en moyenne mesurée. Mais si tu cherches un service qui envoie
+         plusieurs signaux tous les jours quoi qu'il arrive, ce n'est pas celui-ci.</p>
+    </div>
+    <p>Pourquoi accepter ce filtre&nbsp;? Parce qu'acheter du momentum pendant une baisse générale
+       est exactement la façon la plus rapide de perdre du capital. Ne rien envoyer est une
+       décision, pas un incident. On préfère un abonné qui trouve le canal calme à un abonné qui
+       perd de l'argent pour avoir reçu du contenu.</p>
+  </section>
+
+  <section>
+    <h2>Pas d'indicateur magique</h2>
+    <p>Le classement de la force relative est construit à partir du RSI, mais un simple tri par
+       rendement passé fait aussi bien&nbsp;: c'est du momentum, point. Aucune des quatre familles
+       ne repose sur un indicateur propriétaire ou sur une recette cachée&nbsp;; toutes sont des
+       mécaniques connues, appliquées sans exception et sans état d'âme.</p>
+    <p>Ce qui fait la différence n'est pas l'indicateur, c'est la discipline&nbsp;: des niveaux
+       fixés avant l'ouverture, jamais retouchés, et l'obligation de se taire quand la règle le dit.
+       Toute présentation qui vend un indicateur comme l'ingrédient secret devrait être lue avec
+       méfiance, y compris la nôtre.</p>
   </section>
 
   <section>
     <h2>Ce que disent les mesures</h2>
-    <p>Backtest sur 6 ans (2020-2026), univers non contaminé par le biais du survivant, entrée
-       décalée d'un jour, net de 0,10 % de frais aller-retour. Quand le filtre est ouvert&nbsp;:</p>
+    <p>Backtest sur 6 ans, univers non contaminé par le biais du survivant, entrée décalée d'un
+       jour, frais réels déduits, et chaque famille confrontée à un témoin aléatoire.</p>
     <div class="perf-stats">
-      <div class="perf-stat"><b>8,0</b> signaux par semaine</div>
-      <div class="perf-stat"><b>47,7 %</b> de réussite</div>
-      <div class="perf-stat"><b>+3,22 %</b> par signal, net de frais</div>
-      <div class="perf-stat"><b>+16,88 %</b> gagnant moyen</div>
-      <div class="perf-stat"><b>-9,24 %</b> perdant moyen</div>
+      <div class="perf-stat"><b>4,35</b> signaux/jour en marché favorable</div>
+      <div class="perf-stat"><b>1,15</b> signaux/jour en marché défavorable</div>
+      <div class="perf-stat"><b>2,99</b> signaux/jour en moyenne</div>
+      <div class="perf-stat"><b>80 %</b> des jours ont au moins un signal</div>
     </div>
-    <p>Moins d'un signal sur deux est gagnant. C'est normal pour cette famille de stratégies&nbsp;:
-       ce qui compte n'est pas le taux de réussite mais le rapport entre ce que rapporte un gagnant
-       et ce que coûte un perdant.</p>
-    <p>Un portefeuille composé sur ces 6 ans complets aurait progressé de 83,3 % par an, avec une
-       chute maximale de -62,9 % en cours de route. <b>Ce chiffre ne décrit pas ce que gagnera un
-       abonné</b>&nbsp;: il suppose d'être entré au premier jour du backtest et d'avoir tout traversé
-       sans jamais s'arrêter, y compris la perte de près des deux tiers du capital. Personne n'entre
-       au début d'un backtest.</p>
+    <p>Autrement dit&nbsp;: environ un jour sur cinq n'a aucun signal, et le débit dépend fortement
+       du régime de marché. Ces chiffres décrivent une fréquence mesurée sur le passé, pas une
+       cadence garantie pour la durée d'un abonnement.</p>
+
+    <h2>Il faut prendre tous les signaux directionnels</h2>
+    <p>Les trois familles acheteuses réussissent environ une fois sur deux, et le signal
+       <b>médian perd 0,69 %</b>. Leur rentabilité ne vient pas d'une majorité de petits gains&nbsp;:
+       elle vient d'une <b>minorité de très gros gagnants</b>.</p>
+    <div class="warn">
+      <p>Conséquence directe, et elle est capitale&nbsp;: en trier quelques-uns « au feeling »
+         revient statistiquement à ne garder que la partie perdante. Si tu ne comptes suivre que les
+         signaux qui t'inspirent, cette stratégie ne fonctionnera pas pour toi.</p>
+      <p>Le carry est l'exception&nbsp;: chaque position y est individuellement satisfaisante. Mais
+         sur les trois autres familles, choisir, c'est perdre.</p>
+    </div>
   </section>
 
   <section>
     <h2>Ce qu'un abonné peut réellement attendre</h2>
-    <p>Le chiffre honnête n'est pas le rendement annuel, c'est celui-ci&nbsp;: si tu commences à
-       suivre les signaux à une date tirée au hasard dans ces 6 ans, voici ce qui t'arrive.</p>
-    <table class="recent">
-      <thead><tr><th>Après…</th><th>Résultat médian</th><th>Entrées gagnantes</th><th>Pire cas observé</th></tr></thead>
-      <tbody>
-        <tr><td>3 mois</td><td>0,0 %</td><td>43 %</td><td class="outcome-loss">-49,0 %</td></tr>
-        <tr><td>6 mois</td><td>+5,0 %</td><td>53 %</td><td class="outcome-loss">-61,7 %</td></tr>
-      </tbody>
-    </table>
-    <p>À trois mois, l'entrée médiane est à zéro et une majorité d'entrées est perdante. À six mois,
-       la médiane passe à +5,0 % et un peu plus d'une entrée sur deux est gagnante. Et dans le pire
-       cas mesuré, on perd plus de la moitié du capital engagé.</p>
+    <p>Le chiffre honnête n'est pas un rendement annuel de backtest&nbsp;: personne n'entre au
+       premier jour d'un backtest. Le chiffre honnête est celui-ci — si tu commences à suivre les
+       signaux à une date tirée au hasard dans ces 6 ans, voici où tu en es six mois plus tard.</p>
+    <div class="table-wrap">
+      <table class="recent">
+        <thead><tr><th>Après…</th><th>Résultat médian</th><th>Entrées gagnantes</th><th>Pire cas mesuré</th></tr></thead>
+        <tbody>
+          <tr><td>6 mois</td><td>+5,0 %</td><td>53 %</td><td class="outcome-loss">-61,7 %</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Un peu plus d'une entrée sur deux est gagnante, la médiane est légèrement positive, et dans le
+       pire cas mesuré on perd plus de la moitié du capital engagé.</p>
     <div class="note">
       Autrement dit&nbsp;: c'est une stratégie qui demande de la durée et de la tolérance à la
       perte. Les résultats passés, backtestés ou réels, ne préjugent en rien de l'avenir, et rien
@@ -215,20 +305,20 @@ def build_how_it_works():
   <section>
     <h2>Ce que le service ne fait pas</h2>
     <p>Il ne passe aucun ordre à ta place et n'a jamais accès à tes fonds ni à ton exchange.
-       Tu restes seul décisionnaire de chaque position.</p>
+       Tu restes seul décisionnaire de chaque position — y compris sur le carry, qui demande
+       d'ouvrir soi-même les deux jambes.</p>
     <p>Il ne te dit pas quoi faire de ton argent&nbsp;: ce sont des signaux informatifs, pas un
        conseil en investissement personnalisé. Il ne promet aucun gain, et il ne cherche pas à
        occuper le canal quand la stratégie dit de ne rien faire.</p>
-    <p>Le moteur précédent, qui achetait au contraire les paires au RSI bas, a été désactivé le
-       3 août 2026 après qu'une mesure sur 6 ans l'a désigné comme la jambe perdante&nbsp;: de
-       -24,9 % à +16,9 % par an selon les réglages, majoritairement négative. Nous l'écrivons ici
-       plutôt que de réécrire discrètement cette page comme si de rien n'était.</p>
+    <p>Le moteur d'origine, qui achetait au contraire les paires au RSI bas, a été désactivé le
+       3 août 2026 après qu'une mesure sur 6 ans l'a désigné comme la jambe perdante. Nous
+       l'écrivons ici plutôt que de réécrire discrètement cette page comme si de rien n'était.</p>
   </section>
 
   <div class="cta">
     <p><b>Teste sans payer</b></p>
     <p>Essai gratuit de 3 jours, aucun moyen de paiement demandé.
-       Vérifie d'abord l'état du filtre&nbsp;: fermé, tu ne recevras rien.</p>
+       Vérifie d'abord l'état du marché avec <code>/marche</code>.</p>
     <a href="https://t.me/{TELEGRAM_BOT_USERNAME}">Ouvrir le bot Telegram →</a>
   </div>
 """
@@ -488,9 +578,10 @@ def build_terms():
          pendant que détenir ces mêmes cryptos coûtait -70,9 % puis -39,4 %. Ne rien envoyer est
          la protection, pas le défaut.</p>
       <p><b>Tu en es informé avant tout paiement.</b> Au {FILTER_STATE_DATE}, cette condition
-         d'arrêt est active&nbsp;: le Bitcoin est {FILTER_STATE_GAP} sous sa moyenne 200 jours et
-         le service n'émet aucun signal. Personne ne peut prévoir la date de reprise. N'achète pas
-         d'abonnement en pariant sur une reprise à une échéance donnée.</p>
+         d'arrêt est active&nbsp;: le Bitcoin est sous sa moyenne 200 jours, et les trois familles
+         directionnelles sont à l'arrêt. Le carry de financement, lui, continue de produire —
+         c'est la seule famille qui fonctionne dans ce régime. Personne ne peut prévoir la date de
+         reprise des trois autres&nbsp;: n'achète pas d'abonnement en pariant sur une échéance.</p>
     </div>
     <p>L'état de cette condition (active ou non) est annoncé sur le canal et expliqué en détail sur
        la page <a href="/comment-ca-marche.html">Comment ça marche</a>. Une interruption due à un

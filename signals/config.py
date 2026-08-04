@@ -461,12 +461,21 @@ CARRY_LOOKBACK_DAYS = 21
 # attendu de +0,01 % serait exact et pourtant absurde.
 CARRY_MIN_FUNDING_PCT_PER_DAY = 0.010
 
-# Espérance annoncée minimale, frais déduits. Un signal dont le gain attendu est
-# nul ou négatif ne doit jamais partir : ce serait annoncer une perte à
-# l'abonné. Ce garde-fou est indépendant du plancher ci-dessus et le double
-# volontairement — si quelqu'un modifie la durée de détention ou les frais sans
-# recalculer le plancher, c'est celui-ci qui rattrape l'erreur.
-CARRY_MIN_EXPECTED_PCT = 0.05
+# Espérance annoncée minimale sur la durée de détention, frais déduits.
+#
+# Deux rôles. D'abord empêcher qu'un signal parte avec un gain attendu nul ou
+# négatif — ce serait annoncer une perte à l'abonné. Ce garde-fou double
+# volontairement le plancher ci-dessus : si quelqu'un modifie la durée ou les
+# frais sans recalculer le plancher, c'est celui-ci qui rattrape l'erreur.
+#
+# Ensuite, et c'est ce qui a fait relever la valeur de 0,05 à 0,35 : ne pas
+# publier de position dérisoire. Un carry demande d'ouvrir DEUX positions sur
+# DEUX produits et de surveiller une marge. À 0,05 % attendu sur 21 jours, soit
+# 0,9 % par an, ça ne vaut pas le geste — et le premier retour d'abonné a été
+# exactement celui-là. 0,35 % sur 21 jours correspond à environ 6,2 % par an,
+# seuil en dessous duquel une position neutre au marché n'a plus d'intérêt face
+# à un simple placement.
+CARRY_MIN_EXPECTED_PCT = 0.35
 
 # Plafond : un financement extrême ne signale pas une bonne affaire mais une
 # manie, et c'est exactement là que se logent les pertes rares et énormes. Sans

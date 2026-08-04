@@ -85,14 +85,19 @@ export async function handleStart(env: Env, telegramId: number, referralPayload?
     telegramId,
     "📊 Des signaux d'achat crypto, en français, directement sur Telegram.\n\n" +
       "CE QUE TU REÇOIS\n" +
-      "Environ 3 signaux par jour — 2,99 par jour en moyenne mesurée sur 6 ans. Chacun te donne la " +
-      "paire, le prix d'entrée, le stop et les objectifs : tu n'as qu'à les recopier sur ta plateforme. " +
-      "80 % des jours ont au moins un signal.\n\n" +
+      "Environ 3 signaux par jour : 2,99 en moyenne mesurée sur 6 ans, 4,35 quand le marché est porteur " +
+      "et 1,15 quand il ne l'est pas. Chacun te donne la paire, le prix d'entrée, le stop et les " +
+      "objectifs : tu n'as qu'à les recopier sur ta plateforme. 80 % des jours ont au moins un signal.\n\n" +
       "POURQUOI CE N'EST PAS UN CANAL DE PLUS\n" +
       "• Chaque chiffre écrit ici vient d'un test sur 6 ans de données, comparé à un tirage aléatoire " +
       "pour vérifier qu'il ne doit rien au hasard. Aucun n'est arrondi à notre avantage.\n" +
-      "• Les signaux se referment en public : le résultat est annoncé sur le canal gratuit, les pertes " +
-      "comme les gains. Rien n'est effacé.\n" +
+      // Formulé sur ce que le code fait RÉELLEMENT : cron/trackSignalOutcomes.ts
+      // publie la clôture sur le canal gratuit pour tout signal qui y est passé,
+      // et /history rend le résultat de chaque signal reçu, toutes familles
+      // confondues. Promettre « chaque résultat sur le canal » serait faux pour
+      // les carrys, dont le suivi (cron/trackCarryOutcomes.ts) part en privé.
+      "• Les pertes sont annoncées comme les gains : la clôture est publiée sur le canal gratuit, et " +
+      "ton /history te rend le résultat de chaque signal reçu. Rien n'est effacé.\n" +
       "• Quand le marché ne s'y prête pas, on se tait. Sur 6 ans, ce silence a occupé 41 % du temps, " +
       "dont une fois 381 jours d'affilée. C'est écrit ici, avant que tu paies quoi que ce soit.\n" +
       "• Et une famille de signaux gagne sans parier sur le prix, même quand tout baisse. C'est le " +

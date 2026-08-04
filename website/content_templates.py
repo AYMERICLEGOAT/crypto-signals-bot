@@ -91,8 +91,32 @@ def format_level_pct(entry, level):
     return f"{pct:+.1f}%"
 
 
+_CARRY_ANALYSE = {
+    "fr": (
+        "Position neutre au marché sur {pair} : achat au comptant et vente à découvert du "
+        "contrat perpétuel, pour le même montant. Les deux jambes s'annulent, la direction du "
+        "prix n'entre donc pas dans le résultat. Le rendement vient du financement versé par "
+        "les acheteurs de perpétuels aux vendeurs, toutes les 8 heures. Clôture prévue sur une "
+        "durée, jamais sur un niveau de prix."
+    ),
+    "en": (
+        "Market-neutral position on {pair}: spot purchase plus a short on the perpetual "
+        "contract, same size. The two legs cancel out, so price direction does not affect the "
+        "outcome. The return comes from the funding rate paid by perpetual buyers to sellers "
+        "every 8 hours. The position closes on a fixed duration, never on a price level."
+    ),
+}
+
+
 def generate_analysis(signal, lang="fr"):
-    """Un paragraphe d'analyse (fr/en), cohérent avec le type (BUY/SELL) du signal."""
+    """Un paragraphe d'analyse (fr/en), cohérent avec le type du signal."""
+    # Un carry n'a ni sens directionnel ni objectif de prix : les gabarits
+    # BUY/SELL, qui parlent de cassure et de niveau à atteindre, décriraient
+    # une position qui n'existe pas. Sans cette branche, la génération du site
+    # échoue purement et simplement sur un KeyError dès qu'un carry est publié.
+    if str(signal.get("type", "")).upper() == "CARRY":
+        return _CARRY_ANALYSE.get(lang, _CARRY_ANALYSE["fr"]).format(pair=signal["pair"])
+
     templates = _TEMPLATES[lang][signal["type"]]
     template = random.choice(templates)
     return template.format(

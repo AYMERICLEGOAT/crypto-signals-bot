@@ -51,11 +51,14 @@ describe("handleStart — séquence de 3 messages (refonte UX du 01/08/2026)", (
     await handleStart(env, 1);
 
     expect(sentMessages).toHaveLength(3);
-    expect(sentMessages[0].text).toContain("stratégie backtestée");
-    // Le taux de réussite ayant baissé de 61% à ~49% avec la nouvelle géométrie
-    // (mathématiquement plus saine), le premier message pose le cadre d'emblée.
-    expect(sentMessages[0].text).toContain("taux de réussite gonflé");
-    expect(sentMessages[1].text).toContain("comment ça marche");
+    // Refonte du 04/08/2026 : les trois messages répondent aux trois questions
+    // d'un visiteur, dans l'ordre — ce qu'il reçoit, pourquoi c'est différent,
+    // comment essayer. L'ancienne séquence ouvrait sur le filtre de tendance,
+    // c'est-à-dire sur ce que le bot NE fait pas.
+    expect(sentMessages[0].text).toMatch(/signaux d'achat crypto/i);
+    // Le carry est le meilleur argument du produit : il a son message dédié.
+    expect(sentMessages[1].text).toContain("84,2 %");
+    expect(sentMessages[1].text).toMatch(/carry/i);
     expect(sentMessages[2].text).toContain("/help");
 
     // Bouton "essai gratuit" présent sur chacun des 3 messages.
@@ -97,8 +100,10 @@ describe("handleStart — séquence de 3 messages (refonte UX du 01/08/2026)", (
     for (const msg of sentMessages) {
       expect(JSON.stringify(msg.keyboard) ?? "").not.toContain("start:trial");
     }
-    // Le message 1 n'a alors plus aucun bouton du tout.
-    expect(sentMessages[0].keyboard).toBeUndefined();
+    // Le message 1 garde son bouton /demo même pour un abonné payant : voir
+    // un vrai signal ne demande rien et reste utile à tout le monde. Seul le
+    // bouton d'essai disparaît, ce que vérifie la boucle ci-dessus.
+    expect(JSON.stringify(sentMessages[0].keyboard)).toContain("start:demo");
     // Le message 2 garde /demo malgré tout.
     expect(JSON.stringify(sentMessages[1].keyboard)).toContain("start:demo");
   });

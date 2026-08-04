@@ -42,7 +42,7 @@ describe("Tunnel de paiement", () => {
     await handlePurchaseConsent(env, 42, "consent:1");
 
     const all = sent.join("\n");
-    expect(all).toContain("3 étapes");          // comment on fait
+    expect(all.toLowerCase()).toContain("3 étapes");  // comment on fait
     expect(all).toContain("USDT sur Polygon");   // quoi prendre dans le doute
     expect(all).toContain("2 à 5 minutes");      // combien de temps
     expect(all).toContain("Aucun prélèvement");  // à quoi on s'engage

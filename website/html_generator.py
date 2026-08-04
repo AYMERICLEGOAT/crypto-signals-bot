@@ -15,12 +15,29 @@ from testimonials import EXAMPLE_TESTIMONIALS, EXAMPLE_TESTIMONIALS_EN
 
 TELEGRAM_URL = f"https://t.me/{TELEGRAM_BOT_USERNAME}"
 
-# Refonte du 03/08/2026 : le moteur « RSI bas » a été désactivé et remplacé par
-# le moteur Force Relative (voir signals/relative_strength.py et
-# DECOUVERTE_FORCE_RELATIVE_2026-08-03.md). Tous les textes décrivant la
-# stratégie ci-dessous ont été réécrits en conséquence. Chaque chiffre qu'ils
-# contiennent provient d'une mesure sur 6 ans (2020-2026) — aucun n'est arrondi
-# à l'avantage, aucun n'est repris d'un autre moteur.
+# Refonte du 04/08/2026 : le moteur n'a plus une famille de signaux mais QUATRE
+# (voir STRATEGIES_2026-08-04.md), toutes validées sur 6 ans avec témoin
+# aléatoire — une famille qui ne bat pas un tirage au sort à contraintes égales
+# est écartée :
+#
+#   1. Force relative      (signals/relative_strength.py)
+#   2. Cassure de canal    — achat sur le plus haut 50 jours
+#   3. Expansion de volatilité — réveil après compression
+#   4. Carry de financement (signals/carry_engine.py)
+#
+# Les trois premières sont DIRECTIONNELLES : elles achètent une hausse, et sont
+# coupées quand le Bitcoin passe sous sa moyenne mobile 200 jours (41 % du
+# temps). La quatrième ne l'est pas — elle est neutre au marché — et c'est la
+# seule qui produit pendant ces périodes. Toute la page en tient compte : un
+# carry n'a NI stop loss NI take profit (ses deux jambes s'annulent, la sortie
+# est une date), et « aucun signal aujourd'hui » ne peut plus être écrit quand
+# des carrys sortent.
+#
+# Les chiffres qui décrivaient l'ancien moteur à famille unique (8,0 signaux par
+# semaine, 47,7 % de réussite, +3,22 % d'espérance, +83,3 % par an) ont tous été
+# retirés : ils ne décrivent plus ce que fait le moteur. Ceux qui les remplacent
+# proviennent de la mesure sur 6 ans du portefeuille des quatre familles —
+# aucun n'est arrondi à l'avantage.
 #
 # Le seuil MIN_SIGNIFICANT_TRADES a disparu d'ici : la section backtest
 # n'affiche plus le taux de réussite stocké en base, donc il n'y a plus
@@ -32,30 +49,80 @@ _STRINGS = {
     "fr": {
         "html_lang": "fr",
         "page_title": lambda date_str: f"Signaux crypto du {date_str} — {SITE_NAME}",
-        # Les jours sans signal ne sont pas un cas dégradé : le filtre de
-        # tendance est fermé 41 % du temps. La description doit donc rester
-        # juste ET compréhensible avec zéro signal, sinon les moteurs de
+        # Trois états possibles, et aucun n'est un cas dégradé : des signaux
+        # d'achat, uniquement des carrys (le Bitcoin est sous sa moyenne 200
+        # jours, les familles directionnelles se taisent), ou rien du tout. La
+        # description doit rester juste dans les trois cas, sinon les moteurs de
         # recherche indexent « 0 signaux » sans la moindre explication.
-        "meta_description": lambda n, pairs, date_str: (
-            f"Analyse gratuite de {n} signaux crypto ({pairs}) du {date_str} : les paires les plus fortes "
-            f"d'un classement quotidien de 40 cryptos, conservées 7 jours. Résultats réels inclus."
-            if n
-            else f"Aucun signal crypto publié le {date_str} : le moteur n'émet rien tant que le Bitcoin est "
-            f"sous sa moyenne mobile 200 jours. Pourquoi ce silence, et combien de temps il peut durer."
+        "meta_description": lambda n, n_carry, pairs, date_str: (
+            f"Aucun signal crypto publié le {date_str} : les trois familles directionnelles sont coupées tant que "
+            f"le Bitcoin est sous sa moyenne mobile 200 jours, et le carry de financement n'a rien trouvé non plus. "
+            f"Pourquoi ce silence, et combien de temps il peut durer."
+            if not n
+            else f"Analyse gratuite de {n} signaux crypto ({pairs}) du {date_str} : {n_carry} carry(s) de "
+            f"financement, position neutre au marché dont le résultat ne dépend pas du prix. Les familles "
+            f"directionnelles sont à l'arrêt aujourd'hui. Résultats réels inclus."
+            if n_carry == n
+            else f"Analyse gratuite de {n} signaux crypto ({pairs}) du {date_str}, issus de quatre familles "
+            f"mesurées sur 6 ans : force relative, cassure de canal, expansion de volatilité et carry de "
+            f"financement. Résultats réels inclus."
         ),
         "h1": lambda date_str: f"Signaux crypto gratuits — {date_str}",
-        "subtitle": "Classement quotidien de 40 paires par force relative : les 12 plus fortes, conservées 7 jours. "
-        "Aucun signal tant que le Bitcoin est sous sa moyenne mobile 200 jours. Mis à jour chaque jour.",
+        "subtitle": "Quatre familles de signaux, chacune validée sur 6 ans contre un témoin aléatoire : force "
+        "relative, cassure de canal, expansion de volatilité, et carry de financement — la seule qui continue de "
+        "produire quand le marché baisse. Mis à jour chaque jour.",
         "signals_heading": lambda n: f"🔎 Les {n} derniers signaux",
-        "signals_note": "Chaque signal est l'une des 12 paires les plus fortes du classement du jour. La position "
-        "est conservée 7 jours : la sortie est temporelle, pas sur objectif de prix. Le stop à 4x l'ATR est une "
-        "protection contre l'accident (il ne se déclenche que dans 5 % des cas) et les objectifs à 4x, 8x et 12x "
-        "l'ATR sont des jalons de suivi.",
+        "signals_note": "Trois familles achètent une hausse : entrée, stop volontairement large à 4x l'ATR "
+        "(une protection contre l'accident, pas un outil de gestion), jalons de suivi à 4x, 8x et 12x l'ATR, et "
+        "sortie sur la durée — c'est la date qui ferme la position, pas un objectif de prix. La quatrième, le "
+        "carry de financement, ne parie pas sur le prix du tout : elle ouvre deux jambes opposées et se ferme à "
+        "une date. Elle n'a donc ni stop loss ni take profit, et c'est normal.",
+        # Le point le plus important de la page, et celui qu'un abonné a le plus
+        # spontanément envie d'ignorer. Il est mesuré : le signal directionnel
+        # MÉDIAN perd 0,69 %, la rentabilité vient d'une minorité de gros
+        # gagnants. Trier revient donc à jeter la partie qui paie et à garder
+        # celle qui coûte. Le dire une seule fois en petit ne suffirait pas.
+        "signals_all_heading": "⚖️ Prenez-les tous, ou aucun",
+        "signals_all_note": "Les familles directionnelles réussissent environ une fois sur deux, et le signal "
+        "médian perd 0,69 %. Ce n'est pas une contradiction : la rentabilité vient d'une minorité de gros "
+        "gagnants, pas de la majorité des signaux. En choisir quelques-uns « qui ont l'air solides » revient "
+        "statistiquement à ne garder que la partie perdante. Réduire la taille de chaque position est légitime ; "
+        "n'en prendre qu'une partie ne l'est pas.",
         "buy_label": "ACHAT",
         "sell_label": "VENTE",
+        "carry_label": "CARRY",
         "entry": "Entrée",
         "stop_loss": "Stop loss",
         "take_profit": "Take profit",
+        # ---- Carry de financement : vocabulaire aligné mot pour mot sur le
+        # message Telegram (workers/main-worker/src/signalFormat.ts,
+        # buildCarryMessage). Un abonné qui lit la page puis reçoit le signal
+        # doit reconnaître exactement la même chose.
+        "carry_neutral": "Position neutre au marché : le prix peut monter ou baisser, ça ne change rien au "
+        "résultat.",
+        "carry_legs_heading": "Les deux jambes, à ouvrir en même temps et pour le même montant",
+        "carry_leg_long": lambda pair: f"🟢 Achat au comptant (spot) de {pair}",
+        "carry_leg_short": lambda pair: f"🔴 Vente à découvert du perpétuel {pair}",
+        "carry_reference": "Prix de référence",
+        "carry_expected": "Financement net attendu",
+        "carry_expected_value": lambda pct: f"{pct:+.2f} %".replace(".", ","),
+        "carry_close": "Clôture prévue",
+        "carry_unknown": "—",
+        "carry_how": "Les acheteurs de perpétuels versent un financement aux vendeurs toutes les 8 heures. En "
+        "étant vendeur du perpétuel, on l'encaisse ; comme la position au comptant compense exactement la "
+        "position perpétuelle, le prix n'entre pas dans l'équation. Les deux jambes se ferment ensemble à la date "
+        "indiquée.",
+        "carry_caveats_heading": "Ce qu'il faut savoir avant d'ouvrir",
+        "carry_caveats": (
+            "Le montant annoncé est une estimation à l'ouverture, pas un acquis : le taux de financement bouge "
+            "pendant la détention et peut même s'inverser.",
+            "Ce n'est pas « sans risque ». La jambe vendeuse peut être liquidée si la marge devient "
+            "insuffisante, et il reste un risque de plateforme. Sur 6 ans, une journée de financement extrême a "
+            "coûté -19,86 % sur une position.",
+            "Il faut fermer les DEUX jambes en même temps : n'en garder qu'une transforme une position neutre "
+            "en pari directionnel.",
+        ),
+        "perf_type_carry": "CARRY",
         "perf_heading": "📊 Performance réelle des signaux passés",
         "perf_pending": "Les premiers signaux sont en cours d'évaluation — reviens bientôt pour voir les premiers résultats réels.",
         "perf_closed": "signaux clôturés",
@@ -68,12 +135,13 @@ _STRINGS = {
         "perf_note": "Résultat déterminé automatiquement en comparant le prix courant de chaque "
         "signal à son stop loss et son take profit (pas une analyse tick par tick de l'historique intrabar).",
         # Sans cette précision, un visiteur attribue naturellement ces résultats
-        # vécus à la stratégie décrite plus haut. Ce sont deux moteurs
+        # vécus à la stratégie décrite plus haut. Ce sont des moteurs
         # différents : les mélanger serait exactement la faute du
         # « 61,2 % de réussite ».
-        "perf_engine_note": "Ces résultats peuvent inclure des signaux émis par le moteur précédent, désactivé "
-        "le 3 août 2026. Ils ne décrivent donc pas la stratégie Force Relative présentée plus haut, qui n'a pas "
-        "encore d'historique en direct.",
+        "perf_engine_note": "Ces résultats peuvent inclure des signaux émis par des moteurs précédents, "
+        "désactivés depuis. Ils ne décrivent donc pas les quatre familles présentées plus haut, qui n'ont pas "
+        "encore d'historique en direct. Le résultat d'un carry, lui, ne se mesure pas sur un prix mais sur le "
+        "financement encaissé, frais déduits.",
         "perf_secured": lambda count, pct: f"🔒 {count} ({pct:.0f}%) trades sécurisés (TP1 atteint, break-even ou mieux)",
         "paper_heading": "💼 Performance en direct (portefeuille fictif)",
         "paper_detail": lambda n, pct: (
@@ -102,73 +170,101 @@ _STRINGS = {
         "vécu quelqu'un qui a commencé à une date tirée au hasard :",
         "backtest_stat": "Après six mois : +5,0 % en médiane",
         "backtest_subscriber": "53 % des entrées sont gagnantes à six mois, et le pire cas mesuré est -61,7 %. "
-        "À trois mois, la médiane tombe à 0,0 %, 43 % des entrées sont gagnantes et le pire cas est -49,0 %. "
         "Ce n'est pas un produit qui enrichit vite : c'est un produit qui limite la casse, et il peut faire mal.",
-        "backtest_how_heading": "Ce que fait le moteur",
-        "backtest_how": "Chaque jour, les 40 paires suivies sont classées par force relative — leur momentum, "
-        "mesuré sur des données journalières. Les 12 plus fortes sont achetées et conservées 7 jours. La sortie "
-        "est temporelle : on ne revend pas sur objectif de prix. Le stop est volontairement large, à 4x l'ATR, "
-        "car c'est une protection contre l'accident : il ne se déclenche que dans 5 % des cas.",
-        "backtest_tiles": (
-            ("8,0", "signaux par semaine, filtre ouvert"),
-            ("47,7 %", "de signaux gagnants"),
-            ("+3,22 %", "espérance par signal, net de frais"),
-            ("+16,88 %", "gagnant moyen, contre -9,24 % pour un perdant"),
+        "backtest_how_heading": "Les quatre familles",
+        "backtest_how": "Aucune n'a été retenue sur sa seule espérance : chacune a été confrontée à un témoin "
+        "aléatoire, et une famille qui ne bat pas un tirage au sort à contraintes égales est écartée. Sept ont "
+        "été testées, trois ont été rejetées.",
+        "backtest_families": (
+            ("Force relative",
+             "Les 40 paires suivies sont classées par momentum sur données journalières. Les 12 plus fortes "
+             "sont achetées et conservées 7 jours. La sortie est temporelle."),
+            ("Cassure de canal",
+             "Achat quand le prix franchit son plus haut des 50 derniers jours."),
+            ("Expansion de volatilité",
+             "Achat quand la volatilité se réveille après une phase de compression."),
+            ("Carry de financement",
+             "La seule qui ne parie pas sur le prix. Elle ouvre deux jambes de même montant — achat au "
+             "comptant et vente à découvert du perpétuel — qui s'annulent quand le prix bouge. Le gain vient "
+             "du financement versé toutes les 8 heures par les acheteurs de perpétuels aux vendeurs : 84,2 % "
+             "de positions gagnantes, +0,572 % net par position, et 6 années positives sur 7 (la septième, "
+             "2022, est à -0,046 %, donc plate). C'est aussi la seule famille qui produit quand le marché "
+             "baisse."),
         ),
-        "backtest_filter_heading": "Pourquoi le canal se tait parfois pendant des mois",
-        "backtest_filter": "Aucun signal n'est émis quand le Bitcoin est sous sa moyenne mobile 200 jours. Ce "
-        "filtre est fermé 41 % du temps et sa plus longue fermeture a duré 381 jours. Sans lui, la stratégie "
-        "n'est positive que 4 années sur 7 ; avec lui, elle n'a aucune année perdante sur 6 ans. En 2022 et en "
-        "2026, elle n'a tout simplement rien émis — pendant que détenir les mêmes cryptos coûtait -70,9 %, puis "
-        "-39,4 %.",
+        "backtest_tiles": (
+            ("2,99", "signaux par jour en moyenne, sur 6 ans"),
+            ("4,35", "par jour en marché favorable, 1,15 en marché défavorable"),
+            ("80 %", "des jours ont au moins un signal"),
+            ("84,2 %", "de positions gagnantes pour le carry de financement"),
+        ),
+        "backtest_filter_heading": "Pourquoi les signaux d'achat se taisent parfois pendant des mois",
+        "backtest_filter": "Les trois familles directionnelles sont coupées quand le Bitcoin passe sous sa "
+        "moyenne mobile 200 jours. Ce filtre est fermé 41 % du temps et sa plus longue fermeture a duré "
+        "381 jours, du 28/12/2021 au 13/01/2023. Le carry, lui, n'est pas coupé : il est neutre au marché, donc "
+        "une baisse ne le gêne pas. C'est ce qui fait passer le rythme de 0 à 1,15 signal par jour pendant ces "
+        "périodes, contre 4,35 quand le filtre est ouvert.",
         "backtest_honesty_heading": "Ce qu'il faut savoir avant de s'abonner",
         "backtest_honesty": (
-            "Le portefeuille composé affiche +83,3 % par an sur ces 6 ans, avec une chute maximale de -62,9 % "
-            "et aucune année perdante. <b>Ce n'est pas ce que gagnera un abonné</b> : ce chiffre suppose "
-            "d'avoir traversé les six années entières, dès le premier jour.",
-            "Il n'y a pas d'ingrédient secret : c'est du momentum, rien de plus. Un simple classement par "
-            "rendement passé fait aussi bien.",
-            "C'est le filtre de tendance qui fait la majeure partie du travail. Le classement des paires "
-            "n'ajoute qu'environ 1,1 point.",
-            "Ce moteur a été mis en service le 3 août 2026 : ces chiffres sont mesurés sur l'historique, ils "
-            "n'ont pas encore été vécus en direct.",
+            "<b>Prenez tous les signaux, ou aucun.</b> Les familles directionnelles réussissent environ une "
+            "fois sur deux et le signal médian perd 0,69 % : la rentabilité vient d'une minorité de gros "
+            "gagnants. En trier quelques-uns revient statistiquement à ne garder que la partie perdante.",
+            "Le rendement annuel d'un backtest n'est <b>pas</b> ce que gagnera un abonné : il suppose d'avoir "
+            "traversé les six années entières, dès le premier jour, sans jamais rater un signal ni s'arrêter "
+            "pendant la baisse. Le chiffre à regarder est celui de l'entrée à une date au hasard, ci-dessus.",
+            "Le carry n'est pas « sans risque », et personne ne devrait vous le présenter ainsi : la jambe "
+            "vendeuse peut être liquidée si la marge devient insuffisante, il reste un risque de plateforme, et "
+            "une journée de financement extrême a coûté -19,86 % sur une position.",
+            "Ces quatre familles ont été mises en service le 4 août 2026 : les chiffres sont mesurés sur "
+            "l'historique, ils n'ont pas encore été vécus en direct.",
         ),
-        "backtest_detail": "Mesuré sur 6 ans (2020-2026), en données journalières, net de 0,10 % de frais "
-        "aller-retour, avec une entrée décalée d'un jour après le signal, sur un univers de paires non "
-        "contaminé par le biais du survivant.",
+        "backtest_detail": "Mesuré sur 6 ans (2020-2026), en données journalières, net de frais, avec une "
+        "entrée décalée d'un jour après le signal, sur un univers de paires non contaminé par le biais du "
+        "survivant, et un témoin aléatoire pour chaque famille.",
         "backtest_note": "⚠️ Une performance passée ne préjuge pas des performances futures. Ces chiffres "
         "proviennent de simulations sur données historiques : ils ne sont ni une promesse, ni une garantie de "
         "gain. Le trading de cryptoactifs peut faire perdre tout ou partie du capital engagé.",
-        # Bloc affiché les jours sans signal. Il est écrit avec le même soin
-        # qu'une page de vente parce que c'est le moment exact où l'abonné se
-        # demande à quoi il paie — et parce que c'est vrai : ces jours-là sont
-        # ceux où la stratégie lui rend le plus service.
+        # Bloc affiché les jours sans signal d'achat. Il est écrit avec le même
+        # soin qu'une page de vente parce que c'est le moment exact où l'abonné
+        # se demande à quoi il paie — et parce que c'est vrai : ces jours-là
+        # sont ceux où le filtre lui rend le plus service.
+        #
+        # DEUX variantes depuis le 04/08/2026, et la distinction n'est pas
+        # cosmétique : écrire « aucun signal aujourd'hui » un jour où des carrys
+        # sont sortis serait tout simplement faux, et ferait passer pour une
+        # panne la seule famille qui produit en marché baissier.
         "filter_heading": "🔇 Aucun signal aujourd'hui — et c'est voulu",
-        "filter_lead": "Ce silence n'est pas une panne. Le moteur n'achète rien tant que le Bitcoin évolue sous "
-        "sa moyenne mobile 200 jours : tant que ce niveau n'est pas repassé, il n'y a rien à publier ici, et "
-        "rien ne sera inventé pour remplir la page.",
+        "filter_lead": "Ce silence n'est pas une panne. Les trois familles directionnelles n'achètent rien tant "
+        "que le Bitcoin évolue sous sa moyenne mobile 200 jours. Le carry de financement, lui, n'est pas coupé "
+        "par ce filtre — mais il n'ouvre une position que si le financement couvre ses frais, et aujourd'hui il "
+        "n'a rien trouvé non plus. Rien ne sera inventé pour remplir la page.",
+        "filter_carry_heading": "🔇 Aucun signal d'achat aujourd'hui — mais le carry, lui, continue",
+        "filter_carry_lead": "Les trois familles directionnelles sont à l'arrêt : elles achètent une hausse, et "
+        "elles ne le font pas tant que le Bitcoin évolue sous sa moyenne mobile 200 jours. Les signaux publiés "
+        "plus haut sont des carrys de financement — des positions neutres au marché, dont le résultat ne dépend "
+        "pas du prix. C'est précisément la famille qui a été ajoutée pour ces périodes-là.",
         "filter_tiles": (
-            ("41 %", "du temps sans aucun signal"),
+            ("41 %", "du temps sans signal directionnel, sur 6 ans"),
             ("381 j", "la plus longue fermeture (28/12/2021 → 13/01/2023)"),
-            ("25 j", "durée médiane d'une fermeture d'au moins une semaine"),
-            ("11", "fermetures d'au moins une semaine en 6 ans"),
+            ("1,15", "signal par jour malgré tout, grâce au carry"),
+            ("84,2 %", "de positions gagnantes pour le carry"),
         ),
         "filter_duration_heading": "Combien de temps ça peut durer",
         "filter_duration": "Sur les 6 dernières années, ce filtre a été fermé 41 % du temps. La plus longue "
-        "fermeture a duré 381 jours, soit 12,7 mois, du 28/12/2021 au 13/01/2023. Les autres fermetures longues "
-        "ont duré 273 jours (commencée le 03/11/2025), 80 jours, 47 jours et 29 jours. Un abonnement peut donc "
-        "traverser plusieurs mois d'affilée sans le moindre signal : c'est à prévoir, pas une anomalie.",
-        "filter_why_heading": "Pourquoi ne rien envoyer vaut mieux",
-        "filter_why": "Sans ce filtre, la stratégie n'est positive que 4 années sur 7. Avec lui, elle n'a aucune "
-        "année perdante sur 6 ans. En 2022 et en 2026, elle n'a tout simplement rien émis — pendant que détenir "
-        "les mêmes cryptos coûtait -70,9 %, puis -39,4 %. Ne rien envoyer est exactement ce qui a évité ces "
-        "deux années-là.",
+        "fermeture a duré 381 jours, du 28/12/2021 au 13/01/2023. Un abonnement peut donc traverser plusieurs "
+        "mois d'affilée sans le moindre signal d'achat : c'est à prévoir, pas une anomalie. La différence "
+        "depuis l'ajout du carry, c'est que ces périodes ne sont plus vides : elles produisent 1,15 signal par "
+        "jour en moyenne, contre 4,35 quand le filtre est ouvert.",
+        "filter_why_heading": "Pourquoi ne rien acheter vaut mieux",
+        "filter_why": "Les familles directionnelles ne gagnent que si le marché monte. Les laisser tourner "
+        "pendant une baisse, c'est acheter des hausses qui n'arrivent pas. Le filtre de tendance fait la majeure "
+        "partie du travail de la stratégie : le couper pour avoir « quelque chose à publier » reviendrait à "
+        "vendre du bruit. Nous préférons publier moins.",
         "filter_resume_heading": "Ce qui se passe ensuite",
-        "filter_resume": "Quand le Bitcoin repasse au-dessus de sa moyenne 200 jours, le moteur redémarre seul, "
-        "au rythme mesuré d'environ 8,0 signaux par semaine tant que le filtre reste ouvert. Il n'y a rien à "
+        "filter_resume": "Quand le Bitcoin repasse au-dessus de sa moyenne 200 jours, les trois familles "
+        "directionnelles redémarrent seules, au rythme mesuré de 4,35 signaux par jour. Il n'y a rien à "
         "surveiller ni à réactiver : cette page et le canal reprennent automatiquement.",
-        "filter_measured": "Chiffres mesurés sur 2020-2026, arrêtés au 3 août 2026 — jour de la mise en service "
-        "de ce moteur, où le Bitcoin cotait 10,7 % sous sa moyenne mobile 200 jours.",
+        "filter_measured": "Chiffres mesurés sur 6 ans (2020-2026), en données journalières, net de frais, avec "
+        "un témoin aléatoire pour chaque famille.",
         "filter_note": "Nous préférons ne rien publier plutôt que de vous faire perdre de l'argent en marché "
         "baissier. Les signaux publiés ici sont informatifs et ne constituent pas un conseil en investissement : "
         "vous seul décidez de vos positions.",
@@ -194,25 +290,66 @@ _STRINGS = {
         "html_lang": "en",
         "page_title": lambda date_str: f"Crypto Signals for {date_str} — {SITE_NAME}",
         # Voir le commentaire de la version française ci-dessus.
-        "meta_description": lambda n, pairs, date_str: (
-            f"Free analysis of {n} crypto signals ({pairs}) for {date_str}: the strongest pairs from a daily "
-            f"ranking of 40 cryptos, held for 7 days. Real track record included."
-            if n
-            else f"No crypto signal published on {date_str}: the engine stays silent while Bitcoin trades below "
-            f"its 200-day moving average. Why the silence, and how long it can last."
+        "meta_description": lambda n, n_carry, pairs, date_str: (
+            f"No crypto signal published on {date_str}: the three directional families stay silent while "
+            f"Bitcoin trades below its 200-day moving average, and the funding carry found nothing either. "
+            f"Why the silence, and how long it can last."
+            if not n
+            else f"Free analysis of {n} crypto signals ({pairs}) for {date_str}: {n_carry} funding carry "
+            f"position(s), market-neutral trades whose outcome does not depend on price. The directional "
+            f"families are idle today. Real track record included."
+            if n_carry == n
+            else f"Free analysis of {n} crypto signals ({pairs}) for {date_str}, from four families measured "
+            f"over 6 years: relative strength, channel breakout, volatility expansion and funding carry. "
+            f"Real track record included."
         ),
         "h1": lambda date_str: f"Free Crypto Signals — {date_str}",
-        "subtitle": "Daily ranking of 40 pairs by relative strength: the 12 strongest, held for 7 days. "
-        "No signal while Bitcoin trades below its 200-day moving average. Updated daily.",
+        "subtitle": "Four signal families, each validated over 6 years against a random control: relative "
+        "strength, channel breakout, volatility expansion, and funding carry — the only one that keeps "
+        "producing when the market falls. Updated daily.",
         "signals_heading": lambda n: f"🔎 Latest {n} signals",
-        "signals_note": "Each signal is one of the 12 strongest pairs in today's ranking. The position is held "
-        "for 7 days: the exit is time-based, not price-target based. The 4x ATR stop is disaster protection "
-        "(it only triggers in 5% of cases) and the 4x, 8x and 12x ATR targets are tracking milestones.",
+        "signals_note": "Three families buy an uptrend: entry, a deliberately wide 4x ATR stop (disaster "
+        "protection, not a management tool), tracking milestones at 4x, 8x and 12x ATR, and a time-based exit — "
+        "the date closes the position, not a price target. The fourth one, the funding carry, does not bet on "
+        "price at all: it opens two opposite legs and closes on a date. It therefore has no stop loss and no "
+        "take profit, and that is normal.",
+        # Voir le commentaire de la version française ci-dessus.
+        "signals_all_heading": "⚖️ Take them all, or none",
+        "signals_all_note": "The directional families win roughly one time out of two, and the median signal "
+        "loses 0.69%. That is not a contradiction: profitability comes from a minority of large winners, not "
+        "from the majority of signals. Cherry-picking the ones that \"look solid\" statistically amounts to "
+        "keeping only the losing part. Reducing the size of every position is legitimate; taking only some of "
+        "them is not.",
         "buy_label": "BUY",
         "sell_label": "SELL",
+        "carry_label": "CARRY",
         "entry": "Entry",
         "stop_loss": "Stop loss",
         "take_profit": "Take profit",
+        # Voir le commentaire de la version française ci-dessus.
+        "carry_neutral": "Market-neutral position: price can go up or down, it makes no difference to the "
+        "outcome.",
+        "carry_legs_heading": "Both legs, opened at the same time and for the same amount",
+        "carry_leg_long": lambda pair: f"🟢 Spot buy of {pair}",
+        "carry_leg_short": lambda pair: f"🔴 Short sale of the {pair} perpetual",
+        "carry_reference": "Reference price",
+        "carry_expected": "Expected net funding",
+        "carry_expected_value": lambda pct: f"{pct:+.2f}%",
+        "carry_close": "Scheduled close",
+        "carry_unknown": "—",
+        "carry_how": "Perpetual buyers pay funding to sellers every 8 hours. By being short the perpetual you "
+        "collect it; since the spot position exactly offsets the perpetual one, price does not enter the "
+        "equation. Both legs are closed together on the date shown.",
+        "carry_caveats_heading": "What you need to know before opening",
+        "carry_caveats": (
+            "The stated amount is an estimate at opening, not a given: the funding rate moves during the hold "
+            "and can even flip.",
+            "This is not \"risk-free\". The short leg can be liquidated if margin becomes insufficient, and "
+            "platform risk remains. Over 6 years, one extreme funding day cost -19.86% on a position.",
+            "Both legs must be closed at the same time: keeping only one turns a neutral position into a "
+            "directional bet.",
+        ),
+        "perf_type_carry": "CARRY",
         "perf_heading": "📊 Real performance of past signals",
         "perf_pending": "The first signals are still being evaluated — check back soon for real results.",
         "perf_closed": "closed signals",
@@ -225,9 +362,9 @@ _STRINGS = {
         "perf_note": "Result determined automatically by comparing each signal's current price to "
         "its stop loss and take profit (not a tick-by-tick intrabar analysis).",
         # Voir le commentaire de la version française ci-dessus.
-        "perf_engine_note": "These results may include signals produced by the previous engine, switched off on "
-        "3 August 2026. They therefore do not describe the Relative Strength strategy above, which has no live "
-        "track record yet.",
+        "perf_engine_note": "These results may include signals produced by earlier engines, since switched off. "
+        "They therefore do not describe the four families above, which have no live track record yet. A carry's "
+        "outcome is not measured on a price but on the funding actually collected, net of fees.",
         "perf_secured": lambda count, pct: f"🔒 {count} ({pct:.0f}%) secured trades (TP1 reached, break-even or better)",
         "paper_heading": "💼 Live performance (paper portfolio)",
         "paper_detail": lambda n, pct: (
@@ -402,6 +539,17 @@ _STYLE = """
   .signal-card:hover { border-color: var(--accent); transform: translateY(-2px); }
   .signal-card.buy { border-left: 4px solid var(--win); }
   .signal-card.sell { border-left: 4px solid var(--loss); }
+  /* Le carry a sa propre couleur, distincte du vert et du rouge : ce n'est ni
+     un pari haussier ni un pari baissier, et lui donner l'une des deux
+     couleurs directionnelles induirait exactement l'erreur qu'on cherche a
+     eviter. */
+  .signal-card.carry { border-left: 4px solid var(--accent); }
+  .badge.carry { background: var(--accent); }
+  .carry-neutral { color: var(--text-dim); font-style: italic; margin: 8px 0 12px; }
+  .carry-legs-heading, .carry-caveats-heading { margin: 12px 0 6px; }
+  .carry-legs, .carry-caveats { margin: 0 0 12px; padding-left: 20px; }
+  .carry-legs li, .carry-caveats li { margin-bottom: 6px; }
+  .carry-detail { color: var(--text-dim); font-size: 0.92rem; margin: 6px 0 12px; }
   .signal-header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
   .signal-pair { font-weight: 700; font-size: 1.15rem; }
   .badge { padding: 3px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; color: #08111f; }
@@ -485,9 +633,10 @@ _STYLE = """
 
 
 def _signal_card_html(signal, s, lang):
-    side = signal["type"]
-    css_class = "buy" if side == "BUY" else "sell"
-    label = s["buy_label"] if side == "BUY" else s["sell_label"]
+    side = str(signal["type"]).upper()
+    est_carry = side == "CARRY"
+    css_class = "carry" if est_carry else ("buy" if side == "BUY" else "sell")
+    label = s.get("carry_label", "CARRY") if est_carry else (s["buy_label"] if side == "BUY" else s["sell_label"])
     analysis = html.escape(generate_analysis(signal, lang))
     pair = html.escape(signal["pair"])
     chart_html = (
@@ -496,19 +645,92 @@ def _signal_card_html(signal, s, lang):
         else ""
     )
 
+    # Un carry n'a NI stop NI objectif : afficher ces deux cases vides, ou pire
+    # remplies d'un zéro, ferait croire à des niveaux de prix à surveiller sur
+    # une position qui, par construction, n'en a aucun. Sa carte est donc bâtie
+    # à part, avec le vocabulaire aligné mot pour mot sur le message Telegram
+    # (workers/main-worker/src/signalFormat.ts) : un abonné qui lit la page puis
+    # reçoit le signal doit reconnaître exactement la même chose.
+    if est_carry:
+        return _carry_card_html(signal, s, pair, label)
+
+    prix_html = (
+        f'<span>{s["entry"]}<b>{format_price(signal["entry_price"])}</b></span>'
+        f'<span>{s["stop_loss"]}<b>{format_price(signal["stop_loss"])}</b></span>'
+        f'<span>{s["take_profit"]}<b>{format_price(signal["take_profit"])}</b></span>'
+    )
+
     return f"""
     <article class="signal-card {css_class}">
       <div class="signal-header">
         <span class="signal-pair">{pair}</span>
         <span class="badge {css_class}">{label}</span>
       </div>
-      <div class="prices">
-        <span>{s["entry"]}<b>{format_price(signal["entry_price"])}</b></span>
-        <span>{s["stop_loss"]}<b>{format_price(signal["stop_loss"])}</b></span>
-        <span>{s["take_profit"]}<b>{format_price(signal["take_profit"])}</b></span>
-      </div>
+      <div class="prices">{prix_html}</div>
       {chart_html}
       <p>{analysis}</p>
+    </article>"""
+
+
+def _annualise(pct_sur_periode, jours):
+    """
+    Rendement annualisé, identique à annualisePct côté Worker.
+
+    C'est la seule unité qui permette de juger un carry. « +0,43 % sur la
+    période » se lit comme dérisoire pour une position à deux jambes ; le même
+    chiffre vaut +7,7 % par an sans exposition au prix. Les deux sont affichés,
+    l'annualisé d'abord.
+    """
+    if not jours or jours <= 0:
+        return None
+    return ((1 + pct_sur_periode / 100) ** (365 / jours) - 1) * 100
+
+
+def _carry_card_html(signal, s, pair, label):
+    attendu = signal.get("carry_expected_pct")
+    jours = None
+    if signal.get("hold_until") and signal.get("created_at"):
+        try:
+            fin = datetime.fromisoformat(str(signal["hold_until"]).replace("Z", "+00:00"))
+            debut = datetime.fromisoformat(str(signal["created_at"]).replace("Z", "+00:00"))
+            jours = max(1, round((fin - debut).total_seconds() / 86400))
+        except (ValueError, TypeError):
+            jours = None
+
+    if attendu is not None and jours:
+        par_an = _annualise(float(attendu), jours)
+        rendement = (
+            f"{par_an:+.1f} %".replace(".", ",") + " par an"
+            if par_an is not None
+            else s["carry_unknown"]
+        )
+        detail = s["carry_expected_value"](float(attendu)) + f" sur {jours} jours"
+    else:
+        rendement, detail = s["carry_unknown"], ""
+
+    caveats = "".join(f"<li>{html.escape(c)}</li>" for c in s["carry_caveats"])
+
+    return f"""
+    <article class="signal-card carry">
+      <div class="signal-header">
+        <span class="signal-pair">{pair}</span>
+        <span class="badge carry">{label}</span>
+      </div>
+      <p class="carry-neutral">{html.escape(s["carry_neutral"])}</p>
+      <p class="carry-legs-heading"><b>{html.escape(s["carry_legs_heading"])}</b></p>
+      <ul class="carry-legs">
+        <li>{html.escape(s["carry_leg_long"](signal["pair"]))}</li>
+        <li>{html.escape(s["carry_leg_short"](signal["pair"]))}</li>
+      </ul>
+      <div class="prices">
+        <span>{s["carry_reference"]}<b>{format_price(signal["entry_price"])}</b></span>
+        <span>{s["carry_expected"]}<b>{rendement}</b></span>
+        <span>{s["carry_close"]}<b>{f"{jours} jours" if jours else s["carry_unknown"]}</b></span>
+      </div>
+      {f'<p class="carry-detail">Soit {detail}, frais déduits.</p>' if detail else ""}
+      <p>{html.escape(s["carry_how"])}</p>
+      <p class="carry-caveats-heading"><b>{html.escape(s["carry_caveats_heading"])}</b></p>
+      <ul class="carry-caveats">{caveats}</ul>
     </article>"""
 
 
@@ -676,7 +898,13 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
     date_str = page_date.strftime(s["date_format"])
     pairs_list = ", ".join(html.escape(sig["pair"]) for sig in signals)
     title = s["page_title"](date_str)
-    description = s["meta_description"](len(signals), pairs_list, date_str)
+    # Le nombre de carrys est compté séparément : la description change selon
+    # que la journée ne contient QUE des carrys — cas normal quand le filtre de
+    # tendance est fermé — ou un mélange des quatre familles. Annoncer
+    # « 4 signaux » sans préciser que ce sont des positions neutres au marché
+    # laisserait croire à quatre paris directionnels.
+    n_carry = sum(1 for sig in signals if str(sig.get("type", "")).upper() == "CARRY")
+    description = s["meta_description"](len(signals), n_carry, pairs_list, date_str)
     canonical_url = f"{SITE_BASE_URL}{canonical_path}"
 
     # Deux états possibles, et le second n'est pas un cas dégradé : soit des

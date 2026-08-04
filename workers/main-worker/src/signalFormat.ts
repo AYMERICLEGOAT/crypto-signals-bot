@@ -46,8 +46,17 @@ function engineBadge(engine?: string | null): string {
   return ENGINE_BADGE[engine ?? "high_confidence"] ?? ENGINE_BADGE.high_confidence;
 }
 
+/**
+ * Pourcentage au format francais : virgule decimale et espace insecable avant
+ * le signe, comme partout ailleurs dans les textes du produit.
+ *
+ * Ecrit auparavant a l'anglaise ("+15.8%"), ce qui donnait des messages ou
+ * "+15.8%" et "84,2 %" se cotoyaient a deux lignes d'ecart. Un detail, mais
+ * exactement le genre de detail qui fait amateur sur une page de vente.
+ */
 function pct(value: number): string {
-  return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
+  const signe = value >= 0 ? "+" : "";
+  return `${signe}${value.toFixed(1).replace(".", ",")} %`;
 }
 
 /** Libellé FR pour un côté de signal — à utiliser partout au lieu du "BUY"/"SELL" brut, qui fuitait en anglais dans plusieurs messages de suivi. */
@@ -195,46 +204,131 @@ export function buildSignalMessage(
  * Aucun `parse_mode` particulier n'est imposé ici : la fonction rend du Markdown
  * comme buildSignalMessage, et les noms de paires ne contiennent pas de tiret bas.
  */
+export function annualisePct(pctSurPeriode: number, joursDeDetention: number): number {
+  if (joursDeDetention <= 0) return 0;
+  return (Math.pow(1 + pctSurPeriode / 100, 365 / joursDeDetention) - 1) * 100;
+}
+
+function joursDeDetention(signal: SignalLike): number {
+  if (!signal.hold_until) return 21;
+  const jours = Math.round(
+    (new Date(signal.hold_until).getTime() - new Date(signal.created_at).getTime()) / 86400000
+  );
+  return Math.max(1, jours);
+}
+
+/**
+ * Bloc pédagogique du carry, envoyé UNE SEULE FOIS par lot.
+ *
+ * Il faisait auparavant partie de chaque signal. Quatre carrys publiés la même
+ * minute, c'étaient donc quatre fois les mêmes 1 200 caractères d'explication :
+ * vu du canal, ça ressemblait à du spam — et c'en était.
+ */
+export function buildCarryExplanation(): string {
+  return [
+    "🔁 *Comment marche un carry*",
+    "",
+    "Tu ouvres DEUX positions de même montant sur la même crypto : achat au comptant, et vente à découvert du contrat perpétuel. Elles s'annulent — si le prix monte, l'une gagne ce que l'autre perd. La direction du marché ne t'affecte plus.",
+    "",
+    "Ce que tu encaisses, c'est le *financement* : un taux versé toutes les 8 heures par les acheteurs de perpétuels aux vendeurs. En étant vendeur, tu le reçois.",
+    "",
+    "*Trois choses à savoir avant d'ouvrir :*",
+    "• Le rendement annoncé n'est pas acquis. Sur 6 ans, 41 % des positions ont atteint ou dépassé le montant annoncé à l'ouverture : le taux bouge, et peut s'inverser.",
+    "• Ce n'est pas sans risque. Ta jambe vendeuse peut être liquidée si ta marge devient insuffisante — garde de la marge disponible. Une journée de financement extrême peut coûter jusqu'à -19,86 % sur une position.",
+    "• Referme les DEUX jambes ensemble. N'en garder qu'une transforme une position neutre en pari directionnel.",
+    "",
+    "Mesuré sur 6 ans : 84,2 % de positions gagnantes, 6 années positives sur 7.",
+  ].join("\n");
+}
+
+/**
+ * Message d'un carry, forme COURTE.
+ *
+ * Le rendement est affiché ANNUALISÉ en premier, le montant sur la période
+ * juste derrière. Les deux sont vrais ; le premier est celui qui permet de
+ * décider.
+ *
+ * Pourquoi cette conversion est indispensable. Un carry rapporte typiquement
+ * entre 0,4 et 1 % sur ses 21 jours. Affiché brut, « +0,43 % sur la période »
+ * se lit comme dérisoire — pour une position qu'il faut ouvrir en deux jambes,
+ * sur deux produits, avec de la marge à surveiller, personne ne se dérange. Le
+ * retour du premier abonné l'a dit sans détour : « c'est pas ouf ». Or c'est
+ * exactement le même chiffre que +7,7 % PAR AN sans exposition au prix, et
+ * c'est la seule unité qui ait du sens pour un produit de rendement. Ce n'est
+ * pas un embellissement : c'est la bonne unité pour la bonne chose.
+ */
 export function buildCarryMessage(
   signal: SignalLike,
-  opts: { delayNote?: string; ctaUsername?: string } = {}
+  opts: { delayNote?: string; ctaUsername?: string; avecExplication?: boolean } = {}
 ): string {
   // Le tiret bas doit être échappé pour Telegram : un underscore nu dans un
   // message Markdown ouvre une mise en italique et casse le message ENTIER.
-  // Le nom du bot en contient un.
   const escapedUsername = opts.ctaUsername?.replace(/_/g, "\\_");
+  const jours = joursDeDetention(signal);
   const attendu = signal.carry_expected_pct;
-  const jours = signal.hold_until
-    ? Math.max(1, Math.round((new Date(signal.hold_until).getTime() - new Date(signal.created_at).getTime()) / 86400000))
-    : null;
+  const parAn = attendu != null ? annualisePct(attendu, jours) : null;
 
   const lines: Array<string | null> = [
-    `💵 *CARRY ${signal.pair}* — ${engineBadge(signal.engine)}${opts.delayNote ? ` _(${opts.delayNote})_` : ""}`,
-    "Position neutre au marché : le prix peut monter ou baisser, ça ne change rien au résultat.",
+    `💵 *CARRY ${signal.pair}*${opts.delayNote ? ` _(${opts.delayNote})_` : ""}`,
+    "Position neutre au marché : la direction du prix ne change rien au résultat.",
     "",
-    "*Les deux jambes, à ouvrir en même temps et pour le même montant :*",
-    `🟢 Achat au comptant (spot) de ${signal.pair}`,
+    `🟢 Achat au comptant de ${signal.pair}`,
     `🔴 Vente à découvert du perpétuel ${signal.pair}`,
-    "",
     `💵 Prix de référence : ${signal.entry_price}`,
-    attendu != null ? `📈 Financement net attendu : ${attendu >= 0 ? "+" : ""}${attendu.toFixed(2)} % sur la période, frais déduits` : null,
-    jours != null ? `⏳ Clôture prévue dans ${jours} jours — les deux jambes se ferment ensemble` : null,
+    parAn != null && attendu != null
+      ? `📈 Rendement attendu : *${pct(parAn)} par an* (soit ${pct(attendu)} sur ${jours} jours, frais déduits)`
+      : null,
+    `⏳ Clôture prévue dans ${jours} jours — les deux jambes se ferment ensemble`,
+  ];
+
+  lines.push("", opts.avecExplication ? buildCarryExplanation() : "_Comment ça marche : /carry_");
+  lines.push("", "⚠️ Pas un conseil financier — risque de perte en capital.");
+  if (escapedUsername) {
+    lines.push("", `📡 Signaux en temps réel : @${escapedUsername}`);
+  }
+  return lines.filter((line): line is string => line !== null).join("\n");
+}
+
+/**
+ * Un LOT de carrys en un seul message.
+ *
+ * Quand plusieurs positions s'ouvrent le même jour — le cas normal au démarrage
+ * ou après une période creuse — les envoyer séparément produit une rafale de
+ * messages quasi identiques. Groupés, ils se lisent d'un coup d'œil et
+ * l'explication n'apparaît qu'une fois.
+ */
+export function buildCarryBatchMessage(
+  signaux: SignalLike[],
+  opts: { delayNote?: string; ctaUsername?: string } = {}
+): string {
+  if (signaux.length === 0) return "";
+  if (signaux.length === 1) {
+    return buildCarryMessage(signaux[0], { ...opts, avecExplication: true });
+  }
+
+  const escapedUsername = opts.ctaUsername?.replace(/_/g, "\\_");
+  const jours = joursDeDetention(signaux[0]);
+  const lignes = signaux.map((s) => {
+    const attendu = s.carry_expected_pct;
+    const rendement =
+      attendu != null ? `${pct(annualisePct(attendu, joursDeDetention(s)))} par an` : "rendement inconnu";
+    return `• *${s.pair}* — ${rendement} · référence ${s.entry_price}`;
+  });
+
+  const out: Array<string | null> = [
+    `💵 *${signaux.length} carrys ouverts*${opts.delayNote ? ` _(${opts.delayNote})_` : ""}`,
+    "Positions neutres au marché : la direction du prix ne change rien au résultat.",
     "",
-    "*Comment ça gagne.* Les acheteurs de perpétuels versent un financement aux vendeurs toutes les 8 heures. En étant vendeur du perpétuel, tu l'encaisses. Comme ta position spot compense exactement la position perpétuelle, le prix n'entre pas dans l'équation.",
+    ...lignes,
     "",
-    "*Ce que tu dois savoir avant d'ouvrir :*",
-    "• Le montant annoncé n'est pas acquis. Sur 6 ans, 41 % des positions ont atteint ou dépassé le montant annoncé à l'ouverture — le taux de financement bouge, et peut s'inverser.",
-    "• Ce n'est pas sans risque : ta jambe vendeuse peut être liquidée si ta marge devient insuffisante. Garde de la marge disponible.",
-    "• Il faut fermer les DEUX jambes en même temps. N'en garder qu'une transforme une position neutre en pari directionnel.",
+    `Pour chacune : achat au comptant + vente à découvert du perpétuel, même montant. Clôture dans ${jours} jours, les deux jambes ensemble.`,
     "",
-    `🕒 ${new Date(signal.created_at).toLocaleString("fr-FR")}`,
+    buildCarryExplanation(),
     "",
     "⚠️ Pas un conseil financier — risque de perte en capital.",
   ];
-
   if (escapedUsername) {
-    lines.push("", `📡 Signaux en temps réel + alertes VIP : rejoins @${escapedUsername}`);
+    out.push("", `📡 Signaux en temps réel : @${escapedUsername}`);
   }
-
-  return lines.filter((line): line is string => line !== null).join("\n");
+  return out.filter((l): l is string => l !== null).join("\n");
 }

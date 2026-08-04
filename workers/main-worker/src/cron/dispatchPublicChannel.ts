@@ -12,7 +12,7 @@
 import { Env, dbConfig } from "../env";
 import { getSignalsDueForPublicChannel, markSentToChannel, SignalRecord } from "../db/signals";
 import { sendMessage, sendPhoto } from "../telegram";
-import { buildSignalMessage } from "../signalFormat";
+import { buildSignalMessage, buildCarryBatchMessage } from "../signalFormat";
 import { isQuietHours } from "../utils/quietHours";
 
 const CHANNEL_DELAY_MINUTES = 30;
@@ -25,17 +25,18 @@ const CHANNEL_DELAY_MINUTES = 30;
  * transparence. Un abonné qui compare l'horodatage à la mention aurait
  * raison de douter du reste.
  */
-function formatPublicChannelMessage(signal: SignalRecord, botUsername: string): string {
+function formatDelayNote(signal: SignalRecord): string {
   const minutes = Math.max(
     CHANNEL_DELAY_MINUTES,
     Math.round((Date.now() - new Date(signal.created_at).getTime()) / 60000)
   );
-  const delayNote =
-    minutes < 90
-      ? `signal différé de ${minutes} min`
-      : `signal différé de ${Math.round(minutes / 60)} h (détecté cette nuit, publié à la réouverture du canal)`;
+  return minutes < 90
+    ? `signal différé de ${minutes} min`
+    : `signal différé de ${Math.round(minutes / 60)} h (détecté cette nuit, publié à la réouverture du canal)`;
+}
 
-  return buildSignalMessage(signal, { delayNote, ctaUsername: botUsername });
+function formatPublicChannelMessage(signal: SignalRecord, botUsername: string): string {
+  return buildSignalMessage(signal, { delayNote: formatDelayNote(signal), ctaUsername: botUsername });
 }
 
 export async function dispatchPublicChannel(env: Env): Promise<void> {
@@ -50,7 +51,22 @@ export async function dispatchPublicChannel(env: Env): Promise<void> {
   const channelId = Number(env.TELEGRAM_CHANNEL_ID);
   const due = await getSignalsDueForPublicChannel(db, CHANNEL_DELAY_MINUTES);
 
-  for (const signal of due) {
+  // Les carrys partent GROUPES, les signaux directionnels un par un.
+  //
+  // Un carry s'ouvre par lots : le moteur remplit ses places libres, ce qui
+  // donne couramment deux ou trois positions le meme jour, et davantage au
+  // demarrage. Publies separement, ils produisent une rafale de messages quasi
+  // identiques — c'est exactement ce qui est arrive le 04/08/2026, quatre
+  // messages a la meme minute repetant chacun les memes 1 200 caracteres
+  // d'explication. Vu du canal, c'etait du spam.
+  //
+  // Les signaux directionnels, eux, restent individuels : chacun porte ses
+  // propres niveaux d'entree, de stop et d'objectifs, et il n'y a rien a
+  // factoriser entre eux.
+  const carrys = due.filter((s) => s.type === "CARRY");
+  const directionnels = due.filter((s) => s.type !== "CARRY");
+
+  for (const signal of directionnels) {
     const text = formatPublicChannelMessage(signal, env.TELEGRAM_BOT_USERNAME);
     try {
       if (signal.chart_url) {
@@ -61,6 +77,24 @@ export async function dispatchPublicChannel(env: Env): Promise<void> {
       await markSentToChannel(db, signal.id);
     } catch (err) {
       console.error(`[public-channel] Échec de diffusion pour le signal #${signal.id}:`, err);
+    }
+  }
+
+  if (carrys.length > 0) {
+    const text = buildCarryBatchMessage(carrys, {
+      delayNote: formatDelayNote(carrys[0]),
+      ctaUsername: env.TELEGRAM_BOT_USERNAME,
+    });
+    try {
+      await sendMessage(env.TELEGRAM_BOT_TOKEN, channelId, text, { markdown: true });
+      // Chaque carry du lot est marque individuellement : si l'envoi echoue,
+      // aucun ne l'est et le lot entier repassera au cycle suivant, plutot que
+      // de disparaitre a moitie.
+      for (const signal of carrys) {
+        await markSentToChannel(db, signal.id);
+      }
+    } catch (err) {
+      console.error(`[public-channel] Échec de diffusion du lot de ${carrys.length} carry(s):`, err);
     }
   }
 }
