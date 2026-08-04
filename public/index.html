@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Signaux crypto du 04/08/2026 — Signaux Crypto Gratuits</title>
-  <meta name="description" content="Analyse gratuite de 5 signaux crypto (SOL/USDT, XLM/USDT, LINK/USDT, ETC/USDT, NEAR/USDT) du 04/08/2026 : les paires les plus fortes d&#x27;un classement quotidien de 40 cryptos, conservées 7 jours. Résultats réels inclus.">
+  <meta name="description" content="Analyse gratuite de 5 signaux crypto (LDO/USDT, SKY/USDT, XMR/USDT, ZRO/USDT, SOL/USDT) du 04/08/2026, issus de quatre familles mesurées sur 6 ans : force relative, cassure de canal, expansion de volatilité et carry de financement. Résultats réels inclus.">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://crypto-signals-bot-site.signalytics.workers.dev/">
   <link rel="alternate" hreflang="fr" href="https://crypto-signals-bot-site.signalytics.workers.dev/">
@@ -12,7 +12,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Signaux crypto du 04/08/2026 — Signaux Crypto Gratuits">
-  <meta property="og:description" content="Analyse gratuite de 5 signaux crypto (SOL/USDT, XLM/USDT, LINK/USDT, ETC/USDT, NEAR/USDT) du 04/08/2026 : les paires les plus fortes d&#x27;un classement quotidien de 40 cryptos, conservées 7 jours. Résultats réels inclus.">
+  <meta property="og:description" content="Analyse gratuite de 5 signaux crypto (LDO/USDT, SKY/USDT, XMR/USDT, ZRO/USDT, SOL/USDT) du 04/08/2026, issus de quatre familles mesurées sur 6 ans : force relative, cassure de canal, expansion de volatilité et carry de financement. Résultats réels inclus.">
   <meta property="og:url" content="https://crypto-signals-bot-site.signalytics.workers.dev/">
   <style>
   /* Refonte visuelle du 02/08/2026. L'ancienne feuille était fonctionnelle
@@ -85,6 +85,17 @@
   .signal-card:hover { border-color: var(--accent); transform: translateY(-2px); }
   .signal-card.buy { border-left: 4px solid var(--win); }
   .signal-card.sell { border-left: 4px solid var(--loss); }
+  /* Le carry a sa propre couleur, distincte du vert et du rouge : ce n'est ni
+     un pari haussier ni un pari baissier, et lui donner l'une des deux
+     couleurs directionnelles induirait exactement l'erreur qu'on cherche a
+     eviter. */
+  .signal-card.carry { border-left: 4px solid var(--accent); }
+  .badge.carry { background: var(--accent); }
+  .carry-neutral { color: var(--text-dim); font-style: italic; margin: 8px 0 12px; }
+  .carry-legs-heading, .carry-caveats-heading { margin: 12px 0 6px; }
+  .carry-legs, .carry-caveats { margin: 0 0 12px; padding-left: 20px; }
+  .carry-legs li, .carry-caveats li { margin-bottom: 6px; }
+  .carry-detail { color: var(--text-dim); font-size: 0.92rem; margin: 6px 0 12px; }
   .signal-header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
   .signal-pair { font-weight: 700; font-size: 1.15rem; }
   .badge { padding: 3px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; color: #08111f; }
@@ -170,7 +181,7 @@
   <p class="lang-switch"><a href="/en/">English version</a></p>
   <header>
     <h1>Signaux crypto gratuits — 04/08/2026</h1>
-    <p class="subtitle">Classement quotidien de 40 paires par force relative : les 12 plus fortes, conservées 7 jours. Aucun signal tant que le Bitcoin est sous sa moyenne mobile 200 jours. Mis à jour chaque jour.</p>
+    <p class="subtitle">Quatre familles de signaux, chacune validée sur 6 ans contre un témoin aléatoire : force relative, cassure de canal, expansion de volatilité, et carry de financement — la seule qui continue de produire quand le marché baisse. Mis à jour chaque jour.</p>
   </header>
 
   
@@ -178,87 +189,115 @@
       <h2>🧪 La stratégie, mesurée sur 6 ans</h2>
       <p>Le chiffre qui compte n'est pas le rendement annuel de la stratégie, c'est ce qu'a vécu quelqu'un qui a commencé à une date tirée au hasard :</p>
       <p class="backtest-stat">Après six mois : +5,0 % en médiane</p>
-      <p>53 % des entrées sont gagnantes à six mois, et le pire cas mesuré est -61,7 %. À trois mois, la médiane tombe à 0,0 %, 43 % des entrées sont gagnantes et le pire cas est -49,0 %. Ce n'est pas un produit qui enrichit vite : c'est un produit qui limite la casse, et il peut faire mal.</p>
-      <p class="sub-heading">Ce que fait le moteur</p>
-      <p>Chaque jour, les 40 paires suivies sont classées par force relative — leur momentum, mesuré sur des données journalières. Les 12 plus fortes sont achetées et conservées 7 jours. La sortie est temporelle : on ne revend pas sur objectif de prix. Le stop est volontairement large, à 4x l'ATR, car c'est une protection contre l'accident : il ne se déclenche que dans 5 % des cas.</p>
-      <div class="perf-stats"><div class="perf-stat"><b>8,0</b>signaux par semaine, filtre ouvert</div><div class="perf-stat"><b>47,7 %</b>de signaux gagnants</div><div class="perf-stat"><b>+3,22 %</b>espérance par signal, net de frais</div><div class="perf-stat"><b>+16,88 %</b>gagnant moyen, contre -9,24 % pour un perdant</div></div>
-      <p class="sub-heading">Pourquoi le canal se tait parfois pendant des mois</p>
-      <p>Aucun signal n'est émis quand le Bitcoin est sous sa moyenne mobile 200 jours. Ce filtre est fermé 41 % du temps et sa plus longue fermeture a duré 381 jours. Sans lui, la stratégie n'est positive que 4 années sur 7 ; avec lui, elle n'a aucune année perdante sur 6 ans. En 2022 et en 2026, elle n'a tout simplement rien émis — pendant que détenir les mêmes cryptos coûtait -70,9 %, puis -39,4 %.</p>
+      <p>53 % des entrées sont gagnantes à six mois, et le pire cas mesuré est -61,7 %. Ce n'est pas un produit qui enrichit vite : c'est un produit qui limite la casse, et il peut faire mal.</p>
+      <p class="sub-heading">Les quatre familles</p>
+      <p>Aucune n'a été retenue sur sa seule espérance : chacune a été confrontée à un témoin aléatoire, et une famille qui ne bat pas un tirage au sort à contraintes égales est écartée. Sept ont été testées, trois ont été rejetées.</p>
+      <div class="perf-stats"><div class="perf-stat"><b>2,99</b>signaux par jour en moyenne, sur 6 ans</div><div class="perf-stat"><b>4,35</b>par jour en marché favorable, 1,15 en marché défavorable</div><div class="perf-stat"><b>80 %</b>des jours ont au moins un signal</div><div class="perf-stat"><b>84,2 %</b>de positions gagnantes pour le carry de financement</div></div>
+      <p class="sub-heading">Pourquoi les signaux d'achat se taisent parfois pendant des mois</p>
+      <p>Les trois familles directionnelles sont coupées quand le Bitcoin passe sous sa moyenne mobile 200 jours. Ce filtre est fermé 41 % du temps et sa plus longue fermeture a duré 381 jours, du 28/12/2021 au 13/01/2023. Le carry, lui, n'est pas coupé : il est neutre au marché, donc une baisse ne le gêne pas. C'est ce qui fait passer le rythme de 0 à 1,15 signal par jour pendant ces périodes, contre 4,35 quand le filtre est ouvert.</p>
       <p class="sub-heading">Ce qu'il faut savoir avant de s'abonner</p>
-      <ul><li>Le portefeuille composé affiche +83,3 % par an sur ces 6 ans, avec une chute maximale de -62,9 % et aucune année perdante. <b>Ce n'est pas ce que gagnera un abonné</b> : ce chiffre suppose d'avoir traversé les six années entières, dès le premier jour.</li><li>Il n'y a pas d'ingrédient secret : c'est du momentum, rien de plus. Un simple classement par rendement passé fait aussi bien.</li><li>C'est le filtre de tendance qui fait la majeure partie du travail. Le classement des paires n'ajoute qu'environ 1,1 point.</li><li>Ce moteur a été mis en service le 3 août 2026 : ces chiffres sont mesurés sur l'historique, ils n'ont pas encore été vécus en direct.</li></ul>
-      <p class="backtest-detail">Mesuré sur 6 ans (2020-2026), en données journalières, net de 0,10 % de frais aller-retour, avec une entrée décalée d'un jour après le signal, sur un univers de paires non contaminé par le biais du survivant.</p>
+      <ul><li><b>Prenez tous les signaux, ou aucun.</b> Les familles directionnelles réussissent environ une fois sur deux et le signal médian perd 0,69 % : la rentabilité vient d'une minorité de gros gagnants. En trier quelques-uns revient statistiquement à ne garder que la partie perdante.</li><li>Le rendement annuel d'un backtest n'est <b>pas</b> ce que gagnera un abonné : il suppose d'avoir traversé les six années entières, dès le premier jour, sans jamais rater un signal ni s'arrêter pendant la baisse. Le chiffre à regarder est celui de l'entrée à une date au hasard, ci-dessus.</li><li>Le carry n'est pas « sans risque », et personne ne devrait vous le présenter ainsi : la jambe vendeuse peut être liquidée si la marge devient insuffisante, il reste un risque de plateforme, et une journée de financement extrême a coûté -19,86 % sur une position.</li><li>Ces quatre familles ont été mises en service le 4 août 2026 : les chiffres sont mesurés sur l'historique, ils n'ont pas encore été vécus en direct.</li></ul>
+      <p class="backtest-detail">Mesuré sur 6 ans (2020-2026), en données journalières, net de frais, avec une entrée décalée d'un jour après le signal, sur un univers de paires non contaminé par le biais du survivant, et un témoin aléatoire pour chaque famille.</p>
       <p class="backtest-caveat">⚠️ Une performance passée ne préjuge pas des performances futures. Ces chiffres proviennent de simulations sur données historiques : ils ne sont ni une promesse, ni une garantie de gain. Le trading de cryptoactifs peut faire perdre tout ou partie du capital engagé.</p>
     </section>
 
   
     <section>
       <h2>🔎 Les 5 derniers signaux</h2>
-      <p class="signals-note">Chaque signal est l'une des 12 paires les plus fortes du classement du jour. La position est conservée 7 jours : la sortie est temporelle, pas sur objectif de prix. Le stop à 4x l'ATR est une protection contre l'accident (il ne se déclenche que dans 5 % des cas) et les objectifs à 4x, 8x et 12x l'ATR sont des jalons de suivi.</p>
+      <p class="signals-note">Trois familles achètent une hausse : entrée, stop volontairement large à 4x l'ATR (une protection contre l'accident, pas un outil de gestion), jalons de suivi à 4x, 8x et 12x l'ATR, et sortie sur la durée — c'est la date qui ferme la position, pas un objectif de prix. La quatrième, le carry de financement, ne parie pas sur le prix du tout : elle ouvre deux jambes opposées et se ferme à une date. Elle n'a donc ni stop loss ni take profit, et c'est normal.</p>
       
+    <article class="signal-card carry">
+      <div class="signal-header">
+        <span class="signal-pair">LDO/USDT</span>
+        <span class="badge carry">CARRY</span>
+      </div>
+      <p class="carry-neutral">Position neutre au marché : le prix peut monter ou baisser, ça ne change rien au résultat.</p>
+      <p class="carry-legs-heading"><b>Les deux jambes, à ouvrir en même temps et pour le même montant</b></p>
+      <ul class="carry-legs">
+        <li>🟢 Achat au comptant (spot) de LDO/USDT</li>
+        <li>🔴 Vente à découvert du perpétuel LDO/USDT</li>
+      </ul>
+      <div class="prices">
+        <span>Prix de référence<b>0.299700</b></span>
+        <span>Financement net attendu<b>+7,8 % par an</b></span>
+        <span>Clôture prévue<b>21 jours</b></span>
+      </div>
+      <p class="carry-detail">Soit +0,43 % sur 21 jours, frais déduits.</p>
+      <p>Les acheteurs de perpétuels versent un financement aux vendeurs toutes les 8 heures. En étant vendeur du perpétuel, on l&#x27;encaisse ; comme la position au comptant compense exactement la position perpétuelle, le prix n&#x27;entre pas dans l&#x27;équation. Les deux jambes se ferment ensemble à la date indiquée.</p>
+      <p class="carry-caveats-heading"><b>Ce qu&#x27;il faut savoir avant d&#x27;ouvrir</b></p>
+      <ul class="carry-caveats"><li>Le montant annoncé est une estimation à l&#x27;ouverture, pas un acquis : le taux de financement bouge pendant la détention et peut même s&#x27;inverser.</li><li>Ce n&#x27;est pas « sans risque ». La jambe vendeuse peut être liquidée si la marge devient insuffisante, et il reste un risque de plateforme. Sur 6 ans, une journée de financement extrême a coûté -19,86 % sur une position.</li><li>Il faut fermer les DEUX jambes en même temps : n&#x27;en garder qu&#x27;une transforme une position neutre en pari directionnel.</li></ul>
+    </article>
+    <article class="signal-card carry">
+      <div class="signal-header">
+        <span class="signal-pair">SKY/USDT</span>
+        <span class="badge carry">CARRY</span>
+      </div>
+      <p class="carry-neutral">Position neutre au marché : le prix peut monter ou baisser, ça ne change rien au résultat.</p>
+      <p class="carry-legs-heading"><b>Les deux jambes, à ouvrir en même temps et pour le même montant</b></p>
+      <ul class="carry-legs">
+        <li>🟢 Achat au comptant (spot) de SKY/USDT</li>
+        <li>🔴 Vente à découvert du perpétuel SKY/USDT</li>
+      </ul>
+      <div class="prices">
+        <span>Prix de référence<b>0.055360</b></span>
+        <span>Financement net attendu<b>+8,0 % par an</b></span>
+        <span>Clôture prévue<b>21 jours</b></span>
+      </div>
+      <p class="carry-detail">Soit +0,44 % sur 21 jours, frais déduits.</p>
+      <p>Les acheteurs de perpétuels versent un financement aux vendeurs toutes les 8 heures. En étant vendeur du perpétuel, on l&#x27;encaisse ; comme la position au comptant compense exactement la position perpétuelle, le prix n&#x27;entre pas dans l&#x27;équation. Les deux jambes se ferment ensemble à la date indiquée.</p>
+      <p class="carry-caveats-heading"><b>Ce qu&#x27;il faut savoir avant d&#x27;ouvrir</b></p>
+      <ul class="carry-caveats"><li>Le montant annoncé est une estimation à l&#x27;ouverture, pas un acquis : le taux de financement bouge pendant la détention et peut même s&#x27;inverser.</li><li>Ce n&#x27;est pas « sans risque ». La jambe vendeuse peut être liquidée si la marge devient insuffisante, et il reste un risque de plateforme. Sur 6 ans, une journée de financement extrême a coûté -19,86 % sur une position.</li><li>Il faut fermer les DEUX jambes en même temps : n&#x27;en garder qu&#x27;une transforme une position neutre en pari directionnel.</li></ul>
+    </article>
+    <article class="signal-card carry">
+      <div class="signal-header">
+        <span class="signal-pair">XMR/USDT</span>
+        <span class="badge carry">CARRY</span>
+      </div>
+      <p class="carry-neutral">Position neutre au marché : le prix peut monter ou baisser, ça ne change rien au résultat.</p>
+      <p class="carry-legs-heading"><b>Les deux jambes, à ouvrir en même temps et pour le même montant</b></p>
+      <ul class="carry-legs">
+        <li>🟢 Achat au comptant (spot) de XMR/USDT</li>
+        <li>🔴 Vente à découvert du perpétuel XMR/USDT</li>
+      </ul>
+      <div class="prices">
+        <span>Prix de référence<b>118.70</b></span>
+        <span>Financement net attendu<b>+11,0 % par an</b></span>
+        <span>Clôture prévue<b>21 jours</b></span>
+      </div>
+      <p class="carry-detail">Soit +0,60 % sur 21 jours, frais déduits.</p>
+      <p>Les acheteurs de perpétuels versent un financement aux vendeurs toutes les 8 heures. En étant vendeur du perpétuel, on l&#x27;encaisse ; comme la position au comptant compense exactement la position perpétuelle, le prix n&#x27;entre pas dans l&#x27;équation. Les deux jambes se ferment ensemble à la date indiquée.</p>
+      <p class="carry-caveats-heading"><b>Ce qu&#x27;il faut savoir avant d&#x27;ouvrir</b></p>
+      <ul class="carry-caveats"><li>Le montant annoncé est une estimation à l&#x27;ouverture, pas un acquis : le taux de financement bouge pendant la détention et peut même s&#x27;inverser.</li><li>Ce n&#x27;est pas « sans risque ». La jambe vendeuse peut être liquidée si la marge devient insuffisante, et il reste un risque de plateforme. Sur 6 ans, une journée de financement extrême a coûté -19,86 % sur une position.</li><li>Il faut fermer les DEUX jambes en même temps : n&#x27;en garder qu&#x27;une transforme une position neutre en pari directionnel.</li></ul>
+    </article>
+    <article class="signal-card carry">
+      <div class="signal-header">
+        <span class="signal-pair">ZRO/USDT</span>
+        <span class="badge carry">CARRY</span>
+      </div>
+      <p class="carry-neutral">Position neutre au marché : le prix peut monter ou baisser, ça ne change rien au résultat.</p>
+      <p class="carry-legs-heading"><b>Les deux jambes, à ouvrir en même temps et pour le même montant</b></p>
+      <ul class="carry-legs">
+        <li>🟢 Achat au comptant (spot) de ZRO/USDT</li>
+        <li>🔴 Vente à découvert du perpétuel ZRO/USDT</li>
+      </ul>
+      <div class="prices">
+        <span>Prix de référence<b>0.779000</b></span>
+        <span>Financement net attendu<b>+19,2 % par an</b></span>
+        <span>Clôture prévue<b>21 jours</b></span>
+      </div>
+      <p class="carry-detail">Soit +1,01 % sur 21 jours, frais déduits.</p>
+      <p>Les acheteurs de perpétuels versent un financement aux vendeurs toutes les 8 heures. En étant vendeur du perpétuel, on l&#x27;encaisse ; comme la position au comptant compense exactement la position perpétuelle, le prix n&#x27;entre pas dans l&#x27;équation. Les deux jambes se ferment ensemble à la date indiquée.</p>
+      <p class="carry-caveats-heading"><b>Ce qu&#x27;il faut savoir avant d&#x27;ouvrir</b></p>
+      <ul class="carry-caveats"><li>Le montant annoncé est une estimation à l&#x27;ouverture, pas un acquis : le taux de financement bouge pendant la détention et peut même s&#x27;inverser.</li><li>Ce n&#x27;est pas « sans risque ». La jambe vendeuse peut être liquidée si la marge devient insuffisante, et il reste un risque de plateforme. Sur 6 ans, une journée de financement extrême a coûté -19,86 % sur une position.</li><li>Il faut fermer les DEUX jambes en même temps : n&#x27;en garder qu&#x27;une transforme une position neutre en pari directionnel.</li></ul>
+    </article>
     <article class="signal-card buy">
       <div class="signal-header">
         <span class="signal-pair">SOL/USDT</span>
         <span class="badge buy">ACHAT</span>
       </div>
-      <div class="prices">
-        <span>Entrée<b>73.26</b></span>
-        <span>Stop loss<b>72.79</b></span>
-        <span>Take profit<b>74.63</b></span>
-      </div>
+      <div class="prices"><span>Entrée<b>73.26</b></span><span>Stop loss<b>72.79</b></span><span>Take profit<b>74.63</b></span></div>
       <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/SOL-USDT-1785779917079.png" alt="SOL/USDT chart" loading="lazy">
       <p>Le signal ACHAT sur SOL/USDT a été déclenché par un croisement haussier : le prix est repassé au-dessus de sa moyenne mobile exponentielle à 21 périodes pendant que le RSI sortait de la zone de survente, une configuration technique classique de retournement à court terme. Entrée autour de 73.26, avec un stop loss à 72.79 (-0.6%) et un objectif de take profit à 74.63 (+1.9%).</p>
-    </article>
-    <article class="signal-card buy">
-      <div class="signal-header">
-        <span class="signal-pair">XLM/USDT</span>
-        <span class="badge buy">ACHAT</span>
-      </div>
-      <div class="prices">
-        <span>Entrée<b>0.172400</b></span>
-        <span>Stop loss<b>0.171183</b></span>
-        <span>Take profit<b>0.175950</b></span>
-      </div>
-      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/XLM-USDT-1785771349405.png" alt="XLM/USDT chart" loading="lazy">
-      <p>XLM/USDT vient de valider un croisement EMA9/EMA21 haussier avec confirmation du RSI (sortie de survente), ce qui correspond aux critères du signal ACHAT généré ici : entrée proche de 0.172400, protection (stop loss) à 0.171183, objectif (take profit) à 0.175950.</p>
-    </article>
-    <article class="signal-card buy">
-      <div class="signal-header">
-        <span class="signal-pair">LINK/USDT</span>
-        <span class="badge buy">ACHAT</span>
-      </div>
-      <div class="prices">
-        <span>Entrée<b>8.29</b></span>
-        <span>Stop loss<b>8.22</b></span>
-        <span>Take profit<b>8.48</b></span>
-      </div>
-      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/LINK-USDT-1785771349405.png" alt="LINK/USDT chart" loading="lazy">
-      <p>Sur LINK/USDT, l&#x27;EMA rapide (9 périodes) a franchi à la hausse l&#x27;EMA lente (21 périodes) au moment même où le RSI indiquait une sortie de zone de survente, ce qui a déclenché ce signal ACHAT. Le prix d&#x27;entrée se situe vers 8.29, avec un stop loss à 8.22 et un take profit visé à 8.48.</p>
-    </article>
-    <article class="signal-card buy">
-      <div class="signal-header">
-        <span class="signal-pair">ETC/USDT</span>
-        <span class="badge buy">ACHAT</span>
-      </div>
-      <div class="prices">
-        <span>Entrée<b>6.59</b></span>
-        <span>Stop loss<b>6.54</b></span>
-        <span>Take profit<b>6.73</b></span>
-      </div>
-      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/ETC-USDT-1785760366367.png" alt="ETC/USDT chart" loading="lazy">
-      <p>Le signal ACHAT sur ETC/USDT a été déclenché par un croisement haussier : le prix est repassé au-dessus de sa moyenne mobile exponentielle à 21 périodes pendant que le RSI sortait de la zone de survente, une configuration technique classique de retournement à court terme. Entrée autour de 6.59, avec un stop loss à 6.54 (-0.7%) et un objectif de take profit à 6.73 (+2.2%).</p>
-    </article>
-    <article class="signal-card sell">
-      <div class="signal-header">
-        <span class="signal-pair">NEAR/USDT</span>
-        <span class="badge sell">VENTE</span>
-      </div>
-      <div class="prices">
-        <span>Entrée<b>1.71</b></span>
-        <span>Stop loss<b>1.73</b></span>
-        <span>Take profit<b>1.67</b></span>
-      </div>
-      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/NEAR-USDT-1785760366367.png" alt="NEAR/USDT chart" loading="lazy">
-      <p>NEAR/USDT a validé un croisement EMA9/EMA21 baissier avec confirmation du RSI (sortie de surachat), correspondant aux critères du signal VENTE : entrée proche de 1.71, protection à 1.73, objectif à 1.67.</p>
     </article>
     </section>
 
@@ -310,7 +349,7 @@
                 </tr></tbody>
         </table>
         <p style="font-size:0.85rem;color:#777;">Résultat déterminé automatiquement en comparant le prix courant de chaque signal à son stop loss et son take profit (pas une analyse tick par tick de l'historique intrabar).</p>
-        <p style="font-size:0.85rem;color:#777;">Ces résultats peuvent inclure des signaux émis par le moteur précédent, désactivé le 3 août 2026. Ils ne décrivent donc pas la stratégie Force Relative présentée plus haut, qui n'a pas encore d'historique en direct.</p>
+        <p style="font-size:0.85rem;color:#777;">Ces résultats peuvent inclure des signaux émis par des moteurs précédents, désactivés depuis. Ils ne décrivent donc pas les quatre familles présentées plus haut, qui n'ont pas encore d'historique en direct. Le résultat d'un carry, lui, ne se mesure pas sur un prix mais sur le financement encaissé, frais déduits.</p>
     </section>
 
   
