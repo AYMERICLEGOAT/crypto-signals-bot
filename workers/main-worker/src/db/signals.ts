@@ -120,15 +120,25 @@ export async function getOpenSignals(db: SupabaseConfig): Promise<SignalRecord[]
 }
 
 /**
- * Carrys arrivés à échéance : la clôture est TEMPORELLE, jamais déclenchée par
- * un prix. `hold_until` est écrit à l'ouverture par signals/carry_engine.py.
+ * TOUS les carrys encore ouverts, échus ou non.
+ *
+ * Le suivi ne peut pas se contenter des positions arrivées à échéance : le
+ * financement d'un perpétuel peut s'INVERSER en cours de route — lors d'un
+ * squeeze, ce sont les vendeurs qui paient. Une position ouverte pour encaisser
+ * 0,03 %/jour se met alors à en coûter dix fois plus, et rien ne l'arrêterait
+ * jusqu'au terme. Le stop sur financement cumulé (voir trackCarryOutcomes) doit
+ * donc pouvoir fermer AVANT `hold_until`, ce qui suppose d'examiner chaque
+ * position à chaque passage.
+ *
+ * Mesuré : sans ce stop, la pire position atteint -66,70 % ; avec, -19,86 %,
+ * pour une espérance qui MONTE de +0,656 % à +0,761 % — il ne coupe pas de
+ * gagnantes, seules 1,7 % des positions le déclenchent.
  */
-export async function getExpiredCarrySignals(db: SupabaseConfig, nowIso: string): Promise<SignalRecord[]> {
+export async function getOpenCarrySignals(db: SupabaseConfig): Promise<SignalRecord[]> {
   return selectRows<SignalRecord>(db, "signals", {
     engine: "eq.carry_funding",
     outcome: "is.null",
-    hold_until: `lte.${nowIso}`,
-    order: "hold_until.asc",
+    order: "created_at.asc",
   });
 }
 

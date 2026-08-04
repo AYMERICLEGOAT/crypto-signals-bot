@@ -323,21 +323,32 @@ def run_carry_engine() -> list:
         return []  # lecture impossible : voir storage.open_carry_pairs
     places_libres = config.CARRY_MAX_POSITIONS - len(ouvertes)
 
-    funding_par_paire, prix_spot = {}, {}
-    for pair in config.PAIRS:
-        symbole = binance_client.pair_to_symbol(pair)
-        versements = carry_engine.fetch_funding_history(symbole, config.CARRY_LOOKBACK_DAYS)
-        if not versements:
-            continue
-        funding_par_paire[pair] = versements
+    # L'univers du carry n'est PAS config.PAIRS. C'est celui des perpétuels les
+    # plus échangés disposant aussi d'une paire au comptant — trois fois plus de
+    # candidats, ce qui fait passer le régime défavorable de 0,49 à 1,24 signal
+    # par jour à qualité comparable (voir backtest_carry_stop).
+    symboles = carry_engine.univers_carry(config.CARRY_UNIVERSE_SIZE)
+    if not symboles:
+        logger.warning("[carry_funding] Univers indisponible ce cycle, aucun signal.")
+        return []
 
-    # Le prix spot n'est récupéré que pour les paires réellement candidates :
-    # inutile d'appeler l'API pour trente paires dont deux seront retenues.
-    classement = carry_engine.classer_paires(funding_par_paire)
-    for pair, _taux in classement[: places_libres + len(ouvertes)]:
-        df = fetch_daily_candles(pair)
-        if df is not None and len(df):
-            prix_spot[pair] = float(df["close"].iloc[-1])
+    funding_par_symbole = {}
+    for symbole in symboles:
+        versements = carry_engine.fetch_funding_history(symbole, config.CARRY_LOOKBACK_DAYS)
+        if versements:
+            funding_par_symbole[symbole] = versements
+
+    # Le prix spot n'est demandé que pour les candidats réellement retenus :
+    # inutile d'appeler l'API pour cent vingt symboles dont quelques-uns
+    # passeront le plancher.
+    classement = carry_engine.classer_paires(funding_par_symbole)
+    prix_spot = {}
+    for symbole, _taux in classement[: places_libres + len(ouvertes)]:
+        prix = carry_engine.fetch_spot_price(symbole)
+        if prix:
+            prix_spot[symbole] = prix
+
+    funding_par_paire = funding_par_symbole
 
     logger.info(
         "[carry_funding] Passage quotidien : %d paires avec financement, %d classables, "

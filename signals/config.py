@@ -420,12 +420,22 @@ RS_RUN_HOUR_UTC = 1
 # dont la médiane par position est positive.
 ENABLE_CARRY_ENGINE = True
 
-# 20 places tenues 21 jours ouvrent 20/21 position par jour en moyenne, soit
-# 0,69 signal/jour mesuré sous la forme livrée (backtest_carry_production) :
-# 87,2 % de positions gagnantes, +0,662 % net, pire position -3,86 %, et sept
-# années positives sur sept. En marché baissier : 0,49 signal/jour à 75,5 % de
-# gagnantes — c'est là tout l'intérêt du moteur.
-CARRY_MAX_POSITIONS = 20
+# Univers : les perpétuels les plus échangés, et non les 40 paires du projet.
+# C'est le levier de quantité le plus efficace du moteur — trois fois plus de
+# candidats à sélectivité égale. Il n'a été débloqué que par le stop ci-dessous :
+# sans lui, la pire position sur univers élargi atteignait -66,70 %.
+# Le classement du volume est refait à chaque passage (endpoint public).
+CARRY_UNIVERSE_SIZE = 120
+
+# 40 places tenues 21 jours ouvrent 40/21 position par jour en moyenne. Mesuré
+# sous la forme livrée, univers élargi et stop actif (backtest_carry_stop) :
+# 1,35 signal/jour, 82,7 % de positions gagnantes, +0,545 % net.
+# EN MARCHÉ DÉFAVORABLE — le seul régime où ce moteur compte vraiment :
+# 1,24 signal/jour à 76,1 % de gagnantes, contre 0,49 avant l'élargissement.
+# Seule 2022 est négative, à -0,046 % par position : plate, pas perdante.
+# Au-delà de 60 places la réussite tombe sous 79 % et à 73 % sur les années
+# récentes ; 40 est le point où la quantité cesse de coûter de la qualité.
+CARRY_MAX_POSITIONS = 40
 
 # 21 jours est un SEUIL, pas un curseur. À 14 jours la pire position passe de
 # -3,86 % à -30,18 % et le nombre d'années positives tombe de 7/7 à 5/7 : le
@@ -438,10 +448,25 @@ CARRY_HOLD_DAYS = 21
 # détention est le compromis mesuré entre réactivité et stabilité.
 CARRY_LOOKBACK_DAYS = 21
 
-# Plancher : en dessous, le financement ne couvre pas les frais d'ouverture et
-# de fermeture des deux jambes. Ouvrir serait perdant d'avance.
-# 0,015 %/jour x 21 jours = 0,315 %, contre 0,20 % de frais.
-CARRY_MIN_FUNDING_PCT_PER_DAY = 0.015
+# Plancher sur le financement d'entrée. Il était à 0,015 %/jour, ce qui ne
+# laissait passer que 4 paires sur 37 le 04/08/2026 et étranglait la quantité.
+# L'abaisser fait passer le régime défavorable de 0,72 à 0,82 signal/jour pour
+# 86,5 % de gagnantes au lieu de 87,8 % : bon échange.
+#
+# 0,010 %/jour x 21 jours = 0,21 %, soit tout juste au-dessus des 0,20 % de
+# frais. C'est le plancher ARITHMÉTIQUE en dessous duquel une position serait
+# perdante d'avance — mais il est si serré que le moteur ne s'y fie pas :
+# carry_engine écarte en plus toute position dont l'espérance ANNONCÉE ne serait
+# pas franchement positive (voir CARRY_MIN_EXPECTED_PCT). Annoncer un gain
+# attendu de +0,01 % serait exact et pourtant absurde.
+CARRY_MIN_FUNDING_PCT_PER_DAY = 0.010
+
+# Espérance annoncée minimale, frais déduits. Un signal dont le gain attendu est
+# nul ou négatif ne doit jamais partir : ce serait annoncer une perte à
+# l'abonné. Ce garde-fou est indépendant du plancher ci-dessus et le double
+# volontairement — si quelqu'un modifie la durée de détention ou les frais sans
+# recalculer le plancher, c'est celui-ci qui rattrape l'erreur.
+CARRY_MIN_EXPECTED_PCT = 0.05
 
 # Plafond : un financement extrême ne signale pas une bonne affaire mais une
 # manie, et c'est exactement là que se logent les pertes rares et énormes. Sans
@@ -451,6 +476,23 @@ CARRY_MAX_FUNDING_PCT_PER_DAY = 0.15
 # Coût d'ouverture ET de fermeture des deux jambes (spot + perpétuel), à 0,10 %
 # l'aller-retour par jambe. C'est ce qui est déduit du financement annoncé.
 CARRY_ROUND_TRIP_COST_PCT = 0.20
+
+# STOP SUR LE FINANCEMENT CUMULÉ, en pourcentage négatif. Dès qu'une position a
+# COÛTÉ plus que ce seuil, les deux jambes sont fermées sans attendre le terme.
+#
+# Ce n'est pas un stop de prix — la position y est insensible. Le financement
+# d'un perpétuel peut s'INVERSER lors d'un squeeze : ce sont alors les vendeurs
+# qui paient, parfois pendant plusieurs jours. Rien n'arrêtait ça auparavant.
+#
+# Mesuré : la pire position passe de -66,70 % à -19,86 %, l'espérance MONTE de
+# +0,656 % à +0,761 %, et seules 1,7 % des positions le déclenchent. Il ne coupe
+# donc pas de gagnantes — contrairement au stop de prix des familles
+# directionnelles, où plus il était serré, plus il coûtait cher.
+#
+# Le -19,86 % résiduel vient d'une journée unique à financement extrême : un
+# stop vérifié quotidiennement ne peut pas l'anticiper, seulement en limiter la
+# suite. C'est le risque résiduel assumé, et il doit être dit aux abonnés.
+CARRY_STOP_FUNDING_PCT = -1.5
 
 # Le moteur tourne une fois par jour, comme la force relative, et pour la même
 # raison : le classement est calculé sur des versements journaliers agrégés.

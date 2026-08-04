@@ -88,8 +88,10 @@ verifie(abs((cloture - ouverture).days - config.CARRY_HOLD_DAYS) <= 1,
         f"clôture prévue {config.CARRY_HOLD_DAYS} jours après l'ouverture")
 
 print("\n=== 5. Places disponibles et positions déjà ouvertes ===")
-large = {f"P{i}/USDT": versements(0.05 - i * 0.001) for i in range(30)}
-prix = {f"P{i}/USDT": 10.0 for i in range(30)}
+# Univers plus large que le nombre de places, pour que le plafonnement soit
+# réellement testé (CARRY_MAX_POSITIONS vaut 40).
+large = {f"P{i}/USDT": versements(0.05 - i * 0.0002) for i in range(60)}
+prix = {f"P{i}/USDT": 10.0 for i in range(60)}
 verifie(len(ce.detect_carry_signals(large, prix)) == config.CARRY_MAX_POSITIONS,
         f"jamais plus de CARRY_MAX_POSITIONS = {config.CARRY_MAX_POSITIONS} positions")
 verifie(len(ce.detect_carry_signals(large, prix, places_libres=3)) == 3,
@@ -112,7 +114,13 @@ verifie(ce.detect_carry_signals(sous_plancher, {f"Q{i}/USDT": 1.0 for i in range
 print("\n=== 7. Cohérence des constantes ===")
 verifie(config.CARRY_MIN_FUNDING_PCT_PER_DAY * config.CARRY_HOLD_DAYS
         > config.CARRY_ROUND_TRIP_COST_PCT,
-        "le plancher x la durée dépasse bien les frais aller-retour des deux jambes")
+        "le plancher x la durée dépasse les frais aller-retour des deux jambes")
+verifie(config.CARRY_MIN_EXPECTED_PCT > 0,
+        "l'espérance annoncée minimale est strictement positive : on n'envoie "
+        "jamais un signal dont le gain attendu serait nul ou négatif")
+au_plancher = {f"R{i}/USDT": versements(config.CARRY_MIN_FUNDING_PCT_PER_DAY) for i in range(20)}
+verifie(ce.classer_paires(au_plancher) == [],
+        "une paire pile au plancher est écartée : son espérance annoncée serait dérisoire")
 verifie(config.CARRY_MAX_FUNDING_PCT_PER_DAY > config.CARRY_MIN_FUNDING_PCT_PER_DAY,
         "plafond au-dessus du plancher")
 verifie(config.CARRY_HOLD_DAYS >= 21,

@@ -26,28 +26,47 @@ de gros gagnants, donc l'abonné doit tout prendre. Ici chaque position est
 individuellement satisfaisante, ce qui change complètement le vécu.
 
 FORME LIVRÉE, et pourquoi elle diffère du backtest d'origine. Les mesures de
-validation rééquilibraient par blocs : 20 positions ouvertes le même jour,
-tenues 21 jours, tout refermé, on recommence. Correct statistiquement,
-inexploitable pour un canal — les abonnés recevraient 20 signaux d'un coup puis
-rien pendant trois semaines. Le moteur évalue donc CHAQUE jour et ouvre dès
-qu'une place se libère. Mesuré sous cette forme exacte
-(backtest_carry_production) : 0,69 signal par jour, 87,2 % de positions
-gagnantes, +0,662 % net, pire position -3,86 %, sept années positives sur sept.
+validation rééquilibraient par blocs : toutes les positions ouvertes le même
+jour, tenues 21 jours, tout refermé, on recommence. Correct statistiquement,
+inexploitable pour un canal — les abonnés recevraient quarante signaux d'un coup
+puis rien pendant trois semaines. Le moteur évalue donc CHAQUE jour et ouvre dès
+qu'une place se libère, ce qui étale le débit au lieu de le concentrer.
 
-DEUX GARDE-FOUS, mesurés et non supposés :
+Mesuré sous la forme exacte livrée (backtest_carry_stop, univers élargi,
+40 places, stop actif) : 1,29 signal par jour, 84,2 % de positions gagnantes,
++0,572 % net, six années positives sur sept — la septième, 2022, est à -0,046 %
+par position, donc plate et non perdante.
+
+TROIS GARDE-FOUS, mesurés et non supposés :
 
   - Un PLAFOND sur le financement d'entrée. Un taux extrême ne signale pas une
     bonne affaire mais une manie, et c'est précisément là que se logent les
-    pertes rares et énormes : sans plafond, sur univers élargi, la pire position
-    observée atteignait -68 %. Avec, elle reste à -3,86 %.
-  - Un PLANCHER, pour ne pas ouvrir une position dont le financement ne couvre
-    même pas ses propres frais. Ouvrir un carry coûte deux allers-retours (spot
-    et perpétuel), soit 0,20 % : en dessous d'un certain taux, la position est
-    perdante d'avance.
+    pertes rares et énormes.
+  - Un PLANCHER, doublé d'une espérance annoncée minimale. Ouvrir un carry coûte
+    deux allers-retours (spot et perpétuel), soit 0,20 % : en dessous d'un
+    certain taux la position est perdante d'avance, et juste au-dessus elle
+    rapporterait un gain annoncé dérisoire qu'il serait absurde d'envoyer.
+  - Un STOP SUR LE FINANCEMENT CUMULÉ. Le financement d'un perpétuel peut
+    s'INVERSER lors d'un squeeze : ce sont alors les vendeurs qui paient,
+    parfois pendant plusieurs jours, et rien n'arrêtait la position avant son
+    terme. Mesuré : la pire position passe de -66,70 % à -19,86 %, l'espérance
+    MONTE de +0,656 % à +0,761 %, et seules 1,7 % des positions le déclenchent —
+    il ne coupe donc pas de gagnantes, contrairement au stop de prix des
+    familles directionnelles où plus il était serré, plus il coûtait cher.
+    Le suivi (Worker) l'évalue à chaque passage, pas seulement à l'échéance.
+
+Il reste -19,86 % de perte possible sur une position, due à une journée unique
+à financement extrême qu'un stop quotidien ne peut qu'encadrer après coup. C'est
+le risque résiduel assumé, et il doit être dit aux abonnés.
 
 La durée de 21 jours n'est pas un réglage libre. À 14 jours la pire position
-passe à -30,18 % et on tombe à cinq années positives sur sept ; à 21 elle reste
-à -3,86 % avec sept sur sept. C'est un seuil, pas un curseur.
+passe à -30,18 % et on tombe à cinq années positives sur sept. C'est un seuil,
+pas un curseur.
+
+CONTRIBUTION AU SYSTÈME COMPLET. Avec les trois familles directionnelles, le
+canal passe à 4,35 signaux par jour en marché favorable et 1,15 en défavorable,
+soit 2,99 en moyenne, et 80 % des jours comportent au moins un signal — contre
+53 % avant l'ajout de ce moteur.
 
 CE QUE CE MOTEUR N'EST PAS. Ce n'est pas « sans risque ». La jambe vendeuse peut
 être liquidée si la marge devient insuffisante, le prix du perpétuel peut
@@ -81,10 +100,56 @@ _ENDPOINTS = (
 _HEADERS = {"User-Agent": "crypto-signals-bot"}
 
 
+_STABLES = {
+    "USDCUSDT", "FDUSDUSDT", "TUSDUSDT", "BUSDUSDT", "DAIUSDT", "EURUSDT",
+    "USDPUSDT", "AEURUSDT", "XUSDUSDT", "USD1USDT", "PYUSDUSDT", "EURIUSDT",
+}
+
+
 def _lire_json(url: str, timeout: int = 20):
     requete = urllib.request.Request(url, headers=_HEADERS)
     with urllib.request.urlopen(requete, timeout=timeout) as reponse:
         return json.load(reponse)
+
+
+def univers_carry(taille: int) -> list:
+    """
+    Les `taille` perpétuels les plus échangés qui possèdent AUSSI une paire au
+    comptant sur Binance.
+
+    Les deux conditions sont indispensables et pour des raisons différentes.
+    Le volume, parce qu'un carry sur un perpétuel sans profondeur est un signal
+    que personne ne peut suivre. La paire au comptant, parce qu'un carry a deux
+    jambes : sans spot, il n'y a rien à acheter en face de la vente du
+    perpétuel, et la position ne serait plus neutre au marché mais une simple
+    vente à découvert — exactement ce que ce moteur ne fait pas.
+
+    L'univers est reconstruit à chaque passage plutôt que figé dans config.py :
+    la liste des perpétuels change, et un symbole retiré doit disparaître du
+    classement sans intervention.
+
+    Retourne une liste vide si l'une des deux listes est injoignable, ce que
+    l'appelant traite comme « pas de classement possible aujourd'hui ».
+    """
+    try:
+        perps = _lire_json("https://fapi.binance.com/fapi/v1/ticker/24hr", timeout=30)
+        spots = _lire_json("https://api.binance.com/api/v3/exchangeInfo", timeout=30)
+    except Exception:
+        logger.warning("[%s] Impossible de construire l'univers des perpétuels.", ENGINE_NAME, exc_info=True)
+        return []
+
+    avec_spot = {
+        s["symbol"] for s in spots.get("symbols", [])
+        if s.get("status") == "TRADING" and s.get("quoteAsset") == "USDT"
+    }
+    candidats = [
+        d for d in perps
+        if d["symbol"].endswith("USDT")
+        and d["symbol"] not in _STABLES
+        and d["symbol"] in avec_spot
+    ]
+    candidats.sort(key=lambda d: -float(d.get("quoteVolume", 0)))
+    return [d["symbol"] for d in candidats[:taille]]
 
 
 def fetch_funding_history(symbole: str, jours: int) -> list | None:
@@ -107,6 +172,39 @@ def fetch_funding_history(symbole: str, jours: int) -> list | None:
             continue
         if lignes:
             return [float(l["fundingRate"]) * 100 for l in lignes]
+    return None
+
+
+def format_pair(symbole: str) -> str:
+    """
+    "BTCUSDT" -> "BTC/USDT". L'univers du carry est construit à partir des
+    symboles Binance, mais tout le reste du produit (base, messages, historique
+    de l'abonné) utilise la notation avec barre oblique. Convertir ici évite
+    d'avoir deux conventions qui cohabitent dans la table `signals`.
+    Un symbole déjà au bon format est rendu tel quel.
+    """
+    if "/" in symbole:
+        return symbole
+    return f"{symbole[:-4]}/USDT" if symbole.endswith("USDT") else symbole
+
+
+def fetch_spot_price(symbole: str) -> float | None:
+    """
+    Dernier prix au comptant. Sert de prix de référence pour dimensionner les
+    deux jambes — il n'a aucun rôle de déclenchement, la position étant neutre
+    au marché. Retourne None si aucune source ne répond, auquel cas la position
+    n'est simplement pas ouverte : mieux vaut un signal en moins qu'un prix
+    inventé.
+    """
+    for base in ("https://api.binance.com", "https://api1.binance.com", "https://data-api.binance.vision"):
+        try:
+            data = _lire_json(f"{base}/api/v3/ticker/price?symbol={symbole}", timeout=15)
+            prix = float(data.get("price", 0))
+            if prix > 0:
+                return prix
+        except Exception:
+            continue
+    logger.warning("[%s] Prix au comptant indisponible pour %s.", ENGINE_NAME, symbole)
     return None
 
 
@@ -136,6 +234,13 @@ def classer_paires(funding_par_paire: dict) -> list:
             continue
         if taux < config.CARRY_MIN_FUNDING_PCT_PER_DAY:
             continue  # ne couvre même pas ses frais
+        # Garde-fou indépendant du plancher : jamais de signal dont le gain
+        # ANNONCÉ serait nul ou dérisoire. Le plancher arithmétique laisse
+        # passer des positions à +0,01 % attendu, ce qui est exact et pourtant
+        # absurde à envoyer.
+        attendu = taux * config.CARRY_HOLD_DAYS - config.CARRY_ROUND_TRIP_COST_PCT
+        if attendu < config.CARRY_MIN_EXPECTED_PCT:
+            continue
         if taux > config.CARRY_MAX_FUNDING_PCT_PER_DAY:
             logger.info(
                 "[%s] %s écartée : financement de %.4f %%/jour au-dessus du plafond de %.4f. "
@@ -163,7 +268,7 @@ def build_signal(pair: str, prix_spot: float, taux_journalier: float, rang: int,
     maintenant = timestamp or datetime.now(timezone.utc)
     attendu = taux_journalier * config.CARRY_HOLD_DAYS - config.CARRY_ROUND_TRIP_COST_PCT
     return {
-        "pair": pair,
+        "pair": format_pair(pair),
         "type": "CARRY",
         "entry_price": round(prix_spot, 8),
         "stop_loss": None,
@@ -210,11 +315,17 @@ def detect_carry_signals(funding_par_paire: dict, prix_spot: dict,
         )
         return []
 
+    # Les positions ouvertes viennent de la base, donc en notation "BTC/USDT",
+    # alors que le classement est construit sur des symboles Binance
+    # ("BTCUSDT"). Sans cette normalisation, aucune position ouverte ne serait
+    # reconnue et le moteur rouvrirait chaque jour les mêmes paires.
+    deja = {format_pair(p) for p in already_open}
+
     signaux = []
     for rang, (pair, taux) in enumerate(classement, start=1):
         if len(signaux) >= places_libres:
             break
-        if pair in already_open:
+        if format_pair(pair) in deja:
             continue
         prix = prix_spot.get(pair)
         if not prix or prix <= 0:

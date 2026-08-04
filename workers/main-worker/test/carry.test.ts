@@ -150,6 +150,41 @@ describe("trackCarryOutcomes", () => {
     expect(s.messages[0]).toContain("Carry clôturé");
   });
 
+  it("ferme AVANT le terme quand le financement s'est inversé", async () => {
+    // Position ouverte hier, échéance dans 20 jours : elle n'est pas échue.
+    // Mais le financement cumulé est descendu à -2 %, sous le stop de -1,5 % :
+    // sans ce garde-fou elle courrait encore vingt jours à perdre.
+    const hier = new Date(Date.now() - 86400000).toISOString();
+    const dansVingtJours = new Date(Date.now() + 20 * 86400000).toISOString();
+    const s = stub(
+      [{ fundingTime: 0, fundingRate: "-0.02" }],
+      { expired: [{ id: 9, pair: "PEPE/USDT", engine: "carry_funding", created_at: hier, hold_until: dansVingtJours, carry_expected_pct: 0.9, outcome: null }] }
+    );
+
+    await trackCarryOutcomes(env);
+
+    expect(s.patches).toHaveLength(1);
+    expect(s.patches[0].close_reason).toBe("carry_stop");
+    expect(s.patches[0].outcome).toBe("LOSS");
+    expect(s.messages[0]).toContain("Clôture anticipée");
+    expect(s.messages[0]).toMatch(/financement s'est inversé/i);
+  });
+
+  it("laisse courir une position saine qui n'est pas encore échue", async () => {
+    const hier = new Date(Date.now() - 86400000).toISOString();
+    const dansVingtJours = new Date(Date.now() + 20 * 86400000).toISOString();
+    const s = stub(
+      [{ fundingTime: 0, fundingRate: "0.0003" }],
+      { expired: [{ id: 10, pair: "SOL/USDT", engine: "carry_funding", created_at: hier, hold_until: dansVingtJours, carry_expected_pct: 0.9, outcome: null }] }
+    );
+
+    await trackCarryOutcomes(env);
+
+    // Ni échue ni au stop : rien n'est écrit, rien n'est notifié.
+    expect(s.patches).toHaveLength(0);
+    expect(s.messages).toHaveLength(0);
+  });
+
   it("ne clôture RIEN si le financement est indisponible", async () => {
     // Inscrire un résultat sans donnée reviendrait à inventer un chiffre que
     // l'abonné prendrait pour argent comptant.

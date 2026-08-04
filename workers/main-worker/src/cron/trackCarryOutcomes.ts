@@ -22,7 +22,7 @@
  */
 
 import { Env, dbConfig } from "../env";
-import { getExpiredCarrySignals, SignalRecord } from "../db/signals";
+import { getOpenCarrySignals, SignalRecord } from "../db/signals";
 import { getDeliveryRecipients } from "../db/signalDeliveries";
 import { getFundingCollectedPct } from "../market/funding";
 import { updateRows } from "../supabaseRest";
@@ -33,6 +33,14 @@ import { sendMessage } from "../telegram";
 // signals/config.py::CARRY_ROUND_TRIP_COST_PCT, sinon le résultat annoncé à
 // l'abonné ne correspondrait pas à celui utilisé pour choisir la position.
 const ROUND_TRIP_COST_PCT = 0.2;
+
+// Stop sur le financement CUMULÉ, en pourcentage négatif. Doit rester aligné
+// sur signals/config.py::CARRY_STOP_FUNDING_PCT.
+//
+// Ce n'est pas un stop de prix : la position y est insensible. C'est le seul
+// garde-fou contre l'inversion du financement lors d'un squeeze, où ce sont les
+// vendeurs de perpétuels qui paient, parfois pendant plusieurs jours.
+const STOP_FUNDING_PCT = -1.5;
 
 const BATCH_SIZE = 25;
 const DELAY_BETWEEN_BATCHES_MS = 1000;
@@ -45,13 +53,21 @@ function formatPct(value: number): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(2)} %`;
 }
 
-function buildCloseMessage(signal: SignalRecord, realized: number, attendu: number | null): string {
+function buildCloseMessage(signal: SignalRecord, realized: number, attendu: number | null, parLeStop = false): string {
   const gagnant = realized > 0;
   const lines = [
     `${gagnant ? "✅" : "🔻"} *Carry clôturé — ${signal.pair}*`,
     "",
     `💵 Financement encaissé, frais déduits : *${formatPct(realized)}*`,
   ];
+
+  if (parLeStop) {
+    lines.push(
+      "",
+      "⛔ *Clôture anticipée.* Le financement s'est inversé : au lieu de l'encaisser, la position le payait. C'est ce qui arrive lors d'un mouvement violent, quand les vendeurs de perpétuels deviennent majoritaires.",
+      "On ferme au lieu d'attendre le terme — c'est ce garde-fou qui empêche une position de ce type de dériver."
+    );
+  }
 
   if (attendu != null) {
     const ecart = realized - attendu;
@@ -106,9 +122,9 @@ export async function trackCarryOutcomes(env: Env): Promise<void> {
   const db = dbConfig(env);
   const nowIso = new Date().toISOString();
 
-  let expired: SignalRecord[];
+  let ouvertes: SignalRecord[];
   try {
-    expired = await getExpiredCarrySignals(db, nowIso);
+    ouvertes = await getOpenCarrySignals(db);
   } catch (err) {
     // Tant que la migration de la section 46 d'init.sql n'est pas appliquée,
     // la colonne hold_until n'existe pas et cette requête échoue. Ce n'est pas
@@ -117,13 +133,18 @@ export async function trackCarryOutcomes(env: Env): Promise<void> {
     console.error("[carry] Suivi impossible (colonne hold_until absente ? migration section 46 non appliquée) :", err);
     return;
   }
-  if (expired.length === 0) return;
+  if (ouvertes.length === 0) return;
 
-  console.log(`[carry] ${expired.length} carry(s) arrivé(s) à échéance.`);
+  console.log(`[carry] ${ouvertes.length} carry(s) ouvert(s) à examiner.`);
 
-  for (const signal of expired) {
+  for (const signal of ouvertes) {
     const startMs = new Date(signal.created_at).getTime();
-    const endMs = signal.hold_until ? new Date(signal.hold_until).getTime() : Date.now();
+    const echeanceMs = signal.hold_until ? new Date(signal.hold_until).getTime() : Date.now();
+    const maintenant = Date.now();
+    // Le financement est mesuré jusqu'à MAINTENANT, pas jusqu'à l'échéance :
+    // c'est ce qui permet de détecter une position qui coûte déjà trop cher
+    // avant son terme.
+    const endMs = Math.min(echeanceMs, maintenant);
 
     const collected = await getFundingCollectedPct(signal.pair, startMs, endMs);
     if (collected === null) {
@@ -135,13 +156,21 @@ export async function trackCarryOutcomes(env: Env): Promise<void> {
       continue;
     }
 
+    const echue = maintenant >= echeanceMs;
+    const touchéeParLeStop = collected <= STOP_FUNDING_PCT;
+
+    // Une position qui n'est ni échue ni au stop continue de courir : on ne
+    // fait que la mesurer, sans rien écrire.
+    if (!echue && !touchéeParLeStop) continue;
+
     const realized = collected - ROUND_TRIP_COST_PCT;
     const outcome: "WIN" | "LOSS" = realized > 0 ? "WIN" : "LOSS";
+    const raison = touchéeParLeStop ? "carry_stop" : "carry_expired";
 
     try {
       await updateRows(db, "signals", { id: `eq.${signal.id}` }, {
         outcome,
-        close_reason: "carry_expired",
+        close_reason: raison,
         carry_realized_pct: Number(realized.toFixed(4)),
         evaluated_at: nowIso,
         // `outcome_price` reste nul : une position neutre au marché n'a pas de
@@ -163,7 +192,7 @@ export async function trackCarryOutcomes(env: Env): Promise<void> {
       env,
       db,
       { ...signal, outcome, carry_realized_pct: realized },
-      buildCloseMessage(signal, realized, signal.carry_expected_pct ?? null)
+      buildCloseMessage(signal, realized, signal.carry_expected_pct ?? null, touchéeParLeStop)
     );
   }
 }
