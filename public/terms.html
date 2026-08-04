@@ -88,6 +88,17 @@
   .signal-card:hover { border-color: var(--accent); transform: translateY(-2px); }
   .signal-card.buy { border-left: 4px solid var(--win); }
   .signal-card.sell { border-left: 4px solid var(--loss); }
+  /* Le carry a sa propre couleur, distincte du vert et du rouge : ce n'est ni
+     un pari haussier ni un pari baissier, et lui donner l'une des deux
+     couleurs directionnelles induirait exactement l'erreur qu'on cherche a
+     eviter. */
+  .signal-card.carry { border-left: 4px solid var(--accent); }
+  .badge.carry { background: var(--accent); }
+  .carry-neutral { color: var(--text-dim); font-style: italic; margin: 8px 0 12px; }
+  .carry-legs-heading, .carry-caveats-heading { margin: 12px 0 6px; }
+  .carry-legs, .carry-caveats { margin: 0 0 12px; padding-left: 20px; }
+  .carry-legs li, .carry-caveats li { margin-bottom: 6px; }
+  .carry-detail { color: var(--text-dim); font-size: 0.92rem; margin: 6px 0 12px; }
   .signal-header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
   .signal-pair { font-weight: 700; font-size: 1.15rem; }
   .badge { padding: 3px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; color: #08111f; }
@@ -190,6 +201,21 @@
   .warn p:last-child { margin-bottom: 0; }
   code { background: var(--bg-soft); border: 1px solid var(--border);
          padding: 1px 6px; border-radius: 4px; font-size: .9em; }
+  /* Les deux jambes du carry de financement. Grille auto-fit plutôt que deux
+     colonnes fixes : sur un téléphone les jambes se posent l'une sous l'autre
+     sans media query, et le schéma reste lisible. */
+  .legs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 12px; margin: 18px 0; }
+  .leg { background: var(--bg-card); border: 1px solid var(--border);
+         border-radius: 12px; padding: 14px 16px; }
+  .leg b { display: block; color: var(--text); margin-bottom: 4px; }
+  .leg span { font-size: .9rem; color: var(--text-dim); }
+  .leg-result { background: var(--bg-card); border: 1px dashed var(--accent);
+                border-radius: 12px; padding: 14px 16px; margin: 0 0 18px; color: var(--text-dim); }
+  /* Un tableau ne doit jamais élargir la page : il défile dans son conteneur. */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-wrap table.recent { min-width: 460px; }
+  body { overflow-wrap: anywhere; }
 </style>
 </head>
 <body>
@@ -236,10 +262,11 @@
          aucune année perdante sur les 6 années mesurées. En 2022 et en 2026 elle n'a rien émis,
          pendant que détenir ces mêmes cryptos coûtait -70,9 % puis -39,4 %. Ne rien envoyer est
          la protection, pas le défaut.</p>
-      <p><b>Tu en es informé avant tout paiement.</b> Au 3 août 2026, cette condition
-         d'arrêt est active&nbsp;: le Bitcoin est 10,7 % sous sa moyenne 200 jours et
-         le service n'émet aucun signal. Personne ne peut prévoir la date de reprise. N'achète pas
-         d'abonnement en pariant sur une reprise à une échéance donnée.</p>
+      <p><b>Tu en es informé avant tout paiement.</b> Au 4 août 2026, cette condition
+         d'arrêt est active&nbsp;: le Bitcoin est sous sa moyenne 200 jours, et les trois familles
+         directionnelles sont à l'arrêt. Le carry de financement, lui, continue de produire —
+         c'est la seule famille qui fonctionne dans ce régime. Personne ne peut prévoir la date de
+         reprise des trois autres&nbsp;: n'achète pas d'abonnement en pariant sur une échéance.</p>
     </div>
     <p>L'état de cette condition (active ou non) est annoncé sur le canal et expliqué en détail sur
        la page <a href="/comment-ca-marche.html">Comment ça marche</a>. Une interruption due à un
