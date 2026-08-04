@@ -226,6 +226,80 @@ def record_source_health(pairs_with_data: int, total_pairs: int) -> tuple[int, b
     return new_count, should_alert
 
 
+_carry_schema_ready = None
+
+
+def carry_schema_ready() -> bool:
+    """
+    La migration de la section 46 d'init.sql a-t-elle été appliquée ?
+
+    Le moteur de carry a besoin de trois colonnes (carry_expected_pct,
+    carry_realized_pct, hold_until), d'un `type` acceptant 'CARRY', et de
+    stop_loss/take_profit facultatifs. Rien de tout ça ne peut être créé depuis
+    le code : PostgREST ne fait pas de DDL, la migration se lance à la main dans
+    Supabase.
+
+    Sans cette vérification, le moteur tournerait, produirait des signaux
+    corrects, et chaque insertion échouerait avec une erreur 23514 noyée dans
+    les logs — exactement le mode de panne silencieuse qui a déjà coûté cher à
+    ce projet (le suivi post-trade a échoué à chaque cycle pendant des semaines
+    sans que personne ne le voie). Mieux vaut ne rien émettre et le dire.
+
+    Le résultat est mis en cache pour la durée du processus : une requête par
+    exécution suffit, et le schéma ne change pas en cours de route.
+    """
+    global _carry_schema_ready
+    if _carry_schema_ready is not None:
+        return _carry_schema_ready
+    try:
+        get_client().table("signals").select("carry_expected_pct,hold_until").limit(1).execute()
+        _carry_schema_ready = True
+    except Exception:
+        logger.error(
+            "Moteur de carry INACTIF : la migration de la section 46 d'init.sql n'a pas été "
+            "appliquée (colonnes carry_expected_pct / carry_realized_pct / hold_until absentes, "
+            "et le type 'CARRY' est refusé par signals_type_check). À lancer dans l'éditeur SQL "
+            "Supabase. Tant que ce n'est pas fait, aucun carry n'est émis — ce qui vaut mieux "
+            "qu'une insertion en échec à chaque cycle."
+        )
+        _carry_schema_ready = False
+    return _carry_schema_ready
+
+
+def open_carry_pairs() -> set | None:
+    """
+    Paires portant un carry encore ouvert, ou None si la lecture a échoué.
+
+    Un carry est ouvert tant que `outcome` est nul. On ne se fie pas ici à une
+    fenêtre temporelle comme pour les autres moteurs : la clôture est décidée
+    par le suivi dédié (trackCarryOutcomes côté Worker), et une position dont la
+    fermeture aurait pris du retard doit continuer à occuper sa place plutôt que
+    d'être rouverte en double.
+
+    Le None en cas d'échec est délibéré et l'appelant DOIT s'arrêter dessus. Une
+    liste vide signifierait « aucune position ouverte », donc « ouvre les 20
+    places » — soit potentiellement vingt doublons sur des positions déjà en
+    cours. C'est le sens de dégradation inverse de pairs_signalled_since, et
+    pour une bonne raison : là-bas un doublon est gênant, ici il double une
+    exposition réelle.
+    """
+    try:
+        resp = (
+            get_client().table("signals")
+            .select("pair")
+            .eq("engine", "carry_funding")
+            .is_("outcome", "null")
+            .execute()
+        )
+        return {row["pair"] for row in (resp.data or [])}
+    except Exception:
+        logger.exception(
+            "Échec de la lecture des carrys ouverts : aucune position ne sera ouverte ce cycle. "
+            "Ne rien faire vaut mieux que risquer de doubler une exposition existante."
+        )
+        return None
+
+
 def daily_job_already_ran_today(job_name: str, hour_utc: int) -> bool:
     """
     Ce job quotidien a-t-il déjà tourné depuis l'heure cible d'aujourd'hui ?

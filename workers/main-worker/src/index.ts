@@ -10,6 +10,7 @@ import { dispatchCryptoFact } from "./cron/dispatchCryptoFact";
 import { dispatchFearGreed } from "./cron/dispatchFearGreed";
 import { dispatchWeeklyRecap } from "./cron/dispatchWeeklyRecap";
 import { trackSignalOutcomes } from "./cron/trackSignalOutcomes";
+import { trackCarryOutcomes } from "./cron/trackCarryOutcomes";
 import { announceSignalPause } from "./cron/announceSignalPause";
 import { dispatchEducationalPost } from "./cron/dispatchEducationalPost";
 import { dispatchNoSignalStatus } from "./cron/dispatchNoSignalStatus";
@@ -108,6 +109,11 @@ export default {
           await dispatchWeeklyRecap(env).catch((err) => console.error("[cron] Erreur dispatchWeeklyRecap:", err));
           await dispatchEducationalPost(env).catch((err) => console.error("[cron] Erreur dispatchEducationalPost:", err));
           await dispatchNoSignalStatus(env).catch((err) => console.error("[cron] Erreur dispatchNoSignalStatus:", err));
+          // Suivi des carrys : cadence de 15 minutes et non de 5, parce que la
+          // clôture est TEMPORELLE. Une position tenue 21 jours n'a aucun
+          // besoin d'être examinée toutes les 5 minutes, et chaque passage
+          // interroge l'API de financement paire par paire.
+          await trackCarryOutcomes(env).catch((err) => console.error("[cron] Erreur trackCarryOutcomes:", err));
           await runLuckyVipDay(env).catch((err) => console.error("[cron] Erreur luckyVipDay:", err));
           await revertLuckyVip(env).catch((err) => console.error("[cron] Erreur revertLuckyVip:", err));
           await postLeaderboard(env).catch((err) => console.error("[cron] Erreur postLeaderboard:", err));

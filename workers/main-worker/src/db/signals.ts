@@ -3,10 +3,12 @@ import { SupabaseConfig, selectRows, updateRows } from "../supabaseRest";
 export interface SignalRecord {
   id: number;
   pair: string;
-  type: "BUY" | "SELL";
+  type: "BUY" | "SELL" | "CARRY";
   entry_price: number;
-  stop_loss: number;
-  take_profit: number;
+  // Nuls pour un carry : la position est neutre au marché et se ferme sur une
+  // durée, aucun niveau de prix ne la menace ni ne la déclenche.
+  stop_loss: number | null;
+  take_profit: number | null;
   created_at: string;
   sent: boolean;
   chart_url: string | null;
@@ -23,6 +25,10 @@ export interface SignalRecord {
   tp1_price?: number | null;
   tp2_price?: number | null;
   tp3_price?: number | null;
+  // Carry uniquement (voir signals/carry_engine.py et init.sql section 46).
+  carry_expected_pct?: number | null;
+  carry_realized_pct?: number | null;
+  hold_until?: string | null;
   tp1_hit_at?: string | null;
   tp2_hit_at?: string | null;
   tp3_hit_at?: string | null;
@@ -95,10 +101,34 @@ export async function markSentToChannel(db: SupabaseConfig, id: number): Promise
  * si `close_reason` (propre à ce Worker) est resté vide.
  */
 export async function getOpenSignals(db: SupabaseConfig): Promise<SignalRecord[]> {
-  return selectRows<SignalRecord>(db, "signals", {
+  const rows = await selectRows<SignalRecord>(db, "signals", {
     sent: "eq.true",
     outcome: "is.null",
     order: "created_at.asc",
+  });
+  // Les carrys sont EXCLUS du suivi par prix. Une position neutre au marché ne
+  // peut pas toucher un stop ni un objectif — elle n'en a pas — et les laisser
+  // ici les ferait clôturer à tort sur un simple mouvement de cours, en
+  // inscrivant un résultat qui ne correspond à rien. Ils sont suivis par
+  // cron/trackCarryOutcomes.ts, qui mesure le financement encaissé.
+  //
+  // Le filtrage se fait ici et non dans la requête : en PostgREST,
+  // `engine=not.eq.carry_funding` élimine AUSSI les lignes dont `engine` est
+  // nul (la comparaison rend NULL, donc faux), ce qui exclurait du suivi tous
+  // les signaux antérieurs à l'introduction de cette colonne.
+  return rows.filter((s) => s.engine !== "carry_funding");
+}
+
+/**
+ * Carrys arrivés à échéance : la clôture est TEMPORELLE, jamais déclenchée par
+ * un prix. `hold_until` est écrit à l'ouverture par signals/carry_engine.py.
+ */
+export async function getExpiredCarrySignals(db: SupabaseConfig, nowIso: string): Promise<SignalRecord[]> {
+  return selectRows<SignalRecord>(db, "signals", {
+    engine: "eq.carry_funding",
+    outcome: "is.null",
+    hold_until: `lte.${nowIso}`,
+    order: "hold_until.asc",
   });
 }
 

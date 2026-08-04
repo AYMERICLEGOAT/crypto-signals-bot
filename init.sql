@@ -1053,3 +1053,48 @@ alter table pending_actions add constraint pending_actions_action_type_check
 
 -- Colonne utilisée par le même flux (identifiant de la note à compléter).
 alter table pending_actions add column if not exists review_id bigint;
+
+
+-- ----------------------------------------------------------------------------
+-- 46. Signaux de type CARRY (moteur carry de financement, 04/08/2026)
+-- ----------------------------------------------------------------------------
+-- Un carry de financement n'est ni un achat ni une vente : c'est une position
+-- NEUTRE AU MARCHÉ, composée de deux jambes simultanées — achat du spot et
+-- vente du perpétuel pour le même montant. Les deux s'annulent quand le prix
+-- bouge ; le rendement vient uniquement du taux de financement encaissé.
+--
+-- Conséquences directes sur le schéma :
+--   * `type` ne peut pas rester limité à BUY/SELL sans mentir sur la nature
+--     de la position ;
+--   * `stop_loss` et `take_profit` n'ont aucun sens ici. La position se ferme
+--     sur une DURÉE, pas sur un prix. Les laisser obligatoires forcerait à
+--     inventer des niveaux, que le suivi post-trade utiliserait ensuite pour
+--     clôturer à tort une position insensible au prix.
+--
+-- Mesures qui justifient ce moteur (voir STRATEGIES_2026-08-04.md) : sur
+-- 2020-2026, 86,1 % de positions gagnantes, sept années positives sur sept —
+-- 2022 et 2026 comprises, alors que toutes les familles directionnelles y
+-- perdent — et une pire position à -2,25 %.
+alter table signals drop constraint if exists signals_type_check;
+alter table signals add constraint signals_type_check
+  check (type in ('BUY', 'SELL', 'CARRY'));
+
+alter table signals alter column stop_loss drop not null;
+alter table signals alter column take_profit drop not null;
+
+-- Financement ATTENDU à l'émission (moyenne des derniers jours, annualisée en
+-- pourcentage) : c'est ce qui est annoncé à l'abonné.
+alter table signals add column if not exists carry_expected_pct numeric;
+
+-- Financement RÉELLEMENT encaissé, renseigné à la clôture par le suivi dédié
+-- (workers/main-worker/src/cron/trackCarryOutcomes.ts). Distinct de
+-- `outcome_price`, qui n'a pas de sens pour une position neutre au marché.
+alter table signals add column if not exists carry_realized_pct numeric;
+
+-- Date de clôture prévue. La sortie est TEMPORELLE pour le carry comme pour le
+-- moteur Force Relative : sans cette colonne, le suivi ne peut pas savoir quand
+-- fermer une position qu'aucun prix ne viendra jamais déclencher.
+alter table signals add column if not exists hold_until timestamptz;
+
+create index if not exists idx_signals_carry_open
+  on signals (hold_until) where outcome is null;

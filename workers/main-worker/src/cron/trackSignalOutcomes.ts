@@ -189,6 +189,16 @@ export async function trackSignalOutcomes(env: Env): Promise<void> {
   const now = Date.now();
 
   for (const signal of open) {
+    // getOpenSignals a déjà écarté les carrys, seuls signaux dont le stop et
+    // l'objectif peuvent être nuls. On le rend explicite ici : un signal
+    // directionnel sans stop est une anomalie d'insertion, et le suivre
+    // produirait des clôtures arbitraires.
+    if (signal.stop_loss == null || signal.take_profit == null) {
+      console.error(`[post-trade] ${signal.pair} (#${signal.id}) ignoré : stop ou objectif absent sur un signal directionnel.`);
+      continue;
+    }
+    const stopLoss = signal.stop_loss;
+    const takeProfit = signal.take_profit;
     const currentPrice = prices[pairToSymbol(signal.pair)];
     const isMultiTp = signal.tp1_price != null;
 
@@ -246,7 +256,7 @@ export async function trackSignalOutcomes(env: Env): Promise<void> {
     }
 
     const hit =
-      !isMultiTp && currentPrice !== undefined ? evaluateOutcome(signal.type, signal.stop_loss, signal.take_profit, currentPrice) : null;
+      !isMultiTp && currentPrice !== undefined ? evaluateOutcome(signal.type, stopLoss, takeProfit, currentPrice) : null;
 
     const ageDays = (now - new Date(signal.created_at).getTime()) / (24 * 60 * 60 * 1000);
     let outcome: "WIN" | "LOSS";

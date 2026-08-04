@@ -413,6 +413,49 @@ RS_MIN_RANKED_PAIRS = 15    # en dessous, le classement transversal n'a pas de s
 # journées entières sans le moindre signal, sans rien signaler.
 RS_RUN_HOUR_UTC = 1
 
+# --- Moteur Carry de Financement (voir carry_engine.py) ---
+# Position neutre au marché : achat du spot, vente du perpétuel pour le même
+# montant. Le rendement ne vient pas du prix mais du financement encaissé.
+# C'est la SEULE famille du projet positive en marché baissier, et la seule
+# dont la médiane par position est positive.
+ENABLE_CARRY_ENGINE = True
+
+# 20 places tenues 21 jours ouvrent 20/21 position par jour en moyenne, soit
+# 0,69 signal/jour mesuré sous la forme livrée (backtest_carry_production) :
+# 87,2 % de positions gagnantes, +0,662 % net, pire position -3,86 %, et sept
+# années positives sur sept. En marché baissier : 0,49 signal/jour à 75,5 % de
+# gagnantes — c'est là tout l'intérêt du moteur.
+CARRY_MAX_POSITIONS = 20
+
+# 21 jours est un SEUIL, pas un curseur. À 14 jours la pire position passe de
+# -3,86 % à -30,18 % et le nombre d'années positives tombe de 7/7 à 5/7 : le
+# financement n'a pas le temps de couvrir les frais et l'aléa domine. Ne pas
+# raccourcir pour gagner en quantité sans relancer backtest_carry_production.
+CARRY_HOLD_DAYS = 21
+
+# Fenêtre de classement. Le financement passé prédit le futur (corrélation
+# +0,687 à 7 jours, +0,620 à 14, +0,584 à 30) : une fenêtre égale à la durée de
+# détention est le compromis mesuré entre réactivité et stabilité.
+CARRY_LOOKBACK_DAYS = 21
+
+# Plancher : en dessous, le financement ne couvre pas les frais d'ouverture et
+# de fermeture des deux jambes. Ouvrir serait perdant d'avance.
+# 0,015 %/jour x 21 jours = 0,315 %, contre 0,20 % de frais.
+CARRY_MIN_FUNDING_PCT_PER_DAY = 0.015
+
+# Plafond : un financement extrême ne signale pas une bonne affaire mais une
+# manie, et c'est exactement là que se logent les pertes rares et énormes. Sans
+# ce plafond, sur univers élargi, la pire position mesurée atteignait -68 %.
+CARRY_MAX_FUNDING_PCT_PER_DAY = 0.15
+
+# Coût d'ouverture ET de fermeture des deux jambes (spot + perpétuel), à 0,10 %
+# l'aller-retour par jambe. C'est ce qui est déduit du financement annoncé.
+CARRY_ROUND_TRIP_COST_PCT = 0.20
+
+# Le moteur tourne une fois par jour, comme la force relative, et pour la même
+# raison : le classement est calculé sur des versements journaliers agrégés.
+CARRY_RUN_HOUR_UTC = 1
+
 # Géométrie mesurée par backtest_stop_impact sur 6 ans. Contre-intuitif mais
 # net : plus le stop est serré, plus il coûte cher. À 1 x ATR l'espérance tombe
 # à +2,05 % par trade contre +2,74 % à 4 x ATR, parce que le stop coupe des

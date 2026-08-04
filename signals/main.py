@@ -42,6 +42,7 @@ from indicators import compute_all_indicators, ema
 from strategy import detect_signals_with_catchup, is_still_actionable
 from squeeze_engine import detect_squeeze_signal
 from relative_strength import detect_relative_strength_signals
+import carry_engine
 from confidence import compute_confidence_score
 from chart_generator import generate_chart
 
@@ -299,6 +300,58 @@ def run_relative_strength_engine() -> list:
     return signals
 
 
+def run_carry_engine() -> list:
+    """
+    Passage quotidien du moteur Carry de Financement (voir carry_engine.py).
+
+    Contrairement aux trois autres moteurs, celui-ci n'est PAS conditionné au
+    filtre de tendance : c'est tout son intérêt. Il produit 0,49 signal par jour
+    en marché baissier, à 75,5 % de positions gagnantes, alors que les familles
+    directionnelles n'y produisent rien d'exploitable.
+
+    La cadence est la même que la force relative — une fois par jour, marquée en
+    base — et pour la même raison : le classement est calculé sur des versements
+    de financement agrégés à la journée.
+    """
+    if storage.daily_job_already_ran_today("carry_funding", config.CARRY_RUN_HOUR_UTC):
+        return []
+    if not storage.carry_schema_ready():
+        return []
+
+    ouvertes = storage.open_carry_pairs()
+    if ouvertes is None:
+        return []  # lecture impossible : voir storage.open_carry_pairs
+    places_libres = config.CARRY_MAX_POSITIONS - len(ouvertes)
+
+    funding_par_paire, prix_spot = {}, {}
+    for pair in config.PAIRS:
+        symbole = binance_client.pair_to_symbol(pair)
+        versements = carry_engine.fetch_funding_history(symbole, config.CARRY_LOOKBACK_DAYS)
+        if not versements:
+            continue
+        funding_par_paire[pair] = versements
+
+    # Le prix spot n'est récupéré que pour les paires réellement candidates :
+    # inutile d'appeler l'API pour trente paires dont deux seront retenues.
+    classement = carry_engine.classer_paires(funding_par_paire)
+    for pair, _taux in classement[: places_libres + len(ouvertes)]:
+        df = fetch_daily_candles(pair)
+        if df is not None and len(df):
+            prix_spot[pair] = float(df["close"].iloc[-1])
+
+    logger.info(
+        "[carry_funding] Passage quotidien : %d paires avec financement, %d classables, "
+        "%d position(s) ouverte(s), %d place(s) libre(s).",
+        len(funding_par_paire), len(classement), len(ouvertes), places_libres,
+    )
+
+    signaux = carry_engine.detect_carry_signals(
+        funding_par_paire, prix_spot, already_open=ouvertes, places_libres=places_libres
+    )
+    storage.record_heartbeat("carry_funding")
+    return signaux
+
+
 def fetch_htf_ema50(pair: str) -> float | None:
     """
     Amélioration 1 (expérimentale, voir config.ENABLE_HTF_FILTER) : EMA50 sur
@@ -503,6 +556,17 @@ def run_once(params: dict) -> tuple[int, int]:
             # aval (le graphique est optionnel, voir generate_chart).
             candidates.append((rs_signal, None))
 
+    # 💵 Moteur Carry de Financement (voir carry_engine.py). Seule famille du
+    # projet positive en marché BAISSIER — 0,49 signal/jour à 75,5 % de
+    # positions gagnantes, là où les trois moteurs directionnels ne produisent
+    # rien d'exploitable. Il n'est donc volontairement PAS conditionné au filtre
+    # de tendance. Ses positions étant neutres au marché, elles échappent aussi
+    # au verrou de portefeuille plus bas, qui compte des positions à risque
+    # directionnel : un carry n'en est pas une.
+    if config.ENABLE_CARRY_ENGINE:
+        for carry_signal in run_carry_engine():
+            candidates.append((carry_signal, None))
+
     if momentum_alerts:
         storage.insert_momentum_alerts(momentum_alerts)
         logger.info("%d alerte(s) momentum détectée(s) ce cycle.", len(momentum_alerts))
@@ -549,7 +613,7 @@ def run_once(params: dict) -> tuple[int, int]:
         # le classement, RSI et durée de détention prévue n'ont pas de colonne
         # en base. Elles sont utiles au débogage et au message envoyé aux
         # abonnés, mais les laisser ferait échouer l'insertion entière.
-        for key in ("rs_rank", "rs_rsi", "rs_hold_days"):
+        for key in ("rs_rank", "rs_rsi", "rs_hold_days", "carry_rate_per_day", "carry_rank"):
             signal_dict.pop(key, None)
         if not storage.insert_signal(signal_dict):
             failed_inserts += 1

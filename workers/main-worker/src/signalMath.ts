@@ -1,6 +1,13 @@
 /** Calculs partagés entre /history (db/history.ts) et le suivi post-trade (cron/trackSignalOutcomes.ts). */
 
-export type SignalSide = "BUY" | "SELL";
+/**
+ * Un signal de CARRY n'est ni un achat ni une vente : c'est une position neutre
+ * au marché, en deux jambes simultanées (achat du spot, vente du perpétuel).
+ * Il est inclus ici parce que le type circule dans tout le formatage, mais tout
+ * calcul de risque/rendement basé sur un prix doit l'exclure explicitement —
+ * un carry n'a ni stop ni objectif, il se ferme sur une durée.
+ */
+export type SignalSide = "BUY" | "SELL" | "CARRY";
 export type CloseReason = "tp_hit" | "sl_hit" | "expired";
 
 export function computePnlPct(type: SignalSide, entryPrice: number, exitPrice: number): number {

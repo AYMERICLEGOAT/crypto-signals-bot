@@ -47,10 +47,11 @@ from backtest_familles import (charger_ohlcv, evaluer, famille_cassure_haut,
                                famille_expansion_volatilite, atr)
 from backtest_rsi_inverse import rsi_frame
 from backtest_rsi_production import collect_signals
-from backtest_carry_frontiere import construire_funding, simuler
+from backtest_carry_frontiere import construire_funding
+from backtest_carry_production import simuler_echelonne
 
 START = "2020-08-11"
-CARRY_TOP, CARRY_DUREE = 10, 30
+CARRY_PLACES, CARRY_DUREE = 20, 21
 RS_TOP, RS_HOLD = 12, 7
 
 
@@ -112,7 +113,10 @@ vol = evaluer(ohlcv, famille_expansion_volatilite, "achat")
 composants["expansion de volatilité"] = vol[vol["date"].map(lambda d: regime.get(d, False))][["pair", "date", "gain_pct"]]
 
 funding = construire_funding()
-carry = simuler(funding, CARRY_TOP, CARRY_DUREE)
+# Forme LIVRÉE : évaluation quotidienne et entrées échelonnées, avec les
+# garde-fous de config.py (plancher qui couvre les frais, plafond contre les
+# financements de manie). C'est exactement ce que carry_engine.py émet.
+carry = simuler_echelonne(funding, CARRY_PLACES, CARRY_DUREE, plafond=0.15, plancher=0.015)
 carry = carry.rename(columns={"net": "gain_pct"})[["pair", "date", "gain_pct"]]
 composants["carry de financement"] = carry
 
