@@ -96,6 +96,8 @@ ENGINE_NAME = "carry_funding"
 _ENDPOINTS = (
     "https://fapi.binance.com/fapi/v1/fundingRate",
     "https://www.binance.com/fapi/v1/fundingRate",
+    "https://fapi1.binance.com/fapi/v1/fundingRate",
+    "https://fapi2.binance.com/fapi/v1/fundingRate",
 )
 _HEADERS = {"User-Agent": "crypto-signals-bot"}
 
@@ -110,6 +112,33 @@ def _lire_json(url: str, timeout: int = 20):
     requete = urllib.request.Request(url, headers=_HEADERS)
     with urllib.request.urlopen(requete, timeout=timeout) as reponse:
         return json.load(reponse)
+
+
+def _lire_json_multi(chemins: tuple, timeout: int = 30):
+    """
+    Premier miroir qui répond. Binance bloque géographiquement certains
+    hébergeurs — 451 depuis les runners GitHub Actions, 403 depuis Cloudflare —
+    et une source unique fait tomber le moteur en panne silencieuse. C'est
+    exactement ce qui s'est produit au premier passage en production du carry.
+    """
+    for url in chemins:
+        try:
+            return _lire_json(url, timeout=timeout)
+        except Exception as err:
+            logger.info("[%s] %s indisponible (%s), miroir suivant.", ENGINE_NAME, url, type(err).__name__)
+    return None
+
+
+_MIROIRS_PERPS = (
+    "https://fapi.binance.com/fapi/v1/ticker/24hr",
+    "https://www.binance.com/fapi/v1/ticker/24hr",
+)
+_MIROIRS_SPOT = (
+    "https://api.binance.com/api/v3/exchangeInfo",
+    "https://api1.binance.com/api/v3/exchangeInfo",
+    "https://api2.binance.com/api/v3/exchangeInfo",
+    "https://data-api.binance.vision/api/v3/exchangeInfo",
+)
 
 
 def univers_carry(taille: int) -> list:
@@ -128,25 +157,47 @@ def univers_carry(taille: int) -> list:
     la liste des perpétuels change, et un symbole retiré doit disparaître du
     classement sans intervention.
 
-    Retourne une liste vide si l'une des deux listes est injoignable, ce que
-    l'appelant traite comme « pas de classement possible aujourd'hui ».
+    DÉGRADATION, par ordre de préférence :
+      1. perpétuels classés par volume, croisés avec les paires au comptant ;
+      2. si la liste au comptant est injoignable mais pas celle des perpétuels,
+         on garde le classement par volume sans le croisement. Le risque est
+         d'inclure un perpétuel sans spot, auquel cas la position n'est pas
+         exécutable — mais elle serait de toute façon écartée faute de prix
+         au comptant (voir fetch_spot_price), donc rien d'incorrect ne part ;
+      3. si les perpétuels eux-mêmes sont injoignables, repli sur les paires du
+         projet, qui ont toutes un perpétuel et un spot. L'univers est trois
+         fois plus petit, donc moins de signaux, mais le moteur continue de
+         tourner au lieu de s'éteindre en silence.
     """
-    try:
-        perps = _lire_json("https://fapi.binance.com/fapi/v1/ticker/24hr", timeout=30)
-        spots = _lire_json("https://api.binance.com/api/v3/exchangeInfo", timeout=30)
-    except Exception:
-        logger.warning("[%s] Impossible de construire l'univers des perpétuels.", ENGINE_NAME, exc_info=True)
-        return []
+    perps = _lire_json_multi(_MIROIRS_PERPS)
+    if not perps:
+        secours = [f"{p.replace('/', '')}" for p in config.PAIRS]
+        logger.warning(
+            "[%s] Liste des perpétuels injoignable sur tous les miroirs : repli sur les "
+            "%d paires du projet. Moins de candidats, mais le moteur continue.",
+            ENGINE_NAME, len(secours),
+        )
+        return secours[:taille]
 
-    avec_spot = {
-        s["symbol"] for s in spots.get("symbols", [])
-        if s.get("status") == "TRADING" and s.get("quoteAsset") == "USDT"
-    }
+    spots = _lire_json_multi(_MIROIRS_SPOT)
+    avec_spot = None
+    if spots:
+        avec_spot = {
+            s["symbol"] for s in spots.get("symbols", [])
+            if s.get("status") == "TRADING" and s.get("quoteAsset") == "USDT"
+        }
+    else:
+        logger.warning(
+            "[%s] Liste des paires au comptant injoignable : le classement est conservé sans "
+            "croisement. Un perpétuel sans spot sera écarté plus tard, faute de prix.",
+            ENGINE_NAME,
+        )
+
     candidats = [
         d for d in perps
         if d["symbol"].endswith("USDT")
         and d["symbol"] not in _STABLES
-        and d["symbol"] in avec_spot
+        and (avec_spot is None or d["symbol"] in avec_spot)
     ]
     candidats.sort(key=lambda d: -float(d.get("quoteVolume", 0)))
     return [d["symbol"] for d in candidats[:taille]]
