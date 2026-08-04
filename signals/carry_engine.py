@@ -141,6 +141,51 @@ _MIROIRS_SPOT = (
 )
 
 
+# --------------------------------------------------------------------------
+# Source de repli : Bybit.
+#
+# Binance bloque géographiquement les runners GitHub Actions — 451 sur l'API
+# spot, et TOUS les miroirs futures se sont révélés inaccessibles au premier
+# passage en production. Sans seconde plateforme, le moteur ne peut simplement
+# pas tourner là où il est censé tourner.
+#
+# Bybit cote les mêmes perpétuels USDT, verse aussi le financement toutes les
+# 8 heures, et son API publique ne demande aucune clé.
+#
+# Une honnêteté à garder en tête : les taux de Bybit et de Binance ne sont pas
+# identiques, même s'ils restent très proches — l'arbitrage les tient ensemble.
+# Le backtest a été mené sur les données Binance ; utiliser Bybit pour le
+# classement en direct introduit donc un léger écart de mesure. C'est acceptable
+# parce que l'abonné exécute de toute façon sur SA plateforme, et que le
+# classement relatif entre paires est bien plus stable que le niveau absolu.
+# --------------------------------------------------------------------------
+
+_BYBIT_TICKERS = "https://api.bybit.com/v5/market/tickers?category=linear"
+_BYBIT_FUNDING = "https://api.bybit.com/v5/market/funding/history"
+
+
+def _univers_bybit(taille: int) -> list:
+    data = _lire_json_multi((_BYBIT_TICKERS,))
+    if not data:
+        return []
+    lignes = [
+        x for x in data.get("result", {}).get("list", [])
+        if x.get("symbol", "").endswith("USDT") and x["symbol"] not in _STABLES
+    ]
+    lignes.sort(key=lambda x: -float(x.get("turnover24h") or 0))
+    return [x["symbol"] for x in lignes[:taille]]
+
+
+def _funding_bybit(symbole: str, jours: int) -> list | None:
+    depuis = int((datetime.now(timezone.utc) - timedelta(days=jours + 2)).timestamp() * 1000)
+    url = f"{_BYBIT_FUNDING}?category=linear&symbol={symbole}&startTime={depuis}&limit=200"
+    data = _lire_json_multi((url,), timeout=20)
+    if not data:
+        return None
+    lignes = data.get("result", {}).get("list", [])
+    return [float(l["fundingRate"]) * 100 for l in lignes] if lignes else None
+
+
 def univers_carry(taille: int) -> list:
     """
     Les `taille` perpétuels les plus échangés qui possèdent AUSSI une paire au
@@ -171,10 +216,17 @@ def univers_carry(taille: int) -> list:
     """
     perps = _lire_json_multi(_MIROIRS_PERPS)
     if not perps:
-        secours = [f"{p.replace('/', '')}" for p in config.PAIRS]
+        bybit = _univers_bybit(taille)
+        if bybit:
+            logger.info(
+                "[%s] Binance injoignable : univers construit depuis Bybit (%d perpétuels).",
+                ENGINE_NAME, len(bybit),
+            )
+            return bybit
+        secours = [p.replace("/", "") for p in config.PAIRS]
         logger.warning(
-            "[%s] Liste des perpétuels injoignable sur tous les miroirs : repli sur les "
-            "%d paires du projet. Moins de candidats, mais le moteur continue.",
+            "[%s] Aucune plateforme joignable : repli sur les %d paires du projet. "
+            "Moins de candidats, mais le moteur continue.",
             ENGINE_NAME, len(secours),
         )
         return secours[:taille]
@@ -223,7 +275,10 @@ def fetch_funding_history(symbole: str, jours: int) -> list | None:
             continue
         if lignes:
             return [float(l["fundingRate"]) * 100 for l in lignes]
-    return None
+
+    # Binance muet sur tous ses miroirs : c'est le cas depuis les runners
+    # GitHub Actions, où le moteur tourne réellement.
+    return _funding_bybit(symbole, jours)
 
 
 def format_pair(symbole: str) -> str:
@@ -255,6 +310,19 @@ def fetch_spot_price(symbole: str) -> float | None:
                 return prix
         except Exception:
             continue
+
+    # Repli Bybit, pour la même raison que le financement : Binance est
+    # inaccessible depuis les runners GitHub Actions, où ce code tourne.
+    try:
+        data = _lire_json(f"https://api.bybit.com/v5/market/tickers?category=spot&symbol={symbole}", timeout=15)
+        lignes = data.get("result", {}).get("list", [])
+        if lignes:
+            prix = float(lignes[0].get("lastPrice") or 0)
+            if prix > 0:
+                return prix
+    except Exception:
+        pass
+
     logger.warning("[%s] Prix au comptant indisponible pour %s.", ENGINE_NAME, symbole)
     return None
 
