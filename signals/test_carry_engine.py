@@ -53,7 +53,7 @@ univers = {
     "BON/USDT": versements(0.05),
     "TROP_FAIBLE/USDT": versements(0.005),   # sous le plancher : ne couvre pas les frais
     "MANIE/USDT": versements(0.40),          # au-dessus du plafond : financement de manie
-    "CORRECT/USDT": versements(0.03),
+    "CORRECT/USDT": versements(0.04),
 }
 classement = dict(ce.classer_paires(univers))
 verifie("BON/USDT" in classement and "CORRECT/USDT" in classement,
@@ -95,7 +95,7 @@ verifie(abs((cloture - ouverture).days - config.CARRY_HOLD_DAYS) <= 1,
 print("\n=== 5. Places disponibles et positions déjà ouvertes ===")
 # Univers plus large que le nombre de places, pour que le plafonnement soit
 # réellement testé (CARRY_MAX_POSITIONS vaut 40).
-large = {f"P{i}/USDT": versements(0.05 - i * 0.0002) for i in range(60)}
+large = {f"P{i}/USDT": versements(0.06 - i * 0.0002) for i in range(60)}
 prix = {f"P{i}/USDT": 10.0 for i in range(60)}
 verifie(len(ce.detect_carry_signals(large, prix)) == config.CARRY_MAX_NEW_PER_DAY,
         f"au plus CARRY_MAX_NEW_PER_DAY = {config.CARRY_MAX_NEW_PER_DAY} ouvertures par jour, "

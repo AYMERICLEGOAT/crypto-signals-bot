@@ -468,14 +468,22 @@ CARRY_MIN_FUNDING_PCT_PER_DAY = 0.010
 # volontairement le plancher ci-dessus : si quelqu'un modifie la durée ou les
 # frais sans recalculer le plancher, c'est celui-ci qui rattrape l'erreur.
 #
-# Ensuite, et c'est ce qui a fait relever la valeur de 0,05 à 0,35 : ne pas
-# publier de position dérisoire. Un carry demande d'ouvrir DEUX positions sur
-# DEUX produits et de surveiller une marge. À 0,05 % attendu sur 21 jours, soit
-# 0,9 % par an, ça ne vaut pas le geste — et le premier retour d'abonné a été
-# exactement celui-là. 0,35 % sur 21 jours correspond à environ 6,2 % par an,
-# seuil en dessous duquel une position neutre au marché n'a plus d'intérêt face
-# à un simple placement.
-CARRY_MIN_EXPECTED_PCT = 0.35
+# Ensuite, et c'est ce qui a fait monter la valeur de 0,05 à 0,55 en deux
+# étapes : ne publier que des positions REMARQUABLES. Un carry demande d'ouvrir
+# deux positions sur deux produits et de surveiller une marge. Personne ne se
+# dérange pour 2 %/an — et le retour de l'admin a été sans ambiguïté, deux fois
+# de suite : « c'est pas ouf », « c'est bizarre voire nul ».
+#
+# 0,55 % sur 21 jours correspond à 10 %/an. En dessous, une position neutre au
+# marché ne vaut pas le geste face à n'importe quel placement, et la publier
+# dilue la perception de tout le canal. Mieux vaut un carry par semaine à
+# 20 %/an que cinq à 3 %/an : le premier se retient, les cinq autres donnent
+# l'impression d'un canal qui parle pour ne rien dire.
+#
+# Conséquence assumée : les jours où le financement est plat — comme le
+# 06/08/2026, où 2 paires seulement dépassaient 5 %/an sur 119 — le moteur
+# n'émet rien. C'est le comportement voulu.
+CARRY_MIN_EXPECTED_PCT = 0.55
 
 # Plafond : un financement extrême ne signale pas une bonne affaire mais une
 # manie, et c'est exactement là que se logent les pertes rares et énormes. Sans
