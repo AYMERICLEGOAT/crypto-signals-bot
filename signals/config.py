@@ -427,6 +427,24 @@ ENABLE_CARRY_ENGINE = True
 # Le classement du volume est refait à chaque passage (endpoint public).
 CARRY_UNIVERSE_SIZE = 120
 
+# Univers ÉLARGI, utilisé seulement quand l'univers normal ne produit pas assez.
+#
+# Le principe est important : on élargit la RECHERCHE, on ne baisse jamais la
+# barre. Un jour creux, chercher parmi 200 perpétuels au lieu de 120 fait
+# apparaître des opportunités qui satisfont exactement les mêmes critères —
+# c'est différent d'accepter des opportunités moins bonnes pour remplir le canal.
+#
+# Plafonné à 200 et pas au-delà : le volume s'effondre après. Au rang 200 un
+# perpétuel traite 1,4 M$ par jour, au rang 300 seulement 0,6 M$. En dessous,
+# un abonné ne peut pas exécuter, et un perpétuel peu profond est précisément
+# celui où le financement s'inverse violemment.
+CARRY_UNIVERSE_SIZE_ELARGI = 200
+
+# En dessous de ce nombre de candidats retenus, le moteur relance sa recherche
+# sur l'univers élargi. Mesuré le 06/08/2026 : sur 120 perpétuels, 2 paires
+# dépassaient 5 %/an ; sur 200, six. La barre de qualité, elle, n'a pas bougé.
+CARRY_MIN_CANDIDATS = 3
+
 # 40 places tenues 21 jours ouvrent 40/21 position par jour en moyenne. Mesuré
 # sous la forme livrée, univers élargi et stop actif (backtest_carry_stop) :
 # 1,35 signal/jour, 82,7 % de positions gagnantes, +0,545 % net.

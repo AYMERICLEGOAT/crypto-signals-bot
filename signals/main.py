@@ -327,22 +327,40 @@ def run_carry_engine() -> list:
     # plus échangés disposant aussi d'une paire au comptant — trois fois plus de
     # candidats, ce qui fait passer le régime défavorable de 0,49 à 1,24 signal
     # par jour à qualité comparable (voir backtest_carry_stop).
-    symboles = carry_engine.univers_carry(config.CARRY_UNIVERSE_SIZE)
-    if not symboles:
+    def sonder(taille):
+        """Récupère le financement de `taille` perpétuels et rend le classement."""
+        symboles = carry_engine.univers_carry(taille)
+        if not symboles:
+            return {}, {}, []
+        taux, sources = {}, {}
+        for symbole in symboles:
+            valeur, source = carry_engine.fetch_funding_daily(symbole, config.CARRY_LOOKBACK_DAYS)
+            if valeur is not None:
+                taux[symbole] = valeur
+                sources[symbole] = source
+        return taux, sources, carry_engine.classer_paires(taux)
+
+    taux_par_symbole, sources, classement = sonder(config.CARRY_UNIVERSE_SIZE)
+    if not taux_par_symbole:
         logger.warning("[carry_funding] Univers indisponible ce cycle, aucun signal.")
         return []
 
-    taux_par_symbole, sources = {}, {}
-    for symbole in symboles:
-        taux, source = carry_engine.fetch_funding_daily(symbole, config.CARRY_LOOKBACK_DAYS)
-        if taux is not None:
-            taux_par_symbole[symbole] = taux
-            sources[symbole] = source
-
-    # Le prix spot n'est demandé que pour les candidats réellement retenus :
-    # inutile d'appeler l'API pour cent vingt symboles dont quelques-uns
-    # passeront le plancher.
-    classement = carry_engine.classer_paires(taux_par_symbole)
+    # Élargissement ADAPTATIF. Un jour creux, on cherche parmi plus de
+    # perpétuels — jamais avec des critères plus laxistes. C'est la différence
+    # entre trouver d'autres opportunités qui satisfont la même barre, et
+    # accepter des opportunités moins bonnes pour remplir le canal. La seconde
+    # option remplirait le canal de positions à 3 %/an, que personne n'ouvrira
+    # et qui dégraderaient la perception de tout le reste.
+    if len(classement) < config.CARRY_MIN_CANDIDATS:
+        logger.info(
+            "[carry_funding] Seulement %d candidat(s) sur %d perpétuels : nouvelle recherche "
+            "sur %d, à barre de qualité INCHANGÉE.",
+            len(classement), config.CARRY_UNIVERSE_SIZE, config.CARRY_UNIVERSE_SIZE_ELARGI,
+        )
+        taux_elargi, sources_elargi, classement_elargi = sonder(config.CARRY_UNIVERSE_SIZE_ELARGI)
+        if len(classement_elargi) > len(classement):
+            taux_par_symbole, sources, classement = taux_elargi, sources_elargi, classement_elargi
+            logger.info("[carry_funding] Univers élargi : %d candidat(s).", len(classement))
     prix_spot = {}
     for symbole, _taux in classement[: places_libres + len(ouvertes)]:
         prix = carry_engine.fetch_spot_price(symbole)
