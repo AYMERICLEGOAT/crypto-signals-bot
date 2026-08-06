@@ -43,6 +43,7 @@ from strategy import detect_signals_with_catchup, is_still_actionable
 from squeeze_engine import detect_squeeze_signal
 from relative_strength import detect_relative_strength_signals
 import carry_engine
+import watchlist
 from confidence import compute_confidence_score
 from chart_generator import generate_chart
 
@@ -382,6 +383,69 @@ def run_carry_engine() -> list:
     return signaux
 
 
+def run_daily_watchlist() -> bool:
+    """
+    Publie la liste du jour sur le canal public (voir watchlist.py).
+
+    Pourquoi ce passage existe, et pourquoi il est indépendant des moteurs. Les
+    trois familles directionnelles sont coupées 41 % du temps, et la période
+    actuelle dure depuis novembre 2025 : sans ce message, le canal est muet des
+    semaines entières et un abonné qui paie croit le service mort. Baisser les
+    seuils pour « remplir » a été écarté — diffuser des positions qu'on sait
+    perdantes est la seule chose que ce projet s'interdit.
+
+    Cette liste ne recommande rien. Elle dit où en est la condition d'entrée,
+    ce qu'il manque pour la rouvrir, et quelles paires en sont le plus proches.
+    Aucun avantage statistique nouveau n'est requis : tout est dérivé des
+    moteurs existants.
+
+    Même cadence quotidienne marquée en base que les autres moteurs, pour la
+    même raison : le workflow tourne toutes les 30 minutes, et sans marqueur la
+    liste partirait quarante-huit fois par jour.
+    """
+    if not config.ENABLE_DAILY_WATCHLIST:
+        return False
+    if storage.daily_job_already_ran_today("watchlist", config.WATCHLIST_RUN_HOUR_UTC):
+        return False
+
+    daily_by_pair = {}
+    for pair in config.PAIRS:
+        df = fetch_daily_candles(pair)
+        if df is not None and len(df) > watchlist.FENETRE_CASSURE + 2:
+            daily_by_pair[pair] = df
+
+    if not daily_by_pair:
+        logger.warning("[watchlist] Aucune bougie journalière disponible : liste non publiée.")
+        return False
+
+    marche = watchlist.etat_du_marche(daily_by_pair.get("BTC/USDT"))
+    proches = watchlist.proximite_cassure(daily_by_pair)
+
+    # Les carrys au-dessus de la barre, s'il y en a. On réutilise exactement le
+    # classement du moteur : annoncer ici une opportunité que le moteur
+    # n'ouvrirait pas serait incohérent aux yeux de l'abonné.
+    carrys = []
+    try:
+        symboles = carry_engine.univers_carry(config.CARRY_UNIVERSE_SIZE)
+        taux = {}
+        for symbole in symboles:
+            valeur, _source = carry_engine.fetch_funding_daily(symbole, config.CARRY_LOOKBACK_DAYS)
+            if valeur is not None:
+                taux[symbole] = valeur
+        for symbole, t in carry_engine.classer_paires(taux)[:3]:
+            attendu = t * config.CARRY_HOLD_DAYS - config.CARRY_ROUND_TRIP_COST_PCT
+            par_an = ((1 + attendu / 100) ** (365 / config.CARRY_HOLD_DAYS) - 1) * 100
+            carrys.append({"pair": carry_engine.format_pair(symbole), "par_an": par_an})
+    except Exception:
+        logger.warning("[watchlist] Classement du carry indisponible, liste publiée sans.", exc_info=True)
+
+    message = watchlist.construire_message(marche, proches, carrys)
+    if watchlist.publier(message):
+        storage.record_heartbeat("watchlist")
+        return True
+    return False
+
+
 def fetch_htf_ema50(pair: str) -> float | None:
     """
     Amélioration 1 (expérimentale, voir config.ENABLE_HTF_FILTER) : EMA50 sur
@@ -693,6 +757,11 @@ def main():
             "Espérance réalisée : %+.3f%%/trade sur %d signaux clôturés (réussite %.1f%%).",
             edge_stats["expectancy_pct"], edge_stats["count"], edge_stats["win_rate_pct"],
         )
+
+    # La liste du jour est publiée AVANT la détection : elle ne dépend pas de
+    # ce que le cycle va trouver, et la faire passer en premier garantit
+    # qu'elle sort même si la détection échoue ensuite.
+    run_daily_watchlist()
 
     params = load_active_params()
     signals_found, pairs_with_data = run_once(params)

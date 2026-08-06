@@ -22,6 +22,14 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 ADMIN_TELEGRAM_ID = os.getenv("ADMIN_TELEGRAM_ID", "8647576528")
 
+# Canal public. Pas un secret non plus : déjà en clair dans wrangler.toml.
+# Utilisé par watchlist.py, qui publie la liste quotidienne directement depuis
+# le module Python plutôt que de passer par une table et le Worker — la liste
+# est calculée à partir de données que seul ce module possède (bougies
+# journalières des 40 paires, classement du carry), et la faire transiter par
+# la base demanderait une table de plus pour rien.
+TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID", "-1004450068761")
+
 # Système hybride de sources de données (voir main.py::fetch_recent_prices) :
 # nombre de cycles horaires consécutifs en panne totale (0 paire sur
 # l'univers entier avec une donnée exploitable, les 4 sources ayant échoué)
@@ -545,6 +553,17 @@ CARRY_MAX_NEW_PER_DAY = 3
 # Le moteur tourne une fois par jour, comme la force relative, et pour la même
 # raison : le classement est calculé sur des versements journaliers agrégés.
 CARRY_RUN_HOUR_UTC = 1
+
+# --- Liste du jour (voir watchlist.py) ---
+# Publiée une fois par jour sur le canal public, qu'il y ait des signaux ou non.
+# C'est ce qui empêche le canal d'être muet pendant les 41 % du temps où la
+# condition d'entrée est fermée, sans avoir à inventer des trades.
+#
+# 8 h UTC, soit 10 h en France : assez tôt pour que l'abonné l'ait avant sa
+# journée, assez tard pour que la bougie journalière de la veille soit close
+# et que les moteurs aient déjà tourné (ils passent à 1 h UTC).
+ENABLE_DAILY_WATCHLIST = True
+WATCHLIST_RUN_HOUR_UTC = 8
 
 # Géométrie mesurée par backtest_stop_impact sur 6 ans. Contre-intuitif mais
 # net : plus le stop est serré, plus il coûte cher. À 1 x ATR l'espérance tombe
