@@ -15,23 +15,29 @@ from testimonials import EXAMPLE_TESTIMONIALS, EXAMPLE_TESTIMONIALS_EN
 
 TELEGRAM_URL = f"https://t.me/{TELEGRAM_BOT_USERNAME}"
 
-# Refonte du 04/08/2026 : le moteur n'a plus une famille de signaux mais QUATRE
-# (voir STRATEGIES_2026-08-04.md), toutes validées sur 6 ans avec témoin
-# aléatoire — une famille qui ne bat pas un tirage au sort à contraintes égales
-# est écartée :
+# Refonte du 04/08/2026 : le moteur n'a plus une famille de signaux mais
+# plusieurs (voir STRATEGIES_2026-08-04.md), toutes validées sur 6 ans avec
+# témoin aléatoire — une famille qui ne bat pas un tirage au sort à contraintes
+# égales est écartée :
 #
 #   1. Force relative      (signals/relative_strength.py)
 #   2. Cassure de canal    — achat sur le plus haut 50 jours
 #   3. Expansion de volatilité — réveil après compression
 #   4. Carry de financement (signals/carry_engine.py)
+#   5. Momentum 4 heures   (signals/momentum_4h.py), depuis le 07/08/2026
 #
 # Les trois premières sont DIRECTIONNELLES : elles achètent une hausse, et sont
 # coupées quand le Bitcoin passe sous sa moyenne mobile 200 jours (41 % du
-# temps). La quatrième ne l'est pas — elle est neutre au marché — et c'est la
-# seule qui produit pendant ces périodes. Toute la page en tient compte : un
-# carry n'a NI stop loss NI take profit (ses deux jambes s'annulent, la sortie
-# est une date), et « aucun signal aujourd'hui » ne peut plus être écrit quand
-# des carrys sortent.
+# temps). Les deux dernières produisent pendant ces périodes — le carry parce
+# qu'il est neutre au marché, le momentum 4 heures parce qu'il ne travaille QUE
+# dans ce régime-là. Toute la page en tient compte : un carry n'a NI stop loss
+# NI take profit (ses deux jambes s'annulent, la sortie est une date), et
+# « aucun signal aujourd'hui » ne peut plus être écrit quand l'un des deux sort.
+#
+# Le momentum 4 heures est présenté EN OBSERVATION partout où il apparaît :
+# positif trois années sur quatre, mais en recul sur la dernière. Le taire
+# reviendrait à faire porter à l'abonné la fraction incertaine du produit sans
+# le lui dire.
 #
 # Les chiffres qui décrivaient l'ancien moteur à famille unique (8,0 signaux par
 # semaine, 47,7 % de réussite, +3,22 % d'espérance, +83,3 % par an) ont tous été
@@ -63,14 +69,14 @@ _STRINGS = {
             f"financement, position neutre au marché dont le résultat ne dépend pas du prix. Les familles "
             f"directionnelles sont à l'arrêt aujourd'hui. Résultats réels inclus."
             if n_carry == n
-            else f"Analyse gratuite de {n} signaux crypto ({pairs}) du {date_str}, issus de quatre familles "
+            else f"Analyse gratuite de {n} signaux crypto ({pairs}) du {date_str}, issus de cinq moteurs "
             f"mesurées sur 6 ans : force relative, cassure de canal, expansion de volatilité et carry de "
             f"financement. Résultats réels inclus."
         ),
         "h1": lambda date_str: f"Signaux crypto gratuits — {date_str}",
-        "subtitle": "Quatre familles de signaux, chacune validée sur 6 ans contre un témoin aléatoire : force "
-        "relative, cassure de canal, expansion de volatilité, et carry de financement — la seule qui continue de "
-        "produire quand le marché baisse. Mis à jour chaque jour.",
+        "subtitle": "Cinq moteurs de signaux, chacun validé contre un témoin aléatoire : force relative, "
+        "cassure de canal, expansion de volatilité, carry de financement, et momentum 4 heures. Les deux "
+        "derniers continuent de produire quand le marché baisse. Mis à jour chaque jour.",
         "signals_heading": lambda n: f"🔎 Les {n} derniers signaux",
         "signals_note": "Trois familles achètent une hausse : entrée, stop volontairement large à 4x l'ATR "
         "(une protection contre l'accident, pas un outil de gestion), jalons de suivi à 4x, 8x et 12x l'ATR, et "
@@ -139,7 +145,7 @@ _STRINGS = {
         # différents : les mélanger serait exactement la faute du
         # « 61,2 % de réussite ».
         "perf_engine_note": "Ces résultats peuvent inclure des signaux émis par des moteurs précédents, "
-        "désactivés depuis. Ils ne décrivent donc pas les quatre familles présentées plus haut, qui n'ont pas "
+        "désactivés depuis. Ils ne décrivent donc pas les cinq moteurs présentés plus haut, qui n'ont pas "
         "encore d'historique en direct. Le résultat d'un carry, lui, ne se mesure pas sur un prix mais sur le "
         "financement encaissé, frais déduits.",
         "perf_secured": lambda count, pct: f"🔒 {count} ({pct:.0f}%) trades sécurisés (TP1 atteint, break-even ou mieux)",
@@ -171,7 +177,7 @@ _STRINGS = {
         "backtest_stat": "Après six mois : +5,0 % en médiane",
         "backtest_subscriber": "53 % des entrées sont gagnantes à six mois, et le pire cas mesuré est -61,7 %. "
         "Ce n'est pas un produit qui enrichit vite : c'est un produit qui limite la casse, et il peut faire mal.",
-        "backtest_how_heading": "Les quatre familles",
+        "backtest_how_heading": "Les cinq moteurs",
         "backtest_how": "Aucune n'a été retenue sur sa seule espérance : chacune a été confrontée à un témoin "
         "aléatoire, et une famille qui ne bat pas un tirage au sort à contraintes égales est écartée. Sept ont "
         "été testées, trois ont été rejetées.",
@@ -188,8 +194,14 @@ _STRINGS = {
              "comptant et vente à découvert du perpétuel — qui s'annulent quand le prix bouge. Le gain vient "
              "du financement versé toutes les 8 heures par les acheteurs de perpétuels aux vendeurs : 84,2 % "
              "de positions gagnantes, +0,572 % net par position, et 6 années positives sur 7 (la septième, "
-             "2022, est à -0,046 %, donc plate). C'est aussi la seule famille qui produit quand le marché "
-             "baisse."),
+             "2022, est à -0,046 %, donc plate). Elle produit dans les deux régimes de marché."),
+            ("Momentum 4 heures — en observation",
+             "Le seul moteur qui ne travaille QUE lorsque le marché baisse : il occupe exactement le créneau "
+             "où les trois familles d'achat se taisent. Même principe de classement que la force relative, "
+             "mais sur des bougies de 4 heures, et limité aux deux plus fortes du moment, tenues 3 jours. "
+             "Il est présenté en observation parce que sa mesure est ambiguë : positive trois années sur "
+             "quatre, mais en recul sur la dernière. Il est donc plafonné à deux signaux par jour, chacun "
+             "étiqueté comme tel, et il s'arrête de lui-même si ses résultats réels démentent la mesure."),
         ),
         "backtest_tiles": (
             ("2,99", "signaux par jour en moyenne, sur 6 ans"),
@@ -214,7 +226,7 @@ _STRINGS = {
             "Le carry n'est pas « sans risque », et personne ne devrait vous le présenter ainsi : la jambe "
             "vendeuse peut être liquidée si la marge devient insuffisante, il reste un risque de plateforme, et "
             "une journée de financement extrême a coûté -19,86 % sur une position.",
-            "Ces quatre familles ont été mises en service le 4 août 2026 : les chiffres sont mesurés sur "
+            "Ces moteurs ont été mis en service le 4 août 2026 (le momentum 4 heures le 7 août) : les chiffres sont mesurés sur "
             "l'historique, ils n'ont pas encore été vécus en direct.",
         ),
         "backtest_detail": "Mesuré sur 6 ans (2020-2026), en données journalières, net de frais, avec une "
@@ -234,18 +246,15 @@ _STRINGS = {
         # panne la seule famille qui produit en marché baissier.
         "filter_heading": "🔇 Aucun signal aujourd'hui — et c'est voulu",
         "filter_lead": "Ce silence n'est pas une panne. Les trois familles directionnelles n'achètent rien tant "
-        "que le Bitcoin évolue sous sa moyenne mobile 200 jours. Le carry de financement, lui, n'est pas coupé "
-        "par ce filtre — mais il n'ouvre une position que si le financement couvre ses frais, et aujourd'hui il "
-        "n'a rien trouvé non plus. Rien ne sera inventé pour remplir la page.",
-        "filter_carry_heading": "🔇 Aucun signal d'achat aujourd'hui — mais le carry, lui, continue",
-        "filter_carry_lead": "Les trois familles directionnelles sont à l'arrêt : elles achètent une hausse, et "
-        "elles ne le font pas tant que le Bitcoin évolue sous sa moyenne mobile 200 jours. Les signaux publiés "
-        "plus haut sont des carrys de financement — des positions neutres au marché, dont le résultat ne dépend "
-        "pas du prix. C'est précisément la famille qui a été ajoutée pour ces périodes-là.",
+        "que le Bitcoin évolue sous sa moyenne mobile 200 jours. Les deux moteurs qui travaillent malgré ce "
+        "filtre — le carry de financement, neutre au marché, et le momentum 4 heures, qui ne se déclenche que "
+        "dans ce régime — n'ont rien trouvé non plus aujourd'hui : le premier n'ouvre une position que si le "
+        "financement couvre ses frais, le second est plafonné à ses deux meilleurs rangs. Rien ne sera inventé "
+        "pour remplir la page.",
         "filter_tiles": (
             ("41 %", "du temps sans signal directionnel, sur 6 ans"),
             ("381 j", "la plus longue fermeture (28/12/2021 → 13/01/2023)"),
-            ("1,15", "signal par jour malgré tout, grâce au carry"),
+            ("5", "signaux par jour au maximum, tous moteurs confondus"),
             ("84,2 %", "de positions gagnantes pour le carry"),
         ),
         "filter_duration_heading": "Combien de temps ça peut durer",
@@ -299,14 +308,14 @@ _STRINGS = {
             f"position(s), market-neutral trades whose outcome does not depend on price. The directional "
             f"families are idle today. Real track record included."
             if n_carry == n
-            else f"Free analysis of {n} crypto signals ({pairs}) for {date_str}, from four families measured "
+            else f"Free analysis of {n} crypto signals ({pairs}) for {date_str}, from five engines measured "
             f"over 6 years: relative strength, channel breakout, volatility expansion and funding carry. "
             f"Real track record included."
         ),
         "h1": lambda date_str: f"Free Crypto Signals — {date_str}",
-        "subtitle": "Four signal families, each validated over 6 years against a random control: relative "
-        "strength, channel breakout, volatility expansion, and funding carry — the only one that keeps "
-        "producing when the market falls. Updated daily.",
+        "subtitle": "Five signal engines, each validated against a random control: relative strength, channel "
+        "breakout, volatility expansion, funding carry, and 4-hour momentum. The last two keep producing when "
+        "the market falls. Updated daily.",
         "signals_heading": lambda n: f"🔎 Latest {n} signals",
         "signals_note": "Three families buy an uptrend: entry, a deliberately wide 4x ATR stop (disaster "
         "protection, not a management tool), tracking milestones at 4x, 8x and 12x ATR, and a time-based exit — "
@@ -421,13 +430,15 @@ _STRINGS = {
         "cryptoassets can cost you part or all of the capital committed.",
         # Voir le commentaire de la version française ci-dessus.
         "filter_heading": "🔇 No signal today — and that is on purpose",
-        "filter_lead": "This silence is not a failure. The engine buys nothing while Bitcoin trades below its "
-        "200-day moving average: until that level is reclaimed there is nothing to publish here, and nothing "
-        "will be invented to fill the page.",
+        "filter_lead": "This silence is not a failure. The three directional families buy nothing while Bitcoin "
+        "trades below its 200-day moving average. The two engines that keep working through that filter — the "
+        "funding carry, which is market-neutral, and the 4-hour momentum, which only fires in this very regime "
+        "— found nothing today either: the first opens a position only if funding covers its fees, the second "
+        "is capped at its two highest-ranked pairs. Nothing will be invented to fill the page.",
         "filter_tiles": (
-            ("41%", "of the time with no signal at all"),
+            ("41%", "of the time with no directional signal"),
             ("381 d", "longest closure (28/12/2021 → 13/01/2023)"),
-            ("25 d", "median length of a closure of at least one week"),
+            ("5", "signals per day at most, across every engine"),
             ("11", "closures of at least one week in 6 years"),
         ),
         "filter_duration_heading": "How long this can last",

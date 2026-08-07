@@ -109,17 +109,18 @@ def _shell(title, description, path, body, kind="website", jsonld=None):
 # comprendre, et <code>/marche</code> en donne la version vivante.
 FILTER_STATE_DATE = "4 août 2026"
 
-# Les quatre familles diffusées depuis le 04/08/2026. Avant cette date le
-# moteur n'en diffusait qu'une (la force relative), et cette page ne décrivait
-# donc plus le produit réellement vendu. Elles servent aussi de source unique
+# Les cinq moteurs diffusés, le momentum 4 heures depuis le 07/08/2026. Avant
+# le 04/08/2026 le moteur n'en diffusait qu'un (la force relative), et cette page
+# ne décrivait donc plus le produit réellement vendu. Elles servent aussi de source unique
 # au balisage schema.org/HowTo plus bas : une seule liste, pas de divergence
 # possible entre ce qui est affiché et ce qui est déclaré aux moteurs.
 STEPS = [
-    ("Quatre familles tournent en parallèle, pas une seule",
-     "Trois d'entre elles achètent (elles parient sur la hausse) et une est neutre au marché. "
-     "Elles ont été validées sur 6 ans face à un témoin aléatoire : une famille qui ne bat pas un "
-     "tirage au sort à contraintes égales est jetée, quelle que soit son espérance affichée. "
-     "Trois candidates l'ont été."),
+    ("Cinq moteurs tournent en parallèle, pas un seul",
+     "Trois d'entre eux achètent (ils parient sur la hausse), un est neutre au marché, et le "
+     "dernier ne travaille QUE lorsque le marché baisse. Tous ont été validés face à un témoin "
+     "aléatoire : un moteur qui ne bat pas un tirage au sort à contraintes égales est jeté, quelle "
+     "que soit son espérance affichée. Sur douze approches testées, deux seulement ont été "
+     "retenues."),
     ("Le filtre de tendance décide si les familles directionnelles ont le droit d'acheter",
      "Une seule question avant tout le reste : le Bitcoin est-il au-dessus de sa moyenne mobile "
      "200 jours ? S'il est en dessous, les trois familles acheteuses se taisent, quelles que soient "
@@ -135,12 +136,19 @@ STEPS = [
      "n'anticipe pas la cassure, on attend qu'elle ait eu lieu — c'est toute la différence."),
     ("Famille 3 — Expansion de volatilité : entrer quand le marché se réveille",
      "Après une longue phase de compression, où l'amplitude des mouvements s'est resserrée, le "
-     "retour de la volatilité déclenche l'entrée. C'est la plus rare des quatre familles."),
+     "retour de la volatilité déclenche l'entrée. C'est le plus rare des cinq moteurs."),
     ("Famille 4 — Carry de financement : gagner sans dépendre du prix",
      "Deux jambes de même montant : achat au comptant, et vente à découvert du contrat perpétuel. "
      "Les deux s'annulent, donc le prix n'entre pas dans l'équation. Le gain vient du financement "
-     "que les acheteurs de perpétuels versent aux vendeurs toutes les 8 heures. C'est la seule "
-     "famille qui produise quand le marché baisse."),
+     "que les acheteurs de perpétuels versent aux vendeurs toutes les 8 heures. Il produit dans "
+     "les deux régimes de marché."),
+    ("Famille 5 — Momentum 4 heures : le seul qui travaille quand le marché baisse",
+     "Même classement que la force relative, mais mesuré sur des bougies de 4 heures, limité aux "
+     "deux paires les plus fortes et tenu 3 jours. Sa particularité : il ne se déclenche QUE "
+     "lorsque le Bitcoin est sous sa moyenne 200 jours — exactement le créneau où les trois moteurs "
+     "acheteurs se taisent. Il est présenté EN OBSERVATION, et c'est écrit sur chacun de ses "
+     "signaux : positif trois années sur quatre, mais en recul sur la dernière. Deux places par "
+     "jour au maximum, et il s'arrête de lui-même si ses résultats réels démentent la mesure."),
     ("Tu reçois le signal complet sur Telegram",
      "Paire, sens, prix d'entrée, stop loss et objectifs — tous définis AVANT l'ouverture, jamais "
      "ajustés après coup. Sur les familles directionnelles, le stop est large (4 x ATR) : il n'est "
@@ -163,7 +171,8 @@ def build_how_it_works():
     body = f"""  <p class="breadcrumb"><a href="/">Accueil</a> › Comment ça marche</p>
   <header>
     <h1>Comment ça marche</h1>
-    <p class="subtitle">Quatre familles de signaux, dont une qui ne dépend pas du prix.
+    <p class="subtitle">Cinq moteurs de signaux, dont un qui ne dépend pas du prix et un qui ne
+       travaille que lorsque le marché baisse.
        Étape par étape, et avec les chiffres tels qu'ils ont été mesurés.</p>
   </header>
 
@@ -244,7 +253,7 @@ def build_how_it_works():
   <section>
     <h2>Pas d'indicateur magique</h2>
     <p>Le classement de la force relative est construit à partir du RSI, mais un simple tri par
-       rendement passé fait aussi bien&nbsp;: c'est du momentum, point. Aucune des quatre familles
+       rendement passé fait aussi bien&nbsp;: c'est du momentum, point. Aucun des cinq moteurs
        ne repose sur un indicateur propriétaire ou sur une recette cachée&nbsp;; toutes sont des
        mécaniques connues, appliquées sans exception et sans état d'âme.</p>
     <p>Ce qui fait la différence n'est pas l'indicateur, c'est la discipline&nbsp;: des niveaux
@@ -579,8 +588,8 @@ def build_terms():
          la protection, pas le défaut.</p>
       <p><b>Tu en es informé avant tout paiement.</b> Au {FILTER_STATE_DATE}, cette condition
          d'arrêt est active&nbsp;: le Bitcoin est sous sa moyenne 200 jours, et les trois familles
-         directionnelles sont à l'arrêt. Le carry de financement, lui, continue de produire —
-         c'est la seule famille qui fonctionne dans ce régime. Personne ne peut prévoir la date de
+         directionnelles sont à l'arrêt. Le carry de financement, lui, continue de produire, et le
+         momentum 4 heures ne travaille même que dans ce régime-là. Personne ne peut prévoir la date de
          reprise des trois autres&nbsp;: n'achète pas d'abonnement en pariant sur une échéance.</p>
     </div>
     <p>L'état de cette condition (active ou non) est annoncé sur le canal et expliqué en détail sur
