@@ -137,6 +137,88 @@ describe("trackSignalOutcomes", () => {
     expect(closedPatch.close_reason).toBe("expired");
   });
 
+  // Chaque moteur a été validé sur SA durée de détention : 7 jours pour la
+  // force relative, 3 jours pour le momentum 4 h. Les fermer tous à 10 jours
+  // reviendrait à jouer une stratégie que personne n'a mesurée. Ces deux tests
+  // vérifient que l'échéance portée par le signal fait autorité dans les deux
+  // sens — elle raccourcit ET elle prolonge.
+  async function suivreAvecPrixStable(signal: any) {
+    let closedPatch: any = null;
+    let messageAbonne = "";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("signals") && url.includes("outcome=is.null") && (!init || init.method === undefined)) {
+          return jsonResponse([signal]);
+        }
+        if (url.includes("binance.com")) return jsonResponse([{ symbol: "BTCUSDT", price: "103.00" }]);
+        if (url.includes("signals") && init?.method === "PATCH") {
+          closedPatch = JSON.parse(init.body as string);
+          return jsonResponse([]);
+        }
+        if (url.includes("signal_deliveries") && (!init || init.method === undefined)) {
+          return jsonResponse([{ telegram_id: 10 }]);
+        }
+        if (url.includes("/users") && url.includes("telegram_id=in.")) return jsonResponse([]);
+        if (url.includes("api.telegram.org")) {
+          const body = JSON.parse(init!.body as string);
+          if (body.chat_id === 10) messageAbonne = body.text;
+          return jsonResponse({ ok: true, result: {} });
+        }
+        throw new Error(`URL inattendue: ${url}`);
+      })
+    );
+    await trackSignalOutcomes(env);
+    return { closedPatch, messageAbonne };
+  }
+
+  it("clôture un signal momentum 4H à SON échéance de 3 jours, sans attendre les 10 jours du filet de sécurité", async () => {
+    const ouverture = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000);
+    const signal4h = {
+      ...recentSignal,
+      id: 20,
+      engine: "momentum_4h",
+      created_at: ouverture.toISOString(),
+      hold_until: new Date(ouverture.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+    };
+
+    const { closedPatch, messageAbonne } = await suivreAvecPrixStable(signal4h);
+
+    expect(closedPatch).not.toBeNull();
+    expect(closedPatch.close_reason).toBe("expired");
+    // Le message annonce la durée réellement prévue, pas la constante du suivi.
+    expect(messageAbonne).toContain("3 jours");
+    expect(messageAbonne).not.toContain("10 jours");
+  });
+
+  it("garde ouvert un carry de 21 jours au-delà des 10 jours du filet de sécurité", async () => {
+    const ouverture = new Date(Date.now() - 12 * 24 * 60 * 60 * 1000);
+    const signalLong = {
+      ...recentSignal,
+      id: 21,
+      engine: "relative_strength",
+      created_at: ouverture.toISOString(),
+      hold_until: new Date(ouverture.getTime() + 21 * 24 * 60 * 60 * 1000).toISOString(),
+    };
+
+    const { closedPatch } = await suivreAvecPrixStable(signalLong);
+
+    expect(closedPatch).toBeNull();
+  });
+
+  it("retombe sur les 10 jours pour un signal sans échéance propre (antérieur à hold_until)", async () => {
+    const ancien = {
+      ...recentSignal,
+      id: 22,
+      created_at: new Date(Date.now() - 11 * 24 * 60 * 60 * 1000).toISOString(),
+      hold_until: null,
+    };
+
+    const { closedPatch } = await suivreAvecPrixStable(ancien);
+
+    expect(closedPatch.close_reason).toBe("expired");
+  });
+
   it("laisse un signal ouvert tel quel si ni le TP ni le SL ne sont atteints et qu'il n'a pas expiré", async () => {
     let patched = false;
     vi.stubGlobal(

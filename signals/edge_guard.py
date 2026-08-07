@@ -80,24 +80,30 @@ def _realized_pnl_pct(signal: dict) -> float | None:
     return total
 
 
-def measure_realized_edge(lookback_days: int = LOOKBACK_DAYS) -> dict:
+def measure_realized_edge(lookback_days: int = LOOKBACK_DAYS, engine: str = None) -> dict:
     """
     Statistiques réalisées sur les signaux clôturés de la fenêtre.
     Retourne {"count", "expectancy_pct", "win_rate_pct"} ; count=0 si la
     lecture échoue ou si rien n'est clôturé.
+
+    `engine` restreint la mesure à un seul moteur. C'est indispensable depuis
+    qu'ils sont plusieurs : agrégées, les espérances se compensent, et un
+    moteur franchement perdant peut rester invisible pendant des mois derrière
+    un moteur qui gagne. On veut pouvoir couper l'un sans couper l'autre.
     """
     since = (datetime.now(timezone.utc) - timedelta(days=lookback_days)).isoformat()
     try:
-        res = (
+        requete = (
             get_client()
             .table("signals")
             .select("type,entry_price,outcome,outcome_price,tp1_price,tp2_price,tp3_price,"
                     "tp1_hit_at,tp2_hit_at,tp3_hit_at")
             .not_.is_("outcome", "null")
             .gte("created_at", since)
-            .execute()
         )
-        rows = res.data or []
+        if engine:
+            requete = requete.eq("engine", engine)
+        rows = requete.execute().data or []
     except Exception:
         logger.exception("Échec de la lecture des signaux clôturés (garde-fou d'espérance) — non bloquant.")
         return {"count": 0, "expectancy_pct": 0.0, "win_rate_pct": 0.0}
@@ -123,6 +129,43 @@ def should_pause_for_degraded_edge() -> tuple[bool, dict]:
     if stats["count"] < MIN_CLOSED_TRADES:
         return False, stats
     return stats["expectancy_pct"] < EXPECTANCY_FLOOR_PCT, stats
+
+
+def moteur_en_echec(engine: str) -> tuple[bool, dict]:
+    """
+    Ce moteur-là doit-il se taire ?
+
+    C'est le troisième garde-fou du momentum 4 h, et le seul qui juge sur
+    pièces. Les deux autres — l'étiquette « en observation » et le volume bridé
+    à cinq signaux — limitent les dégâts d'une erreur ; celui-ci la constate.
+
+    La mesure historique dit ce qui s'est passé de 2023 à 2026, avec une
+    décroissance monotone jusqu'au négatif sur l'année en cours. Elle ne dit
+    pas ce qui se passera. Si l'espérance RÉELLEMENT réalisée sur les signaux
+    envoyés aux abonnés devient nettement négative sur un échantillon
+    suffisant, le moteur s'arrête de lui-même — sans attendre qu'on s'en
+    aperçoive, et sans arrêter les autres moteurs qui, eux, tiennent.
+
+    Toute erreur de lecture laisse passer : couper à tort un moteur qui marche
+    coûterait plus cher que le laisser tourner un cycle de plus.
+    """
+    stats = measure_realized_edge(engine=engine)
+    if stats["count"] < MIN_CLOSED_TRADES:
+        return False, stats
+    en_echec = stats["expectancy_pct"] < EXPECTANCY_FLOOR_PCT
+    if en_echec:
+        logger.warning(
+            "[%s] Moteur suspendu : espérance réalisée %+.3f %% par trade sur %d signaux "
+            "clôturés (taux de réussite %.1f %%). La mesure historique est démentie par "
+            "les faits — ce moteur ne publie plus.",
+            engine, stats["expectancy_pct"], stats["count"], stats["win_rate_pct"],
+        )
+    else:
+        logger.info(
+            "[%s] Espérance réalisée %+.3f %% sur %d clôtures : le moteur continue.",
+            engine, stats["expectancy_pct"], stats["count"],
+        )
+    return en_echec, stats
 
 
 def register_pause(stats: dict) -> None:

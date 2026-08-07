@@ -43,6 +43,8 @@ from strategy import detect_signals_with_catchup, is_still_actionable
 from squeeze_engine import detect_squeeze_signal
 from relative_strength import detect_relative_strength_signals
 import carry_engine
+import momentum_4h
+import signal_arbiter
 import watchlist
 from confidence import compute_confidence_score
 from chart_generator import generate_chart
@@ -383,6 +385,113 @@ def run_carry_engine() -> list:
     return signaux
 
 
+def fetch_4h_candles(pair: str, historique_profond: bool = False):
+    """
+    Bougies 4 heures pour le moteur Momentum 4H. Binance seul, sans repli,
+    pour la même raison que le journalier du carry : ce moteur classe les
+    paires les unes CONTRE les autres, et mélanger des clôtures venant de
+    plateformes aux découpes différentes fausserait le classement lui-même.
+    Mieux vaut une paire absente qu'une paire mal classée.
+
+    `historique_profond` pagine au-delà de la limite de 1 000 bougies par appel
+    de Binance. Ce n'est nécessaire que pour le BITCOIN : le filtre de régime
+    est une moyenne sur 200 jours, soit 1 200 bougies de 4 heures — un seul
+    appel plafonne à 166 jours et laisse le moteur incapable de dire dans quel
+    marché il se trouve. Les autres paires n'ont besoin que de 42 bougies pour
+    leur classement ; les paginer toutes quadruplerait les appels réseau pour
+    des données que personne ne lirait.
+    """
+    symbol = binance_client.pair_to_symbol(pair)
+    try:
+        if historique_profond:
+            # 230 jours pour 200 jours utiles : la marge absorbe les bougies
+            # manquantes et les interruptions de cotation.
+            candles = binance_client.get_historical_klines(symbol, interval="4h", days=230)
+        else:
+            candles = binance_client.get_klines(symbol, interval="4h", limit=1000)
+    except Exception:
+        logger.warning("Binance (4h) indisponible pour %s : paire exclue.", pair, exc_info=True)
+        return None
+    if not candles:
+        return None
+    df = pd.DataFrame(
+        [(ts, o, high, low, close) for ts, o, high, low, close, _vol in candles],
+        columns=["ts_ms", "open", "high", "low", "close"],
+    )
+    # La bougie en cours n'est pas close : la garder ferait entrer un prix non
+    # définitif dans le classement, ce que le backtest n'a jamais validé.
+    df = only_closed_candles(df.rename(columns={"close": "price"}), 4 * 60 * 60 * 1000)
+    return df.rename(columns={"price": "close"}) if df is not None and len(df) else None
+
+
+def run_momentum_4h_engine() -> list:
+    """
+    Passage du moteur Momentum 4H (voir momentum_4h.py).
+
+    Il ne travaille QUE quand le Bitcoin est sous sa moyenne 200 jours, c'est-
+    à-dire exactement quand les trois familles journalières sont coupées. Il
+    n'est donc pas en concurrence avec elles : il occupe le créneau qu'elles
+    laissent vide 41 % du temps.
+
+    Cadence quotidienne comme les autres moteurs. Le nom « 4 heures » désigne
+    l'unité de temps des bougies analysées, pas la fréquence des passages :
+    évaluer six fois par jour multiplierait les entrées sans que le backtest,
+    mené sur une décision par jour, ne le valide.
+    """
+    if not config.ENABLE_MOMENTUM_4H:
+        return []
+    if storage.daily_job_already_ran_today("momentum_4h", config.RS_RUN_HOUR_UTC):
+        return []
+
+    # Troisième garde-fou du moteur en observation : il se juge sur ses propres
+    # résultats réels, pas sur le backtest qui l'a fait naître. Vérifié à
+    # chaque passage, avant tout appel réseau — si les faits le démentent,
+    # inutile d'aller chercher les bougies.
+    en_echec, stats = edge_guard.moteur_en_echec(momentum_4h.ENGINE_NAME)
+    if en_echec:
+        logger.warning(
+            "[momentum_4h] Moteur arrêté par le garde-fou d'espérance (%+.3f %% sur %d clôtures). "
+            "Les autres moteurs continuent.", stats["expectancy_pct"], stats["count"],
+        )
+        storage.record_heartbeat("momentum_4h")
+        return []
+
+    ouvertes = storage.pairs_signalled_by_engine("momentum_4h", config.M4H_HOLD_BOUGIES * 4)
+
+    # Le Bitcoin d'abord, et avec son historique complet : il décide à lui seul
+    # si le moteur travaille aujourd'hui. Sans lui, inutile de charger les
+    # trente-neuf autres paires.
+    btc = fetch_4h_candles("BTC/USDT", historique_profond=True)
+    if btc is None or momentum_4h.marche_defavorable(btc) is None:
+        logger.warning(
+            "[momentum_4h] Régime indéterminable (%s bougie(s) BTC sur les %d requises) : "
+            "aucun signal. Le moteur ne devine pas le régime dont dépend tout son avantage.",
+            "aucune" if btc is None else len(btc),
+            config.RS_TREND_MA_PERIOD * momentum_4h.BOUGIES_PAR_JOUR,
+        )
+        storage.record_heartbeat("momentum_4h")
+        return []
+
+    if not momentum_4h.marche_defavorable(btc):
+        logger.info("[momentum_4h] Marché favorable : ce moteur se tait, les familles journalières prennent le relais.")
+        storage.record_heartbeat("momentum_4h")
+        return []
+
+    candles = {"BTC/USDT": btc}
+    for pair in config.PAIRS:
+        if pair == "BTC/USDT":
+            continue
+        df = fetch_4h_candles(pair)
+        if df is not None and len(df) >= config.M4H_RSI_PERIOD + 5:
+            candles[pair] = df
+
+    logger.info("[momentum_4h] Passage quotidien : %d paires, %d déjà en position.",
+                len(candles), len(ouvertes))
+    signaux = momentum_4h.detect_momentum_4h_signals(candles, btc, already_open=ouvertes)
+    storage.record_heartbeat("momentum_4h")
+    return signaux
+
+
 def run_daily_watchlist() -> bool:
     """
     Publie la liste du jour sur le canal public (voir watchlist.py).
@@ -661,6 +770,15 @@ def run_once(params: dict) -> tuple[int, int]:
         for carry_signal in run_carry_engine():
             candidates.append((carry_signal, None))
 
+    # ⏱️ Moteur Momentum 4H (voir momentum_4h.py). EN OBSERVATION : positif
+    # 3 années sur 4 en marché défavorable, mais en décroissance monotone
+    # jusqu'au négatif sur l'année en cours. Livré bridé (top 5) et surveillé
+    # par edge_guard, qui le suspendra de lui-même si l'espérance réellement
+    # réalisée se confirme négative sur 30 trades clôturés.
+    if config.ENABLE_MOMENTUM_4H:
+        for signal_4h in run_momentum_4h_engine():
+            candidates.append((signal_4h, None))
+
     if momentum_alerts:
         storage.insert_momentum_alerts(momentum_alerts)
         logger.info("%d alerte(s) momentum détectée(s) ce cycle.", len(momentum_alerts))
@@ -706,6 +824,15 @@ def run_once(params: dict) -> tuple[int, int]:
 
     candidates = candidates + carrys
 
+    # 🎚️ Arbitrage central (voir signal_arbiter.py). Sans lui, chaque moteur
+    # décide seul : un jour porteur les quatre familles tirent ensemble et
+    # l'abonné reçoit dix signaux d'un coup, un jour creux aucune ne tire.
+    # L'arbitre les met sur une échelle commune — l'espérance par JOUR de
+    # capital immobilisé, seule grandeur qui permette de comparer un carry tenu
+    # trois semaines à un momentum tenu trois jours — puis applique le plafond.
+    candidates, ecartes = signal_arbiter.arbitrer(candidates)
+    logger.info("[arbitre] %s", signal_arbiter.resume_pour_admin(candidates, ecartes))
+
     failed_inserts = 0
     for signal_dict, enriched in candidates:
         signal_dict["chart_url"] = _generate_and_upload_chart(enriched, signal_dict, now_ms)
@@ -718,7 +845,7 @@ def run_once(params: dict) -> tuple[int, int]:
         # en base. Elles sont utiles au débogage et au message envoyé aux
         # abonnés, mais les laisser ferait échouer l'insertion entière.
         for key in ("rs_rank", "rs_rsi", "rs_hold_days", "carry_rate_per_day",
-                    "carry_rank", "carry_source"):
+                    "carry_rank", "carry_source", "m4h_rang", "m4h_heures"):
             signal_dict.pop(key, None)
         if not storage.insert_signal(signal_dict):
             failed_inserts += 1

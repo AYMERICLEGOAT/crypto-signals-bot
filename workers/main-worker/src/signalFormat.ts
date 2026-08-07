@@ -31,7 +31,12 @@ export interface SignalLike {
   engine?: string | null;
   /** Carry uniquement : financement net attendu sur la durée de détention, frais déduits. */
   carry_expected_pct?: number | null;
-  /** Carry uniquement : date de clôture prévue. La sortie est temporelle, aucun prix ne la déclenche. */
+  /**
+   * Date de clôture prévue. La sortie est TEMPORELLE : elle survient à cette
+   * date même si ni l'objectif ni le stop n'ont été touchés. Renseignée par le
+   * carry (21 jours), la force relative (7 jours) et le momentum 4 h (3 jours)
+   * — chacun avec la durée sur laquelle il a été validé.
+   */
   hold_until?: string | null;
 }
 
@@ -40,6 +45,7 @@ const ENGINE_BADGE: Record<string, string> = {
   squeeze_15m: "⚡ Squeeze 15M",
   relative_strength: "📈 Force Relative",
   carry_funding: "💵 Carry de Financement",
+  momentum_4h: "🧪 Momentum 4H (en observation)",
 };
 
 function engineBadge(engine?: string | null): string {
@@ -71,7 +77,46 @@ function buildContext(type: SignalSide, engine?: string | null): string {
   if (engine === "squeeze_15m") {
     return `${arrow} Signal Squeeze 15M : cassure ${direction} après une phase de compression de volatilité, confirmée par le volume.`;
   }
+  // La force relative n'a rien d'un croisement d'indicateurs : elle achète les
+  // cryptos les plus fortes du moment, mesurées les unes CONTRE les autres. Le
+  // message décrivait l'ancien moteur EMA/RSI, ce qui ne correspondait plus à
+  // ce que l'abonné recevait réellement.
+  if (engine === "relative_strength") {
+    return `${arrow} Force Relative : cette crypto fait partie des plus fortes du marché en ce moment, comparée à toutes les autres. La stratégie mise sur la continuation de cette avance.`;
+  }
+  if (engine === "momentum_4h") {
+    return `${arrow} Momentum 4H : même principe, mesuré sur des bougies de 4 heures. Ce moteur ne se déclenche QUE quand le marché est baissier — le créneau où les autres se taisent.`;
+  }
   return `${arrow} Signal Haute Confiance : la tendance vient de basculer ${direction} (EMA + RSI + ADX alignés).`;
+}
+
+/**
+ * Durée de détention prévue, quand le signal en porte une.
+ *
+ * Sans cette ligne, l'abonné n'a aucun moyen de savoir que la sortie est
+ * TEMPORELLE : il voit un stop et trois objectifs, et en déduit logiquement
+ * qu'il attend l'un ou l'autre. Or ce sont deux des trois moteurs qui ferment à
+ * l'échéance quoi qu'il arrive — les objectifs ne déclenchent que 2 % des
+ * sorties. Taire la durée, c'est laisser croire à une stratégie qu'on ne joue
+ * pas.
+ */
+function buildHoldLine(signal: SignalLike): string | null {
+  if (!signal.hold_until) return null;
+  const jours = Math.round(
+    (new Date(signal.hold_until).getTime() - new Date(signal.created_at).getTime()) / 86400000
+  );
+  if (!Number.isFinite(jours) || jours < 1) return null;
+  return `⏳ Durée prévue : ${jours} jours. Ce signal se ferme à l'échéance même si aucun objectif n'est atteint — la sortie au temps fait partie de la stratégie.`;
+}
+
+/** Avertissement réservé aux moteurs dont l'avantage n'est pas encore établi. */
+function buildObservationLine(engine?: string | null): string | null {
+  if (engine !== "momentum_4h") return null;
+  return (
+    "🧪 *Moteur en observation.* Mesuré positif 3 années sur 4, mais en recul sur la dernière : " +
+    "on le publie en le disant, avec un volume réduit, et il s'arrête tout seul si les résultats réels le démentent. " +
+    "À dimensionner plus petit que les autres."
+  );
 }
 
 function buildRiskSizingLine(entryPrice: number, stopLoss: number): string | null {
@@ -79,10 +124,13 @@ function buildRiskSizingLine(entryPrice: number, stopLoss: number): string | nul
   if (riskPct <= 0) return null;
   const positionPct = Math.min(100, (SUGGESTED_RISK_PCT / riskPct) * 100);
   const capNote = (SUGGESTED_RISK_PCT / riskPct) * 100 > 100 ? " (mise maximale recommandée)" : "";
+  // Format français comme partout ailleurs : cette ligne côtoyait "-10,0 %"
+  // deux lignes plus haut en écrivant "10.0%".
+  const fr = (v: number, dec: number) => v.toFixed(dec).replace(".", ",");
   return (
-    `💰 Risque conseillé : ${SUGGESTED_RISK_PCT}% de ton capital max sur ce trade. ` +
-    `Avec un stop à ${riskPct.toFixed(1)}% de l'entrée, cela correspond à une position d'environ ` +
-    `${positionPct.toFixed(0)}% de ton capital alloué à ce trade${capNote} (${SUGGESTED_RISK_PCT}% ÷ ${riskPct.toFixed(1)}%).`
+    `💰 Risque conseillé : ${SUGGESTED_RISK_PCT} % de ton capital max sur ce trade. ` +
+    `Avec un stop à ${fr(riskPct, 1)} % de l'entrée, cela correspond à une position d'environ ` +
+    `${fr(positionPct, 0)} % de ton capital alloué à ce trade${capNote} (${SUGGESTED_RISK_PCT} % ÷ ${fr(riskPct, 1)} %).`
   );
 }
 
@@ -167,7 +215,9 @@ export function buildSignalMessage(
       ? buildMultiTpLines(signal, stopLoss)
       : [`🎯 Take profit : ${takeProfit} (${pct(rewardPct)})`, `🛑 Stop loss : ${stopLoss} (${pct(-riskPct)})`]),
     "",
+    buildHoldLine(signal),
     riskSizingLine,
+    buildObservationLine(signal.engine),
     opts.trailingEnabled ? buildTrailingStopLine(signal, stopLoss) : null,
     signal.confidence_score != null ? `📊 Confiance : ${signal.confidence_score}/100 _(indicatif, pas une probabilité de gain)_` : null,
     `🕒 ${new Date(signal.created_at).toLocaleString("fr-FR")}`,

@@ -79,7 +79,7 @@ backtest_stop_impact.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 
@@ -170,6 +170,7 @@ def build_signal(pair: str, entry_price: float, atr_value: float, rsi_value: flo
     tp1 = entry_price + config.RS_TP1_ATR_MULT * atr_value
     tp2 = entry_price + config.RS_TP2_ATR_MULT * atr_value
     tp3 = entry_price + config.RS_TP3_ATR_MULT * atr_value
+    ouverture = timestamp or datetime.now(timezone.utc)
 
     return {
         "pair": pair,
@@ -180,8 +181,14 @@ def build_signal(pair: str, entry_price: float, atr_value: float, rsi_value: flo
         "tp1_price": round(tp1, 8),
         "tp2_price": round(tp2, 8),
         "tp3_price": round(tp3, 8),
-        "created_at": (timestamp or datetime.now(timezone.utc)).isoformat(),
+        "created_at": ouverture.isoformat(),
         "engine": ENGINE_NAME,
+        # Échéance PORTÉE PAR LE SIGNAL, et non déduite d'une constante du
+        # suivi. Le backtest valide une sortie à RS_HOLD_DAYS jours ; le suivi
+        # fermait jusqu'ici tout signal à 10 jours, quelle que soit son origine.
+        # Écrire la date ici garantit que la position tenue est celle mesurée,
+        # et que deux moteurs aux durées différentes cohabitent sans se gêner.
+        "hold_until": (ouverture + timedelta(days=config.RS_HOLD_DAYS)).isoformat(),
         # Métadonnées propres à ce moteur, utiles au message envoyé aux abonnés
         # comme au suivi de performance. La sortie prévue est une DURÉE, pas un
         # prix : c'est la caractéristique de la stratégie validée.

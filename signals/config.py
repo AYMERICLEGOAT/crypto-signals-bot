@@ -565,6 +565,66 @@ CARRY_RUN_HOUR_UTC = 1
 ENABLE_DAILY_WATCHLIST = True
 WATCHLIST_RUN_HOUR_UTC = 8
 
+# --- Moteur Momentum 4 heures (voir momentum_4h.py) ---
+#
+# EN OBSERVATION. Positif 3 années sur 4 en marché défavorable, mais en
+# décroissance monotone : +2,06 % en 2023, +1,28 % en 2024, +0,29 % en 2025,
+# -0,53 % en 2026. Quatre ans ne permettent pas de trancher entre un avantage
+# qui s'érode et un avantage qui n'a jamais existé. Il est donc livré bridé,
+# étiqueté comme tel, et surveillé par edge_guard.
+ENABLE_MOMENTUM_4H = True
+
+# Ne travaille QUE quand le Bitcoin est SOUS sa moyenne 200 jours — l'exact
+# inverse des trois familles journalières. C'est sa seule raison d'être :
+# combler le trou qu'elles laissent 41 % du temps.
+M4H_RSI_PERIOD = 42          # 42 bougies de 4 h = 7 jours
+M4H_HOLD_BOUGIES = 18        # 18 bougies = 3 jours, la durée mesurée
+M4H_SL_ATR_MULT = 4.0
+M4H_MIN_RANKED_PAIRS = 15
+
+# Combien de paires le moteur retient en tête de classement.
+#
+# Mesuré sur 1 100 jours, en marché défavorable uniquement, garde 3 jours :
+#
+#     top 1  : 0,71 sig/j | +0,699 % | 3 années positives sur 4
+#     top 2  : 1,25 sig/j | +0,805 % | 2/4
+#     top 3  : 1,74 sig/j | +0,688 % | 3/4
+#     top 5  : 2,61 sig/j | +0,576 % | 3/4
+#     top 12 : 4,80 sig/j | +0,313 % | 3/4
+#
+# L'espérance décroît régulièrement quand on descend dans le classement, ce qui
+# est exactement ce qu'on attend d'un momentum transversal : le signal est dans
+# le RANG, pas dans le nombre. Deux places, donc — le meilleur compromis mesuré,
+# et la même valeur que le plafond imposé par l'arbitre aux moteurs en
+# observation, si bien que ce que le moteur propose est ce qui est publié.
+#
+# Réserve à garder en tête : à top 2 le nombre d'années positives tombe à 2 sur
+# 4, contre 3 sur 4 ailleurs. Moins de signaux, donc plus de bruit d'une année à
+# l'autre. C'est une raison de plus de traiter ce moteur comme en observation.
+M4H_TOP_N = 2
+
+# --- Arbitre de signaux (voir signal_arbiter.py) ---
+#
+# Un juge unique pour tous les moteurs. Sans lui, chaque moteur décide seul :
+# un jour porteur les quatre familles tirent ensemble et l'abonné reçoit dix
+# signaux d'un coup, un jour creux aucune ne tire et le canal est muet.
+#
+# Le MAXIMUM est une vraie limite : au-delà, les moins bons candidats sont
+# écartés, pas mis en file d'attente — un signal de momentum vieux d'un jour
+# n'est plus le même signal.
+#
+# Le MINIMUM n'est PAS une limite, c'est un objectif journalisé. Rien n'est
+# jamais ajouté pour l'atteindre : compléter avec les moins bons candidats du
+# jour reviendrait à diffuser exactement ceux que la mesure dit perdants.
+QUOTA_SIGNAUX_MIN = 2
+QUOTA_SIGNAUX_MAX = 5
+
+# Part maximale d'un moteur EN OBSERVATION dans une journée (voir
+# signal_arbiter.MOTEURS_EN_OBSERVATION). Sans ce plafond, le moteur dont
+# l'avantage est le moins établi prenait les cinq places — observé dès le
+# premier passage réel. Deux sur cinq : présent, jamais majoritaire.
+QUOTA_OBSERVATION_MAX = 2
+
 # Géométrie mesurée par backtest_stop_impact sur 6 ans. Contre-intuitif mais
 # net : plus le stop est serré, plus il coûte cher. À 1 x ATR l'espérance tombe
 # à +2,05 % par trade contre +2,74 % à 4 x ATR, parce que le stop coupe des

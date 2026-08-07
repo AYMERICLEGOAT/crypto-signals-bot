@@ -32,10 +32,13 @@ describe("buildSignalMessage (UX — format de signal plus clair)", () => {
 
   it("inclut une ligne de risque conseillé à 2% avec la taille de position calculée", () => {
     const text = buildSignalMessage(buySignal);
-    expect(text).toContain(`${SUGGESTED_RISK_PCT}%`);
+    expect(text).toContain(`${SUGGESTED_RISK_PCT} %`);
     expect(text).toContain("Risque conseillé");
-    // stop a 5% de distance -> position conseillee = 2/5*100 = 40%
-    expect(text).toContain("40%");
+    // Format français dans toute la ligne : elle écrivait "10.0%" à deux lignes
+    // d'un "-10,0 %".
+    expect(text).not.toMatch(/\d\.\d\s?%/);
+    // stop a 5 % de distance -> position conseillee = 2/5*100 = 40 %
+    expect(text).toContain("40 %");
   });
 
   it("n'affiche la ligne trailing stop que si explicitement activé", () => {
@@ -119,5 +122,63 @@ describe("buildSignalMessage — Multi-TP (mission grille d'excellence)", () => 
     const text = buildSignalMessage(buySignal);
     expect(text).not.toContain("TP1");
     expect(text).toContain("🎯 Take profit");
+  });
+});
+
+describe("buildSignalMessage — la sortie temporelle est ANNONCÉE", () => {
+  // Deux des trois moteurs ferment à l'échéance quoi qu'il arrive : les
+  // objectifs ne déclenchent que 2 % des sorties. Un message qui n'affiche
+  // qu'un stop et trois objectifs laisse l'abonné jouer une autre stratégie
+  // que celle qui a été mesurée.
+  const rsSignal = {
+    ...buySignal,
+    engine: "relative_strength",
+    created_at: "2026-01-01T00:00:00Z",
+    hold_until: "2026-01-08T00:00:00Z",
+  };
+
+  it("affiche la durée de détention prévue quand le signal en porte une", () => {
+    const text = buildSignalMessage(rsSignal);
+    expect(text).toContain("Durée prévue : 7 jours");
+    expect(text).toContain("se ferme à l'échéance");
+  });
+
+  it("n'affiche aucune durée pour un signal qui n'en porte pas", () => {
+    expect(buildSignalMessage(buySignal)).not.toContain("Durée prévue");
+  });
+
+  it("décrit la force relative pour ce qu'elle est, et non comme l'ancien moteur EMA/RSI", () => {
+    const text = buildSignalMessage(rsSignal);
+    expect(text).toContain("Force Relative");
+    expect(text).toContain("plus fortes du marché");
+    expect(text).not.toContain("EMA + RSI + ADX");
+  });
+});
+
+describe("buildSignalMessage — le moteur en observation le dit", () => {
+  const signal4h = {
+    ...buySignal,
+    engine: "momentum_4h",
+    created_at: "2026-01-01T00:00:00Z",
+    hold_until: "2026-01-04T00:00:00Z",
+  };
+
+  it("marque le momentum 4H comme en observation, dans le badge ET dans le corps", () => {
+    const text = buildSignalMessage(signal4h);
+    expect(text).toContain("Momentum 4H (en observation)");
+    expect(text).toContain("Moteur en observation");
+    // L'honnêteté porte sur le fait gênant, pas seulement sur l'étiquette.
+    expect(text).toContain("en recul sur la dernière");
+    expect(text).toContain("dimensionner plus petit");
+  });
+
+  it("annonce ses 3 jours de détention, la durée sur laquelle il a été mesuré", () => {
+    expect(buildSignalMessage(signal4h)).toContain("Durée prévue : 3 jours");
+  });
+
+  it("ne colle l'avertissement d'observation à aucun autre moteur", () => {
+    for (const engine of ["relative_strength", "squeeze_15m", "high_confidence"]) {
+      expect(buildSignalMessage({ ...buySignal, engine })).not.toContain("Moteur en observation");
+    }
   });
 });

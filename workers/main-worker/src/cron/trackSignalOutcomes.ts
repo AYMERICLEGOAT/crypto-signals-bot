@@ -27,9 +27,38 @@ import { sendMessage } from "../telegram";
 import { handleAntiStress } from "./antiStress";
 import { typeLabel } from "../signalFormat";
 
+// Filet de sécurité, utilisé UNIQUEMENT quand le signal ne porte pas sa propre
+// échéance (signaux antérieurs à hold_until). Voir holdDeadlineMs ci-dessous :
+// chaque moteur a été validé sur SA durée de détention, pas sur celle-ci.
 const SIGNAL_TIMEOUT_DAYS = 10;
 const BATCH_SIZE = 25;
 const DELAY_BETWEEN_BATCHES_MS = 1200;
+
+/**
+ * Instant de clôture temporelle d'un signal.
+ *
+ * Chaque moteur a été mesuré avec une sortie temporelle qui lui est propre :
+ * 7 jours pour la force relative, 3 jours pour le momentum 4 h. Les tenir tous
+ * 10 jours ne serait PAS la stratégie validée — et l'écart n'est pas anodin :
+ * le momentum 4 h ne travaille qu'en marché baissier, précisément le régime où
+ * garder une position longue trois fois trop longtemps efface le gain mesuré.
+ *
+ * On lit donc l'échéance portée par le signal lui-même, et on ne retombe sur
+ * la constante que pour les signaux émis avant l'introduction de la colonne.
+ */
+function holdDeadlineMs(signal: SignalRecord): number {
+  if (signal.hold_until) {
+    const echeance = new Date(signal.hold_until).getTime();
+    if (Number.isFinite(echeance)) return echeance;
+  }
+  return new Date(signal.created_at).getTime() + SIGNAL_TIMEOUT_DAYS * 24 * 60 * 60 * 1000;
+}
+
+/** Durée de détention prévue, en jours, pour l'annoncer telle qu'elle a été tenue. */
+function holdDurationDays(signal: SignalRecord): number {
+  const jours = (holdDeadlineMs(signal) - new Date(signal.created_at).getTime()) / (24 * 60 * 60 * 1000);
+  return Math.max(1, Math.round(jours));
+}
 
 function pctLabel(pct: number): string {
   return `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
@@ -66,9 +95,11 @@ function formatSubscriberCloseMessage(signal: SignalRecord, pct: number): string
         "La gestion du risque fait partie de la stratégie : le stop loss limite la perte à un niveau connu à l'avance.",
       ].join("\n");
     default:
-      return [`⌛ *Signal expiré*`, `${base} Clôturé après ${SIGNAL_TIMEOUT_DAYS} jours sans avoir atteint son objectif ni son stop loss.`].join(
-        "\n"
-      );
+      return [
+        `⌛ *Signal clôturé à l'échéance*`,
+        `${base} Fermé après ${holdDurationDays(signal)} jours, la durée prévue pour ce signal, sans avoir atteint son objectif ni son stop loss.`,
+        "La sortie au bout d'une durée fixe fait partie de la stratégie : c'est ainsi qu'elle a été mesurée.",
+      ].join("\n");
   }
 }
 
@@ -258,13 +289,12 @@ export async function trackSignalOutcomes(env: Env): Promise<void> {
     const hit =
       !isMultiTp && currentPrice !== undefined ? evaluateOutcome(signal.type, stopLoss, takeProfit, currentPrice) : null;
 
-    const ageDays = (now - new Date(signal.created_at).getTime()) / (24 * 60 * 60 * 1000);
     let outcome: "WIN" | "LOSS";
     let closeReason: CloseReason;
     if (hit) {
       outcome = hit.outcome;
       closeReason = hit.closeReason;
-    } else if (ageDays >= SIGNAL_TIMEOUT_DAYS) {
+    } else if (now >= holdDeadlineMs(signal)) {
       // Un signal Multi-TP qui a déjà sécurisé TP1 avant d'expirer reste un
       // succès (voir signals/backtest.py::_simulate_multi_tp_exit, même
       // convention) : on ne pénalise jamais un trade déjà passé au
