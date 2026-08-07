@@ -479,168 +479,11 @@ _STRINGS = {
     },
 }
 
-_STYLE = """
-  /* Refonte visuelle du 02/08/2026. L'ancienne feuille était fonctionnelle
-     mais neutre : fond blanc, texte noir, un seul accent violet. Dans un
-     secteur où la première impression décide en quelques secondes, un site
-     qui ressemble à une page de documentation ne donne pas envie d'essayer.
-
-     Parti pris : sombre par défaut (attendu dans l'univers crypto/trading),
-     accents bleu et or, hiérarchie typographique nette. Tout est en CSS pur
-     — aucune police externe, aucun script : le site reste instantané et
-     fonctionne sans JavaScript. */
-  :root {
-    --bg: #0b0e14;
-    --bg-soft: #131822;
-    --bg-card: #171d29;
-    --border: #252d3d;
-    --text: #e6ebf4;
-    --text-dim: #98a2b8;
-    --accent: #4f8cff;
-    --accent-soft: #1e3a6b;
-    --gold: #f0b429;
-    --win: #22c55e;
-    --loss: #ef4444;
-    --radius: 14px;
-    color-scheme: dark;
-  }
-  * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    max-width: 860px; margin: 0 auto; padding: 28px 18px 72px;
-    line-height: 1.65; font-size: 16px;
-    -webkit-font-smoothing: antialiased;
-  }
-  a { color: var(--accent); }
-
-  /* Apparition douce au défilement, sans JavaScript : l'animation se
-     déclenche au chargement, décalée par section. Respecte
-     prefers-reduced-motion. */
-  header, section, .cta, .backtest { animation: fade-up .5s ease-out both; }
-  section:nth-of-type(2) { animation-delay: .06s; }
-  section:nth-of-type(3) { animation-delay: .12s; }
-  section:nth-of-type(4) { animation-delay: .18s; }
-  @keyframes fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-  @media (prefers-reduced-motion: reduce) {
-    * { animation: none !important; transition: none !important; }
-    html { scroll-behavior: auto; }
-  }
-
-  h1 {
-    font-size: clamp(1.9rem, 5vw, 2.6rem); line-height: 1.15; margin: 0 0 10px;
-    letter-spacing: -0.02em; font-weight: 800;
-    background: linear-gradient(120deg, var(--text) 30%, var(--accent));
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-  }
-  h2 {
-    font-size: 1.3rem; margin-top: 2.8rem; padding-bottom: 8px; font-weight: 700;
-    border-bottom: 1px solid var(--border); letter-spacing: -0.01em;
-  }
-  .subtitle { color: var(--text-dim); margin-top: 0; font-size: 1.05rem; }
-  .lang-switch { text-align: right; font-size: 0.85rem; color: var(--text-dim); }
-
-  .signal-card {
-    background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 18px 20px; margin: 16px 0;
-    transition: border-color .2s, transform .2s;
-  }
-  .signal-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-  .signal-card.buy { border-left: 4px solid var(--win); }
-  .signal-card.sell { border-left: 4px solid var(--loss); }
-  /* Le carry a sa propre couleur, distincte du vert et du rouge : ce n'est ni
-     un pari haussier ni un pari baissier, et lui donner l'une des deux
-     couleurs directionnelles induirait exactement l'erreur qu'on cherche a
-     eviter. */
-  .signal-card.carry { border-left: 4px solid var(--accent); }
-  .badge.carry { background: var(--accent); }
-  .carry-neutral { color: var(--text-dim); font-style: italic; margin: 8px 0 12px; }
-  .carry-legs-heading, .carry-caveats-heading { margin: 12px 0 6px; }
-  .carry-legs, .carry-caveats { margin: 0 0 12px; padding-left: 20px; }
-  .carry-legs li, .carry-caveats li { margin-bottom: 6px; }
-  .carry-detail { color: var(--text-dim); font-size: 0.92rem; margin: 6px 0 12px; }
-  .signal-header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
-  .signal-pair { font-weight: 700; font-size: 1.15rem; }
-  .badge { padding: 3px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; color: #08111f; }
-  .badge.buy { background: var(--win); }
-  .badge.sell { background: var(--loss); color: #fff; }
-  .prices { display: flex; gap: 22px; margin: 14px 0; flex-wrap: wrap; font-size: 0.86rem; color: var(--text-dim); }
-  .prices span b { display: block; font-size: 1.05rem; color: var(--text); font-variant-numeric: tabular-nums; }
-  .signal-chart { max-width: 100%; border-radius: 10px; margin: 12px 0; border: 1px solid var(--border); }
-
-  .cta {
-    background: linear-gradient(135deg, var(--accent-soft), #0f2547);
-    border: 1px solid var(--accent); color: var(--text);
-    padding: 30px 24px; border-radius: var(--radius); text-align: center; margin: 3rem 0;
-  }
-  .cta a {
-    display: inline-block; margin-top: 10px; padding: 13px 30px;
-    background: var(--accent); color: #06101f; font-weight: 800;
-    border-radius: 999px; text-decoration: none; font-size: 1.05rem;
-    transition: transform .15s, box-shadow .15s;
-  }
-  .cta a:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(79,140,255,.35); }
-
-  .backtest { background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin: 2rem 0; }
-  .backtest h2 { margin-top: 0; border-bottom: none; }
-  .backtest-stat { font-size: 1.5rem; font-weight: 800; color: var(--gold); margin: 6px 0; letter-spacing: -0.01em; }
-  .backtest ul { padding-left: 1.15rem; margin: 8px 0 0; }
-  .backtest li { margin: 8px 0; }
-  .backtest-detail { font-size: 0.88rem; color: var(--text-dim); }
-  /* L'encadré d'avertissement était écrit en couleurs claires en dur
-     (#fffbeb sur #b45309), hérité du thème blanc : un rectangle blanc au
-     milieu d'une page sombre. Mêmes rôles visuels, variables du thème. */
-  .backtest-caveat {
-    font-size: 0.88rem; color: var(--text-dim); background: var(--bg-card);
-    border-left: 3px solid var(--gold); border-radius: 8px;
-    padding: 11px 13px; margin: 14px 0 0;
-  }
-  .sub-heading { font-weight: 700; color: var(--text); margin: 22px 0 4px; letter-spacing: -0.01em; }
-  .signals-note { font-size: 0.9rem; color: var(--text-dim); margin-top: 4px; }
-
-  /* Bloc des jours sans signal (filtre de tendance fermé). Ces jours-là
-     représentent 41 % du temps : l'explication doit être aussi visible qu'un
-     signal, pas reléguée en note de bas de page. L'or (--gold) est déjà la
-     couleur des chiffres qui comptent — aucune teinte nouvelle. */
-  .filter-closed {
-    background: var(--bg-soft); border: 1px solid var(--border);
-    border-left: 4px solid var(--gold); border-radius: var(--radius);
-    padding: 24px; margin: 2rem 0;
-  }
-  .filter-closed h2 { margin-top: 0; border-bottom: none; color: var(--gold); }
-  .filter-closed .lead { font-size: 1.08rem; }
-  .filter-closed .measured { font-size: 0.85rem; color: var(--text-dim); }
-  .filter-closed .note {
-    font-size: 0.9rem; color: var(--text-dim);
-    border-top: 1px solid var(--border); padding-top: 14px; margin-bottom: 0;
-  }
-
-  .perf-stats { display: flex; gap: 14px; flex-wrap: wrap; margin: 18px 0; }
-  .perf-stat {
-    flex: 1 1 120px; text-align: center; background: var(--bg-card);
-    border: 1px solid var(--border); border-radius: 12px; padding: 16px 10px;
-    font-size: .82rem; color: var(--text-dim);
-  }
-  .perf-stat b { display: block; font-size: 1.7rem; color: var(--text); font-variant-numeric: tabular-nums; }
-
-  table.recent { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 14px; }
-  table.recent th { text-align: left; padding: 9px 10px; color: var(--text-dim); font-weight: 600; border-bottom: 1px solid var(--border); }
-  table.recent td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); }
-  .outcome-win { color: var(--win); font-weight: 700; }
-  .outcome-loss { color: var(--loss); font-weight: 700; }
-
-  .disclaimer { font-size: 0.82rem; color: var(--text-dim); margin-top: 3rem; border-top: 1px solid var(--border); padding-top: 14px; }
-  footer { margin-top: 2rem; font-size: 0.85rem; color: var(--text-dim); }
-  footer a { color: var(--text-dim); }
-
-  @media (max-width: 600px) {
-    body { padding: 20px 14px 56px; }
-    .prices { gap: 14px; }
-    .perf-stat b { font-size: 1.45rem; }
-  }
-"""
+# La feuille de style vit dans theme.py depuis la refonte : elle occupait
+# 170 lignes au milieu de la logique de generation, et les cinq generateurs
+# de pages l'importaient deja d'ici. Le reexport garde ces imports valides.
+from theme import STYLE as _STYLE
+import home_sections
 
 
 def _signal_card_html(signal, s, lang):
@@ -893,7 +736,8 @@ def _no_signal_section_html(s):
 
 
 def build_daily_page(signals, performance_stats, page_date, canonical_path, lang="fr", alternate_path=None,
-                      backtest_stats=None, resolved_signals=None, reviews=None):
+                      backtest_stats=None, resolved_signals=None, reviews=None,
+                      filtre_ouvert=None, est_accueil=False):
     """
     Construit la page HTML complète pour une date donnée, dans la langue `lang` ("fr"/"en").
     `alternate_path` : chemin de la page équivalente dans l'autre langue (pour hreflang + lien de bascule).
@@ -918,13 +762,22 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
     description = s["meta_description"](len(signals), n_carry, pairs_list, date_str)
     canonical_url = f"{SITE_BASE_URL}{canonical_path}"
 
+    # Sur l'accueil, le hero porte la promesse produit et le titre daté revient
+    # au-dessus des signaux. Sur une page datée, le hero porte déjà ce titre :
+    # le répéter en ferait deux, pour un seul bloc de contenu.
+    titre_signaux = s["h1"](date_str) if est_accueil else s["signals_heading"](len(signals))
+
     # Deux états possibles, et le second n'est pas un cas dégradé : soit des
     # signaux du jour, soit l'explication du filtre de tendance fermé.
     if signals:
         cards_html = "".join(_signal_card_html(sig, s, lang) for sig in signals)
+        # Une seule section, un seul titre. Le titre daté et « Les N derniers
+        # signaux » se suivaient à trois centimètres d'écart, ce qui faisait
+        # bafouiller la page : deux en-têtes pour un seul bloc de contenu.
         signals_html = f"""
-    <section>
-      <h2>{s["signals_heading"](len(signals))}</h2>
+    <section id="signaux">
+      <h2>{titre_signaux}</h2>
+      <p class="subtitle">{s["subtitle"]}</p>
       <p class="signals-note">{s["signals_note"]}</p>
       {cards_html}
     </section>"""
@@ -965,29 +818,29 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
   <meta property="og:description" content="{html.escape(description)}">
   <meta property="og:url" content="{canonical_url}">
   <style>{_STYLE}</style>
+  {home_sections.faq_schema_org(lang)}
 </head>
 <body>
   {lang_switch_html}
-  <header>
-    <h1>{s["h1"](date_str)}</h1>
-    <p class="subtitle">{s["subtitle"]}</p>
-  </header>
 
-  {backtest_html}
+  {home_sections.hero_html(lang, filtre_ouvert=filtre_ouvert,
+                           titre_specifique=None if est_accueil else s["h1"](date_str))}
+
+  {home_sections.etapes_html(lang)}
 
   {signals_html}
 
   {performance_html}
 
+  {backtest_html}
+
   {paper_html}
 
   {testimonials_html}
 
-  <div class="cta">
-    <p>{s["cta_text"]}</p>
-    <a href="{TELEGRAM_URL}">{s["cta_link"](TELEGRAM_BOT_USERNAME)}</a>
-    <p><a href="{TELEGRAM_CHANNEL_URL}">{s["journal_link"]}</a></p>
-  </div>
+  {home_sections.faq_html(lang)}
+
+  {home_sections.appel_html(lang)}
 
   <p class="disclaimer">{s["disclaimer"]}</p>
 

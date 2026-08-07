@@ -14,6 +14,11 @@ from datetime import datetime, timezone
 
 from config import SITE_NAME, SITE_BASE_URL
 from equity_curve import build_distribution_svg
+# Meme feuille que le reste du site. Cette page avait sa propre CSS en
+# theme CLAIR : un visiteur qui cliquait sur "Transparence" depuis l'accueil
+# sombre atterrissait sur une page blanche, ce qui se lit comme une erreur
+# de site avant de se lire comme une autre page.
+from theme import STYLE as _STYLE
 
 MIN_DAYS_FOR_PAGE = 3
 _CLOSE_REASON_LABEL = {"tp_hit": "Take profit ✅", "sl_hit": "Stop loss ❌", "expired": "Expiré ⌛"}
@@ -118,23 +123,7 @@ def build_transparency_page(history, canonical_path="/transparency.html", resolv
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="{canonical_url}">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    :root {{ color-scheme: light dark; }}
-    body {{ font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 780px;
-           margin: 0 auto; padding: 24px 16px 64px; line-height: 1.55; color: #1a1a2e; }}
-    h1 {{ font-size: 1.6rem; margin-bottom: 4px; }}
-    .subtitle {{ color: #666; }}
-    .stats-grid {{ display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0 8px; }}
-    .stat-box {{ flex: 1 1 140px; border: 1px solid #e5e5ef; border-radius: 10px; padding: 12px 14px; }}
-    .stat-box b {{ display: block; font-size: 1.3rem; color: #4338ca; }}
-    .asof {{ font-size: 0.85rem; color: #777; margin-top: 0; }}
-    table {{ width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.9rem; }}
-    th, td {{ text-align: left; padding: 8px 10px; border-bottom: 1px solid #e5e5ef; }}
-    th {{ color: #4338ca; }}
-    .disclaimer {{ font-size: 0.82rem; color: #777; margin-top: 2rem; border-top: 1px solid #e5e5ef; padding-top: 12px; }}
-    footer {{ margin-top: 2rem; font-size: 0.85rem; color: #999; }}
-    a {{ color: #4338ca; }}
-  </style>
+  <style>{_STYLE}</style>
 </head>
 <body>
   <header>

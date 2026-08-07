@@ -100,6 +100,21 @@ def main():
 
     if signals:
         print("4/7 — Signaux réels trouvés : génération des pages du jour (français + anglais)...")
+        # État du filtre de tendance, affiché dans la pastille du hero. On le
+        # DÉDUIT des signaux du jour plutôt que de refaire un appel réseau : si
+        # une famille directionnelle a publié, le filtre était nécessairement
+        # ouvert au moment de la décision. Aucun signal directionnel ne permet
+        # pas de conclure — d'où le None, qui affiche une pastille neutre plutôt
+        # qu'un état inventé.
+        MOTEURS_DIRECTIONNELS = {"relative_strength", "high_confidence", "squeeze_15m"}
+        if any(sig.get("engine") in MOTEURS_DIRECTIONNELS for sig in signals):
+            filtre_ouvert = True
+        elif any(sig.get("engine") == "momentum_4h" for sig in signals):
+            # Ce moteur ne se déclenche QUE sous la moyenne 200 jours : sa
+            # présence est une preuve directe que le filtre est fermé.
+            filtre_ouvert = False
+        else:
+            filtre_ouvert = None
         performance = outcome_evaluator.compute_performance_stats()
         fr_archive_path = f"/signaux/{today_str}.html"
         en_archive_path = f"/en/signals/{today_str}.html"
@@ -117,6 +132,8 @@ def main():
                 backtest_stats=backtest_stats if relative_path in home_files else None,
                 resolved_signals=resolved_signals,
                 reviews=reviews,
+                filtre_ouvert=filtre_ouvert,
+                est_accueil=relative_path in home_files,
             )
             files_to_publish.append((relative_path, content))
 
