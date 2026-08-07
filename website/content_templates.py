@@ -10,6 +10,7 @@ pas conservée en base.
 """
 
 import random
+from datetime import datetime
 
 _BUY_TEMPLATES_FR = [
     "Le signal ACHAT sur {pair} a été déclenché par un croisement haussier : le prix est "
@@ -108,14 +109,89 @@ _CARRY_ANALYSE = {
 }
 
 
+# Analyses propres aux moteurs transversaux. Les gabarits BUY/SELL décrivent un
+# croisement d'EMA et une sortie de survente — c'est l'ancien moteur horaire, et
+# CE N'EST PAS ce qui a produit ces signaux-là. Les laisser s'appliquer publiait
+# sur un site indexé le récit détaillé d'une mécanique qui n'a jamais eu lieu.
+_ANALYSE_PAR_MOTEUR = {
+    "relative_strength": {
+        "fr": (
+            "Sur {pair}, ce signal ne vient pas d'un croisement d'indicateurs mais d'un "
+            "classement : la stratégie compare toutes les cryptos suivies entre elles et achète "
+            "les plus fortes du moment, en pariant sur la continuation de leur avance. {pair} "
+            "figurait parmi elles. Entrée vers {entry}, stop loss à {sl} ({sl_pct}), objectif "
+            "principal à {tp} ({tp_pct}). La sortie est prévue au bout de {jours} jours, "
+            "atteinte ou non — c'est la durée sur laquelle la stratégie a été validée."
+        ),
+        "en": (
+            "On {pair}, this signal comes from a ranking rather than an indicator crossover: the "
+            "strategy compares every tracked crypto against the others and buys the strongest of "
+            "the moment, betting their lead continues. {pair} was among them. Entry near {entry}, "
+            "stop loss at {sl} ({sl_pct}), main target at {tp} ({tp_pct}). The position closes "
+            "after {jours} days whether or not the target is reached — that is the holding period "
+            "the strategy was validated on."
+        ),
+    },
+    "momentum_4h": {
+        "fr": (
+            "Sur {pair}, même principe de classement que la force relative, mais mesuré sur des "
+            "bougies de 4 heures : {pair} figurait en tête des cryptos les plus fortes du moment. "
+            "Ce moteur ne se déclenche que lorsque le marché est baissier, le créneau où les "
+            "autres stratégies du système restent silencieuses. Entrée vers {entry}, stop loss à "
+            "{sl} ({sl_pct}), objectif principal à {tp} ({tp_pct}), sortie prévue au bout de "
+            "{jours} jours. Ce moteur est en observation : son avantage est mesuré positif sur "
+            "trois années sur quatre, mais en recul sur la dernière."
+        ),
+        "en": (
+            "On {pair}, the same ranking principle as relative strength, measured on 4-hour "
+            "candles: {pair} ranked among the strongest cryptos of the moment. This engine only "
+            "fires while the market is bearish — the window where the system's other strategies "
+            "stay silent. Entry near {entry}, stop loss at {sl} ({sl_pct}), main target at {tp} "
+            "({tp_pct}), exit after {jours} days. This engine is under observation: its edge "
+            "measures positive in three years out of four, but declining in the most recent one."
+        ),
+    },
+}
+
+
+def _jours_de_detention(signal):
+    """Durée prévue, en jours, quand le signal porte son échéance."""
+    debut, fin = signal.get("created_at"), signal.get("hold_until")
+    if not debut or not fin:
+        return None
+    try:
+        d = datetime.fromisoformat(str(debut).replace("Z", "+00:00"))
+        f = datetime.fromisoformat(str(fin).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    jours = round((f - d).total_seconds() / 86400)
+    return jours if jours >= 1 else None
+
+
 def generate_analysis(signal, lang="fr"):
-    """Un paragraphe d'analyse (fr/en), cohérent avec le type du signal."""
+    """Un paragraphe d'analyse (fr/en), cohérent avec le type ET le moteur du signal."""
     # Un carry n'a ni sens directionnel ni objectif de prix : les gabarits
     # BUY/SELL, qui parlent de cassure et de niveau à atteindre, décriraient
     # une position qui n'existe pas. Sans cette branche, la génération du site
     # échoue purement et simplement sur un KeyError dès qu'un carry est publié.
     if str(signal.get("type", "")).upper() == "CARRY":
         return _CARRY_ANALYSE.get(lang, _CARRY_ANALYSE["fr"]).format(pair=signal["pair"])
+
+    # Un moteur transversal décrit par un gabarit d'EMA raconterait une analyse
+    # technique qui n'a pas eu lieu. On ne bascule que si la durée est connue :
+    # sans elle, la phrase de sortie temporelle serait tout aussi inventée.
+    par_moteur = _ANALYSE_PAR_MOTEUR.get(signal.get("engine") or "")
+    jours = _jours_de_detention(signal)
+    if par_moteur and jours:
+        return par_moteur.get(lang, par_moteur["fr"]).format(
+            pair=signal["pair"],
+            entry=format_price(signal["entry_price"]),
+            sl=format_price(signal["stop_loss"]),
+            tp=format_price(signal["take_profit"]),
+            sl_pct=format_level_pct(signal["entry_price"], signal["stop_loss"]),
+            tp_pct=format_level_pct(signal["entry_price"], signal["take_profit"]),
+            jours=jours,
+        )
 
     templates = _TEMPLATES[lang][signal["type"]]
     template = random.choice(templates)
