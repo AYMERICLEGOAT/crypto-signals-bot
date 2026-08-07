@@ -24,19 +24,44 @@ fonctionnement et l'état réel du projet, y compris ses limites.
 import html
 import json
 
-from config import SITE_BASE_URL, TELEGRAM_BOT_USERNAME
+from config import SITE_BASE_URL, TELEGRAM_BOT_USERNAME, TELEGRAM_CHANNEL_URL
 from html_generator import _STYLE
 from social_meta import social_tags
 
 _EXTRA = """
-  .step { display: flex; gap: 16px; margin: 22px 0; align-items: flex-start; }
+  /* Le rond porte désormais un pictogramme et non un chiffre : le fond plein
+     bleu écrasait l'émoji, d'où le fond sourd et la bordure. Le numéro d'étape
+     n'a pas disparu pour autant — il est passé au-dessus du titre, là où il se
+     lit vraiment. */
   .step-num {
-    flex: 0 0 38px; height: 38px; border-radius: 50%;
-    background: var(--accent); color: #06101f; font-weight: 800;
-    display: flex; align-items: center; justify-content: center; font-size: 1.05rem;
+    flex: 0 0 42px; width: 42px; height: 42px; border-radius: 50%;
+    background: var(--bg-raised); border: 1px solid var(--border-lit);
+    display: flex; align-items: center; justify-content: center; font-size: 1.25rem;
   }
-  .step-body h3 { margin: 4px 0 6px; font-size: 1.08rem; }
+  .step-count {
+    display: block; font-size: .72rem; font-weight: 700; letter-spacing: .07em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 3px;
+  }
+  .step-body h3 { margin: 0 0 6px; font-size: 1.08rem; }
   .step-body p { margin: 0; color: var(--text-dim); }
+
+  /* Schéma du parcours. Il défile dans son conteneur plutôt que de rétrécir
+     indéfiniment : en dessous de ~560 px, les libellés deviendraient illisibles
+     et un schéma illisible ne vaut pas mieux qu'aucun schéma. */
+  .flow {
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 16px; margin: 22px 0;
+  }
+  .flow svg { display: block; width: 100%; min-width: 560px; height: auto; }
+  .flow-box rect { fill: var(--bg-soft); stroke: var(--border-lit); stroke-width: 1; }
+  .flow-links line, .flow-links path { stroke: currentColor; stroke-width: 1.5; opacity: .55; }
+  .flow-label text {
+    fill: var(--text); font-size: 14px; font-weight: 650; text-anchor: middle;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .flow-label text.dim { fill: var(--text-dim); font-size: 12px; font-weight: 500; }
+  .flow-label text.small { font-size: 11.5px; }
   .breadcrumb { font-size: .85rem; color: var(--text-dim); margin-bottom: 10px; }
   .glossary dt { font-weight: 700; margin-top: 18px; color: var(--accent); }
   .glossary dd { margin: 4px 0 0; color: var(--text-dim); }
@@ -114,6 +139,11 @@ FILTER_STATE_DATE = "4 août 2026"
 # ne décrivait donc plus le produit réellement vendu. Elles servent aussi de source unique
 # au balisage schema.org/HowTo plus bas : une seule liste, pas de divergence
 # possible entre ce qui est affiché et ce qui est déclaré aux moteurs.
+# Un pictogramme par étape. Il ne décore pas : sur une page de neuf étapes, il
+# donne un point d'accroche qui permet de retrouver « celle du filtre » ou
+# « celle du carry » sans relire les titres un par un.
+STEP_ICONS = ["⚙️", "🚦", "📈", "📊", "🌋", "💵", "🧪", "📩", "🔍"]
+
 STEPS = [
     ("Cinq moteurs tournent en parallèle, pas un seul",
      "Trois d'entre eux achètent (ils parient sur la hausse), un est neutre au marché, et le "
@@ -160,23 +190,88 @@ STEPS = [
 ]
 
 
+# Schéma du parcours, en SVG inline.
+#
+# Inline plutôt qu'en fichier image : aucune requête réseau supplémentaire, il
+# s'affiche même si tout le reste échoue à charger, et surtout il utilise les
+# variables CSS de la page — il suit donc le thème au lieu d'être une image
+# figée qui jurerait au premier changement de couleur.
+#
+# viewBox et preserveAspectRatio font le travail du responsive : le schéma se
+# réduit sans jamais déborder, et reste lisible à 320 px de large.
+_FLOW_SVG = """
+    <div class="flow">
+      <svg viewBox="0 0 900 190" role="img" aria-label="Parcours d'un signal : lecture des cours, classement, filtre de régime, publication, suivi, résultat public" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <marker id="fleche" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity=".55"/>
+          </marker>
+        </defs>
+        <g class="flow-links" color="#5b9dff">
+          <line x1="152" y1="60" x2="196" y2="60" marker-end="url(#fleche)"/>
+          <line x1="308" y1="60" x2="352" y2="60" marker-end="url(#fleche)"/>
+          <line x1="464" y1="60" x2="508" y2="60" marker-end="url(#fleche)"/>
+          <line x1="620" y1="60" x2="664" y2="60" marker-end="url(#fleche)"/>
+          <path d="M 742 92 L 742 140 L 78 140 L 78 92" marker-end="url(#fleche)" fill="none" stroke-dasharray="4 4"/>
+        </g>
+        <g class="flow-box">
+          <rect x="8"   y="30" width="144" height="62" rx="12"/>
+          <rect x="196" y="30" width="112" height="62" rx="12"/>
+          <rect x="352" y="30" width="112" height="62" rx="12"/>
+          <rect x="508" y="30" width="112" height="62" rx="12"/>
+          <rect x="664" y="30" width="156" height="62" rx="12"/>
+        </g>
+        <g class="flow-label">
+          <text x="80"  y="56">40 paires</text>
+          <text x="80"  y="76" class="dim">cours lus</text>
+          <text x="252" y="56">Classement</text>
+          <text x="252" y="76" class="dim">force relative</text>
+          <text x="408" y="56">Régime</text>
+          <text x="408" y="76" class="dim">MM 200 jours</text>
+          <text x="564" y="56">Arbitre</text>
+          <text x="564" y="76" class="dim">2 à 5 par jour</text>
+          <text x="742" y="56">Telegram</text>
+          <text x="742" y="76" class="dim">puis résultat public</text>
+          <text x="410" y="163" class="dim small">Le résultat, gagnant ou perdant, revient nourrir la mesure du lendemain</text>
+        </g>
+      </svg>
+    </div>
+"""
+
 def build_how_it_works():
     steps_html = "\n".join(
         f'''    <div class="step">
-      <div class="step-num">{i}</div>
-      <div class="step-body"><h3>{html.escape(t)}</h3><p>{html.escape(d)}</p></div>
+      <div class="step-num" aria-hidden="true">{STEP_ICONS[i - 1] if i <= len(STEP_ICONS) else i}</div>
+      <div class="step-body">
+        <h3><span class="step-count">Étape {i}</span>{html.escape(t)}</h3>
+        <p>{html.escape(d)}</p>
+      </div>
     </div>'''
         for i, (t, d) in enumerate(STEPS, 1)
     )
     body = f"""  <p class="breadcrumb"><a href="/">Accueil</a> › Comment ça marche</p>
-  <header>
+  <header class="hero">
+    <span class="status-pill"><span class="status-dot"></span>Aucune intervention humaine, aucune opinion</span>
     <h1>Comment ça marche</h1>
-    <p class="subtitle">Cinq moteurs de signaux, dont un qui ne dépend pas du prix et un qui ne
-       travaille que lorsque le marché baisse.
-       Étape par étape, et avec les chiffres tels qu'ils ont été mesurés.</p>
+    <p class="hero-sub">Cinq moteurs de signaux, dont un qui ne dépend pas du prix et un qui ne
+       travaille que lorsque le marché baisse. Étape par étape, avec les chiffres tels qu'ils ont
+       été mesurés — y compris ceux qui dérangent.</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="https://t.me/{TELEGRAM_BOT_USERNAME}">🎁 Essayer 3 jours gratuitement</a>
+      <a class="btn btn-ghost" href="#parcours">Voir le parcours d'un signal</a>
+    </div>
+    <p class="btn-note">Aucun moyen de paiement demandé. Rien à désinscrire.</p>
   </header>
 
+  <section id="parcours">
+    <h2>Le parcours d'un signal, d'un bout à l'autre</h2>
+    <p class="lead">De la lecture des cours jusqu'à la publication du résultat, sans qu'aucune
+       décision humaine n'intervienne à un seul endroit de la chaîne.</p>
+{_FLOW_SVG}
+  </section>
+
   <section>
+    <h2>Les neuf étapes, en détail</h2>
 {steps_html}
   </section>
 
@@ -325,10 +420,18 @@ def build_how_it_works():
   </section>
 
   <div class="cta">
-    <p><b>Teste sans payer</b></p>
-    <p>Essai gratuit de 3 jours, aucun moyen de paiement demandé.
-       Vérifie d'abord l'état du marché avec <code>/marche</code>.</p>
-    <a href="https://t.me/{TELEGRAM_BOT_USERNAME}">Ouvrir le bot Telegram →</a>
+    <div class="cta-inner">
+      <h2>Essaie 3 jours, sans rien payer</h2>
+      <p>Tu recevras exactement ce que reçoit un abonné : les signaux, leur format, et les jours
+         où il n'y a rien. Il n'existe pas de version « démo » différente du produit.</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="https://t.me/{TELEGRAM_BOT_USERNAME}">🎁 Démarrer l'essai gratuit</a>
+        <a class="btn btn-ghost" href="{TELEGRAM_CHANNEL_URL}">📖 Voir le canal public</a>
+      </div>
+      <p class="btn-note">Aucun moyen de paiement demandé, aucun prélèvement automatique, rien à
+         désinscrire. Tape <code>/marche</code> dans le bot pour voir l'état du marché avant même
+         de commencer.</p>
+    </div>
   </div>
 """
     jsonld = {
