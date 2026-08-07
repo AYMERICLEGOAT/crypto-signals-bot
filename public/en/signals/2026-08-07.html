@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Crypto Signals for 08/07/2026 — Signaux Crypto Gratuits</title>
+  <meta name="description" content="Free analysis of 5 crypto signals (HMSTR/USDT, ZEC/USDT, RESOLV/USDT, DYDX/USDT, MEGA/USDT) for 08/07/2026: 5 funding carry position(s), market-neutral trades whose outcome does not depend on price. The directional families are idle today. Real track record included.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://crypto-signals-bot-site.signalytics.workers.dev/en/signals/2026-08-07.html">
+  <link rel="alternate" hreflang="en" href="https://crypto-signals-bot-site.signalytics.workers.dev/en/signals/2026-08-07.html">
+  <link rel="alternate" hreflang="fr" href="https://crypto-signals-bot-site.signalytics.workers.dev/signaux/2026-08-07.html">
+  <link rel="alternate" hreflang="x-default" href="https://crypto-signals-bot-site.signalytics.workers.dev/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Crypto Signals for 08/07/2026 — Signaux Crypto Gratuits">
+  <meta property="og:description" content="Free analysis of 5 crypto signals (HMSTR/USDT, ZEC/USDT, RESOLV/USDT, DYDX/USDT, MEGA/USDT) for 08/07/2026: 5 funding carry position(s), market-neutral trades whose outcome does not depend on price. The directional families are idle today. Real track record included.">
+  <meta property="og:url" content="https://crypto-signals-bot-site.signalytics.workers.dev/en/signals/2026-08-07.html">
+  <style>
+  /* Refonte visuelle du 02/08/2026. L'ancienne feuille était fonctionnelle
+     mais neutre : fond blanc, texte noir, un seul accent violet. Dans un
+     secteur où la première impression décide en quelques secondes, un site
+     qui ressemble à une page de documentation ne donne pas envie d'essayer.
+
+     Parti pris : sombre par défaut (attendu dans l'univers crypto/trading),
+     accents bleu et or, hiérarchie typographique nette. Tout est en CSS pur
+     — aucune police externe, aucun script : le site reste instantané et
+     fonctionne sans JavaScript. */
+  :root {
+    --bg: #0b0e14;
+    --bg-soft: #131822;
+    --bg-card: #171d29;
+    --border: #252d3d;
+    --text: #e6ebf4;
+    --text-dim: #98a2b8;
+    --accent: #4f8cff;
+    --accent-soft: #1e3a6b;
+    --gold: #f0b429;
+    --win: #22c55e;
+    --loss: #ef4444;
+    --radius: 14px;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    max-width: 860px; margin: 0 auto; padding: 28px 18px 72px;
+    line-height: 1.65; font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+
+  /* Apparition douce au défilement, sans JavaScript : l'animation se
+     déclenche au chargement, décalée par section. Respecte
+     prefers-reduced-motion. */
+  header, section, .cta, .backtest { animation: fade-up .5s ease-out both; }
+  section:nth-of-type(2) { animation-delay: .06s; }
+  section:nth-of-type(3) { animation-delay: .12s; }
+  section:nth-of-type(4) { animation-delay: .18s; }
+  @keyframes fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+    html { scroll-behavior: auto; }
+  }
+
+  h1 {
+    font-size: clamp(1.9rem, 5vw, 2.6rem); line-height: 1.15; margin: 0 0 10px;
+    letter-spacing: -0.02em; font-weight: 800;
+    background: linear-gradient(120deg, var(--text) 30%, var(--accent));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  h2 {
+    font-size: 1.3rem; margin-top: 2.8rem; padding-bottom: 8px; font-weight: 700;
+    border-bottom: 1px solid var(--border); letter-spacing: -0.01em;
+  }
+  .subtitle { color: var(--text-dim); margin-top: 0; font-size: 1.05rem; }
+  .lang-switch { text-align: right; font-size: 0.85rem; color: var(--text-dim); }
+
+  .signal-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 20px; margin: 16px 0;
+    transition: border-color .2s, transform .2s;
+  }
+  .signal-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .signal-card.buy { border-left: 4px solid var(--win); }
+  .signal-card.sell { border-left: 4px solid var(--loss); }
+  /* Le carry a sa propre couleur, distincte du vert et du rouge : ce n'est ni
+     un pari haussier ni un pari baissier, et lui donner l'une des deux
+     couleurs directionnelles induirait exactement l'erreur qu'on cherche a
+     eviter. */
+  .signal-card.carry { border-left: 4px solid var(--accent); }
+  .badge.carry { background: var(--accent); }
+  .carry-neutral { color: var(--text-dim); font-style: italic; margin: 8px 0 12px; }
+  .carry-legs-heading, .carry-caveats-heading { margin: 12px 0 6px; }
+  .carry-legs, .carry-caveats { margin: 0 0 12px; padding-left: 20px; }
+  .carry-legs li, .carry-caveats li { margin-bottom: 6px; }
+  .carry-detail { color: var(--text-dim); font-size: 0.92rem; margin: 6px 0 12px; }
+  .signal-header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+  .signal-pair { font-weight: 700; font-size: 1.15rem; }
+  .badge { padding: 3px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; color: #08111f; }
+  .badge.buy { background: var(--win); }
+  .badge.sell { background: var(--loss); color: #fff; }
+  .prices { display: flex; gap: 22px; margin: 14px 0; flex-wrap: wrap; font-size: 0.86rem; color: var(--text-dim); }
+  .prices span b { display: block; font-size: 1.05rem; color: var(--text); font-variant-numeric: tabular-nums; }
+  .signal-chart { max-width: 100%; border-radius: 10px; margin: 12px 0; border: 1px solid var(--border); }
+
+  .cta {
+    background: linear-gradient(135deg, var(--accent-soft), #0f2547);
+    border: 1px solid var(--accent); color: var(--text);
+    padding: 30px 24px; border-radius: var(--radius); text-align: center; margin: 3rem 0;
+  }
+  .cta a {
+    display: inline-block; margin-top: 10px; padding: 13px 30px;
+    background: var(--accent); color: #06101f; font-weight: 800;
+    border-radius: 999px; text-decoration: none; font-size: 1.05rem;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .cta a:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(79,140,255,.35); }
+
+  .backtest { background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin: 2rem 0; }
+  .backtest h2 { margin-top: 0; border-bottom: none; }
+  .backtest-stat { font-size: 1.5rem; font-weight: 800; color: var(--gold); margin: 6px 0; letter-spacing: -0.01em; }
+  .backtest ul { padding-left: 1.15rem; margin: 8px 0 0; }
+  .backtest li { margin: 8px 0; }
+  .backtest-detail { font-size: 0.88rem; color: var(--text-dim); }
+  /* L'encadré d'avertissement était écrit en couleurs claires en dur
+     (#fffbeb sur #b45309), hérité du thème blanc : un rectangle blanc au
+     milieu d'une page sombre. Mêmes rôles visuels, variables du thème. */
+  .backtest-caveat {
+    font-size: 0.88rem; color: var(--text-dim); background: var(--bg-card);
+    border-left: 3px solid var(--gold); border-radius: 8px;
+    padding: 11px 13px; margin: 14px 0 0;
+  }
+  .sub-heading { font-weight: 700; color: var(--text); margin: 22px 0 4px; letter-spacing: -0.01em; }
+  .signals-note { font-size: 0.9rem; color: var(--text-dim); margin-top: 4px; }
+
+  /* Bloc des jours sans signal (filtre de tendance fermé). Ces jours-là
+     représentent 41 % du temps : l'explication doit être aussi visible qu'un
+     signal, pas reléguée en note de bas de page. L'or (--gold) est déjà la
+     couleur des chiffres qui comptent — aucune teinte nouvelle. */
+  .filter-closed {
+    background: var(--bg-soft); border: 1px solid var(--border);
+    border-left: 4px solid var(--gold); border-radius: var(--radius);
+    padding: 24px; margin: 2rem 0;
+  }
+  .filter-closed h2 { margin-top: 0; border-bottom: none; color: var(--gold); }
+  .filter-closed .lead { font-size: 1.08rem; }
+  .filter-closed .measured { font-size: 0.85rem; color: var(--text-dim); }
+  .filter-closed .note {
+    font-size: 0.9rem; color: var(--text-dim);
+    border-top: 1px solid var(--border); padding-top: 14px; margin-bottom: 0;
+  }
+
+  .perf-stats { display: flex; gap: 14px; flex-wrap: wrap; margin: 18px 0; }
+  .perf-stat {
+    flex: 1 1 120px; text-align: center; background: var(--bg-card);
+    border: 1px solid var(--border); border-radius: 12px; padding: 16px 10px;
+    font-size: .82rem; color: var(--text-dim);
+  }
+  .perf-stat b { display: block; font-size: 1.7rem; color: var(--text); font-variant-numeric: tabular-nums; }
+
+  table.recent { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 14px; }
+  table.recent th { text-align: left; padding: 9px 10px; color: var(--text-dim); font-weight: 600; border-bottom: 1px solid var(--border); }
+  table.recent td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); }
+  .outcome-win { color: var(--win); font-weight: 700; }
+  .outcome-loss { color: var(--loss); font-weight: 700; }
+
+  .disclaimer { font-size: 0.82rem; color: var(--text-dim); margin-top: 3rem; border-top: 1px solid var(--border); padding-top: 14px; }
+  footer { margin-top: 2rem; font-size: 0.85rem; color: var(--text-dim); }
+  footer a { color: var(--text-dim); }
+
+  @media (max-width: 600px) {
+    body { padding: 20px 14px 56px; }
+    .prices { gap: 14px; }
+    .perf-stat b { font-size: 1.45rem; }
+  }
+</style>
+</head>
+<body>
+  <p class="lang-switch"><a href="/signaux/2026-08-07.html">Version française</a></p>
+  <header>
+    <h1>Free Crypto Signals — 08/07/2026</h1>
+    <p class="subtitle">Four signal families, each validated over 6 years against a random control: relative strength, channel breakout, volatility expansion, and funding carry — the only one that keeps producing when the market falls. Updated daily.</p>
+  </header>
+
+  
+
+  
+    <section>
+      <h2>🔎 Latest 5 signals</h2>
+      <p class="signals-note">Three families buy an uptrend: entry, a deliberately wide 4x ATR stop (disaster protection, not a management tool), tracking milestones at 4x, 8x and 12x ATR, and a time-based exit — the date closes the position, not a price target. The fourth one, the funding carry, does not bet on price at all: it opens two opposite legs and closes on a date. It therefore has no stop loss and no take profit, and that is normal.</p>
+      
+    <article class="signal-card carry">
+      <div class="signal-header">
+        <span class="signal-pair">HMSTR/USDT</span>
+        <span class="badge carry">CARRY</span>
+      </div>
+      <p class="carry-neutral">Market-neutral position: price can go up or down, it makes no difference to the outcome.</p>
+      <p class="carry-legs-heading"><b>Both legs, opened at the same time and for the same amount</b></p>
+      <ul class="carry-legs">
+        <li>🟢 Spot buy of HMSTR/USDT</li>
+        <li>🔴 Short sale of the HMSTR/USDT perpetual</li>
+      </ul>
+      <div class="prices">
+        <span>Reference price<b>0.000198</b></span>
+        <span>Expected net funding<b>+7,3 % par an</b></span>
+        <span>Scheduled close<b>21 jours</b></span>
+      </div>
+      <p class="carry-detail">Soit +0.40% sur 21 jours, frais déduits.</p>
+      <p>Perpetual buyers pay funding to sellers every 8 hours. By being short the perpetual you collect it; since the spot position exactly offsets the perpetual one, price does not enter the equation. Both legs are closed together on the date shown.</p>
+      <p class="carry-caveats-heading"><b>What you need to know before opening</b></p>
+      <ul class="carry-caveats"><li>The stated amount is an estimate at opening, not a given: the funding rate moves during the hold and can even flip.</li><li>This is not &quot;risk-free&quot;. The short leg can be liquidated if margin becomes insufficient, and platform risk remains. Over 6 years, one extreme funding day cost -19.86% on a position.</li><li>Both legs must be closed at the same time: keeping only one turns a neutral position into a directional bet.</li></ul>
+    </article>
+    <article class="signal-card carry">
+      <div class="signal-header">
+        <span class="signal-pair">ZEC/USDT</span>
+        <span class="badge carry">CARRY</span>
+      </div>
+      <p class="carry-neutral">Market-neutral position: price can go up or down, it makes no difference to the outcome.</p>
+      <p class="carry-legs-heading"><b>Both legs, opened at the same time and for the same amount</b></p>
+      <ul class="carry-legs">
+        <li>🟢 Spot buy of ZEC/USDT</li>
+        <li>🔴 Short sale of the ZEC/USDT perpetual</li>
+      </ul>
+      <div class="prices">
+        <span>Reference price<b>509.38</b></span>
+        <span>Expected net funding<b>+7,3 % par an</b></span>
+        <span>Scheduled close<b>21 jours</b></span>
+      </div>
+      <p class="carry-detail">Soit +0.41% sur 21 jours, frais déduits.</p>
+      <p>Perpetual buyers pay funding to sellers every 8 hours. By being short the perpetual you collect it; since the spot position exactly offsets the perpetual one, price does not enter the equation. Both legs are closed together on the date shown.</p>
+      <p class="carry-caveats-heading"><b>What you need to know before opening</b></p>
+      <ul class="carry-caveats"><li>The stated amount is an estimate at opening, not a given: the funding rate moves during the hold and can even flip.</li><li>This is not &quot;risk-free&quot;. The short leg can be liquidated if margin becomes insufficient, and platform risk remains. Over 6 years, one extreme funding day cost -19.86% on a position.</li><li>Both legs must be closed at the same time: keeping only one turns a neutral position into a directional bet.</li></ul>
+    </article>
+    <article class="signal-card carry">
+      <div class="signal-header">
+        <span class="signal-pair">RESOLV/USDT</span>
+        <span class="badge carry">CARRY</span>
+      </div>
+      <p class="carry-neutral">Market-neutral position: price can go up or down, it makes no difference to the outcome.</p>
+      <p class="carry-legs-heading"><b>Both legs, opened at the same time and for the same amount</b></p>
+      <ul class="carry-legs">
+        <li>🟢 Spot buy of RESOLV/USDT</li>
+        <li>🔴 Short sale of the RESOLV/USDT perpetual</li>
+      </ul>
+      <div class="prices">
+        <span>Reference price<b>0.017640</b></span>
+        <span>Expected net funding<b>+7,7 % par an</b></span>
+        <span>Scheduled close<b>21 jours</b></span>
+      </div>
+      <p class="carry-detail">Soit +0.43% sur 21 jours, frais déduits.</p>
+      <p>Perpetual buyers pay funding to sellers every 8 hours. By being short the perpetual you collect it; since the spot position exactly offsets the perpetual one, price does not enter the equation. Both legs are closed together on the date shown.</p>
+      <p class="carry-caveats-heading"><b>What you need to know before opening</b></p>
+      <ul class="carry-caveats"><li>The stated amount is an estimate at opening, not a given: the funding rate moves during the hold and can even flip.</li><li>This is not &quot;risk-free&quot;. The short leg can be liquidated if margin becomes insufficient, and platform risk remains. Over 6 years, one extreme funding day cost -19.86% on a position.</li><li>Both legs must be closed at the same time: keeping only one turns a neutral position into a directional bet.</li></ul>
+    </article>
+    <article class="signal-card carry">
+      <div class="signal-header">
+        <span class="signal-pair">DYDX/USDT</span>
+        <span class="badge carry">CARRY</span>
+      </div>
+      <p class="carry-neutral">Market-neutral position: price can go up or down, it makes no difference to the outcome.</p>
+      <p class="carry-legs-heading"><b>Both legs, opened at the same time and for the same amount</b></p>
+      <ul class="carry-legs">
+        <li>🟢 Spot buy of DYDX/USDT</li>
+        <li>🔴 Short sale of the DYDX/USDT perpetual</li>
+      </ul>
+      <div class="prices">
+        <span>Reference price<b>0.114200</b></span>
+        <span>Expected net funding<b>+7,7 % par an</b></span>
+        <span>Scheduled close<b>21 jours</b></span>
+      </div>
+      <p class="carry-detail">Soit +0.43% sur 21 jours, frais déduits.</p>
+      <p>Perpetual buyers pay funding to sellers every 8 hours. By being short the perpetual you collect it; since the spot position exactly offsets the perpetual one, price does not enter the equation. Both legs are closed together on the date shown.</p>
+      <p class="carry-caveats-heading"><b>What you need to know before opening</b></p>
+      <ul class="carry-caveats"><li>The stated amount is an estimate at opening, not a given: the funding rate moves during the hold and can even flip.</li><li>This is not &quot;risk-free&quot;. The short leg can be liquidated if margin becomes insufficient, and platform risk remains. Over 6 years, one extreme funding day cost -19.86% on a position.</li><li>Both legs must be closed at the same time: keeping only one turns a neutral position into a directional bet.</li></ul>
+    </article>
+    <article class="signal-card carry">
+      <div class="signal-header">
+        <span class="signal-pair">MEGA/USDT</span>
+        <span class="badge carry">CARRY</span>
+      </div>
+      <p class="carry-neutral">Market-neutral position: price can go up or down, it makes no difference to the outcome.</p>
+      <p class="carry-legs-heading"><b>Both legs, opened at the same time and for the same amount</b></p>
+      <ul class="carry-legs">
+        <li>🟢 Spot buy of MEGA/USDT</li>
+        <li>🔴 Short sale of the MEGA/USDT perpetual</li>
+      </ul>
+      <div class="prices">
+        <span>Reference price<b>0.036030</b></span>
+        <span>Expected net funding<b>+7,7 % par an</b></span>
+        <span>Scheduled close<b>21 jours</b></span>
+      </div>
+      <p class="carry-detail">Soit +0.43% sur 21 jours, frais déduits.</p>
+      <p>Perpetual buyers pay funding to sellers every 8 hours. By being short the perpetual you collect it; since the spot position exactly offsets the perpetual one, price does not enter the equation. Both legs are closed together on the date shown.</p>
+      <p class="carry-caveats-heading"><b>What you need to know before opening</b></p>
+      <ul class="carry-caveats"><li>The stated amount is an estimate at opening, not a given: the funding rate moves during the hold and can even flip.</li><li>This is not &quot;risk-free&quot;. The short leg can be liquidated if margin becomes insufficient, and platform risk remains. Over 6 years, one extreme funding day cost -19.86% on a position.</li><li>Both legs must be closed at the same time: keeping only one turns a neutral position into a directional bet.</li></ul>
+    </article>
+    </section>
+
+  
+    <section>
+      <h2>📊 Real performance of past signals</h2>
+      
+        <div class="perf-stats">
+          <div class="perf-stat"><b>10</b>closed signals</div>
+          <div class="perf-stat"><b>50.0%</b>win rate</div>
+          <div class="perf-stat"><b>5</b>wins</div>
+          <div class="perf-stat"><b>5</b>losses</div>
+        </div>
+        <p class="perf-secured">🔒 3 (30%) secured trades (TP1 reached, break-even or better)</p>
+        <table class="recent">
+          <thead><tr><th>Pair</th><th>Type</th><th>Result</th></tr></thead>
+          <tbody><tr>
+                  <td>ETC/USDT</td>
+                  <td>BUY</td>
+                  <td class="outcome-loss">LOSS</td>
+                </tr><tr>
+                  <td>XLM/USDT</td>
+                  <td>SELL</td>
+                  <td class="outcome-win">WIN</td>
+                </tr><tr>
+                  <td>AVAX/USDT</td>
+                  <td>BUY</td>
+                  <td class="outcome-win">WIN</td>
+                </tr><tr>
+                  <td>SOL/USDT</td>
+                  <td>BUY</td>
+                  <td class="outcome-win">WIN</td>
+                </tr><tr>
+                  <td>LINK/USDT</td>
+                  <td>BUY</td>
+                  <td class="outcome-loss">LOSS</td>
+                </tr><tr>
+                  <td>XLM/USDT</td>
+                  <td>BUY</td>
+                  <td class="outcome-loss">LOSS</td>
+                </tr><tr>
+                  <td>NEAR/USDT</td>
+                  <td>SELL</td>
+                  <td class="outcome-loss">LOSS</td>
+                </tr><tr>
+                  <td>CHZ/USDT</td>
+                  <td>BUY</td>
+                  <td class="outcome-loss">LOSS</td>
+                </tr><tr>
+                  <td>DOGE/USDT</td>
+                  <td>SELL</td>
+                  <td class="outcome-win">WIN</td>
+                </tr><tr>
+                  <td>LTC/USDT</td>
+                  <td>SELL</td>
+                  <td class="outcome-win">WIN</td>
+                </tr></tbody>
+        </table>
+        <p style="font-size:0.85rem;color:#777;">Result determined automatically by comparing each signal's current price to its stop loss and take profit (not a tick-by-tick intrabar analysis).</p>
+        <p style="font-size:0.85rem;color:#777;">These results may include signals produced by earlier engines, since switched off. They therefore do not describe the four families above, which have no live track record yet. A carry's outcome is not measured on a price but on the funding actually collected, net of fees.</p>
+    </section>
+
+  
+    <section class="paper-trading">
+      <h2>💼 Live performance (paper portfolio)</h2>
+      <p>If a paper portfolio had allocated 10% of its capital to each of the last 9 resolved signals (sent or not), here is its cumulative track record:</p>
+      <svg viewBox="0 0 640 200" width="100%" height="200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Courbe du portefeuille fictif, de 100 à 101.5"><line x1="10" y1="190.0" x2="630" y2="190.0" stroke="#d1d5db" stroke-width="1" stroke-dasharray="4,4"/><polyline points="10.0,190.0 72.0,126.2 134.0,73.4 196.0,84.0 258.0,94.2 320.0,102.4 382.0,111.7 444.0,111.7 506.0,53.6 568.0,10.0 630.0,18.6" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <p class="paper-result" style="color:#16a34a;font-weight:700;">+1.5%</p>
+      <p>📉 Worst cumulative drop observed (max drawdown): 0.3%</p>
+      <p style="font-size:0.82rem;color:#777;">⚠️ Illustrative simulation (fixed position sizing, no compounding of gains) — does not reflect a real account or fees/slippage. Not investment advice.</p>
+    </section>
+
+  
+    <section class="testimonials">
+      <h2>💬 What people say</h2>
+      <blockquote><p>“ I was skeptical, but last week&#x27;s BTC/USDT signal got me +4% in 48h. Still subscribed. ”</p><cite>— Thomas D.</cite></blockquote><blockquote><p>“ What I like is that the stop loss is always given upfront. No bad surprises. ”</p><cite>— Sarah L.</cite></blockquote><blockquote><p>“ Signals are less frequent than I expected, but at least they come with an explanation instead of being thrown out with no context. ”</p><cite>— Karim B.</cite></blockquote><blockquote><p>“ I started with the free trial before switching to a paid plan. The Telegram format is handy day to day. ”</p><cite>— Julie M.</cite></blockquote>
+      <p style="font-size:0.82rem;color:#777;">⚠️ Fictional examples illustrating the format of user feedback — not real testimonials.</p>
+    </section>
+
+  <div class="cta">
+    <p>📡 Get these signals in real time, the moment they're detected:</p>
+    <a href="https://t.me/ProVIPSignals_bot">Join @ProVIPSignals_bot on Telegram</a>
+    <p><a href="https://t.me/ProSignauxPublic">📖 Public trading journal — every signal opened and closed, wins and losses, no filtering</a></p>
+  </div>
+
+  <p class="disclaimer">⚠️ This content is provided for informational and educational purposes only, it does not constitute investment advice. Trading cryptoassets carries a risk of capital loss. Past performance does not guarantee future results.</p>
+
+  <footer>
+    <p>Page automatically generated on 08/07/2026. — <a href="/privacy.html">Privacy Policy</a> — <a href="/terms.html">Terms of Service</a> — <a href="/transparency.html">Transparency</a> — <a href="/guides/">Guides</a> — <a href="/comment-ca-marche.html">How it works</a> — <a href="/faq.html">FAQ</a> — <a href="/glossaire.html">Glossary</a> — <a href="/a-propos.html">About</a> — <a href="/mentions-legales.html">Mentions légales</a></p>
+  </footer>
+</body>
+</html>
