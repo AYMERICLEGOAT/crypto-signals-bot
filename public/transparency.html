@@ -8,22 +8,651 @@
   <link rel="canonical" href="https://crypto-signals-bot-site.signalytics.workers.dev/transparency.html">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    :root { color-scheme: light dark; }
-    body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 780px;
-           margin: 0 auto; padding: 24px 16px 64px; line-height: 1.55; color: #1a1a2e; }
-    h1 { font-size: 1.6rem; margin-bottom: 4px; }
-    .subtitle { color: #666; }
-    .stats-grid { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0 8px; }
-    .stat-box { flex: 1 1 140px; border: 1px solid #e5e5ef; border-radius: 10px; padding: 12px 14px; }
-    .stat-box b { display: block; font-size: 1.3rem; color: #4338ca; }
-    .asof { font-size: 0.85rem; color: #777; margin-top: 0; }
-    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.9rem; }
-    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e5e5ef; }
-    th { color: #4338ca; }
-    .disclaimer { font-size: 0.82rem; color: #777; margin-top: 2rem; border-top: 1px solid #e5e5ef; padding-top: 12px; }
-    footer { margin-top: 2rem; font-size: 0.85rem; color: #999; }
-    a { color: #4338ca; }
-  </style>
+  :root {
+    /* Fonds, du plus profond au plus proche. La carte n'est pas plus claire
+       « pour faire joli » : c'est ce léger écart qui permet de voir où un bloc
+       commence et finit sans avoir à tracer une bordure partout. */
+    --bg:        #080b12;
+    --bg-soft:   #0f141f;
+    --bg-card:   #141a27;
+    --bg-raised: #1b2231;
+    --border:    #232c3d;
+    --border-lit:#2f3b52;
+
+    --text:      #e8edf7;
+    --text-dim:  #9aa6bd;
+    --text-faint:#6b7689;
+
+    /* Bleu : liens, boutons, tout ce qui se clique. */
+    --accent:      #5b9dff;
+    --accent-hi:   #7fb4ff;
+    --accent-deep: #1b3a72;
+    --accent-glow: rgba(91, 157, 255, 0.16);
+
+    /* Or : les chiffres qui portent la preuve. Jamais un lien, jamais un bouton. */
+    --gold:      #f2b53c;
+    --gold-soft: rgba(242, 181, 60, 0.12);
+
+    /* Vert et rouge : RÉSULTATS RÉELS uniquement. Aucun usage décoratif. */
+    --win:  #2ecc71;
+    --loss: #f0574d;
+
+    --radius:    16px;
+    --radius-sm: 10px;
+    --shadow:    0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+    --shadow-lg: 0 2px 4px rgba(0,0,0,.4), 0 24px 48px -20px rgba(0,0,0,.75);
+
+    --max:  1080px;
+    --text-max: 68ch;
+
+    color-scheme: dark;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    padding: 0 0 80px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  /* Une seule gouttière, définie ici, respectée partout : c'est ce qui fait
+     que les blocs s'alignent verticalement au lieu de flotter chacun de son
+     côté. */
+  header, section, .cta, .backtest, footer, .disclaimer,
+  .lang-switch, .breadcrumb, .honesty-banner, .guide-body, .glossary {
+    max-width: var(--max);
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  /* ---- Titres ------------------------------------------------------------ */
+  h1, h2, h3, h4 {
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin: 0 0 12px;
+    font-weight: 700;
+  }
+  h1 { font-size: 2rem; letter-spacing: -0.035em; }
+  h2 {
+    font-size: 1.5rem;
+    margin-top: 8px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  h3 { font-size: 1.125rem; color: var(--text); }
+  h4 { font-size: 1rem; color: var(--text-dim); font-weight: 600; }
+
+  p { margin: 0 0 16px; max-width: var(--text-max); }
+  section { margin-bottom: 56px; }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-hi); text-decoration: underline; }
+  strong, b { color: var(--text); font-weight: 650; }
+
+  ul, ol { padding-left: 22px; max-width: var(--text-max); }
+  li { margin-bottom: 8px; }
+
+  code, .mono {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.92em;
+    background: var(--bg-raised);
+    padding: 2px 6px;
+    border-radius: 5px;
+  }
+
+  /* ---- HERO -------------------------------------------------------------- */
+  /* La seule zone du site qui s'autorise un dégradé. Elle a cinq secondes pour
+     dire ce que fait le produit et pourquoi on peut le croire ; tout le reste
+     de la page suppose que ces cinq secondes ont réussi. */
+  .hero {
+    position: relative;
+    padding-top: 56px;
+    padding-bottom: 48px;
+    margin-bottom: 48px;
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    top: -220px; left: 50%;
+    width: 900px; height: 520px;
+    transform: translateX(-50%);
+    background: radial-gradient(ellipse at center, var(--accent-glow) 0%, transparent 68%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .hero > * { position: relative; z-index: 1; }
+
+  .hero h1 {
+    font-size: clamp(2rem, 7vw, 3.25rem);
+    margin-bottom: 20px;
+    max-width: 18ch;
+  }
+  .hero h1 .hl {
+    background: linear-gradient(100deg, var(--accent-hi), var(--gold));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .hero-sub {
+    font-size: 1.0625rem;
+    color: var(--text-dim);
+    max-width: 56ch;
+    margin-bottom: 28px;
+  }
+
+  /* Pastille d'état : le seul élément du hero qui change tout seul. Elle dit
+     ce que fait le moteur MAINTENANT, ce qu'aucune promesse ne remplace. */
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px 6px 12px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border-lit);
+    border-radius: 999px;
+    background: var(--bg-card);
+    font-size: 0.8125rem;
+    color: var(--text-dim);
+    max-width: 100%;
+  }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--win);
+    flex: 0 0 auto;
+    box-shadow: 0 0 0 3px rgba(46, 204, 113, .18);
+  }
+  .status-pill.is-closed .status-dot {
+    background: var(--gold);
+    box-shadow: 0 0 0 3px var(--gold-soft);
+  }
+
+  /* ---- Preuve chiffrée du hero ------------------------------------------- */
+  .proof {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin: 32px 0 0;
+    padding: 0;
+    list-style: none;
+    max-width: 100%;
+  }
+  .proof li {
+    margin: 0;
+    padding: 16px 18px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .proof b {
+    display: block;
+    font-size: 1.625rem;
+    line-height: 1.1;
+    color: var(--gold);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+  }
+  .proof span {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.8125rem;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+
+  /* ---- Boutons ----------------------------------------------------------- */
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 26px;
+    border-radius: 999px;
+    font-weight: 650;
+    font-size: 1rem;
+    text-decoration: none;
+    border: 1px solid transparent;
+    transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+    /* 48 px de haut : la cible minimale confortable au pouce. */
+    min-height: 48px;
+  }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); }
+
+  .btn-main, .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #3f7fe6);
+    color: #fff;
+    box-shadow: 0 4px 16px -4px rgba(91, 157, 255, .55);
+  }
+  .btn-main:hover, .btn-primary:hover {
+    color: #fff;
+    box-shadow: 0 8px 24px -6px rgba(91, 157, 255, .7);
+  }
+  .btn-ghost {
+    background: var(--bg-card);
+    border-color: var(--border-lit);
+    color: var(--text);
+  }
+  .btn-ghost:hover { background: var(--bg-raised); color: var(--text); }
+
+  .btn-note {
+    font-size: 0.8125rem;
+    color: var(--text-faint);
+    margin-top: 14px;
+  }
+
+  /* ---- Étapes « comment ça marche » -------------------------------------- */
+  .steps {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 0;
+    margin: 24px 0 0;
+    list-style: none;
+    counter-reset: step;
+  }
+  .steps li {
+    position: relative;
+    margin: 0;
+    padding: 22px 22px 22px 68px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    counter-increment: step;
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 22px; top: 22px;
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: var(--accent-deep);
+    color: var(--accent-hi);
+    font-size: 0.9375rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .steps h3 { margin: 0 0 6px; font-size: 1.0625rem; }
+  .steps p  { margin: 0; color: var(--text-dim); font-size: 0.9375rem; }
+
+  /* ---- Cartes de signal --------------------------------------------------- */
+  .signal-card, .backtest, .glossary, .related, .guide-cta {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .signal-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .signal-pair { font-size: 1.1875rem; font-weight: 700; letter-spacing: -0.02em; }
+
+  .badge {
+    display: inline-block;
+    padding: 4px 11px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .badge.buy   { background: rgba(46,204,113,.14);  color: var(--win);   border: 1px solid rgba(46,204,113,.3); }
+  .badge.sell  { background: rgba(240,87,77,.14);   color: var(--loss);  border: 1px solid rgba(240,87,77,.3); }
+  .badge.carry { background: var(--gold-soft);      color: var(--gold);  border: 1px solid rgba(242,181,60,.3); }
+
+  .prices, .legs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin: 14px 0;
+  }
+  /* Le HTML est `<span>Libellé<b>valeur</b></span>` : le libellé est un nœud de
+     texte nu, impossible à cibler directement. On style donc le conteneur
+     COMME un libellé (petit, gris, capitales), et le <b> reprend la main pour
+     la valeur. Sans cette bascule, les deux se collaient — « Entrée0.089100 ». */
+  .price-line, .leg, .prices > span, .legs > span, .legs > li {
+    display: block;
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--text-faint);
+  }
+  .price-line b, .leg b, .prices > span b, .legs > span b {
+    display: block;
+    margin-top: 4px;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--text);
+    text-transform: none;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Les deux jambes d'un carry sont une liste, pas une grille de valeurs. */
+  ul.carry-legs {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 14px;
+    display: grid;
+    gap: 8px;
+  }
+  ul.carry-legs li {
+    margin: 0;
+    padding: 11px 14px;
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.9375rem;
+  }
+  .signal-chart { width: 100%; height: auto; border-radius: var(--radius-sm); margin-top: 14px; }
+
+  .carry-neutral {
+    background: var(--gold-soft);
+    border-left: 3px solid var(--gold);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    padding: 12px 16px;
+    margin: 0 0 14px;
+    font-size: 0.9375rem;
+  }
+  .carry-legs-heading, .carry-caveats-heading, .sub-heading {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--text-faint);
+    font-weight: 700;
+    margin: 18px 0 8px;
+  }
+  .carry-caveats { font-size: 0.9375rem; color: var(--text-dim); }
+
+  /* ---- Chiffres de performance -------------------------------------------- */
+  .perf-stats, .kpis, .stats-grid, .archive-stats, .family-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 12px;
+    margin: 20px 0;
+  }
+  .perf-stat, .kpi, .stat-box, .backtest-stat, .family {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 18px 16px;
+    text-align: center;
+    font-size: 0.8125rem;
+    color: var(--text-dim);
+    line-height: 1.35;
+  }
+  .perf-stat b, .kpi b, .stat-box b, .backtest-stat b, .family b {
+    display: block;
+    font-size: 1.5rem;
+    line-height: 1.15;
+    color: var(--gold);
+    margin-bottom: 5px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .gold { color: var(--gold); }
+
+  /* ---- Tableaux ------------------------------------------------------------ */
+  /* Tout tableau défile DANS son conteneur. Sans cela, un tableau un peu large
+     fait défiler la page entière de côté sur mobile — le défaut le plus visible
+     et le plus banal d'un site fait au clavier sur grand écran. */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 18px 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9375rem;
+    min-width: 320px;
+  }
+  th, td {
+    padding: 11px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--text-faint);
+    font-weight: 700;
+    background: var(--bg-soft);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  .recent { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+  .outcome-win  { color: var(--win);  font-weight: 700; }
+  .outcome-loss { color: var(--loss); font-weight: 700; }
+
+  /* ---- Témoignages --------------------------------------------------------- */
+  blockquote {
+    margin: 0 0 14px;
+    padding: 20px 22px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+  }
+  blockquote p { margin: 0; font-size: 1rem; }
+  blockquote cite {
+    display: block;
+    margin-top: 10px;
+    font-style: normal;
+    font-size: 0.8125rem;
+    color: var(--text-faint);
+  }
+
+  /* ---- FAQ ----------------------------------------------------------------- */
+  /* <details> natif : ouverture sans une ligne de JavaScript, accessible au
+     clavier, et fonctionnel même si tout le reste échoue à charger. */
+  details.qa {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  details.qa summary {
+    padding: 16px 46px 16px 20px;
+    cursor: pointer;
+    font-weight: 620;
+    position: relative;
+    list-style: none;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+  }
+  details.qa summary::-webkit-details-marker { display: none; }
+  details.qa summary::after {
+    content: "+";
+    position: absolute;
+    right: 20px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.25rem;
+    color: var(--text-faint);
+    transition: transform .2s ease;
+  }
+  details.qa[open] summary::after { content: "\2212"; }
+  details.qa[open] summary { border-bottom: 1px solid var(--border); }
+  details.qa .qa-body { padding: 16px 20px 4px; color: var(--text-dim); }
+  details.qa .qa-body p:last-child { margin-bottom: 12px; }
+
+  /* ---- Bloc d'appel final --------------------------------------------------- */
+  .cta {
+    text-align: center;
+    padding-top: 44px;
+    padding-bottom: 44px;
+    margin-top: 8px;
+  }
+  .cta-inner {
+    background: linear-gradient(160deg, var(--bg-raised), var(--bg-card));
+    border: 1px solid var(--border-lit);
+    border-radius: 22px;
+    padding: 40px 24px;
+    box-shadow: var(--shadow-lg);
+  }
+  .cta h2 { border: none; padding: 0; margin-bottom: 12px; font-size: 1.625rem; }
+  .cta p { margin-left: auto; margin-right: auto; color: var(--text-dim); }
+  .cta .actions { justify-content: center; }
+
+  /* ---- Bandeaux d'information ------------------------------------------------ */
+  .honesty-banner, .filter-closed, .warn, .risk {
+    background: var(--gold-soft);
+    border: 1px solid rgba(242,181,60,.25);
+    border-left: 3px solid var(--gold);
+    border-radius: var(--radius-sm);
+    padding: 16px 18px;
+    margin: 20px auto;
+    font-size: 0.9375rem;
+  }
+  .honesty-banner p:last-child, .warn p:last-child, .risk p:last-child { margin-bottom: 0; }
+
+  .note, .note-left, .signals-note, .backtest-caveat, .perf-secured,
+  .guide-disclaimer, .asof, .measured {
+    font-size: 0.875rem;
+    color: var(--text-faint);
+    line-height: 1.55;
+  }
+  .lead { font-size: 1.0625rem; color: var(--text-dim); max-width: 60ch; }
+  .lead-sub { color: var(--text-dim); }
+  .subtitle { color: var(--text-dim); font-size: 1.0625rem; max-width: 60ch; }
+
+  .disclaimer {
+    font-size: 0.8125rem;
+    color: var(--text-faint);
+    border-top: 1px solid var(--border);
+    padding-top: 22px;
+    margin-top: 40px;
+  }
+
+  .breadcrumb, .lang-switch { font-size: 0.8125rem; color: var(--text-faint); padding-top: 18px; }
+  .breadcrumb a, .lang-switch a { color: var(--text-dim); }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding-top: 26px;
+    margin-top: 40px;
+    font-size: 0.8125rem;
+    color: var(--text-faint);
+  }
+  footer a { color: var(--text-dim); }
+  footer p { max-width: none; }
+
+  /* ---- Archives ------------------------------------------------------------- */
+  .archive-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+  }
+  .archive-pair { font-weight: 650; }
+  .archive-info, .archive-detail, .archive-side { color: var(--text-dim); font-size: 0.875rem; }
+  .archive-outcome { margin-left: auto; font-weight: 700; }
+  .archive-svg { width: 100%; height: auto; }
+
+  /* ---- Étapes de paiement ---------------------------------------------------- */
+  .steps-pay { list-style: none; padding: 0; margin: 22px 0; }
+  .step {
+    display: flex;
+    gap: 16px;
+    padding: 18px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 10px;
+  }
+  .step-num {
+    flex: 0 0 32px;
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: var(--accent-deep);
+    color: var(--accent-hi);
+    font-weight: 700;
+  }
+  .step-body { flex: 1; min-width: 0; }
+  .step-body p:last-child { margin-bottom: 0; }
+
+  /* ---- Grands écrans ---------------------------------------------------------- */
+  @media (min-width: 760px) {
+    body { font-size: 17px; }
+    .hero { padding-top: 88px; padding-bottom: 72px; }
+    .hero-sub { font-size: 1.1875rem; }
+    h2 { font-size: 1.75rem; }
+    section { margin-bottom: 72px; }
+    .steps { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .cta-inner { padding: 56px 48px; }
+    .signal-card, .backtest { padding: 26px; }
+  }
+  @media (min-width: 1040px) {
+    .steps { grid-template-columns: repeat(4, 1fr); }
+    .steps li { padding: 24px 20px 22px; }
+    .steps li::before { position: static; margin-bottom: 14px; }
+  }
+
+  /* ---- Mouvement ---------------------------------------------------------------- */
+  /* Une seule animation, à l'apparition, décalée par section. Elle donne le
+     sentiment que la page se construit plutôt qu'elle ne s'affiche d'un bloc.
+     Elle est purement décorative : la page est déjà lisible sans elle, ce qui
+     est la condition pour pouvoir la couper entièrement ci-dessous. */
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .hero, section, .cta {
+    animation: rise .5s cubic-bezier(.22,.61,.36,1) both;
+  }
+  section:nth-of-type(1) { animation-delay: .05s; }
+  section:nth-of-type(2) { animation-delay: .1s; }
+  section:nth-of-type(3) { animation-delay: .15s; }
+  section:nth-of-type(4) { animation-delay: .2s; }
+  section:nth-of-type(n+5) { animation-delay: .25s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+
+  /* Focus visible au clavier. Sans cette règle, un visiteur qui navigue au
+     clavier ne sait plus où il se trouve dès qu'il quitte les liens de texte. */
+  a:focus-visible, summary:focus-visible, .btn:focus-visible {
+    outline: 2px solid var(--accent-hi);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+</style>
 </head>
 <body>
   <header>
@@ -218,6 +847,6 @@
   déterminé automatiquement (prix courant comparé au stop loss / take profit) — voir la section performance de
   la <a href="/">page d'accueil</a> pour le détail. Performance passée, pas une garantie pour l'avenir.</p>
 
-  <footer>Page générée automatiquement le 07/08/2026 à 14:57 UTC. <a href="/privacy.html">Politique de confidentialité</a> — <a href="/terms.html">Conditions générales</a> — <a href="/mentions-legales.html">Mentions légales</a></footer>
+  <footer>Page générée automatiquement le 07/08/2026 à 18:43 UTC. <a href="/privacy.html">Politique de confidentialité</a> — <a href="/terms.html">Conditions générales</a> — <a href="/mentions-legales.html">Mentions légales</a></footer>
 </body>
 </html>
