@@ -55,8 +55,9 @@ function buildActivationMessage(endsAt: Date): string {
     ? `Au ${TREND_FILTER_STATUS.measuredOn}, le filtre est FERMÉ : ${TREND_FILTER_STATUS.detail}. ` +
       "Les trois familles directionnelles sont donc à l'arrêt en ce moment, et c'est le carry que tu vas " +
       "voir passer. Tape /marche pour l'état recalculé en direct, et les carrys ouverts à cet instant."
-    : `Au ${TREND_FILTER_STATUS.measuredOn}, le filtre est ouvert : les quatre familles émettent. ` +
-      "Il peut se refermer n'importe quand — ce jour-là, le carry continuera seul. Tape /marche à tout moment.";
+    : `Au ${TREND_FILTER_STATUS.measuredOn}, le filtre est ouvert : quatre des cinq familles émettent. ` +
+      "Il peut se refermer n'importe quand — ce jour-là, le carry et le momentum 4H prendront le relais. " +
+      "Tape /marche à tout moment.";
 
   return (
     "🎉 Essai gratuit activé. Tu reçois les signaux pendant 3 jours, jusqu'au " +

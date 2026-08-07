@@ -16,8 +16,9 @@ import { TREND_FILTER_STATUS } from "./subscribe";
  * fonctionnement, et quelqu'un qui tape /help après plusieurs jours sans rien
  * recevoir cherche cette explication-là, pas la liste.
  *
- * Réécrit le 04/08/2026 (passage à quatre familles de signaux). L'en-tête
- * précédent décrivait un bot à une seule famille et affirmait qu'AUCUN signal
+ * Réécrit le 04/08/2026 (passage à plusieurs familles de signaux ; elles sont
+ * cinq depuis l'ajout du momentum 4H le 07/08/2026). L'en-tête précédent
+ * décrivait un bot à une seule famille et affirmait qu'AUCUN signal
  * n'était émis sous la moyenne 200 jours : c'est devenu faux le jour où le
  * carry de financement est entré en service, puisqu'il n'est pas soumis à ce
  * filtre. Une personne qui recevait des carrys en marché baissier aurait lu ici
@@ -38,7 +39,7 @@ export async function handleHelpCommand(env: Env, telegramId: number): Promise<v
   // Formulation revue avec l'arrivée du carry : filtre fermé ne veut plus dire
   // « plus rien n'arrive », mais « plus rien de directionnel n'arrive ».
   const filterState = TREND_FILTER_STATUS.closed
-    ? `Au ${TREND_FILTER_STATUS.measuredOn} ce filtre est FERMÉ (${TREND_FILTER_STATUS.detail}) : seuls des carrys peuvent encore partir.`
+    ? `Au ${TREND_FILTER_STATUS.measuredOn} ce filtre est FERMÉ (${TREND_FILTER_STATUS.detail}) : seuls des carrys et des signaux momentum 4H peuvent encore partir.`
     : `Au ${TREND_FILTER_STATUS.measuredOn} ce filtre est ouvert, mais il peut se refermer sans préavis.`;
 
   await sendMessage(
@@ -46,9 +47,11 @@ export async function handleHelpCommand(env: Env, telegramId: number): Promise<v
     telegramId,
     "📖 *Commandes disponibles*\n\n" +
       "*Comment fonctionne le bot*\n" +
-      "Quatre familles de signaux, toutes mesurées sur 6 ans de données et comparées à un tirage " +
+      "Cinq familles de signaux, toutes mesurées sur 6 ans de données et comparées à un tirage " +
       "aléatoire pour vérifier qu'elles ne doivent rien au hasard. Trois parient sur la hausse : force " +
-      "relative, cassure de canal, expansion de volatilité. La quatrième ne parie pas sur le prix.\n\n" +
+      "relative, cassure de canal, expansion de volatilité. La quatrième, le carry, ne parie pas sur le " +
+      "prix du tout. La cinquième, le momentum 4H, ne travaille QUE quand le marché baisse — elle est " +
+      "en observation, et chacun de ses signaux le dit.\n\n" +
       "*Le carry de financement, en deux phrases*\n" +
       "Achat au comptant et vente à découvert du perpétuel, même montant : les deux jambes s'annulent, " +
       "donc le prix n'entre pas dans l'équation. Ce que tu encaisses, c'est le financement que les " +

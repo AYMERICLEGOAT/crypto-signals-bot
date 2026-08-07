@@ -12,21 +12,42 @@ function trialCtaButton(): InlineKeyboardButton {
   return { text: "🎁 Essai gratuit", callback_data: "start:trial" };
 }
 
-/** Premier message de la séquence /start : accroche seule, un unique bouton essai. */
-export function buildStartMessage1Keyboard(showTrial: boolean): InlineKeyboard | undefined {
-  return showTrial ? [[trialCtaButton()]] : undefined;
+/**
+ * Premier message : voir un signal d'abord, essayer ensuite.
+ *
+ * L'ordre n'est pas anodin. « Voir un vrai signal » ne demande strictement
+ * rien ; l'essai, lui, suppose d'avoir rejoint le canal public et de fournir
+ * une adresse de wallet (voir commands/trial.ts). Mettre la demande avant la
+ * démonstration, c'est demander un effort à quelqu'un qui n'a pas encore vu ce
+ * qu'il achète.
+ */
+export function buildStartMessage1Keyboard(showTrial: boolean): InlineKeyboard {
+  const rows: InlineKeyboard = [[{ text: "📈 Voir un vrai signal", callback_data: "start:demo" }]];
+  if (showTrial) rows.push([trialCtaButton()]);
+  return rows;
 }
 
 /** Deuxième message (+3s) : /demo et /trial en boutons cliquables, voir commands/start.ts. */
 export function buildStartMessage2Keyboard(showTrial: boolean): InlineKeyboard {
   const rows: InlineKeyboard = [[{ text: "📈 /demo — voir un exemple", callback_data: "start:demo" }]];
-  if (showTrial) rows.push([{ text: "🎁 /trial — essai gratuit 3 jours", callback_data: "start:trial" }]);
+  if (showTrial) rows.push([{ text: "🎁 Essai gratuit — 3 jours", callback_data: "start:trial" }]);
   return rows;
 }
 
-/** Troisième message (+10s) : /help, plus le bouton essai rappelé sur chaque message. */
+/**
+ * Troisième message (+10s) : /help, le parrainage, et l'essai rappelé une
+ * dernière fois.
+ *
+ * Le parrainage figure ici et nulle part ailleurs dans la séquence : c'est le
+ * seul moment où l'utilisateur a vu de quoi il s'agit et peut donc avoir envie
+ * d'en parler. Proposé au premier écran, il demanderait de recommander un
+ * produit qu'on n'a pas encore regardé.
+ */
 export function buildStartMessage3Keyboard(showTrial: boolean): InlineKeyboard {
-  const rows: InlineKeyboard = [[{ text: "❓ /help — toutes les commandes", callback_data: "start:help" }]];
+  const rows: InlineKeyboard = [
+    [{ text: "❓ /help — toutes les commandes", callback_data: "start:help" }],
+    [{ text: "🤝 Parrainer et gagner des jours", callback_data: "start:referral" }],
+  ];
   if (showTrial) rows.push([trialCtaButton()]);
   return rows;
 }

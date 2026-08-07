@@ -329,7 +329,7 @@ function buildOpenMessage(state: TrendState, carryLine: string | null): string {
     : `depuis le ${frDate(state.sinceMs)}, soit ${state.runDays} jour${state.runDays > 1 ? "s" : ""}`;
 
   return joinLines([
-    "📈 *Marché favorable — les quatre familles émettent*",
+    "📈 *Marché favorable — quatre des cinq familles émettent*",
     "",
     `Le Bitcoin clôture ${fr(state.gapPct)} % au-dessus de sa moyenne mobile 200 jours (clôture du ${frDate(state.asOfMs)}). C'est la condition d'ouverture du filtre de tendance, et elle est remplie ${duration}.`,
     "",
@@ -408,9 +408,10 @@ function buildUnknownMessage(carryLine: string | null): string {
 /**
  * /marche — état en direct du filtre de tendance.
  *
- * Ouvert = les quatre familles émettent. Fermé = les trois directionnelles se
- * taisent, le carry continue. Aucun des deux états ne signifie « le canal
- * n'envoie rien ».
+ * Ouvert = quatre des cinq familles émettent (le momentum 4H ne travaille
+ * QU'en marché baissier). Fermé = les trois directionnelles se taisent, le
+ * carry et le momentum 4H continuent. Aucun des deux états ne signifie « le
+ * canal n'envoie rien ».
  */
 export async function handleMarcheCommand(env: Env, telegramId: number): Promise<void> {
   // Les carrys ouverts sont lus dans tous les cas, y compris quand les sources

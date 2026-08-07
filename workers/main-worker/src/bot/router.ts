@@ -149,6 +149,7 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
     else if (data === "start:status") await handleStatusCommand(env, chatId);
     else if (data === "start:demo") await handleDemoCommand(env, chatId);
     else if (data === "start:help") await handleHelpCommand(env, chatId);
+    else if (data === "start:referral") await handleReferralCommand(env, chatId);
     else if (data.startsWith("plan:")) await handlePlanSelection(env, chatId, data);
     else if (data.startsWith("consent:")) await handlePurchaseConsent(env, chatId, data);
     // Avant le préfixe générique "pay:" : "pay:guide" n'est pas un choix de

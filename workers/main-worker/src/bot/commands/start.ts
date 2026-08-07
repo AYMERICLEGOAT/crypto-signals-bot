@@ -42,9 +42,10 @@ const PUBLIC_CHANNEL_DELAY_MINUTES = 30;
  *   2. pourquoi ce serait différent des dizaines d'autres canaux ;
  *   3. comment j'essaie tout de suite, gratuitement.
  *
- * Le carry de financement occupe tout le deuxième message. C'est la seule
- * famille dont le résultat ne dépend pas du prix, la seule qui produise en
- * marché baissier, et elle n'était mentionnée nulle part dans le bot — alors
+ * Le carry de financement occupe la moitié du deuxième message. C'est la seule
+ * famille dont le résultat ne dépend pas du prix, et la mieux établie des deux
+ * qui produisent en marché baissier — l'autre étant le momentum 4H, encore en
+ * observation. Elle n'était mentionnée nulle part dans le bot — alors
  * que c'est de très loin ce qu'il y a de plus intéressant à raconter ici, et
  * la seule chose à dire à quelqu'un qui arrive un jour où le filtre est fermé.
  *
@@ -72,38 +73,35 @@ export async function handleStart(env: Env, telegramId: number, referralPayload?
   // wallet — voir commands/trial.ts). Le clavier de l'essai reste construit par
   // buildStartMessage1Keyboard plutôt que réécrit ici, pour que la règle
   // « pas d'essai proposé à un abonné payant » reste à un seul endroit.
-  const message1Keyboard: InlineKeyboard = [
-    [{ text: "📈 Voir un vrai signal, tout de suite", callback_data: "start:demo" }],
-    ...(buildStartMessage1Keyboard(showTrial) ?? []),
-  ];
+  // Le clavier vient de keyboards.ts et n'est pas réécrit ici : la règle
+  // « pas d'essai proposé à un abonné payant » doit rester à un seul endroit.
+  const message1Keyboard: InlineKeyboard = buildStartMessage1Keyboard(showTrial);
 
-  // Envoyé sans parse_mode (comme tout ce fichier depuis l'origine) : les
-  // textes contiennent des %, des tirets, des parenthèses et des slashs de
-  // commandes qui ont déjà fait tomber des messages Markdown sur ce projet.
+  // MESSAGE 1 — CINQ SECONDES, PAS PLUS.
+  //
+  // Il faisait 1 500 caractères et contenait le débit mesuré, quatre arguments
+  // de différenciation et une invitation. Tout y était vrai et tout y était
+  // utile — mais pas là. Un premier écran qui demande une minute de lecture
+  // n'est pas lu : il est balayé, et la seule chose qui reste est l'impression
+  // d'un mur de texte. Ce qui suit tient en quatre lignes et répond aux trois
+  // seules questions du premier instant : c'est quoi, ça donne quoi, et qu'est-ce
+  // que je fais maintenant.
+  //
+  // La contrainte du produit (le silence en marché baissier) figure dès cette
+  // ligne. Ce n'est pas de la prudence juridique : c'est l'argument. Un canal
+  // qui se tait est exactement ce qui le distingue des dizaines d'autres, et le
+  // dire d'entrée transforme la principale objection en promesse.
+  //
+  // Envoyé sans parse_mode, comme tout ce fichier : les textes contiennent des
+  // %, des tirets, des parenthèses et des slashs de commandes qui ont déjà fait
+  // tomber des messages Markdown sur ce projet.
   await sendMessage(
     env.TELEGRAM_BOT_TOKEN,
     telegramId,
-    "📊 Des signaux d'achat crypto, en français, directement sur Telegram.\n\n" +
-      "CE QUE TU REÇOIS\n" +
-      "Environ 3 signaux par jour : 2,99 en moyenne mesurée sur 6 ans, 4,35 quand le marché est porteur " +
-      "et 1,15 quand il ne l'est pas. Chacun te donne la paire, le prix d'entrée, le stop et les " +
-      "objectifs : tu n'as qu'à les recopier sur ta plateforme. 80 % des jours ont au moins un signal.\n\n" +
-      "POURQUOI CE N'EST PAS UN CANAL DE PLUS\n" +
-      "• Chaque chiffre écrit ici vient d'un test sur 6 ans de données, comparé à un tirage aléatoire " +
-      "pour vérifier qu'il ne doit rien au hasard. Aucun n'est arrondi à notre avantage.\n" +
-      // Formulé sur ce que le code fait RÉELLEMENT : cron/trackSignalOutcomes.ts
-      // publie la clôture sur le canal gratuit pour tout signal qui y est passé,
-      // et /history rend le résultat de chaque signal reçu, toutes familles
-      // confondues. Promettre « chaque résultat sur le canal » serait faux pour
-      // les carrys, dont le suivi (cron/trackCarryOutcomes.ts) part en privé.
-      "• Les pertes sont annoncées comme les gains : la clôture est publiée sur le canal gratuit, et " +
-      "ton /history te rend le résultat de chaque signal reçu. Rien n'est effacé.\n" +
-      "• Quand le marché ne s'y prête pas, on se tait. Sur 6 ans, ce silence a occupé 41 % du temps, " +
-      "dont une fois 381 jours d'affilée. C'est écrit ici, avant que tu paies quoi que ce soit.\n" +
-      "• Et une famille de signaux gagne sans parier sur le prix, même quand tout baisse. C'est le " +
-      "message juste après : c'est ce qu'il y a de plus intéressant ici.\n\n" +
-      "POUR ESSAYER SANS RIEN DONNER\n" +
-      "Le bouton ci-dessous te montre un vrai signal, en entier. Aucun compte, aucun paiement.",
+    "📊 Des signaux d'achat crypto, en français, sur Telegram.\n\n" +
+      "Environ 3 par jour : paire, prix d'entrée, stop, objectifs. Tu recopies, c'est tout.\n\n" +
+      "Et quand le marché ne s'y prête pas, on se tait plutôt que d'inventer des trades.\n\n" +
+      "👇 Regarde à quoi ressemble un vrai signal — ça ne demande rien.",
     { keyboard: message1Keyboard }
   );
 
@@ -121,30 +119,42 @@ export async function handleStart(env: Env, telegramId: number, referralPayload?
     ? `Et ça tombe bien : au ${TREND_FILTER_STATUS.measuredOn}, ${TREND_FILTER_STATUS.detail}. Les trois ` +
       "autres familles de signaux (force relative, cassure de canal, expansion de volatilité) sont donc " +
       "à l'arrêt, et le resteront tant que cette moyenne n'aura pas été repassée — ça peut durer des " +
-      "semaines ou des mois. Le carry, lui, n'est pas coupé par ce filtre : c'est aujourd'hui la seule " +
-      "famille qui peut encore émettre."
-    : `Au ${TREND_FILTER_STATUS.measuredOn}, le filtre de tendance est ouvert : les quatre familles ` +
-      "peuvent émettre. Il peut se refermer sans préavis — les trois familles directionnelles " +
-      "s'arrêteront alors, le carry non.";
+      "semaines ou des mois. Deux familles continuent pendant ce temps : le carry, qui n'est pas coupé " +
+      "par ce filtre, et le momentum 4H, qui ne travaille QUE dans ce régime — il est en observation, " +
+      "et chacun de ses signaux le dit."
+    : `Au ${TREND_FILTER_STATUS.measuredOn}, le filtre de tendance est ouvert : les familles ` +
+      "directionnelles émettent. Il peut se refermer sans préavis — elles s'arrêteront alors, et le " +
+      "relais passera au carry et au momentum 4H.";
 
   await sleep(MESSAGE_2_DELAY_MS);
+
+  // MESSAGE 2 — POURQUOI CE SERAIT CRÉDIBLE.
+  //
+  // Le carry occupe la moitié de ce message parce que c'est la seule chose
+  // vraiment singulière à raconter : une position dont le résultat ne dépend
+  // pas du prix. C'est aussi la seule réponse tenable à quelqu'un qui arrive un
+  // jour où le filtre est fermé.
+  //
+  // Ses risques sont écrits dans le MÊME message que ses résultats, jamais plus
+  // bas. Les séparer recréerait le mécanisme du « 61,2 % de réussite » resté
+  // affiché à tort pendant des mois.
   await sendMessage(
     env.TELEGRAM_BOT_TOKEN,
     telegramId,
-    "💵 LA POSITION OÙ LE PRIX N'A AUCUNE IMPORTANCE\n\n" +
-      "Tu achètes une crypto au comptant, et tu vends à découvert le même montant en contrat perpétuel. " +
-      "Les deux jambes s'annulent : si le prix monte, l'une gagne exactement ce que l'autre perd. S'il " +
-      "s'effondre, pareil. Le prix n'entre pas dans l'équation.\n\n" +
-      "Alors d'où vient le gain ? Sur les perpétuels, les acheteurs versent un financement aux vendeurs " +
-      "toutes les 8 heures. Comme tu es vendeur d'un côté, tu l'encaisses. C'est tout, il n'y a pas " +
-      "d'indicateur secret là-dessous.\n\n" +
-      "Ce que ça a donné sur 6 ans, frais déduits : 84,2 % de positions gagnantes, +0,572 % net par " +
-      "position, et 6 années positives sur 7 — la septième, 2022, finit à -0,046 %, autrement dit à plat.\n\n" +
+    "🔍 POURQUOI CE N'EST PAS UN CANAL DE PLUS\n\n" +
+      "• Chaque chiffre vient d'un test sur 6 ans, comparé à un tirage aléatoire pour vérifier qu'il ne " +
+      "doit rien au hasard. Sur douze approches essayées, deux ont été retenues.\n" +
+      "• Les pertes sont publiées comme les gains, sur le canal gratuit. Rien n'est effacé.\n" +
+      "• Le silence a occupé 41 % du temps sur 6 ans, dont une fois 381 jours d'affilée. C'est écrit " +
+      "ici, avant que tu paies quoi que ce soit.\n\n" +
+      "💵 ET UNE POSITION OÙ LE PRIX N'A AUCUNE IMPORTANCE\n\n" +
+      "Tu achètes au comptant, et tu vends à découvert le même montant en perpétuel. Les deux jambes " +
+      "s'annulent : si le prix monte, l'une gagne ce que l'autre perd. Ce que tu encaisses, c'est le " +
+      "financement que les acheteurs de perpétuels versent aux vendeurs toutes les 8 heures.\n\n" +
+      "Sur 6 ans, frais déduits : 84,2 % de positions gagnantes, 6 années positives sur 7.\n\n" +
       "Ce n'est pas sans risque, et personne ne devrait te dire le contraire : ta jambe vendeuse peut " +
-      "être liquidée si ta marge devient insuffisante, il reste un risque de plateforme, et une journée " +
-      "de financement extrême a déjà coûté -19,86 % sur une position.\n\n" +
-      `${filterState}\n\n` +
-      "/marche te donne cet état recalculé en direct, à la seconde où tu le demandes.",
+      "être liquidée si ta marge devient insuffisante, et la pire position mesurée a perdu 19,86 %.\n\n" +
+      `${filterState}`,
     { keyboard: buildStartMessage2Keyboard(showTrial) }
   );
 
@@ -162,23 +172,37 @@ export async function handleStart(env: Env, telegramId: number, referralPayload?
       "et leur résultat ensuite. Rien à donner, rien à installer.";
 
   await sleep(MESSAGE_3_DELAY_MS - MESSAGE_2_DELAY_MS);
+
+  // MESSAGE 3 — ESSAYER, VÉRIFIER, EN PARLER.
+  //
+  // La phrase finale sur le signal médian perdant est la plus importante de
+  // toute la séquence, et c'est pour cela qu'elle arrive en dernier : lue au
+  // premier écran, elle serait prise pour un aveu de faiblesse ; lue ici, après
+  // la méthode et les chiffres, elle se lit pour ce qu'elle est — la façon dont
+  // fonctionne réellement une stratégie de momentum, et la raison pour laquelle
+  // trier les signaux détruit le résultat.
   await sendMessage(
     env.TELEGRAM_BOT_TOKEN,
     telegramId,
     "🎁 TROIS FAÇONS D'ESSAYER SANS PAYER\n\n" +
       "1. /demo — un vrai signal, en entier, immédiatement.\n\n" +
-      `${channelStep}\n\n` +
+      `${channelStep}
+
+` +
       "3. /trial — 3 jours complets et gratuits. Deux conditions : avoir rejoint le canal public (ou " +
       "parrainé une personne), et me donner une adresse de wallet Polygon, uniquement pour qu'un même " +
       "wallet ne réclame pas dix essais. Aucun paiement, aucune carte bancaire, aucune adresse e-mail.\n\n" +
-      "POUR VÉRIFIER PAR TOI-MÊME\n" +
+      "🤝 ET SI TU CONNAIS QUELQU'UN\n" +
+      "/referral te donne un lien personnel. Chaque personne qui s'abonne via ce lien t'offre des jours " +
+      "d'accès gratuits, et lui donne une remise. Rien à installer, rien à déclarer.\n\n" +
+      "🔎 POUR VÉRIFIER PAR TOI-MÊME\n" +
       "/marche — l'état du marché recalculé en direct, pas un chiffre saisi à la main.\n" +
-      "/faq — pourquoi le bot se tait parfois, combien de temps ça dure, ce qui a changé.\n" +
+      "/faq — pourquoi le bot se tait parfois, et combien de temps ça dure.\n" +
       "/help — toutes les commandes.\n\n" +
-      "Une dernière chose, parce qu'elle décide de tout le reste : les signaux directionnels réussissent " +
-      "environ une fois sur deux, et le signal MÉDIAN perd 0,69 %. Le gain vient d'une minorité de très " +
-      "gros gagnants. Il faut donc les prendre TOUS — en trier quelques-uns revient statistiquement à ne " +
-      "garder que la partie perdante.",
+      "⚖️ Une dernière chose, parce qu'elle décide de tout le reste : les signaux directionnels " +
+      "réussissent environ une fois sur deux, et le signal MÉDIAN perd 0,69 %. Le gain vient d'une " +
+      "minorité de très gros gagnants. Il faut donc les prendre TOUS — en trier quelques-uns revient " +
+      "statistiquement à ne garder que la partie perdante.",
     { keyboard: buildStartMessage3Keyboard(showTrial) }
   );
 }

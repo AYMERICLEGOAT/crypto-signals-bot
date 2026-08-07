@@ -73,6 +73,27 @@ describe("handleStart — séquence de 3 messages (refonte UX du 01/08/2026)", (
 
     // Délais cumulés : +3s puis +7s (soit +10s au total depuis le message 1).
     expect(sleepCalls).toEqual([3_000, 7_000]);
+
+    // Le premier message doit se lire en CINQ SECONDES. Il faisait
+    // 1 500 caractères : tout y était vrai, mais un premier écran qui demande
+    // une minute de lecture n'est pas lu, il est balayé. Le plafond est ici
+    // pour que personne ne le regonfle sans s'en apercevoir.
+    expect(sentMessages[0].text.length).toBeLessThan(400);
+    // Et il annonce la contrainte du produit dès cet écran : c'est l'argument,
+    // pas une précaution juridique.
+    expect(sentMessages[0].text).toMatch(/on se tait/i);
+    // Le premier écran propose l'action qui ne demande RIEN.
+    expect(JSON.stringify(sentMessages[0].keyboard)).toContain("start:demo");
+
+    // Le parrainage arrive au troisième message et pas avant : proposé au
+    // premier écran, il demanderait de recommander un produit qu'on n'a pas
+    // encore regardé.
+    expect(sentMessages[2].text).toContain("/referral");
+    expect(JSON.stringify(sentMessages[2].keyboard)).toContain("start:referral");
+    expect(JSON.stringify(sentMessages[0].keyboard)).not.toContain("start:referral");
+
+    // La phrase qui décide de tout reste en dernier, jamais retirée.
+    expect(sentMessages[2].text).toContain("0,69 %");
   });
 
   it("n'affiche pas le bouton essai gratuit pour un abonné avec un plan payant déjà actif", async () => {

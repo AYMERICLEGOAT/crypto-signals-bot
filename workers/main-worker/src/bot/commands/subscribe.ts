@@ -59,7 +59,7 @@ export const TREND_FILTER_STATUS = {
 function buildValueScreen(): string {
   return (
     "📡 CE QUE TU REÇOIS\n\n" +
-    "Quatre familles de signaux indépendantes, validées sur 6 ans avec un témoin aléatoire — " +
+    "Cinq familles de signaux indépendantes, validées sur 6 ans avec un témoin aléatoire — " +
     "c'est-à-dire comparées à un tirage au sort, pour vérifier qu'elles font mieux que la chance.\n\n" +
     "• Quand le marché est favorable : 4,35 signaux par jour\n" +
     "• Quand il ne l'est pas : 1,15 par jour\n" +
@@ -83,11 +83,11 @@ function buildValueScreen(): string {
  */
 function buildCarryScreen(): string {
   const marketContext = TREND_FILTER_STATUS.closed
-    ? `Au ${TREND_FILTER_STATUS.measuredOn}, ${TREND_FILTER_STATUS.detail}. Trois de nos quatre familles sont ` +
-      "donc à l'arrêt. La quatrième continue — c'est même la seule qui produise dans ce régime de marché, " +
-      "et c'est elle qui tourne en ce moment."
-    : `Au ${TREND_FILTER_STATUS.measuredOn}, les quatre familles tournent. Celle-ci a ceci de particulier ` +
-      "qu'elle continue même quand les trois autres sont coupées.";
+    ? `Au ${TREND_FILTER_STATUS.measuredOn}, ${TREND_FILTER_STATUS.detail}. Trois de nos cinq familles sont ` +
+      "donc à l'arrêt. Deux continuent : le carry, et le momentum 4H qui ne travaille QUE dans ce régime. " +
+      "Le carry est le mieux établi des deux."
+    : `Au ${TREND_FILTER_STATUS.measuredOn}, quatre des cinq familles tournent. Celle-ci a ceci de ` +
+      "particulier qu'elle continue même quand les directionnelles sont coupées.";
 
   return (
     "🔁 LE CARRY DE FINANCEMENT\n\n" +
@@ -167,7 +167,7 @@ export async function handleSubscribeCommand(env: Env, telegramId: number): Prom
     "📅 LES OFFRES",
     "",
     `⭐ Standard — ${PLAN_PRICES_USD[1]} USDT pour ${PLAN_DURATION_DAYS[1]} jours`,
-    "Tous les signaux des quatre familles, carry compris, au rythme mesuré de 2,99 par jour en moyenne.",
+    "Tous les signaux des cinq familles, carry compris, au rythme mesuré de 2,99 par jour en moyenne.",
   ];
   if (proPlanVisible) {
     lines.push(
