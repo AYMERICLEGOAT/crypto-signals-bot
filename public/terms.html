@@ -756,16 +756,21 @@
     <h2>2. Périodes sans aucun signal — à lire avant de payer</h2>
     <p><strong>Ce service peut ne diffuser aucun signal pendant des périodes prolongées, y compris
        pendant la totalité d'un abonnement payé.</strong></p>
-    <p>La stratégie n'émet aucun signal tant que le Bitcoin est sous sa moyenne mobile 200 jours.
-       Sur les 6 dernières années mesurées, cette condition d'arrêt a été remplie <strong>41 % du
-       temps</strong>. Il y a eu 11 périodes d'arrêt d'au moins une semaine, de durée médiane
+    <p>Les trois familles directionnelles (force relative, cassure de canal, expansion de
+       volatilité) n'émettent aucun signal tant que le Bitcoin est sous sa moyenne mobile
+       200 jours. Sur les 6 dernières années mesurées, cette condition d'arrêt a été remplie
+       <strong>41 % du temps</strong>. Il y a eu 11 périodes d'arrêt d'au moins une semaine, de durée médiane
        25 jours, dont une de <strong>381 jours consécutifs</strong> (12,7 mois, du 28/12/2021 au
        13/01/2023).</p>
     <div class="warn">
       <p><b>L'abonnement court pendant ces périodes.</b> La durée achetée (14 ou 30 jours) s'écoule
          au calendrier. Elle n'est ni suspendue, ni prolongée, ni remboursée, même si aucun signal
-         n'est émis du premier au dernier jour. Il est donc parfaitement possible de payer un
-         abonnement de 30 jours et de ne recevoir aucun signal.</p>
+         n'est émis du premier au dernier jour. Deux familles continuent de produire dans ce
+         régime — le carry de financement et le momentum 4 heures — mais le rythme mesuré tombe
+         alors à <strong>1,15 signal par jour</strong> contre 4,35 en marché favorable, et rien ne
+         garantit qu'elles trouvent quoi que ce soit un jour donné. <strong>Il est donc
+         parfaitement possible de payer un abonnement de 30 jours et de ne recevoir aucun
+         signal.</strong></p>
       <p><b>Ce n'est pas une panne, c'est le comportement voulu de la stratégie.</b> Sans cette
          règle d'arrêt, la stratégie n'est positive que 4 années sur 7&nbsp;; avec elle, elle n'a
          aucune année perdante sur les 6 années mesurées. En 2022 et en 2026 elle n'a rien émis,
@@ -779,13 +784,53 @@
     </div>
     <p>L'état de cette condition (active ou non) est annoncé sur le canal et expliqué en détail sur
        la page <a href="/comment-ca-marche.html">Comment ça marche</a>. Une interruption due à un
-       incident technique (section 9) est une chose différente et sera signalée comme telle.</p>
+       incident technique (section 10) est une chose différente et sera signalée comme telle.</p>
   </section>
 
   <section>
-    <h2>3. Accès et capacité à contracter</h2>
+    <h2>3. Le carry de financement — ce qu'il est, et ce qu'il n'est pas</h2>
+    <p>Une partie des signaux diffusés sont des <strong>carrys de financement</strong>. Leur
+       fonctionnement diffère de tout le reste, et les malentendus qu'ils peuvent produire portent
+       sur de l'argent réel : cette section les traite séparément.</p>
+
+    <p><b>Ce que le signal contient.</b> Un carry décrit <strong>deux positions à ouvrir
+       simultanément et pour le même montant</strong> sur la même cryptomonnaie : un achat au
+       comptant, et une vente à découvert du contrat perpétuel. Les deux s'annulent au regard du
+       prix. Le résultat provient du financement versé toutes les 8 heures par les acheteurs de
+       perpétuels aux vendeurs.</p>
+
+    <div class="warn">
+      <p><b>C'est à toi de les ouvrir, et sur ta propre plateforme.</b> Nous n'exécutons aucun
+         ordre, ne détenons aucun fonds et n'avons accès à aucun de tes comptes. Un carry suppose
+         d'avoir accès à un marché de contrats perpétuels, ce qui n'est pas le cas de toutes les
+         plateformes ni de tous les pays.</p>
+      <p><b>N'ouvrir qu'une seule jambe transforme une position neutre en pari directionnel.</b>
+         C'est l'erreur la plus coûteuse possible sur ce type de signal, et elle est entièrement
+         hors de notre contrôle. Les deux jambes doivent aussi être <strong>fermées ensemble</strong>.</p>
+      <p><b>Le rendement annoncé n'est PAS acquis.</b> Le chiffre indiqué à l'ouverture est une
+         estimation fondée sur le taux de financement observé à cet instant. Ce taux varie pendant
+         la détention et peut s'inverser. Sur 6 ans de mesure, <strong>41 % des positions
+         seulement</strong> ont atteint ou dépassé le montant annoncé à l'ouverture.</p>
+      <p><b>« Neutre au marché » ne veut pas dire « sans risque », et nous ne l'écrirons jamais.</b>
+         La jambe vendeuse peut être <strong>liquidée</strong> si ta marge devient insuffisante ; la
+         plateforme sur laquelle tu opères peut faire défaut, geler les retraits ou modifier ses
+         règles de financement ; et une période de financement extrême a coûté jusqu'à
+         <strong>-19,86 %</strong> sur une position mesurée. Un carry n'a ni stop loss ni take
+         profit : aucun niveau de prix ne le ferme, seule la date le fait.</p>
+    </div>
+
+    <p>Les chiffres de performance du carry publiés sur ce site (84,2 % de positions gagnantes,
+       +0,572 % net par position, 6 années positives sur 7) proviennent d'une simulation sur données
+       historiques, frais estimés déduits. Ils supposent une exécution parfaite des deux jambes, une
+       marge toujours suffisante et l'absence de défaillance de plateforme — trois conditions que
+       nous ne pouvons ni vérifier ni garantir dans ton cas. Ils relèvent intégralement de la
+       section&nbsp;10 ci-dessous.</p>
+  </section>
+
+  <section>
+    <h2>4. Accès et capacité à contracter</h2>
     <p>Le canal public gratuit et l'essai gratuit sont accessibles à toute personne disposant d'un
-       compte Telegram. Les offres payantes (section 4) impliquent un paiement irréversible et
+       compte Telegram. Les offres payantes (section 5) impliquent un paiement irréversible et
        supposent donc la capacité juridique de contracter au sens de la loi applicable&nbsp;; un
        mineur souhaitant y souscrire doit obtenir au préalable l'accord de son représentant légal.
        Nous ne demandons ni ne vérifions de justificatif d'identité (voir
@@ -794,7 +839,7 @@
   </section>
 
   <section>
-    <h2>4. Offres et tarifs</h2>
+    <h2>5. Offres et tarifs</h2>
     <table class="recent">
       <thead><tr><th>Offre</th><th>Durée</th><th>Prix</th></tr></thead>
       <tbody>
@@ -812,7 +857,7 @@
   </section>
 
   <section>
-    <h2>5. Paiement</h2>
+    <h2>6. Paiement</h2>
     <p>Les paiements se font exclusivement en cryptoactifs (USDT sur le réseau Polygon, Monero ou
        Litecoin), directement depuis ton propre wallet vers l'adresse fournie par le bot — nous ne
        stockons ni ne manipulons jamais tes fonds ni tes clés privées. Une transaction blockchain
@@ -822,18 +867,18 @@
   </section>
 
   <section>
-    <h2>6. Absence de droit de rétractation</h2>
+    <h2>7. Absence de droit de rétractation</h2>
     <p>L'abonnement est un contenu numérique dont l'exécution démarre immédiatement dès
        confirmation du paiement sur la blockchain (activation automatique de l'accès), à ta demande
        expresse. Conformément aux exceptions prévues pour la fourniture immédiate de contenu
        numérique non fourni sur support matériel, tu reconnais renoncer à ton droit de rétractation
        à compter de cette activation. Aucun remboursement n'est possible une fois le paiement
-       confirmé — y compris en cas d'erreur d'envoi de ta part (section 5) et y compris si aucun
+       confirmé — y compris en cas d'erreur d'envoi de ta part (section 6) et y compris si aucun
        signal n'est émis pendant la période souscrite (section 2).</p>
   </section>
 
   <section>
-    <h2>7. Durée, non-reconduction et résiliation</h2>
+    <h2>8. Durée, non-reconduction et résiliation</h2>
     <p>Les abonnements ne se renouvellent <strong>jamais automatiquement</strong>&nbsp;: à
        l'expiration, l'accès aux signaux payants s'arrête et il faut repasser par
        <code>/subscribe</code> pour se réabonner. Des rappels sont envoyés avant l'expiration
@@ -844,7 +889,7 @@
   </section>
 
   <section>
-    <h2>8. Absence de garantie de résultat</h2>
+    <h2>9. Absence de garantie de résultat</h2>
     <p>Les signaux reposent sur une stratégie testée sur données historiques (voir
        <a href="/comment-ca-marche.html">Comment ça marche</a> et
        <a href="/transparency.html">Transparence</a>). Les résultats passés — qu'ils viennent du
@@ -858,7 +903,7 @@
   </section>
 
   <section>
-    <h2>9. Responsabilité</h2>
+    <h2>10. Responsabilité</h2>
     <p>Le service est fourni « en l'état ». Nous ne pouvons être tenus responsables&nbsp;: des
        pertes financières résultant de décisions de trading prises à partir des signaux, d'une
        interruption temporaire du service (maintenance, panne d'un fournisseur tiers — Telegram,
@@ -870,14 +915,14 @@
   </section>
 
   <section>
-    <h2>10. Résiliation par l'éditeur</h2>
+    <h2>11. Résiliation par l'éditeur</h2>
     <p>Nous nous réservons le droit de suspendre l'accès d'un compte en cas d'abus manifeste
        (contournement des limites anti-abus par wallet, tentative de perturbation du service),
        sans obligation de remboursement du temps d'abonnement restant dans ce cas.</p>
   </section>
 
   <section>
-    <h2>11. Droit applicable</h2>
+    <h2>12. Droit applicable</h2>
     <p>Ces conditions sont régies par le droit français. Tout litige sera, à défaut de résolution
        amiable via le bot, soumis aux tribunaux compétents.</p>
   </section>
