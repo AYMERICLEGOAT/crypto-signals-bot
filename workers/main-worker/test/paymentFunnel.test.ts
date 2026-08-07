@@ -44,7 +44,13 @@ describe("Tunnel de paiement", () => {
     const all = sent.join("\n");
     expect(all.toLowerCase()).toContain("3 étapes");  // comment on fait
     expect(all).toContain("USDT sur Polygon");   // quoi prendre dans le doute
-    expect(all).toContain("2 à 5 minutes");      // combien de temps
+    // Combien de temps — mais PAR MOYEN DE PAIEMENT. « 2 à 5 minutes » était
+    // annoncé pour les trois, alors que Monero exige dix confirmations et
+    // demande une vingtaine de minutes. Quelqu'un qui paie en XMR et attend
+    // trois fois plus longtemps que promis conclut que son paiement a échoué.
+    expect(all).toContain("DÉLAI D'ACTIVATION");
+    expect(all).toMatch(/Polygon\s?: moins de 5 minutes/);
+    expect(all).toMatch(/Monero\s?: environ 25 minutes/);
     expect(all).toContain("Aucun prélèvement");  // à quoi on s'engage
     expect(guideButton).toBe(true);
     // Filet de rassurance : pouvoir "répondre" lève une hésitation réelle.

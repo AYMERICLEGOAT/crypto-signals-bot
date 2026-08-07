@@ -102,7 +102,8 @@ function buildCarryScreen(): string {
     "Ce n'est pas sans risque, et nous n'écrirons jamais le contraire : la jambe vendeuse peut être liquidée " +
     "si la marge devient insuffisante, la plateforme sur laquelle tu es peut faire défaut, et une journée de " +
     "financement extrême peut coûter jusqu'à -19,86 % sur une position.\n\n" +
-    "En ce moment, 4 carrys sont ouverts : ZRO, XMR, SKY, LDO."
+    "Tape /marche pour voir les carrys réellement ouverts en ce moment, lus en base et non " +
+    "recopiés à la main — une liste écrite en dur ici serait vraie un jour et fausse le lendemain."
   );
 }
 
@@ -184,10 +185,36 @@ export async function handleSubscribeCommand(env: Env, telegramId: number): Prom
         "C'est le palier fait pour vérifier par toi-même avant de t'engager davantage."
     );
   }
+  // GUIDE PAS À PAS, DANS L'ÉCRAN LUI-MÊME.
+  //
+  // Il existait déjà, mais derrière un bouton. Or c'est précisément à cet
+  // instant — au moment de choisir un plan — que quelqu'un se demande « et
+  // concrètement, je fais quoi ? ». Une inconnue à ce moment-là ne se
+  // transforme pas en clic sur un guide : elle se transforme en fermeture de
+  // Telegram. Les quatre étapes tiennent en quatre lignes, et le guide complet
+  // reste derrière son bouton pour qui veut les captures d'écran.
+  //
+  // Le réseau est recommandé ICI et pas seulement après le choix du plan :
+  // envoyer de l'USDT sur le mauvais réseau est l'erreur la plus courante et
+  // la plus coûteuse du paiement en crypto, et prévenir après coup ne sert à
+  // rien.
   lines.push(
     "",
-    "Aucun prélèvement automatique, aucun engagement : l'abonnement s'arrête tout seul à échéance, " +
-      "il n'y a rien à résilier.",
+    "🧭 COMMENT ÇA SE PASSE, EN 4 ÉTAPES",
+    "1. Tu choisis un plan ci-dessous. Rien n'est payé à ce stade.",
+    "2. Tu choisis ton moyen de paiement. USDT sur le réseau POLYGON est recommandé : " +
+      "quelques centimes de frais, et l'arrivée est quasi immédiate.",
+    "3. Je te donne l'adresse exacte et le montant. Tu envoies depuis ton wallet.",
+    "4. L'accès s'ouvre tout seul dès que le réseau confirme — compte moins de 5 minutes " +
+      "en USDT/Polygon. Tu n'as rien à envoyer comme preuve, rien à réclamer.",
+    "",
+    "⚠️ Le réseau compte autant que l'adresse : de l'USDT envoyé sur Ethereum ou BNB Chain " +
+      "vers une adresse Polygon est perdu. Le bot te redonnera le réseau à l'écran suivant, " +
+      "et le guide complet montre où le choisir dans ton wallet.",
+    "",
+    "🛡️ Aucun prélèvement automatique, aucun engagement : tu paies une période, elle s'arrête " +
+      "toute seule à échéance. Il n'y a rien à résilier, aucune carte bancaire, aucune adresse " +
+      "e-mail demandée.",
     "",
     "Choisis un plan ci-dessous. Rien n'est payé à ce stade : il reste deux écrans avant le moindre envoi de fonds.",
   );
@@ -271,11 +298,25 @@ export async function handlePurchaseConsent(env: Env, telegramId: number, data: 
   await sendMessage(
     env.TELEGRAM_BOT_TOKEN,
     telegramId,
+    // Le délai d'activation était annoncé « 2 à 5 minutes » quel que soit le
+    // moyen de paiement. C'est vrai pour Polygon et Litecoin, faux pour
+    // Monero : dix confirmations sont exigées avant de créditer, soit une
+    // vingtaine de minutes. Quelqu'un qui paie en XMR et attend trois fois plus
+    // longtemps que promis conclut que le paiement a échoué — c'est le moment
+    // du parcours où une inexactitude coûte le plus cher.
     "💳 PAIEMENT EN 3 ÉTAPES\n\n" +
       "1. Tu me dis d'où partiraient les fonds.\n" +
       "2. Je te donne une adresse et un montant exact.\n" +
-      "3. Tu envoies. Ton accès s'ouvre en 2 à 5 minutes, tout seul — rien à me renvoyer, aucun " +
-      "justificatif, aucune pièce d'identité.\n\n" +
+      "3. Tu envoies. Ton accès s'ouvre tout seul — rien à me renvoyer, aucun justificatif, " +
+      "aucune pièce d'identité.\n\n" +
+      "⏱️ DÉLAI D'ACTIVATION, selon ce que tu choisis\n" +
+      "• USDT sur Polygon : moins de 5 minutes. C'est le plus rapide et le moins cher.\n" +
+      "• Litecoin : environ 10 minutes, le temps d'une confirmation réseau.\n" +
+      "• Monero : environ 25 minutes. Dix confirmations sont exigées avant de créditer, " +
+      "c'est le prix de la confidentialité.\n\n" +
+      "Ces délais partent du moment où TON envoi est parti. Si le tien dépasse largement " +
+      "ces durées, écris-moi : l'activation se fait alors à la main, tes fonds ne " +
+      "disparaissent pas.\n\n" +
       "🛡️ Aucun prélèvement automatique, aucun engagement. L'abonnement s'arrête seul à échéance : " +
       "il n'y a rien à résilier."
   );
@@ -546,7 +587,7 @@ export async function handlePaymentMethodSelection(env: Env, telegramId: number,
         `📱 [Ouvrir directement dans ton wallet](${ltcUri}) — adresse et montant préremplis.`,
       { markdown: true }
     );
-    await sendMonoStepReassurance(env, telegramId, "quelques minutes");
+    await sendMonoStepReassurance(env, telegramId, "une dizaine de minutes");
   }
 }
 
@@ -568,7 +609,7 @@ async function sendMonoStepReassurance(env: Env, telegramId: number, confirmatio
       "somme envoyée : demande un retrait légèrement supérieur pour que le montant reçu corresponde. " +
       "Si tu envoies un peu plus, c'est sans conséquence — le surplus est simplement conservé.\n" +
       "• Cette adresse est unique et n'est utilisée que pour ton paiement. Peu importe d'où partent les " +
-      `fonds. Confirmation attendue : ${confirmationDelay}, puis ton accès s'ouvre en 2 à 5 minutes, tout seul.\n` +
+      `fonds. Confirmation attendue : ${confirmationDelay}, puis ton accès s'ouvre tout seul dans les 5 minutes qui suivent.\n` +
       `• L'adresse reste valable ${PAYMENT_ADDRESS_VALID_DAYS} jours. Tu peux la revoir à tout moment avec /pay, ` +
       "et suivre l'état de ta transaction avec /check_payment.\n\n" +
       "Si quelque chose ne se passe pas comme prévu, réponds simplement à ce message : l'administrateur le verra."
