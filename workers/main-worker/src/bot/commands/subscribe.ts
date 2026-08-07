@@ -74,7 +74,8 @@ function buildValueScreen(): string {
  * Écran 2 : le carry de financement.
  *
  * C'est de très loin le meilleur argument du produit — 84,2 % de positions
- * gagnantes, et la seule famille qui produise quand le marché est défavorable —
+ * gagnantes, et la mieux établie de celles qui produisent quand le marché est
+ * défavorable —
  * et il était jusqu'ici totalement absent du tunnel de paiement. Un visiteur
  * qui arrivait aujourd'hui, filtre de tendance fermé, ne lisait qu'une seule
  * chose : « tu vas payer pour du silence ». C'était faux, et c'était le

@@ -1,5 +1,6 @@
 """
-Moteur Carry de Financement : la seule famille qui produit en marché baissier.
+Moteur Carry de Financement : la mieux établie des familles qui produisent en
+marché baissier.
 
 Ce que c'est. Une position NEUTRE AU MARCHÉ, en deux jambes simultanées de même
 montant : on achète le spot, on vend le perpétuel. Quand le prix monte, la jambe

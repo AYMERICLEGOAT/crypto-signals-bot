@@ -15,8 +15,9 @@ import { sendMessage } from "../../telegram";
  * Ajout du 04/08/2026 : le CARRY de financement (voir signals/carry_engine.py).
  * Il est structurellement différent de tout le reste — deux jambes, neutre au
  * marché, aucun stop de prix, sortie à 21 jours — et c'est l'argument le plus
- * fort du produit : 84,2 % de positions gagnantes, et la seule famille qui
- * produit quand le Bitcoin est sous sa moyenne 200 jours. Un prospect qui lit
+ * fort du produit : 84,2 % de positions gagnantes, et la mieux établie des deux
+ * familles qui produisent quand le Bitcoin est sous sa moyenne 200 jours —
+ * l'autre étant le momentum 4H, encore en observation. Un prospect qui lit
  * un /demo ne montrant qu'un achat directionnel repart avec l'idée que le
  * produit est un canal de signaux d'achat de plus. Les deux formes sont donc
  * montrées, dans cet ordre, et la géométrie du carry est décrite exactement
@@ -69,8 +70,10 @@ export async function handleDemoCommand(env: Env, telegramId: number): Promise<v
       "📈 Financement net attendu : chiffré dans chaque signal, frais déduits\n" +
       "⏳ Clôture : *au bout de 21 jours*, les deux jambes ensemble\n" +
       "🛑 Aucun stop de prix : il n'y a rien à protéger de ce côté-là\n\n" +
-      "C'est la seule famille qui produit AUSSI quand le Bitcoin est sous sa moyenne 200 jours : elle n'est " +
-      "pas filtrée, parce qu'elle ne parie sur aucune direction.\n\n" +
+      "Elle produit AUSSI quand le Bitcoin est sous sa moyenne 200 jours : elle n'est pas filtrée, parce " +
+      "qu'elle ne parie sur aucune direction. Le momentum 4H tient l'autre bout de ce créneau — il ne " +
+      "travaille QUE dans ce régime-là — mais il est en observation, et le carry reste la famille la mieux " +
+      "établie des deux.\n\n" +
       "📊 Mesuré sur 6 ans : 84,2 % de positions gagnantes, +0,572 % net par position, six années positives " +
       "sur sept — la septième, 2022, est à -0,046 %, donc plate et non perdante.\n\n" +
       "⚠️ Ce n'est pas « sans risque », et on ne l'écrira jamais : ta jambe vendeuse peut être liquidée si ta " +

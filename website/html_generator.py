@@ -243,7 +243,7 @@ _STRINGS = {
         # DEUX variantes depuis le 04/08/2026, et la distinction n'est pas
         # cosmétique : écrire « aucun signal aujourd'hui » un jour où des carrys
         # sont sortis serait tout simplement faux, et ferait passer pour une
-        # panne la seule famille qui produit en marché baissier.
+        # panne l'une des deux familles qui produisent en marché baissier.
         "filter_heading": "🔇 Aucun signal aujourd'hui — et c'est voulu",
         "filter_lead": "Ce silence n'est pas une panne. Les trois familles directionnelles n'achètent rien tant "
         "que le Bitcoin évolue sous sa moyenne mobile 200 jours. Les deux moteurs qui travaillent malgré ce "

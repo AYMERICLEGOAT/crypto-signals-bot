@@ -17,7 +17,7 @@
  * signals/carry_engine.py), qui n'est PAS filtré parce qu'il ne parie sur
  * aucune direction — il ouvre deux jambes qui s'annulent et encaisse le
  * financement. Laisser croire à un abonné, un jour de filtre fermé, que le
- * produit entier est à l'arrêt, c'est lui cacher la seule famille qui produit
+ * produit entier est à l'arrêt, c'est lui cacher les deux familles qui produisent
  * précisément ce jour-là. Les deux messages nomment donc explicitement ce qui
  * s'arrête ET ce qui continue, et la commande va lire en base les carrys
  * réellement ouverts : un fait vérifiable vaut mieux qu'une affirmation.
@@ -60,7 +60,8 @@ const TREND_MA_PERIOD = 200;
 // C'est le RÉGIME DE MARCHÉ qui est mesuré, pas la force d'une paire en
 // particulier : le filtre du moteur ne regarde que le Bitcoin. Et il ne
 // commande QUE les trois familles directionnelles — le carry de financement
-// tourne dans les deux régimes (voir signals/carry_engine.py).
+// tourne dans les deux régimes (voir signals/carry_engine.py), et le momentum
+// 4H ne tourne QUE quand le filtre est fermé (voir signals/momentum_4h.py).
 const BTC_PAIR = "BTC/USDT";
 
 // On demande bien plus que les 200 bougies du calcul : au-delà de l'état
@@ -399,7 +400,7 @@ function buildUnknownMessage(carryLine: string | null): string {
     "",
     // Même en cas de panne de prix, ce point reste vrai et vérifiable en base :
     // ne pas le dire laisserait croire que tout le produit est hors service.
-    "À noter : ce filtre ne commande que les trois familles directionnelles. Le carry de financement, neutre au marché, ne dépend ni de cette moyenne ni de ces sources de prix.",
+    "À noter : ce filtre coupe les trois familles directionnelles, mais il ne met pas le produit à l'arrêt. Le carry de financement, neutre au marché, ne dépend ni de cette moyenne ni de ces sources de prix ; et le momentum 4H, lui, ne se déclenche QUE quand le filtre est fermé.",
     carryLine,
   ]);
 }

@@ -62,7 +62,8 @@ export async function handleHelpCommand(env: Env, telegramId: number): Promise<v
       "*Le silence*\n" +
       "Les trois familles directionnelles sont coupées tant que le Bitcoin reste sous sa moyenne mobile " +
       "200 jours — 41 % du temps sur 6 ans, jusqu'à 381 jours d'affilée du 28/12/2021 au 13/01/2023. Le " +
-      `carry, lui, n'est pas soumis à ce filtre : c'est la seule famille qui produit en marché baissier. ${filterState} ` +
+      "carry, lui, n'est pas soumis à ce filtre, et le momentum 4H ne travaille QUE dans ce régime : ce sont " +
+      `les deux familles qui produisent en marché baissier. ${filterState} ` +
       "Le détail est dans /faq, et /marche recalcule cet état en direct.\n\n" +
       "*À savoir avant de suivre les signaux directionnels*\n" +
       "Ils réussissent environ une fois sur deux, et le signal MÉDIAN perd 0,69 %. La rentabilité vient " +

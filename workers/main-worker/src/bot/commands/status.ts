@@ -20,7 +20,8 @@ import { TREND_FILTER_STATUS } from "./subscribe";
  * ce que le moteur émet EN CE MOMENT (les trois familles directionnelles sont
  * filtrées, le carry ne l'est pas), combien de signaux tu as reçus, et quoi
  * faire ensuite. Un abonné qui voit « 0 signal reçu » à côté de « filtre fermé,
- * seul le carry produit » comprend son silence ; le même abonné sans cette
+ * le carry et le momentum 4H prennent le relais » comprend son silence ; le
+ * même abonné sans cette
  * ligne conclut à une panne et ne renouvelle pas.
  *
  * Envoyé sans parse_mode, comme avant : le message contient des dates au format
