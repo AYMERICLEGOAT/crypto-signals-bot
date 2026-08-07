@@ -664,14 +664,39 @@
     border-radius: 4px;
   }
 
-  .step { display: flex; gap: 16px; margin: 22px 0; align-items: flex-start; }
+  /* Le rond porte désormais un pictogramme et non un chiffre : le fond plein
+     bleu écrasait l'émoji, d'où le fond sourd et la bordure. Le numéro d'étape
+     n'a pas disparu pour autant — il est passé au-dessus du titre, là où il se
+     lit vraiment. */
   .step-num {
-    flex: 0 0 38px; height: 38px; border-radius: 50%;
-    background: var(--accent); color: #06101f; font-weight: 800;
-    display: flex; align-items: center; justify-content: center; font-size: 1.05rem;
+    flex: 0 0 42px; width: 42px; height: 42px; border-radius: 50%;
+    background: var(--bg-raised); border: 1px solid var(--border-lit);
+    display: flex; align-items: center; justify-content: center; font-size: 1.25rem;
   }
-  .step-body h3 { margin: 4px 0 6px; font-size: 1.08rem; }
+  .step-count {
+    display: block; font-size: .72rem; font-weight: 700; letter-spacing: .07em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 3px;
+  }
+  .step-body h3 { margin: 0 0 6px; font-size: 1.08rem; }
   .step-body p { margin: 0; color: var(--text-dim); }
+
+  /* Schéma du parcours. Il défile dans son conteneur plutôt que de rétrécir
+     indéfiniment : en dessous de ~560 px, les libellés deviendraient illisibles
+     et un schéma illisible ne vaut pas mieux qu'aucun schéma. */
+  .flow {
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 16px; margin: 22px 0;
+  }
+  .flow svg { display: block; width: 100%; min-width: 560px; height: auto; }
+  .flow-box rect { fill: var(--bg-soft); stroke: var(--border-lit); stroke-width: 1; }
+  .flow-links line, .flow-links path { stroke: currentColor; stroke-width: 1.5; opacity: .55; }
+  .flow-label text {
+    fill: var(--text); font-size: 14px; font-weight: 650; text-anchor: middle;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .flow-label text.dim { fill: var(--text-dim); font-size: 12px; font-weight: 500; }
+  .flow-label text.small { font-size: 11.5px; }
   .breadcrumb { font-size: .85rem; color: var(--text-dim); margin-bottom: 10px; }
   .glossary dt { font-weight: 700; margin-top: 18px; color: var(--accent); }
   .glossary dd { margin: 4px 0 0; color: var(--text-dim); }
@@ -705,49 +730,127 @@
 </head>
 <body>
   <p class="breadcrumb"><a href="/">Accueil</a> › Comment ça marche</p>
-  <header>
+  <header class="hero">
+    <span class="status-pill"><span class="status-dot"></span>Aucune intervention humaine, aucune opinion</span>
     <h1>Comment ça marche</h1>
-    <p class="subtitle">Cinq moteurs de signaux, dont un qui ne dépend pas du prix et un qui ne
-       travaille que lorsque le marché baisse.
-       Étape par étape, et avec les chiffres tels qu'ils ont été mesurés.</p>
+    <p class="hero-sub">Cinq moteurs de signaux, dont un qui ne dépend pas du prix et un qui ne
+       travaille que lorsque le marché baisse. Étape par étape, avec les chiffres tels qu'ils ont
+       été mesurés — y compris ceux qui dérangent.</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="https://t.me/ProVIPSignals_bot">🎁 Essayer 3 jours gratuitement</a>
+      <a class="btn btn-ghost" href="#parcours">Voir le parcours d'un signal</a>
+    </div>
+    <p class="btn-note">Aucun moyen de paiement demandé. Rien à désinscrire.</p>
   </header>
 
+  <section id="parcours">
+    <h2>Le parcours d'un signal, d'un bout à l'autre</h2>
+    <p class="lead">De la lecture des cours jusqu'à la publication du résultat, sans qu'aucune
+       décision humaine n'intervienne à un seul endroit de la chaîne.</p>
+
+    <div class="flow">
+      <svg viewBox="0 0 900 190" role="img" aria-label="Parcours d'un signal : lecture des cours, classement, filtre de régime, publication, suivi, résultat public" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <marker id="fleche" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" opacity=".55"/>
+          </marker>
+        </defs>
+        <g class="flow-links" color="#5b9dff">
+          <line x1="152" y1="60" x2="196" y2="60" marker-end="url(#fleche)"/>
+          <line x1="308" y1="60" x2="352" y2="60" marker-end="url(#fleche)"/>
+          <line x1="464" y1="60" x2="508" y2="60" marker-end="url(#fleche)"/>
+          <line x1="620" y1="60" x2="664" y2="60" marker-end="url(#fleche)"/>
+          <path d="M 742 92 L 742 140 L 78 140 L 78 92" marker-end="url(#fleche)" fill="none" stroke-dasharray="4 4"/>
+        </g>
+        <g class="flow-box">
+          <rect x="8"   y="30" width="144" height="62" rx="12"/>
+          <rect x="196" y="30" width="112" height="62" rx="12"/>
+          <rect x="352" y="30" width="112" height="62" rx="12"/>
+          <rect x="508" y="30" width="112" height="62" rx="12"/>
+          <rect x="664" y="30" width="156" height="62" rx="12"/>
+        </g>
+        <g class="flow-label">
+          <text x="80"  y="56">40 paires</text>
+          <text x="80"  y="76" class="dim">cours lus</text>
+          <text x="252" y="56">Classement</text>
+          <text x="252" y="76" class="dim">force relative</text>
+          <text x="408" y="56">Régime</text>
+          <text x="408" y="76" class="dim">MM 200 jours</text>
+          <text x="564" y="56">Arbitre</text>
+          <text x="564" y="76" class="dim">2 à 5 par jour</text>
+          <text x="742" y="56">Telegram</text>
+          <text x="742" y="76" class="dim">puis résultat public</text>
+          <text x="410" y="163" class="dim small">Le résultat, gagnant ou perdant, revient nourrir la mesure du lendemain</text>
+        </g>
+      </svg>
+    </div>
+
+  </section>
+
   <section>
+    <h2>Les neuf étapes, en détail</h2>
     <div class="step">
-      <div class="step-num">1</div>
-      <div class="step-body"><h3>Cinq moteurs tournent en parallèle, pas un seul</h3><p>Trois d&#x27;entre eux achètent (ils parient sur la hausse), un est neutre au marché, et le dernier ne travaille QUE lorsque le marché baisse. Tous ont été validés face à un témoin aléatoire : un moteur qui ne bat pas un tirage au sort à contraintes égales est jeté, quelle que soit son espérance affichée. Sur douze approches testées, deux seulement ont été retenues.</p></div>
+      <div class="step-num" aria-hidden="true">⚙️</div>
+      <div class="step-body">
+        <h3><span class="step-count">Étape 1</span>Cinq moteurs tournent en parallèle, pas un seul</h3>
+        <p>Trois d&#x27;entre eux achètent (ils parient sur la hausse), un est neutre au marché, et le dernier ne travaille QUE lorsque le marché baisse. Tous ont été validés face à un témoin aléatoire : un moteur qui ne bat pas un tirage au sort à contraintes égales est jeté, quelle que soit son espérance affichée. Sur douze approches testées, deux seulement ont été retenues.</p>
+      </div>
     </div>
     <div class="step">
-      <div class="step-num">2</div>
-      <div class="step-body"><h3>Le filtre de tendance décide si les familles directionnelles ont le droit d&#x27;acheter</h3><p>Une seule question avant tout le reste : le Bitcoin est-il au-dessus de sa moyenne mobile 200 jours ? S&#x27;il est en dessous, les trois familles acheteuses se taisent, quelles que soient les opportunités apparentes. Sur les 6 dernières années mesurées, ce filtre a été fermé 41 % du temps, et sa plus longue fermeture a duré 381 jours d&#x27;affilée.</p></div>
+      <div class="step-num" aria-hidden="true">🚦</div>
+      <div class="step-body">
+        <h3><span class="step-count">Étape 2</span>Le filtre de tendance décide si les familles directionnelles ont le droit d&#x27;acheter</h3>
+        <p>Une seule question avant tout le reste : le Bitcoin est-il au-dessus de sa moyenne mobile 200 jours ? S&#x27;il est en dessous, les trois familles acheteuses se taisent, quelles que soient les opportunités apparentes. Sur les 6 dernières années mesurées, ce filtre a été fermé 41 % du temps, et sa plus longue fermeture a duré 381 jours d&#x27;affilée.</p>
+      </div>
     </div>
     <div class="step">
-      <div class="step-num">3</div>
-      <div class="step-body"><h3>Famille 1 — Force relative : acheter ce qui monte déjà</h3><p>Une fois par jour, sur des clôtures journalières, les 40 paires suivies sont classées de la plus forte à la plus faible selon leur progression récente. Les 12 premières sont achetées et tenues 7 jours, puis clôturées sur le temps. C&#x27;est du momentum, rien de plus : aucun indicateur secret.</p></div>
+      <div class="step-num" aria-hidden="true">📈</div>
+      <div class="step-body">
+        <h3><span class="step-count">Étape 3</span>Famille 1 — Force relative : acheter ce qui monte déjà</h3>
+        <p>Une fois par jour, sur des clôtures journalières, les 40 paires suivies sont classées de la plus forte à la plus faible selon leur progression récente. Les 12 premières sont achetées et tenues 7 jours, puis clôturées sur le temps. C&#x27;est du momentum, rien de plus : aucun indicateur secret.</p>
+      </div>
     </div>
     <div class="step">
-      <div class="step-num">4</div>
-      <div class="step-body"><h3>Famille 2 — Cassure de canal : acheter la sortie de range</h3><p>Quand le prix franchit son plus haut des 50 derniers jours, la position s&#x27;ouvre. On n&#x27;anticipe pas la cassure, on attend qu&#x27;elle ait eu lieu — c&#x27;est toute la différence.</p></div>
+      <div class="step-num" aria-hidden="true">📊</div>
+      <div class="step-body">
+        <h3><span class="step-count">Étape 4</span>Famille 2 — Cassure de canal : acheter la sortie de range</h3>
+        <p>Quand le prix franchit son plus haut des 50 derniers jours, la position s&#x27;ouvre. On n&#x27;anticipe pas la cassure, on attend qu&#x27;elle ait eu lieu — c&#x27;est toute la différence.</p>
+      </div>
     </div>
     <div class="step">
-      <div class="step-num">5</div>
-      <div class="step-body"><h3>Famille 3 — Expansion de volatilité : entrer quand le marché se réveille</h3><p>Après une longue phase de compression, où l&#x27;amplitude des mouvements s&#x27;est resserrée, le retour de la volatilité déclenche l&#x27;entrée. C&#x27;est le plus rare des cinq moteurs.</p></div>
+      <div class="step-num" aria-hidden="true">🌋</div>
+      <div class="step-body">
+        <h3><span class="step-count">Étape 5</span>Famille 3 — Expansion de volatilité : entrer quand le marché se réveille</h3>
+        <p>Après une longue phase de compression, où l&#x27;amplitude des mouvements s&#x27;est resserrée, le retour de la volatilité déclenche l&#x27;entrée. C&#x27;est le plus rare des cinq moteurs.</p>
+      </div>
     </div>
     <div class="step">
-      <div class="step-num">6</div>
-      <div class="step-body"><h3>Famille 4 — Carry de financement : gagner sans dépendre du prix</h3><p>Deux jambes de même montant : achat au comptant, et vente à découvert du contrat perpétuel. Les deux s&#x27;annulent, donc le prix n&#x27;entre pas dans l&#x27;équation. Le gain vient du financement que les acheteurs de perpétuels versent aux vendeurs toutes les 8 heures. Il produit dans les deux régimes de marché.</p></div>
+      <div class="step-num" aria-hidden="true">💵</div>
+      <div class="step-body">
+        <h3><span class="step-count">Étape 6</span>Famille 4 — Carry de financement : gagner sans dépendre du prix</h3>
+        <p>Deux jambes de même montant : achat au comptant, et vente à découvert du contrat perpétuel. Les deux s&#x27;annulent, donc le prix n&#x27;entre pas dans l&#x27;équation. Le gain vient du financement que les acheteurs de perpétuels versent aux vendeurs toutes les 8 heures. Il produit dans les deux régimes de marché.</p>
+      </div>
     </div>
     <div class="step">
-      <div class="step-num">7</div>
-      <div class="step-body"><h3>Famille 5 — Momentum 4 heures : le seul qui travaille quand le marché baisse</h3><p>Même classement que la force relative, mais mesuré sur des bougies de 4 heures, limité aux deux paires les plus fortes et tenu 3 jours. Sa particularité : il ne se déclenche QUE lorsque le Bitcoin est sous sa moyenne 200 jours — exactement le créneau où les trois moteurs acheteurs se taisent. Il est présenté EN OBSERVATION, et c&#x27;est écrit sur chacun de ses signaux : positif trois années sur quatre, mais en recul sur la dernière. Deux places par jour au maximum, et il s&#x27;arrête de lui-même si ses résultats réels démentent la mesure.</p></div>
+      <div class="step-num" aria-hidden="true">🧪</div>
+      <div class="step-body">
+        <h3><span class="step-count">Étape 7</span>Famille 5 — Momentum 4 heures : le seul qui travaille quand le marché baisse</h3>
+        <p>Même classement que la force relative, mais mesuré sur des bougies de 4 heures, limité aux deux paires les plus fortes et tenu 3 jours. Sa particularité : il ne se déclenche QUE lorsque le Bitcoin est sous sa moyenne 200 jours — exactement le créneau où les trois moteurs acheteurs se taisent. Il est présenté EN OBSERVATION, et c&#x27;est écrit sur chacun de ses signaux : positif trois années sur quatre, mais en recul sur la dernière. Deux places par jour au maximum, et il s&#x27;arrête de lui-même si ses résultats réels démentent la mesure.</p>
+      </div>
     </div>
     <div class="step">
-      <div class="step-num">8</div>
-      <div class="step-body"><h3>Tu reçois le signal complet sur Telegram</h3><p>Paire, sens, prix d&#x27;entrée, stop loss et objectifs — tous définis AVANT l&#x27;ouverture, jamais ajustés après coup. Sur les familles directionnelles, le stop est large (4 x ATR) : il n&#x27;est là que contre l&#x27;accident, et les objectifs (4, 8 et 12 x ATR) jalonnent la progression sans piloter la clôture.</p></div>
+      <div class="step-num" aria-hidden="true">📩</div>
+      <div class="step-body">
+        <h3><span class="step-count">Étape 8</span>Tu reçois le signal complet sur Telegram</h3>
+        <p>Paire, sens, prix d&#x27;entrée, stop loss et objectifs — tous définis AVANT l&#x27;ouverture, jamais ajustés après coup. Sur les familles directionnelles, le stop est large (4 x ATR) : il n&#x27;est là que contre l&#x27;accident, et les objectifs (4, 8 et 12 x ATR) jalonnent la progression sans piloter la clôture.</p>
+      </div>
     </div>
     <div class="step">
-      <div class="step-num">9</div>
-      <div class="step-body"><h3>Tout est publié, gains comme pertes</h3><p>Chaque résultat apparaît sur le canal public et la page Transparence. Un service qui ne publie que ses gains ne publie pas ses résultats.</p></div>
+      <div class="step-num" aria-hidden="true">🔍</div>
+      <div class="step-body">
+        <h3><span class="step-count">Étape 9</span>Tout est publié, gains comme pertes</h3>
+        <p>Chaque résultat apparaît sur le canal public et la page Transparence. Un service qui ne publie que ses gains ne publie pas ses résultats.</p>
+      </div>
     </div>
   </section>
 
@@ -896,10 +999,18 @@
   </section>
 
   <div class="cta">
-    <p><b>Teste sans payer</b></p>
-    <p>Essai gratuit de 3 jours, aucun moyen de paiement demandé.
-       Vérifie d'abord l'état du marché avec <code>/marche</code>.</p>
-    <a href="https://t.me/ProVIPSignals_bot">Ouvrir le bot Telegram →</a>
+    <div class="cta-inner">
+      <h2>Essaie 3 jours, sans rien payer</h2>
+      <p>Tu recevras exactement ce que reçoit un abonné : les signaux, leur format, et les jours
+         où il n'y a rien. Il n'existe pas de version « démo » différente du produit.</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="https://t.me/ProVIPSignals_bot">🎁 Démarrer l'essai gratuit</a>
+        <a class="btn btn-ghost" href="https://t.me/ProSignauxPublic">📖 Voir le canal public</a>
+      </div>
+      <p class="btn-note">Aucun moyen de paiement demandé, aucun prélèvement automatique, rien à
+         désinscrire. Tape <code>/marche</code> dans le bot pour voir l'état du marché avant même
+         de commencer.</p>
+    </div>
   </div>
 
   <footer>
