@@ -199,6 +199,44 @@ verifie(config.M4H_HOLD_BOUGIES % m4h.BOUGIES_PAR_JOUR == 0,
 verifie(config.QUOTA_OBSERVATION_MAX >= 1,
         "un moteur en observation publie quand même : l'observer suppose de le voir tourner")
 
+print("\n=== 11 bis. Un moteur n'en affame jamais un autre ===")
+# Le quota borne les PARIS DIRECTIONNELS. Un carry n'en est pas un : ses deux
+# jambes s'annulent. Les mettre en concurrence donnait un résultat absurde — la
+# force relative rend 0,460 %/jour contre 0,027 % au carry, elle passait donc
+# systématiquement devant, et un jour à cinq candidates le carry n'obtenait plus
+# aucune place, alors qu'il est le moteur le mieux établi du projet.
+plein = [sig("relative_strength", f"R{i}/USDT") for i in range(5)] + \
+        [sig("carry_funding", f"C{i}/USDT") for i in range(3)]
+retenus, ecartes = arb.arbitrer(plein)
+moteurs = [c[0]["engine"] for c in retenus]
+verifie(moteurs.count("relative_strength") == config.QUOTA_SIGNAUX_MAX,
+        "la force relative prend toutes les places directionnelles")
+verifie(moteurs.count("carry_funding") == 3,
+        "et les 3 carrys passent quand même : ils ne concourent pas pour ces places")
+verifie(not any(c[0]["engine"] == "carry_funding" for c in ecartes),
+        "aucun carry n'est écarté par le quota directionnel")
+
+verifie(len(arb.arbitrer([sig("carry_funding", f"C{i}/USDT") for i in range(3)])[0]) == 3,
+        "trois carrys seuls passent tous, bornés en amont par CARRY_MAX_NEW_PER_DAY")
+
+melange = [sig("momentum_4h", f"M{i}/USDT") for i in range(5)] + \
+          [sig("relative_strength", f"R{i}/USDT") for i in range(5)]
+moteurs = [c[0]["engine"] for c in arb.arbitrer(melange)[0]]
+# La garantie porte sur le ZÉRO, pas sur un partage précis : chaque moteur qui a
+# quelque chose à dire obtient au moins une place, puis le reste va au mérite.
+verifie(moteurs.count("momentum_4h") >= 1,
+        "le moteur le moins bien classé n'est jamais réduit à zéro quand il a un candidat")
+verifie(moteurs.count("relative_strength") > moteurs.count("momentum_4h"),
+        "et le mieux mesuré garde la majorité des places : la garantie n'égalise pas")
+verifie(len(moteurs) == config.QUOTA_SIGNAUX_MAX,
+        "la journée reste pleine")
+
+# Le premier tour ne doit pas non plus servir un moteur à espérance nulle.
+mort = [sig("high_confidence", "VIEUX/USDT")] + [sig("relative_strength", f"R{i}/USDT") for i in range(5)]
+moteurs = [c[0]["engine"] for c in arb.arbitrer(mort)[0]]
+verifie("high_confidence" not in moteurs,
+        "un moteur désactivé n'obtient pas de place garantie : la garantie sert les moteurs mesurés")
+
 print("\n=== 12. Le verrou de portefeuille ignore les carrys ===")
 # Bug constaté en production : dix carrys ouverts comptaient comme dix
 # positions à RISQUE, pour un maximum de cinq. Les moteurs directionnels

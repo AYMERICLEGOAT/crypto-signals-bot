@@ -1,10 +1,9 @@
 """
-Moteur Momentum 4 heures : le complément des trois familles journalières.
+Moteur Momentum 4 heures : le complément de la force relative.
 
 CE QU'IL FAIT, ET POURQUOI IL EST L'INVERSE DES AUTRES.
 
-Les trois familles journalières (force relative, cassure de canal, expansion de
-volatilité) achètent une continuation et sont coupées quand le Bitcoin passe
+La force relative achète une continuation et elle est coupée quand le Bitcoin passe
 sous sa moyenne 200 jours — soit 41 % du temps. Ce moteur-ci ne travaille QUE
 pendant ces périodes-là. C'est son unique raison d'être : combler exactement le
 trou que les autres laissent.
@@ -99,7 +98,7 @@ def compute_atr(df: pd.DataFrame, periode: int = 14) -> float | None:
 def marche_defavorable(btc_4h: pd.DataFrame) -> bool | None:
     """
     Le Bitcoin est-il SOUS sa moyenne 200 jours ? C'est la condition d'activité
-    de ce moteur — l'exact inverse des trois familles journalières.
+    de ce moteur — l'exact inverse de la force relative.
 
     200 jours valent 1 200 bougies de 4 heures. Retourne None si l'historique
     ne suffit pas à trancher, et l'appelant traite ce cas comme un refus : un
@@ -181,8 +180,8 @@ def detect_momentum_4h_signals(candles_4h: dict, btc_4h: pd.DataFrame,
         return []
     if not defavorable:
         logger.info(
-            "[%s] Marché favorable : ce moteur se tait, les trois familles journalières "
-            "prennent le relais. Il ne travaille que dans le régime où elles sont coupées.",
+            "[%s] Marché favorable : ce moteur se tait, la force relative prend le relais. "
+            "Il ne travaille que dans le régime où elle est coupée.",
             ENGINE_NAME,
         )
         return []

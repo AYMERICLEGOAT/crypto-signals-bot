@@ -134,45 +134,48 @@ def _shell(title, description, path, body, kind="website", jsonld=None):
 # comprendre, et <code>/marche</code> en donne la version vivante.
 FILTER_STATE_DATE = "4 août 2026"
 
-# Les cinq moteurs diffusés, le momentum 4 heures depuis le 07/08/2026. Avant
-# le 04/08/2026 le moteur n'en diffusait qu'un (la force relative), et cette page
-# ne décrivait donc plus le produit réellement vendu. Elles servent aussi de source unique
-# au balisage schema.org/HowTo plus bas : une seule liste, pas de divergence
-# possible entre ce qui est affiché et ce qui est déclaré aux moteurs.
+# LES TROIS MOTEURS RÉELLEMENT DIFFUSÉS, et rien de plus.
+#
+# Cette liste en annonçait CINQ jusqu'au 07/08/2026 : « cassure de canal » et
+# « expansion de volatilité » y figuraient comme des familles en service. Elles
+# ont bien été validées en backtest dans un portefeuille, mais elles n'ont
+# jamais été implémentées — aucun module ne les émet, et aucun signal de ce type
+# n'a jamais été envoyé à qui que ce soit. Les annoncer à des abonnés payants
+# était faux, et c'est précisément ce que ce projet s'interdit.
+#
+# Elles reviendront ici le jour où elles émettront réellement, pas avant.
+#
+# Cette liste sert aussi de source unique au balisage schema.org/HowTo plus
+# bas : une seule liste, pas de divergence possible entre ce qui est affiché et
+# ce qui est déclaré aux moteurs de recherche.
 # Un pictogramme par étape. Il ne décore pas : sur une page de neuf étapes, il
 # donne un point d'accroche qui permet de retrouver « celle du filtre » ou
 # « celle du carry » sans relire les titres un par un.
-STEP_ICONS = ["⚙️", "🚦", "📈", "📊", "🌋", "💵", "🧪", "📩", "🔍"]
+STEP_ICONS = ["⚙️", "🚦", "📈", "💵", "🧪", "📩", "🔍"]
 
 STEPS = [
-    ("Cinq moteurs tournent en parallèle, pas un seul",
-     "Trois d'entre eux achètent (ils parient sur la hausse), un est neutre au marché, et le "
-     "dernier ne travaille QUE lorsque le marché baisse. Tous ont été validés face à un témoin "
+    ("Trois moteurs tournent en parallèle, pas un seul",
+     "Le premier achète (il parie sur la hausse), le deuxième est neutre au marché, et le "
+     "troisième ne travaille QUE lorsque le marché baisse. Tous ont été validés face à un témoin "
      "aléatoire : un moteur qui ne bat pas un tirage au sort à contraintes égales est jeté, quelle "
      "que soit son espérance affichée. Sur douze approches testées, deux seulement ont été "
      "retenues."),
-    ("Le filtre de tendance décide si les familles directionnelles ont le droit d'acheter",
+    ("Le filtre de tendance décide si la force relative a le droit d'acheter",
      "Une seule question avant tout le reste : le Bitcoin est-il au-dessus de sa moyenne mobile "
-     "200 jours ? S'il est en dessous, les trois familles acheteuses se taisent, quelles que soient "
+     "200 jours ? S'il est en dessous, la force relative se tait, quelles que soient "
      "les opportunités apparentes. Sur les 6 dernières années mesurées, ce filtre a été fermé 41 % "
      "du temps, et sa plus longue fermeture a duré 381 jours d'affilée."),
-    ("Famille 1 — Force relative : acheter ce qui monte déjà",
+    ("Moteur 1 — Force relative : acheter ce qui monte déjà",
      "Une fois par jour, sur des clôtures journalières, les 40 paires suivies sont classées de la "
      "plus forte à la plus faible selon leur progression récente. Les 12 premières sont achetées et "
      "tenues 7 jours, puis clôturées sur le temps. C'est du momentum, rien de plus : aucun "
      "indicateur secret."),
-    ("Famille 2 — Cassure de canal : acheter la sortie de range",
-     "Quand le prix franchit son plus haut des 50 derniers jours, la position s'ouvre. On "
-     "n'anticipe pas la cassure, on attend qu'elle ait eu lieu — c'est toute la différence."),
-    ("Famille 3 — Expansion de volatilité : entrer quand le marché se réveille",
-     "Après une longue phase de compression, où l'amplitude des mouvements s'est resserrée, le "
-     "retour de la volatilité déclenche l'entrée. C'est le plus rare des cinq moteurs."),
-    ("Famille 4 — Carry de financement : gagner sans dépendre du prix",
+    ("Moteur 2 — Carry de financement : gagner sans dépendre du prix",
      "Deux jambes de même montant : achat au comptant, et vente à découvert du contrat perpétuel. "
      "Les deux s'annulent, donc le prix n'entre pas dans l'équation. Le gain vient du financement "
      "que les acheteurs de perpétuels versent aux vendeurs toutes les 8 heures. Il produit dans "
      "les deux régimes de marché."),
-    ("Famille 5 — Momentum 4 heures : le seul qui travaille quand le marché baisse",
+    ("Moteur 3 — Momentum 4 heures : le seul qui achète quand le marché baisse",
      "Même classement que la force relative, mais mesuré sur des bougies de 4 heures, limité aux "
      "deux paires les plus fortes et tenu 3 jours. Sa particularité : il ne se déclenche QUE "
      "lorsque le Bitcoin est sous sa moyenne 200 jours — exactement le créneau où les trois moteurs "
@@ -253,7 +256,7 @@ def build_how_it_works():
   <header class="hero">
     <span class="status-pill"><span class="status-dot"></span>Aucune intervention humaine, aucune opinion</span>
     <h1>Comment ça marche</h1>
-    <p class="hero-sub">Cinq moteurs de signaux, dont un qui ne dépend pas du prix et un qui ne
+    <p class="hero-sub">Trois moteurs de signaux, dont un qui ne dépend pas du prix et un qui ne
        travaille que lorsque le marché baisse. Étape par étape, avec les chiffres tels qu'ils ont
        été mesurés — y compris ceux qui dérangent.</p>
     <div class="actions">
@@ -271,7 +274,7 @@ def build_how_it_works():
   </section>
 
   <section>
-    <h2>Les neuf étapes, en détail</h2>
+    <h2>Les sept étapes, en détail</h2>
 {steps_html}
   </section>
 
@@ -324,7 +327,7 @@ def build_how_it_works():
 
   <section>
     <h2>Le filtre de tendance, en détail</h2>
-    <p>C'est la pièce centrale des trois familles acheteuses, et celle qui déplaît le plus&nbsp;:
+    <p>C'est la pièce centrale du moteur directionnel, et celle qui déplaît le plus&nbsp;:
        <b>41 % du temps, elles n'émettent rien du tout.</b> Pas parce qu'elles sont en panne, mais
        parce que le Bitcoin est sous sa moyenne mobile 200 jours et qu'elles ont interdiction
        d'acheter dans ces conditions.</p>
@@ -333,7 +336,7 @@ def build_how_it_works():
        n'aurait reçu, pendant plus d'un an, aucun signal directionnel.</p>
     <div class="warn">
       <p><b>Au {FILTER_STATE_DATE}, le filtre est fermé&nbsp;:</b> le Bitcoin est sous sa moyenne
-         200 jours. Les trois familles acheteuses sont donc à l'arrêt, et personne ne sait quand
+         200 jours. La force relative acheteuses sont donc à l'arrêt, et personne ne sait quand
          elles reprendront. Tape <code>/marche</code> sur le bot pour l'état en direct.</p>
       <p>Le carry, lui, continue&nbsp;: en marché défavorable, le service produit encore
          <b>1,15 signal par jour</b> en moyenne mesurée. Mais si tu cherches un service qui envoie
@@ -348,7 +351,7 @@ def build_how_it_works():
   <section>
     <h2>Pas d'indicateur magique</h2>
     <p>Le classement de la force relative est construit à partir du RSI, mais un simple tri par
-       rendement passé fait aussi bien&nbsp;: c'est du momentum, point. Aucun des cinq moteurs
+       rendement passé fait aussi bien&nbsp;: c'est du momentum, point. Aucun des trois moteurs
        ne repose sur un indicateur propriétaire ou sur une recette cachée&nbsp;; toutes sont des
        mécaniques connues, appliquées sans exception et sans état d'âme.</p>
     <p>Ce qui fait la différence n'est pas l'indicateur, c'est la discipline&nbsp;: des niveaux
@@ -372,7 +375,7 @@ def build_how_it_works():
        cadence garantie pour la durée d'un abonnement.</p>
 
     <h2>Il faut prendre tous les signaux directionnels</h2>
-    <p>Les trois familles acheteuses réussissent environ une fois sur deux, et le signal
+    <p>La force relative acheteuses réussissent environ une fois sur deux, et le signal
        <b>médian perd 0,69 %</b>. Leur rentabilité ne vient pas d'une majorité de petits gains&nbsp;:
        elle vient d'une <b>minorité de très gros gagnants</b>.</p>
     <div class="warn">
@@ -674,12 +677,8 @@ def build_terms():
     <h2>2. Périodes sans aucun signal — à lire avant de payer</h2>
     <p><strong>Ce service peut ne diffuser aucun signal pendant des périodes prolongées, y compris
        pendant la totalité d'un abonnement payé.</strong></p>
-    <p>Les trois familles directionnelles (force relative, cassure de canal, expansion de
-       volatilité) n'émettent aucun signal tant que le Bitcoin est sous sa moyenne mobile
-       200 jours. Sur les 6 dernières années mesurées, cette condition d'arrêt a été remplie
-       <strong>41 % du temps</strong>. Il y a eu 11 périodes d'arrêt d'au moins une semaine, de durée médiane
-       25 jours, dont une de <strong>381 jours consécutifs</strong> (12,7 mois, du 28/12/2021 au
-       13/01/2023).</p>
+    <p>La force relative, seul moteur directionnel en service, n'émet aucun signal tant que le
+       Bitcoin est sous sa moyenne mobile 200 jours.</p>
     <div class="warn">
       <p><b>L'abonnement court pendant ces périodes.</b> La durée achetée (14 ou 30 jours) s'écoule
          au calendrier. Elle n'est ni suspendue, ni prolongée, ni remboursée, même si aucun signal
@@ -695,8 +694,7 @@ def build_terms():
          pendant que détenir ces mêmes cryptos coûtait -70,9 % puis -39,4 %. Ne rien envoyer est
          la protection, pas le défaut.</p>
       <p><b>Tu en es informé avant tout paiement.</b> Au {FILTER_STATE_DATE}, cette condition
-         d'arrêt est active&nbsp;: le Bitcoin est sous sa moyenne 200 jours, et les trois familles
-         directionnelles sont à l'arrêt. Le carry de financement, lui, continue de produire, et le
+         d'arrêt est active&nbsp;: le Bitcoin est sous sa moyenne 200 jours, et la force relative est à l'arrêt. Le carry de financement, lui, continue de produire, et le
          momentum 4 heures ne travaille même que dans ce régime-là. Personne ne peut prévoir la date de
          reprise des trois autres&nbsp;: n'achète pas d'abonnement en pariant sur une échéance.</p>
     </div>

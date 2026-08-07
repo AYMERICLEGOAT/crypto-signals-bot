@@ -2,7 +2,7 @@
  * /marche — état EN DIRECT du filtre de tendance des familles directionnelles.
  *
  * Pourquoi cette commande existe. Les trois familles directionnelles (force
- * relative, cassure de canal, expansion de volatilité) n'émettent rien tant que
+ * relative) n'émet rien tant que
  * le Bitcoin clôture sous sa moyenne mobile 200 jours (voir
  * signals/relative_strength.py::is_market_in_uptrend). Ce filtre est fermé
  * 41 % du temps, et sa plus longue fermeture a duré 381 jours : sans un
@@ -329,12 +329,12 @@ function buildOpenMessage(state: TrendState, carryLine: string | null): string {
     : `depuis le ${frDate(state.sinceMs)}, soit ${state.runDays} jour${state.runDays > 1 ? "s" : ""}`;
 
   return joinLines([
-    "📈 *Marché favorable — quatre des cinq familles émettent*",
+    "📈 *Marché favorable — la force relative et le carry émettent*",
     "",
     `Le Bitcoin clôture ${fr(state.gapPct)} % au-dessus de sa moyenne mobile 200 jours (clôture du ${frDate(state.asOfMs)}). C'est la condition d'ouverture du filtre de tendance, et elle est remplie ${duration}.`,
     "",
     "*Ce qui tourne*",
-    "Trois familles directionnelles : la force relative (les 40 paires suivies sont classées, on achète les 12 plus fortes et on les tient 7 jours), la cassure du plus haut 50 jours, et l'expansion de volatilité après une phase de compression.",
+    "Le moteur directionnel est la force relative : les 40 paires suivies sont classées entre elles, on achète les 12 plus fortes, et on les tient 7 jours.",
     "",
     CARRY_EXPLANATION,
     carryLine,
@@ -367,7 +367,7 @@ function buildClosedMessage(state: TrendState, carryLine: string | null): string
     duration,
     "",
     "*Ce qui s'arrête*",
-    "Les trois familles directionnelles — force relative, cassure du plus haut 50 jours, expansion de volatilité — n'émettent plus rien. Elles achètent, et acheter ne paie pas dans ce régime. On préfère ne rien t'envoyer plutôt que de te faire perdre.",
+    "La force relative n'émet plus rien : elle achète, et acheter ne paie pas dans ce régime. On préfère ne rien t'envoyer plutôt que de te faire perdre.",
     "",
     "*Ce qui continue*",
     CARRY_EXPLANATION,
@@ -408,10 +408,10 @@ function buildUnknownMessage(carryLine: string | null): string {
 /**
  * /marche — état en direct du filtre de tendance.
  *
- * Ouvert = quatre des cinq familles émettent (le momentum 4H ne travaille
- * QU'en marché baissier). Fermé = les trois directionnelles se taisent, le
- * carry et le momentum 4H continuent. Aucun des deux états ne signifie « le
- * canal n'envoie rien ».
+ * Ouvert = la force relative et le carry émettent (le momentum 4H ne travaille
+ * QU'en marché baissier). Fermé = la force relative se tait, le carry et le
+ * momentum 4H continuent. Aucun des deux états ne signifie « le canal n'envoie
+ * rien ».
  */
 export async function handleMarcheCommand(env: Env, telegramId: number): Promise<void> {
   // Les carrys ouverts sont lus dans tous les cas, y compris quand les sources

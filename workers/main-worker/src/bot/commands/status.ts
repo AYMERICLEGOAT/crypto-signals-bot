@@ -64,7 +64,7 @@ function buildEngineStateLines(): string[] {
     return [
       `🔻 Ce que le moteur émet en ce moment (mesuré le ${TREND_FILTER_STATUS.measuredOn}) :`,
       `Le filtre de tendance est fermé — ${TREND_FILTER_STATUS.detail}. Les trois familles directionnelles ` +
-        "(force relative, cassure du plus haut 50 jours, expansion de volatilité) sont donc à l'arrêt : elles " +
+        "(la force relative) est donc à l'arrêt : elle " +
         "achètent, et acheter ne paie pas dans ce régime.",
       "Le carry de financement, lui, continue : il est neutre au marché, donc jamais filtré. Rythme mesuré sur " +
         "6 ans dans ce régime : 1,15 signal par jour en moyenne.",
@@ -76,10 +76,9 @@ function buildEngineStateLines(): string[] {
   }
   return [
     `📈 Ce que le moteur émet en ce moment (mesuré le ${TREND_FILTER_STATUS.measuredOn}) :`,
-    "Le filtre de tendance est ouvert : quatre des cinq familles émettent — force relative, cassure du plus " +
-      "haut 50 jours, expansion de volatilité, et le carry de financement. La cinquième, le momentum 4H, ne " +
-      "travaille QUE quand le marché baisse : elle se tait en ce moment. Rythme mesuré sur 6 ans dans ce " +
-      "régime : 4,35 signaux par jour.",
+    "Le filtre de tendance est ouvert : la force relative et le carry de financement émettent. Le " +
+      "momentum 4H, lui, ne travaille QUE quand le marché baisse : il se tait en ce moment. Rythme mesuré " +
+      "sur 6 ans dans ce régime : 4,35 signaux par jour.",
     "Le filtre peut se refermer n'importe quand. Ce jour-là, les trois premières se tairont et le carry " +
       "continuera seul, à 1,15 signal par jour en moyenne.",
   ];

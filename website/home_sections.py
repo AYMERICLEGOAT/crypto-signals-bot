@@ -3,7 +3,7 @@ Les sections d'accueil qui doivent convaincre : hero, fonctionnement, FAQ, appel
 
 Ce qu'elles corrigent. La page d'accueil commençait par un titre daté
 (« Signaux crypto gratuits — 7 août 2026 ») suivi d'un sous-titre technique
-énumérant cinq moteurs. Un visiteur qui arrive de recherche ne sait, après cinq
+énumérant les moteurs. Un visiteur qui arrive de recherche ne sait, après cinq
 secondes, ni ce qu'on lui propose, ni pourquoi il devrait le croire, ni quoi
 faire — trois questions auxquelles une page d'accueil doit répondre avant tout
 le reste. Le contenu était bon ; l'ordre dans lequel il arrivait ne l'était pas.
@@ -47,7 +47,7 @@ HERO = {
         "titre_fort": "se taisent",
         "titre_apres": " quand il n'y a rien à acheter.",
         "sous_titre": (
-            "Cinq moteurs mesurés sur six ans, chacun validé contre un tirage au hasard de même "
+            "Trois moteurs mesurés sur six ans, chacun validé contre un tirage au hasard de même "
             "densité. Quand le marché ne se prête pas, le canal le dit au lieu d'inventer des "
             "trades. Gratuit sur Telegram, sans inscription."
         ),

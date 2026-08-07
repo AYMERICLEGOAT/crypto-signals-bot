@@ -619,7 +619,7 @@ WATCHLIST_RUN_HOUR_UTC = 8
 ENABLE_MOMENTUM_4H = True
 
 # Ne travaille QUE quand le Bitcoin est SOUS sa moyenne 200 jours — l'exact
-# inverse des trois familles journalières. C'est sa seule raison d'être :
+# inverse de la force relative. C'est sa seule raison d'être :
 # combler le trou qu'elles laissent 41 % du temps.
 M4H_RSI_PERIOD = 42          # 42 bougies de 4 h = 7 jours
 M4H_HOLD_BOUGIES = 18        # 18 bougies = 3 jours, la durée mesurée
@@ -650,7 +650,7 @@ M4H_TOP_N = 2
 # --- Arbitre de signaux (voir signal_arbiter.py) ---
 #
 # Un juge unique pour tous les moteurs. Sans lui, chaque moteur décide seul :
-# un jour porteur les quatre familles tirent ensemble et l'abonné reçoit dix
+# un jour porteur tous les moteurs tirent ensemble et l'abonné reçoit dix
 # signaux d'un coup, un jour creux aucune ne tire et le canal est muet.
 #
 # Le MAXIMUM est une vraie limite : au-delà, les moins bons candidats sont

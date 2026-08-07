@@ -297,7 +297,7 @@ _ARCHIVES_EXTRA = """
 """
 
 
-# Les cinq moteurs diffusés depuis le 04/08/2026, le momentum 4 heures depuis le
+# Les trois moteurs diffusés. Le momentum 4 heures depuis le
 # 07/08/2026. Décrits ici plutôt qu'en dur dans le HTML pour que la page
 # d'accueil et le balisage schema.org ne puissent pas diverger — c'est exactement
 # ce qui avait laissé la page décrire un moteur qui n'était plus diffusé.
@@ -312,7 +312,7 @@ FAMILIES = [
      "Directionnel"),
     ("Expansion de volatilité",
      "Après une longue phase de compression, le réveil de la volatilité déclenche l'entrée. "
-     "C'est le plus rare des cinq moteurs.",
+     "C'est le plus rare des trois moteurs.",
      "Directionnel"),
     ("Carry de financement",
      "Position neutre au marché en deux jambes : achat au comptant + vente du perpétuel. "
@@ -459,7 +459,7 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
   </div>
 
   <section>
-    <h2>Les cinq moteurs</h2>
+    <h2>Les trois moteurs</h2>
     <p>Elles ne se ressemblent pas, et c'est le but&nbsp;: quand l'une s'arrête, les autres peuvent
        continuer. Les trois premières achètent — elles sont donc coupées quand le Bitcoin passe sous
        sa moyenne 200 jours. La quatrième ne dépend pas de la direction du marché.</p>
@@ -512,7 +512,7 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
     <h2>Les silences, dits avant le paiement</h2>
     <p>Le filtre de tendance a été fermé <b>41 % du temps</b> sur les 6 dernières années, avec une
        fermeture record de <b>381 jours</b> d'affilée, du 28/12/2021 au 13/01/2023. Pendant ces
-       périodes, les trois familles directionnelles n'émettent rien du tout.</p>
+       périodes, la force relative n'émet rien du tout.</p>
     <p>Depuis l'ajout du carry, ces périodes ne sont plus vides&nbsp;: il reste 1,15 signal par jour en
        moyenne mesurée. Mais un jour sur cinq n'a toujours aucun signal, et <b>l'abonnement court au
        calendrier</b> — il n'est ni suspendu, ni prolongé pendant les jours creux. Les
@@ -574,7 +574,7 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
 
   <section>
     <h2>Pour aller plus loin</h2>
-    <p><a href="/comment-ca-marche.html">Comment ça marche</a> détaille les cinq moteurs étape par
+    <p><a href="/comment-ca-marche.html">Comment ça marche</a> détaille les trois moteurs étape par
        étape. <a href="/a-propos.html">À propos</a> raconte d'où vient ce projet et ce qu'il ne fait
        pas. <a href="/glossaire.html">Le glossaire</a> et les <a href="/guides/">guides</a> expliquent
        les termes employés dans un signal.</p>

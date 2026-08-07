@@ -117,7 +117,7 @@ export async function handleStart(env: Env, telegramId: number, referralPayload?
   // coupé par ce filtre — et on renvoie vers /marche, qui recalcule en direct.
   const filterState = TREND_FILTER_STATUS.closed
     ? `Et ça tombe bien : au ${TREND_FILTER_STATUS.measuredOn}, ${TREND_FILTER_STATUS.detail}. Les trois ` +
-      "autres familles de signaux (force relative, cassure de canal, expansion de volatilité) sont donc " +
+      "moteur directionnel (la force relative) est donc " +
       "à l'arrêt, et le resteront tant que cette moyenne n'aura pas été repassée — ça peut durer des " +
       "semaines ou des mois. Deux familles continuent pendant ce temps : le carry, qui n'est pas coupé " +
       "par ce filtre, et le momentum 4H, qui ne travaille QUE dans ce régime — il est en observation, " +

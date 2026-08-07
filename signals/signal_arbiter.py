@@ -2,7 +2,7 @@
 L'arbitre : un juge unique pour tous les moteurs, avec un quota quotidien.
 
 LE PROBLÈME. Chaque moteur décidait seul de ce qu'il émettait. Résultat : un
-jour porteur, les quatre familles tirent ensemble et l'abonné reçoit dix
+jour porteur, tous les moteurs tirent ensemble et l'abonné reçoit dix
 signaux d'un coup ; un jour creux, aucune ne tire et le canal est muet. Les
 deux sont mauvais, et pour la même raison — personne ne regarde le total.
 
@@ -98,6 +98,12 @@ PROFILS = {
 # la majorité du canal.
 MOTEURS_EN_OBSERVATION = {"momentum_4h"}
 
+# Moteurs NEUTRES AU MARCHÉ : leurs positions n'exposent l'abonné à aucune
+# direction de prix, et ne consomment donc pas la même ressource que les paris
+# directionnels. Ils échappent au quota quotidien pour la même raison qu'ils
+# échappent au verrou de portefeuille (voir storage.count_open_at_risk_trades).
+MOTEURS_NEUTRES = {"carry_funding"}
+
 
 def plafond_du_moteur(engine: str) -> int:
     """
@@ -143,6 +149,25 @@ def arbitrer(candidats: list) -> tuple[list, list]:
     if not candidats:
         return [], []
 
+    # LES CARRYS NE CONCOURENT PAS POUR LES MÊMES PLACES.
+    #
+    # Le quota borne le nombre de PARIS DIRECTIONNELS envoyés dans la journée.
+    # Un carry n'en est pas un : ses deux jambes s'annulent, il n'occupe aucune
+    # part du risque de marché de l'abonné, et il a déjà son propre plafond
+    # (config.CARRY_MAX_NEW_PER_DAY).
+    #
+    # Les mettre en concurrence produisait un résultat absurde : la force
+    # relative rend 0,460 %/jour contre 0,027 % au carry, elle passe donc
+    # systématiquement devant, et un jour où elle trouve cinq candidates le
+    # carry n'obtient plus aucune place — alors même qu'il est le moteur dont
+    # l'avantage est le mieux établi du projet (84,2 % de positions gagnantes,
+    # sept années positives sur sept). Comparer leurs espérances par jour de
+    # capital a du sens pour choisir entre deux directionnels ; cela n'en a
+    # aucun pour arbitrer entre un pari sur le prix et une position qui n'en
+    # est pas un.
+    carrys = [c for c in candidats if c[0].get("engine") in MOTEURS_NEUTRES]
+    candidats = [c for c in candidats if c[0].get("engine") not in MOTEURS_NEUTRES]
+
     # Un moteur dont l'espérance mesurée est négative ou nulle ne doit pas
     # occuper une place, même s'il en reste. C'est le cas des moteurs
     # historiques désactivés dont un signal traînerait.
@@ -160,26 +185,63 @@ def arbitrer(candidats: list) -> tuple[list, list]:
 
     classes = sorted(valides, key=lambda c: -esperance_par_jour(c[0].get("engine", "")))
 
-    # Remplissage place par place, en respectant à la fois le plafond global et
-    # celui de chaque moteur. Un candidat refusé pour cause de plafond de moteur
-    # ne bloque pas la suite : la place revient au meilleur candidat suivant
-    # d'un AUTRE moteur, ce qui diversifie la journée au lieu de la tronquer.
+    # UNE PLACE GARANTIE À CHAQUE MOTEUR QUI A QUELQUE CHOSE À DIRE.
+    #
+    # Sans ce premier tour, le classement par espérance suffit à faire taire un
+    # moteur entier : la force relative rend 0,460 %/jour contre 0,268 % au
+    # momentum 4 h, ses candidats passent donc tous devant, et cinq candidates
+    # de force relative un même jour ne laissent rien aux autres.
+    #
+    # Le cas est aujourd'hui théorique — ces deux moteurs travaillent dans des
+    # régimes opposés et ne se rencontrent jamais. Mais une garantie qui ne
+    # tient que par la configuration du moment n'est pas une garantie : il
+    # suffirait d'ajouter un sixième moteur pour que le problème devienne réel,
+    # et personne ne s'en apercevrait puisque rien ne planterait.
+    #
+    # Premier tour : le meilleur candidat de chaque moteur, dans l'ordre des
+    # espérances. Second tour : le reste des places, au mérite.
     retenus, ecartes = [], list(rejetes)
     par_moteur = {}
+    deja_servi = set()
+
+    def peut_prendre(c) -> bool:
+        engine = c[0].get("engine", "")
+        return (
+            len(retenus) < config.QUOTA_SIGNAUX_MAX
+            and par_moteur.get(engine, 0) < plafond_du_moteur(engine)
+        )
+
+    def prendre(c) -> None:
+        engine = c[0].get("engine", "")
+        par_moteur[engine] = par_moteur.get(engine, 0) + 1
+        deja_servi.add(engine)
+        retenus.append(c)
+
     for c in classes:
         engine = c[0].get("engine", "")
+        if engine not in deja_servi and peut_prendre(c):
+            prendre(c)
+
+    for c in classes:
+        if c in retenus:
+            continue
         if len(retenus) >= config.QUOTA_SIGNAUX_MAX:
             ecartes.append(c)
             continue
-        if par_moteur.get(engine, 0) >= plafond_du_moteur(engine):
+        if not peut_prendre(c):
             ecartes.append(c)
             logger.info(
                 "[arbitre] %s (%s) écarté : ce moteur a déjà ses %d places du jour.",
-                c[0].get("pair"), engine, plafond_du_moteur(engine),
+                c[0].get("pair"), c[0].get("engine"), plafond_du_moteur(c[0].get("engine", "")),
             )
             continue
-        par_moteur[engine] = par_moteur.get(engine, 0) + 1
-        retenus.append(c)
+        prendre(c)
+
+    # Les carrys reviennent APRÈS le remplissage, sans avoir concouru. Ils sont
+    # déjà bornés en amont par CARRY_MAX_NEW_PER_DAY (voir carry_engine.py) :
+    # les recompter ici serait un second plafond, et le plus serré des deux
+    # gagnerait en silence.
+    retenus.extend(carrys)
 
     if ecartes:
         detail = ", ".join(

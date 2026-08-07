@@ -45,8 +45,7 @@ export async function handleDemoCommand(env: Env, telegramId: number): Promise<v
       "*1. UN ACHAT — signal directionnel*\n\n" +
       "🟢 *ACHAT* sur une paire parmi les 12 plus fortes du moment\n" +
       "📈 Les 40 paires suivies sont classées par force relative, sur des bougies journalières. " +
-      "On achète les 12 premières. C'est du momentum, pas un indicateur secret. Deux autres familles " +
-      "envoient le même format : la cassure du plus haut 50 jours, et le réveil de volatilité après compression.\n\n" +
+      "On achète les 12 premières. C'est du momentum, pas un indicateur secret.\n\n" +
       "💵 Entrée : le cours à la clôture du jour\n" +
       "🛑 Stop : 4 x ATR sous l'entrée\n" +
       "🥇 Jalon 1 : 4 x ATR au-dessus de l'entrée\n" +
@@ -58,7 +57,7 @@ export async function handleDemoCommand(env: Env, telegramId: number): Promise<v
       "La sortie est TEMPORELLE : ce sont les 7 jours qui ferment la position, pas un objectif de prix. " +
       "Les jalons servent à suivre la progression. Et le stop est volontairement très large — ce n'est pas " +
       "une gestion fine, c'est une protection catastrophe.\n\n" +
-      "Ces trois familles se taisent dès que le Bitcoin passe sous sa moyenne 200 jours, ce qui arrive " +
+      "Ce moteur se tait dès que le Bitcoin passe sous sa moyenne 200 jours, ce qui arrive " +
       "41 % du temps (la plus longue fermeture a duré 381 jours, du 28/12/2021 au 13/01/2023).\n\n" +
       "━━━━━━━━━━\n" +
       "*2. UN CARRY DE FINANCEMENT — neutre au marché*\n\n" +
@@ -84,7 +83,7 @@ export async function handleDemoCommand(env: Env, telegramId: number): Promise<v
       "• marché défavorable : le carry (1,15 par jour) et le momentum 4H, qui ne travaille que dans ce régime\n" +
       "• jamais plus de 5 par jour au total : au-delà, ce ne serait plus une sélection\n\n" +
       "⚠️ *Ce qu'il faut accepter*\n" +
-      "Les familles directionnelles réussissent environ une fois sur deux, et leur signal médian PERD " +
+      "Les signaux directionnels réussissent environ une fois sur deux, et leur signal médian PERD " +
       "0,69 % — il y a donc une majorité de perdants. Tout le gain vient d'une minorité de gros gagnants. " +
       "Il faut donc les prendre TOUS : en trier quelques-uns revient statistiquement à ne garder que la " +
       "partie perdante.\n\n" +

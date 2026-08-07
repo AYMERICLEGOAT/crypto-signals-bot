@@ -42,7 +42,7 @@ TELEGRAM_URL = f"https://t.me/{TELEGRAM_BOT_USERNAME}"
 # Les chiffres qui décrivaient l'ancien moteur à famille unique (8,0 signaux par
 # semaine, 47,7 % de réussite, +3,22 % d'espérance, +83,3 % par an) ont tous été
 # retirés : ils ne décrivent plus ce que fait le moteur. Ceux qui les remplacent
-# proviennent de la mesure sur 6 ans du portefeuille des quatre familles —
+# proviennent de la mesure sur 6 ans du portefeuille des moteurs retenus —
 # aucun n'est arrondi à l'avantage.
 #
 # Le seuil MIN_SIGNIFICANT_TRADES a disparu d'ici : la section backtest
@@ -61,7 +61,7 @@ _STRINGS = {
         # description doit rester juste dans les trois cas, sinon les moteurs de
         # recherche indexent « 0 signaux » sans la moindre explication.
         "meta_description": lambda n, n_carry, pairs, date_str: (
-            f"Aucun signal crypto publié le {date_str} : les trois familles directionnelles sont coupées tant que "
+            f"Aucun signal crypto publié le {date_str} : la force relative est coupée tant que "
             f"le Bitcoin est sous sa moyenne mobile 200 jours, et le carry de financement n'a rien trouvé non plus. "
             f"Pourquoi ce silence, et combien de temps il peut durer."
             if not n
@@ -69,14 +69,14 @@ _STRINGS = {
             f"financement, position neutre au marché dont le résultat ne dépend pas du prix. Les familles "
             f"directionnelles sont à l'arrêt aujourd'hui. Résultats réels inclus."
             if n_carry == n
-            else f"Analyse gratuite de {n} signaux crypto ({pairs}) du {date_str}, issus de cinq moteurs "
-            f"mesurées sur 6 ans : force relative, cassure de canal, expansion de volatilité et carry de "
-            f"financement. Résultats réels inclus."
+            else f"Analyse gratuite de {n} signaux crypto ({pairs}) du {date_str}, issus de trois moteurs "
+            f"mesurés sur 6 ans : force relative, carry de financement et momentum 4 heures. "
+            f"Résultats réels inclus."
         ),
         "h1": lambda date_str: f"Signaux crypto gratuits — {date_str}",
-        "subtitle": "Cinq moteurs de signaux, chacun validé contre un témoin aléatoire : force relative, "
-        "cassure de canal, expansion de volatilité, carry de financement, et momentum 4 heures. Les deux "
-        "derniers continuent de produire quand le marché baisse. Mis à jour chaque jour.",
+        "subtitle": "Trois moteurs de signaux, chacun validé contre un témoin aléatoire : force relative, "
+        "carry de financement, et momentum 4 heures. Les deux derniers continuent de produire quand le "
+        "marché baisse. Mis à jour chaque jour.",
         "signals_heading": lambda n: f"🔎 Les {n} derniers signaux",
         "signals_note": "Trois familles achètent une hausse : entrée, stop volontairement large à 4x l'ATR "
         "(une protection contre l'accident, pas un outil de gestion), jalons de suivi à 4x, 8x et 12x l'ATR, et "
@@ -145,7 +145,7 @@ _STRINGS = {
         # différents : les mélanger serait exactement la faute du
         # « 61,2 % de réussite ».
         "perf_engine_note": "Ces résultats peuvent inclure des signaux émis par des moteurs précédents, "
-        "désactivés depuis. Ils ne décrivent donc pas les cinq moteurs présentés plus haut, qui n'ont pas "
+        "désactivés depuis. Ils ne décrivent donc pas les trois moteurs présentés plus haut, qui n'ont pas "
         "encore d'historique en direct. Le résultat d'un carry, lui, ne se mesure pas sur un prix mais sur le "
         "financement encaissé, frais déduits.",
         "perf_secured": lambda count, pct: f"🔒 {count} ({pct:.0f}%) trades sécurisés (TP1 atteint, break-even ou mieux)",
@@ -177,7 +177,7 @@ _STRINGS = {
         "backtest_stat": "Après six mois : +5,0 % en médiane",
         "backtest_subscriber": "53 % des entrées sont gagnantes à six mois, et le pire cas mesuré est -61,7 %. "
         "Ce n'est pas un produit qui enrichit vite : c'est un produit qui limite la casse, et il peut faire mal.",
-        "backtest_how_heading": "Les cinq moteurs",
+        "backtest_how_heading": "Les trois moteurs",
         "backtest_how": "Aucune n'a été retenue sur sa seule espérance : chacune a été confrontée à un témoin "
         "aléatoire, et une famille qui ne bat pas un tirage au sort à contraintes égales est écartée. Sept ont "
         "été testées, trois ont été rejetées.",
@@ -197,7 +197,7 @@ _STRINGS = {
              "2022, est à -0,046 %, donc plate). Elle produit dans les deux régimes de marché."),
             ("Momentum 4 heures — en observation",
              "Le seul moteur qui ne travaille QUE lorsque le marché baisse : il occupe exactement le créneau "
-             "où les trois familles d'achat se taisent. Même principe de classement que la force relative, "
+             "où la force relative se tait. Même principe de classement que la force relative, "
              "mais sur des bougies de 4 heures, et limité aux deux plus fortes du moment, tenues 3 jours. "
              "Il est présenté en observation parce que sa mesure est ambiguë : positive trois années sur "
              "quatre, mais en recul sur la dernière. Il est donc plafonné à deux signaux par jour, chacun "
@@ -210,7 +210,7 @@ _STRINGS = {
             ("84,2 %", "de positions gagnantes pour le carry de financement"),
         ),
         "backtest_filter_heading": "Pourquoi les signaux d'achat se taisent parfois pendant des mois",
-        "backtest_filter": "Les trois familles directionnelles sont coupées quand le Bitcoin passe sous sa "
+        "backtest_filter": "La force relative est coupée quand le Bitcoin passe sous sa "
         "moyenne mobile 200 jours. Ce filtre est fermé 41 % du temps et sa plus longue fermeture a duré "
         "381 jours, du 28/12/2021 au 13/01/2023. Le carry, lui, n'est pas coupé : il est neutre au marché, donc "
         "une baisse ne le gêne pas. C'est ce qui fait passer le rythme de 0 à 1,15 signal par jour pendant ces "
@@ -245,7 +245,7 @@ _STRINGS = {
         # sont sortis serait tout simplement faux, et ferait passer pour une
         # panne l'une des deux familles qui produisent en marché baissier.
         "filter_heading": "🔇 Aucun signal aujourd'hui — et c'est voulu",
-        "filter_lead": "Ce silence n'est pas une panne. Les trois familles directionnelles n'achètent rien tant "
+        "filter_lead": "Ce silence n'est pas une panne. La force relative n'achète rien tant "
         "que le Bitcoin évolue sous sa moyenne mobile 200 jours. Les deux moteurs qui travaillent malgré ce "
         "filtre — le carry de financement, neutre au marché, et le momentum 4 heures, qui ne se déclenche que "
         "dans ce régime — n'ont rien trouvé non plus aujourd'hui : le premier n'ouvre une position que si le "
@@ -269,7 +269,7 @@ _STRINGS = {
         "partie du travail de la stratégie : le couper pour avoir « quelque chose à publier » reviendrait à "
         "vendre du bruit. Nous préférons publier moins.",
         "filter_resume_heading": "Ce qui se passe ensuite",
-        "filter_resume": "Quand le Bitcoin repasse au-dessus de sa moyenne 200 jours, les trois familles "
+        "filter_resume": "Quand le Bitcoin repasse au-dessus de sa moyenne 200 jours, la force relative "
         "directionnelles redémarrent seules, au rythme mesuré de 4,35 signaux par jour. Il n'y a rien à "
         "surveiller ni à réactiver : cette page et le canal reprennent automatiquement.",
         "filter_measured": "Chiffres mesurés sur 6 ans (2020-2026), en données journalières, net de frais, avec "
@@ -755,7 +755,7 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
     title = s["page_title"](date_str)
     # Le nombre de carrys est compté séparément : la description change selon
     # que la journée ne contient QUE des carrys — cas normal quand le filtre de
-    # tendance est fermé — ou un mélange des quatre familles. Annoncer
+    # tendance est fermé — ou un mélange des moteurs. Annoncer
     # « 4 signaux » sans préciser que ce sont des positions neutres au marché
     # laisserait croire à quatre paris directionnels.
     n_carry = sum(1 for sig in signals if str(sig.get("type", "")).upper() == "CARRY")

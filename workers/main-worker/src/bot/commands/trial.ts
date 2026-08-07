@@ -53,19 +53,20 @@ function buildActivationMessage(endsAt: Date): string {
 
   const etatDuFiltre = TREND_FILTER_STATUS.closed
     ? `Au ${TREND_FILTER_STATUS.measuredOn}, le filtre est FERMÉ : ${TREND_FILTER_STATUS.detail}. ` +
-      "Les trois familles directionnelles sont donc à l'arrêt en ce moment, et c'est le carry que tu vas " +
+      "La force relative est donc à l'arrêt en ce moment : ce sont le carry et le momentum 4H que tu vas " +
       "voir passer. Tape /marche pour l'état recalculé en direct, et les carrys ouverts à cet instant."
-    : `Au ${TREND_FILTER_STATUS.measuredOn}, le filtre est ouvert : quatre des cinq familles émettent. ` +
-      "Il peut se refermer n'importe quand — ce jour-là, le carry et le momentum 4H prendront le relais. " +
-      "Tape /marche à tout moment.";
+    : `Au ${TREND_FILTER_STATUS.measuredOn}, le filtre est ouvert : la force relative et le carry ` +
+      "émettent. Il peut se refermer n'importe quand — ce jour-là, le momentum 4H prendra le relais aux " +
+      "côtés du carry. Tape /marche à tout moment.";
 
   return (
     "🎉 Essai gratuit activé. Tu reçois les signaux pendant 3 jours, jusqu'au " +
     `${fin}.\n\n` +
     "Ce que tu vas recevoir, concrètement — il y a deux formes de signal :\n\n" +
     "1) DES ACHATS. Une paire parmi les plus fortes du moment, avec l'entrée, un stop large à 4 x ATR, " +
-    "trois jalons à 4, 8 et 12 x ATR, et une sortie au bout de 7 jours. Trois familles émettent ce " +
-    "format : force relative, cassure du plus haut 50 jours, expansion de volatilité.\n\n" +
+    "trois jalons à 4, 8 et 12 x ATR, et une sortie au bout de 7 jours. C'est la force relative qui émet " +
+    "ce format, et le momentum 4H le même en plus court : sortie à 3 jours, et uniquement quand le " +
+    "marché baisse.\n\n" +
     "2) DES CARRYS DE FINANCEMENT. Une position neutre au marché, en deux jambes du même montant sur la " +
     "même crypto : achat au comptant et vente à découvert du perpétuel. Le prix ne rentre pas dans " +
     "l'équation, les deux jambes s'annulent. Ce qui est encaissé, c'est le financement versé toutes les " +

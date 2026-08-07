@@ -1,7 +1,7 @@
 """
 La liste du jour : ce qui est proche de déclencher, publié tous les jours.
 
-Le problème que ça résout. Les trois familles directionnelles sont coupées
+Le problème que ça résout. La force relative est coupée
 quand le Bitcoin passe sous sa moyenne 200 jours, soit 41 % du temps. Pendant
 ces périodes — la période actuelle dure depuis novembre 2025 — le canal ne
 publie presque rien, et un abonné qui paie a l'impression d'un service mort.
@@ -73,7 +73,7 @@ def etat_du_marche(btc_daily) -> dict | None:
     Où en est la condition d'entrée, et ce qu'il manque pour la rouvrir.
 
     C'est l'information la plus importante du message : tant que cette porte
-    est fermée, aucune des trois familles directionnelles ne peut produire, et
+    est fermée, la force relative ne peut pas produire, et
     l'abonné a le droit de savoir de combien on en est loin plutôt que de
     constater un silence sans explication.
     """
@@ -134,13 +134,13 @@ def construire_message(marche: dict | None, proches: list, carrys: list) -> str:
     # --- 1. La conclusion, en une ligne ---
     #
     # Cette ligne a longtemps dit « Rien à acheter aujourd'hui » en marché
-    # fermé. C'était vrai quand seules les trois familles directionnelles
+    # fermé. C'était vrai quand seule la force relative
     # existaient ; ça ne l'est plus depuis que le momentum 4 h travaille
     # PRÉCISÉMENT dans ce régime. Le message aurait annoncé le matin qu'il n'y
     # avait rien à acheter, et le canal aurait publié deux achats l'après-midi.
     if marche and not marche["ouvert"]:
         lignes.append(
-            "Les trois familles d'achat classiques sont à l'arrêt aujourd'hui. "
+            "La force relative est à l'arrêt aujourd'hui. "
             "Deux moteurs continuent : le carry, et le momentum 4H qui ne travaille que dans ce régime."
         )
     elif marche and marche["ouvert"]:
@@ -155,7 +155,7 @@ def construire_message(marche: dict | None, proches: list, carrys: list) -> str:
             lignes.append(
                 f"🟢 CONDITION D'ENTRÉE : ouverte\n"
                 f"Le Bitcoin est {_ampleur(marche['ecart_pct'])} au-dessus de sa moyenne 200 jours. "
-                f"Tant qu'il y reste, les trois familles d'achat travaillent."
+                f"Tant qu'il y reste, la force relative travaille."
             )
         else:
             manque = abs(marche["ecart_pct"])
@@ -164,7 +164,7 @@ def construire_message(marche: dict | None, proches: list, carrys: list) -> str:
                 f"Le Bitcoin est {_ampleur(marche['ecart_pct'])} sous sa moyenne 200 jours. "
                 f"Il lui faut regagner {_ampleur(manque)} pour rouvrir.\n"
                 f"C'est cette règle qui a évité -70,9 % en 2022 et -39,4 % en 2026 : "
-                f"quand elle est fermée, les trois familles d'achat classiques ne prennent rien."
+                f"quand elle est fermée, la force relative ne prend rien."
             )
         lignes.append("")
 

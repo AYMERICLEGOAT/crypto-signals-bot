@@ -59,8 +59,11 @@ export const TREND_FILTER_STATUS = {
 function buildValueScreen(): string {
   return (
     "📡 CE QUE TU REÇOIS\n\n" +
-    "Cinq familles de signaux indépendantes, validées sur 6 ans avec un témoin aléatoire — " +
-    "c'est-à-dire comparées à un tirage au sort, pour vérifier qu'elles font mieux que la chance.\n\n" +
+    "Trois moteurs indépendants, validés sur 6 ans avec un témoin aléatoire — c'est-à-dire " +
+    "comparés à un tirage au sort, pour vérifier qu'ils font mieux que la chance.\n\n" +
+    "• Force relative : achète les cryptos les plus fortes du moment, en marché porteur\n" +
+    "• Carry de financement : ne parie pas sur le prix, tourne dans les deux régimes\n" +
+    "• Momentum 4H : ne travaille QUE quand le marché baisse, et il est en observation\n\n" +
     "• Quand le marché est favorable : 4,35 signaux par jour\n" +
     "• Quand il ne l'est pas : 1,15 par jour\n" +
     "• Moyenne sur toute la période : 2,99 par jour\n" +
@@ -83,11 +86,11 @@ function buildValueScreen(): string {
  */
 function buildCarryScreen(): string {
   const marketContext = TREND_FILTER_STATUS.closed
-    ? `Au ${TREND_FILTER_STATUS.measuredOn}, ${TREND_FILTER_STATUS.detail}. Trois de nos cinq familles sont ` +
-      "donc à l'arrêt. Deux continuent : le carry, et le momentum 4H qui ne travaille QUE dans ce régime. " +
-      "Le carry est le mieux établi des deux."
-    : `Au ${TREND_FILTER_STATUS.measuredOn}, quatre des cinq familles tournent. Celle-ci a ceci de ` +
-      "particulier qu'elle continue même quand les directionnelles sont coupées.";
+    ? `Au ${TREND_FILTER_STATUS.measuredOn}, ${TREND_FILTER_STATUS.detail}. La force relative est donc ` +
+      "à l'arrêt. Deux moteurs continuent : le carry, et le momentum 4H qui ne travaille QUE dans ce " +
+      "régime. Le carry est le mieux établi des deux."
+    : `Au ${TREND_FILTER_STATUS.measuredOn}, la force relative et le carry tournent. Celui-ci a ceci de ` +
+      "particulier qu'il continue même quand la force relative est coupée.";
 
   return (
     "🔁 LE CARRY DE FINANCEMENT\n\n" +
@@ -168,7 +171,7 @@ export async function handleSubscribeCommand(env: Env, telegramId: number): Prom
     "📅 LES OFFRES",
     "",
     `⭐ Standard — ${PLAN_PRICES_USD[1]} USDT pour ${PLAN_DURATION_DAYS[1]} jours`,
-    "Tous les signaux des cinq familles, carry compris, au rythme mesuré de 2,99 par jour en moyenne.",
+    "Tous les signaux des trois moteurs, carry compris, au rythme mesuré de 2,99 par jour en moyenne.",
   ];
   if (proPlanVisible) {
     lines.push(

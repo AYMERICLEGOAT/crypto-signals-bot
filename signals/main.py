@@ -429,7 +429,7 @@ def run_momentum_4h_engine() -> list:
     Passage du moteur Momentum 4H (voir momentum_4h.py).
 
     Il ne travaille QUE quand le Bitcoin est sous sa moyenne 200 jours, c'est-
-    à-dire exactement quand les trois familles journalières sont coupées. Il
+    à-dire exactement quand la force relative est coupée. Il
     n'est donc pas en concurrence avec elles : il occupe le créneau qu'elles
     laissent vide 41 % du temps.
 
@@ -497,7 +497,7 @@ def run_daily_watchlist() -> bool:
     Publie la liste du jour sur le canal public (voir watchlist.py).
 
     Pourquoi ce passage existe, et pourquoi il est indépendant des moteurs. Les
-    trois familles directionnelles sont coupées 41 % du temps, et la période
+    force relative est coupée 41 % du temps, et la période
     actuelle dure depuis novembre 2025 : sans ce message, le canal est muet des
     semaines entières et un abonné qui paie croit le service mort. Baisser les
     seuils pour « remplir » a été écarté — diffuser des positions qu'on sait
@@ -825,7 +825,7 @@ def run_once(params: dict) -> tuple[int, int]:
     candidates = candidates + carrys
 
     # 🎚️ Arbitrage central (voir signal_arbiter.py). Sans lui, chaque moteur
-    # décide seul : un jour porteur les quatre familles tirent ensemble et
+    # décide seul : un jour porteur tous les moteurs tirent ensemble et
     # l'abonné reçoit dix signaux d'un coup, un jour creux aucune ne tire.
     # L'arbitre les met sur une échelle commune — l'espérance par JOUR de
     # capital immobilisé, seule grandeur qui permette de comparer un carry tenu

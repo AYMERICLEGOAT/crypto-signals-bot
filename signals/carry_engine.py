@@ -11,7 +11,7 @@ perpétuels — historiquement positif 74,2 % des jours, parce que les acheteurs
 effet de levier sont plus nombreux. C'est le vendeur qui encaisse.
 
 Pourquoi ce moteur existe. Les trois autres familles du projet (force relative,
-cassure de canal, expansion de volatilité) sont directionnelles : elles gagnent
+seule famille directionnelle en service) est directionnelle : elle gagne
 en marché haussier et perdent en baissier. Sept façons de gagner en marché
 baissier ont été testées, six réfutées au témoin aléatoire — vente à découvert
 transversale (p = 1,000), cassure baissière (p = 0,583), rebond de capitulation
@@ -64,7 +64,7 @@ La durée de 21 jours n'est pas un réglage libre. À 14 jours la pire position
 passe à -30,18 % et on tombe à cinq années positives sur sept. C'est un seuil,
 pas un curseur.
 
-CONTRIBUTION AU SYSTÈME COMPLET. Avec les trois familles directionnelles, le
+CONTRIBUTION AU SYSTÈME COMPLET. Avec la force relative, le
 canal passe à 4,35 signaux par jour en marché favorable et 1,15 en défavorable,
 soit 2,99 en moyenne, et 80 % des jours comportent au moins un signal — contre
 53 % avant l'ajout de ce moteur.

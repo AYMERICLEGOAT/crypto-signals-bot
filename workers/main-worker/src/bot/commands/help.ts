@@ -47,11 +47,11 @@ export async function handleHelpCommand(env: Env, telegramId: number): Promise<v
     telegramId,
     "📖 *Commandes disponibles*\n\n" +
       "*Comment fonctionne le bot*\n" +
-      "Cinq familles de signaux, toutes mesurées sur 6 ans de données et comparées à un tirage " +
-      "aléatoire pour vérifier qu'elles ne doivent rien au hasard. Trois parient sur la hausse : force " +
-      "relative, cassure de canal, expansion de volatilité. La quatrième, le carry, ne parie pas sur le " +
-      "prix du tout. La cinquième, le momentum 4H, ne travaille QUE quand le marché baisse — elle est " +
-      "en observation, et chacun de ses signaux le dit.\n\n" +
+      "Trois moteurs, tous mesurés sur 6 ans de données et comparés à un tirage aléatoire pour " +
+      "vérifier qu'ils ne doivent rien au hasard. La FORCE RELATIVE achète les cryptos les plus fortes " +
+      "du moment, et ne travaille qu'en marché porteur. Le CARRY DE FINANCEMENT ne parie pas sur le prix " +
+      "du tout. Le MOMENTUM 4H ne travaille QUE quand le marché baisse — il est en observation, et " +
+      "chacun de ses signaux le dit.\n\n" +
       "*Le carry de financement, en deux phrases*\n" +
       "Achat au comptant et vente à découvert du perpétuel, même montant : les deux jambes s'annulent, " +
       "donc le prix n'entre pas dans l'équation. Ce que tu encaisses, c'est le financement que les " +
@@ -63,10 +63,10 @@ export async function handleHelpCommand(env: Env, telegramId: number): Promise<v
       "2,99 signaux par jour en moyenne : 4,35 quand le marché est porteur, 1,15 quand il ne l'est pas. " +
       "80 % des jours ont au moins un signal.\n\n" +
       "*Le silence*\n" +
-      "Les trois familles directionnelles sont coupées tant que le Bitcoin reste sous sa moyenne mobile " +
+      "La force relative est coupée tant que le Bitcoin reste sous sa moyenne mobile " +
       "200 jours — 41 % du temps sur 6 ans, jusqu'à 381 jours d'affilée du 28/12/2021 au 13/01/2023. Le " +
       "carry, lui, n'est pas soumis à ce filtre, et le momentum 4H ne travaille QUE dans ce régime : ce sont " +
-      `les deux familles qui produisent en marché baissier. ${filterState} ` +
+      `les deux moteurs qui produisent en marché baissier. ${filterState} ` +
       "Le détail est dans /faq, et /marche recalcule cet état en direct.\n\n" +
       "*À savoir avant de suivre les signaux directionnels*\n" +
       "Ils réussissent environ une fois sur deux, et le signal MÉDIAN perd 0,69 %. La rentabilité vient " +
