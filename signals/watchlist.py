@@ -132,8 +132,17 @@ def construire_message(marche: dict | None, proches: list, carrys: list) -> str:
     lignes = [f"📋 LA LISTE DU JOUR — {jour}", ""]
 
     # --- 1. La conclusion, en une ligne ---
+    #
+    # Cette ligne a longtemps dit « Rien à acheter aujourd'hui » en marché
+    # fermé. C'était vrai quand seules les trois familles directionnelles
+    # existaient ; ça ne l'est plus depuis que le momentum 4 h travaille
+    # PRÉCISÉMENT dans ce régime. Le message aurait annoncé le matin qu'il n'y
+    # avait rien à acheter, et le canal aurait publié deux achats l'après-midi.
     if marche and not marche["ouvert"]:
-        lignes.append("Rien à acheter aujourd'hui. Voici où regarder quand ça repartira.")
+        lignes.append(
+            "Les trois familles d'achat classiques sont à l'arrêt aujourd'hui. "
+            "Deux moteurs continuent : le carry, et le momentum 4H qui ne travaille que dans ce régime."
+        )
     elif marche and marche["ouvert"]:
         lignes.append("Le marché est favorable : les signaux d'achat sont actifs.")
     else:
@@ -155,7 +164,7 @@ def construire_message(marche: dict | None, proches: list, carrys: list) -> str:
                 f"Le Bitcoin est {_ampleur(marche['ecart_pct'])} sous sa moyenne 200 jours. "
                 f"Il lui faut regagner {_ampleur(manque)} pour rouvrir.\n"
                 f"C'est cette règle qui a évité -70,9 % en 2022 et -39,4 % en 2026 : "
-                f"quand elle est fermée, on n'achète pas."
+                f"quand elle est fermée, les trois familles d'achat classiques ne prennent rien."
             )
         lignes.append("")
 
@@ -187,7 +196,24 @@ def construire_message(marche: dict | None, proches: list, carrys: list) -> str:
         )
         lignes.append("")
 
-    # --- 5. Quoi faire ---
+    # --- 5. Le momentum 4H, quand c'est son régime ---
+    #
+    # Annoncé le matin pour que ses signaux de l'après-midi ne surprennent
+    # personne, et annoncé pour ce qu'il est. Un abonné qui découvre par
+    # lui-même qu'un moteur est incertain ne fait plus confiance au reste.
+    if marche and not marche["ouvert"]:
+        lignes.append("🧪 MOMENTUM 4H — actif aujourd'hui, et c'est son seul créneau")
+        lignes.append(
+            "Il classe les 40 paires entre elles sur des bougies de 4 heures et achète les deux "
+            "plus fortes, tenues 3 jours. Deux signaux par jour au maximum."
+        )
+        lignes.append(
+            "Ce moteur est EN OBSERVATION : mesuré positif trois années sur quatre, mais en recul "
+            "sur la dernière. À dimensionner plus petit que les autres."
+        )
+        lignes.append("")
+
+    # --- 6. Quoi faire ---
     lignes.append("Ce message n'est pas un conseil d'achat : c'est une mise en attente.")
     lignes.append("Les vrais signaux arrivent séparément, avec entrée, stop et objectifs.")
     lignes.append("")
