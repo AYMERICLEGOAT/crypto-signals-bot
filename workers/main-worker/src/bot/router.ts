@@ -53,8 +53,16 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
     const text = (update.message.text ?? "").trim();
 
     if (text === "/start" || text.startsWith("/start ")) {
-      const referralPayload = text.startsWith("/start ") ? text.slice("/start ".length).trim() : undefined;
-      await handleStart(env, chatId, referralPayload || undefined);
+      const payload = text.startsWith("/start ") ? text.slice("/start ".length).trim() : undefined;
+      // Charge utile réservée : le bouton « Comment marche un carry » du canal
+      // public pointe vers https://t.me/<bot>?start=carry. Sans ce cas, la
+      // charge serait interprétée comme un code de parrainage, et le lecteur
+      // arriverait sur l'accueil sans jamais voir ce qu'il venait lire.
+      if (payload === "carry") {
+        await handleCarryCommand(env, chatId);
+      } else {
+        await handleStart(env, chatId, payload || undefined);
+      }
     } else if (text === "/subscribe") {
       await handleSubscribeCommand(env, chatId);
     } else if (text === "/status") {

@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { trackCarryOutcomes } from "../src/cron/trackCarryOutcomes";
-import { buildSignalMessage, buildCarryMessage, SignalLike } from "../src/signalFormat";
+import {
+  buildSignalMessage,
+  buildCarryMessage,
+  buildCarryShortMessage,
+  buildCarryDetailKeyboard,
+  buildCarryExplanation,
+  SignalLike,
+} from "../src/signalFormat";
 import { getOpenSignals } from "../src/db/signals";
 
 function jsonResponse(body: unknown) {
@@ -68,6 +75,84 @@ describe("message de carry", () => {
     expect(texte).toContain("Take profit");
     expect(texte).toContain("Stop loss");
     expect(texte).not.toContain("NaN");
+  });
+});
+
+describe("carry sur le canal public — forme courte", () => {
+  // Le message du canal embarquait le bloc pédagogique de 1 200 caractères à
+  // chaque lot : un carry occupait un écran entier de téléphone, et le premier
+  // abonné l'a lu comme du spam. La forme courte ne garde que ce qui permet de
+  // décider, et renvoie le reste dans /carry.
+  const court = buildCarryShortMessage([carry]);
+
+  it("tient en moins de 400 caractères, contre plus de 1 500 pour la forme longue", () => {
+    expect(court.length).toBeLessThan(400);
+    expect(buildCarryMessage(carry, { avecExplication: true }).length).toBeGreaterThan(1400);
+  });
+
+  it("met le rendement ANNUALISÉ en tête, en gras, avant le gain de période", () => {
+    // +0,85 % sur 21 jours = +15,8 % par an. C'est la seule unité qui permette
+    // de comparer un carry à quoi que ce soit d'autre.
+    expect(court).toMatch(/\*\+15,8\s%\spar an\*/);
+    expect(court.indexOf("par an")).toBeLessThan(court.indexOf("sur 21 j"));
+  });
+
+  it("affiche le gain de période à DEUX décimales", () => {
+    // Au dixième, +0,85 % et +0,94 % s'afficheraient tous deux « +0,9 % »,
+    // alors que leurs rendements annualisés diffèrent de deux points.
+    expect(court).toMatch(/\+0,85\s%\ssur 21 j/);
+  });
+
+  it("chiffre la perte maximale au même niveau que le gain", () => {
+    expect(court).toMatch(/-19,9\s%/);
+    expect(court).toContain("risque de perte en capital");
+  });
+
+  it("annonce la clôture temporelle et n'invente ni stop ni objectif", () => {
+    expect(court).toContain("Clôture dans 21 jours");
+    expect(court).not.toContain("Stop-Loss");
+    expect(court).not.toContain("Take profit");
+  });
+
+  it("ne répète PAS la paire quand il n'y a qu'un seul carry", () => {
+    expect(court.match(/SOL\/USDT/g)).toHaveLength(1);
+  });
+
+  it("groupe plusieurs carrys en une ligne chacun, en nommant la paire", () => {
+    const autre: SignalLike = { ...carry, pair: "ZEC/USDT", carry_expected_pct: 0.42 };
+    const lot = buildCarryShortMessage([carry, autre]);
+    expect(lot).toContain("*2 carrys ouverts*");
+    expect(lot).toContain("*SOL/USDT*");
+    expect(lot).toContain("*ZEC/USDT*");
+    expect(lot.length).toBeLessThan(500);
+  });
+
+  it("laisse le bloc pédagogique HORS du message, joignable par le bouton", () => {
+    expect(court).not.toContain("Comment marche un carry");
+    expect(court).not.toContain("financement");
+    const clavier = buildCarryDetailKeyboard("ProVIPSignals_bot");
+    expect(clavier[0][0].url).toBe("https://t.me/ProVIPSignals_bot?start=carry");
+    // Un bouton de canal doit être un lien : un callback_data ne peut pas
+    // ouvrir une conversation avec un lecteur qui n'a jamais écrit au bot.
+    expect(clavier[0][0].callback_data).toBeUndefined();
+  });
+
+  it("l'explication complète reste disponible et garde les trois précautions", () => {
+    const long = buildCarryExplanation();
+    expect(long).toContain("liquidée");
+    expect(long).toContain("n'est pas acquis");
+    expect(long).toContain("DEUX jambes");
+  });
+
+  it("ne plante pas si le rendement attendu est absent", () => {
+    const sansRendement: SignalLike = { ...carry, carry_expected_pct: null };
+    const texte = buildCarryShortMessage([sansRendement]);
+    expect(texte).toContain("rendement non chiffré");
+    expect(texte).not.toContain("NaN");
+  });
+
+  it("rend une chaîne vide sur une liste vide, plutôt qu'un message sans contenu", () => {
+    expect(buildCarryShortMessage([])).toBe("");
   });
 });
 

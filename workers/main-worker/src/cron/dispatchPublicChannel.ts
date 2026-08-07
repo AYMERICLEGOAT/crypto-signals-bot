@@ -12,7 +12,7 @@
 import { Env, dbConfig } from "../env";
 import { getSignalsDueForPublicChannel, markSentToChannel, SignalRecord } from "../db/signals";
 import { sendMessage, sendPhoto } from "../telegram";
-import { buildSignalMessage, buildCarryBatchMessage } from "../signalFormat";
+import { buildSignalMessage, buildCarryShortMessage, buildCarryDetailKeyboard } from "../signalFormat";
 import { isQuietHours } from "../utils/quietHours";
 
 const CHANNEL_DELAY_MINUTES = 30;
@@ -81,12 +81,16 @@ export async function dispatchPublicChannel(env: Env): Promise<void> {
   }
 
   if (carrys.length > 0) {
-    const text = buildCarryBatchMessage(carrys, {
-      delayNote: formatDelayNote(carrys[0]),
-      ctaUsername: env.TELEGRAM_BOT_USERNAME,
-    });
+    // Forme COURTE sur le canal public : quatre chiffres et un bouton. La forme
+    // longue reste celle des abonnés (dispatchSignals) et de /carry — dans un
+    // canal, le bloc pédagogique de 1 200 caractères répété à chaque lot se
+    // lisait comme du spam, et c'en était.
+    const text = buildCarryShortMessage(carrys, { delayNote: formatDelayNote(carrys[0]) });
     try {
-      await sendMessage(env.TELEGRAM_BOT_TOKEN, channelId, text, { markdown: true });
+      await sendMessage(env.TELEGRAM_BOT_TOKEN, channelId, text, {
+        markdown: true,
+        keyboard: buildCarryDetailKeyboard(env.TELEGRAM_BOT_USERNAME),
+      });
       // Chaque carry du lot est marque individuellement : si l'envoi echoue,
       // aucun ne l'est et le lot entier repassera au cycle suivant, plutot que
       // de disparaitre a moitie.

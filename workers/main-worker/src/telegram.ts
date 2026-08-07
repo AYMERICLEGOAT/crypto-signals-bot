@@ -8,9 +8,21 @@
 const API_BASE = "https://api.telegram.org/bot";
 const TELEGRAM_MAX_MESSAGE_LENGTH = 4096;
 
+/**
+ * Un bouton porte SOIT un `callback_data`, SOIT une `url` — jamais les deux, et
+ * jamais aucun des deux : Telegram rejette le message entier dans ces deux cas.
+ *
+ * L'`url` a été ajoutée pour le canal PUBLIC. Un bouton `callback_data` y est
+ * inutilisable en pratique : le lecteur du canal n'a souvent jamais ouvert de
+ * conversation privée avec le bot, et un callback ne peut pas en démarrer une.
+ * Un lien `https://t.me/<bot>?start=<charge>` ouvre le bot, crée la
+ * conversation, et transmet la charge utile — c'est le seul mécanisme qui
+ * amène un lecteur anonyme jusqu'au produit.
+ */
 export interface InlineKeyboardButton {
   text: string;
-  callback_data: string;
+  callback_data?: string;
+  url?: string;
 }
 export type InlineKeyboard = InlineKeyboardButton[][];
 

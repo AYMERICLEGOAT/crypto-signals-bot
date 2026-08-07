@@ -11,6 +11,7 @@
  */
 
 import { SignalSide } from "./signalMath";
+import { InlineKeyboard } from "./telegram";
 
 export const SUGGESTED_RISK_PCT = 2;
 
@@ -337,6 +338,93 @@ export function buildCarryMessage(
     lines.push("", `📡 Signaux en temps réel : @${escapedUsername}`);
   }
   return lines.filter((line): line is string => line !== null).join("\n");
+}
+
+/**
+ * Perte maximale mesurée sur une position de carry, sur 6 ans, stop de
+ * financement actif (voir signals/backtest_carry_stop.py). Sans ce stop, la
+ * pire position atteignait -66,70 %.
+ *
+ * Cette valeur n'a rien d'un détail à reléguer dans l'explication longue : un
+ * message qui annonce un rendement sans jamais chiffrer la perte possible
+ * demande au lecteur de croire qu'il n'y en a pas.
+ */
+const CARRY_PIRE_PERTE_PCT = -19.86;
+
+/**
+ * Message de carry pour le CANAL PUBLIC : quatre chiffres, un bouton.
+ *
+ * Pourquoi une deuxième forme alors qu'il en existait déjà une « courte ».
+ * Celle-ci embarquait quand même le bloc pédagogique de 1 200 caractères, si
+ * bien qu'un carry occupait la hauteur d'un écran entier de téléphone. Dans un
+ * canal public, ce n'est pas un signal, c'est un mur — et le lecteur fait
+ * défiler sans lire. Le retour du premier abonné était sans détour : « c'est un
+ * peu du spam ».
+ *
+ * Ce qui reste ici est ce qui permet de DÉCIDER, et rien d'autre :
+ *   - le rendement annualisé, seule unité qui ait du sens pour un produit de
+ *     rendement (+0,43 % sur 21 jours se lit comme dérisoire ; c'est +7,7 %
+ *     par an sans exposition au prix) ;
+ *   - le gain attendu sur la période, parce que c'est le montant réellement
+ *     encaissé, et qu'annualiser sans le rappeler serait de l'embellissement ;
+ *   - la perte maximale mesurée, au même niveau de visibilité que le gain ;
+ *   - la durée, parce que la sortie est temporelle et qu'aucun prix ne la
+ *     déclenchera.
+ *
+ * Le reste — les deux jambes, le financement, les trois précautions — part dans
+ * /carry, atteignable en un tapotement par le bouton.
+ */
+export function buildCarryShortMessage(
+  signaux: SignalLike[],
+  opts: { delayNote?: string } = {}
+): string {
+  if (signaux.length === 0) return "";
+  const jours = joursDeDetention(signaux[0]);
+  const note = opts.delayNote ? ` _(${opts.delayNote})_` : "";
+
+  // Deux décimales sur le gain de période, contrairement au reste du produit.
+  // Un carry rapporte typiquement entre 0,4 et 1 % : arrondi au dixième,
+  // +0,61 % et +0,55 % s'affichent tous les deux « +0,6 % », et deux positions
+  // dont les rendements annualisés diffèrent de trois points paraissent
+  // identiques.
+  const pct2 = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(2).replace(".", ",")} %`;
+
+  const ligne = (s: SignalLike, seul: boolean): string => {
+    const nom = seul ? "" : `*${s.pair}* — `;
+    const attendu = s.carry_expected_pct;
+    if (attendu == null) return `• ${nom}rendement non chiffré · réf. ${s.entry_price}`;
+    const parAn = annualisePct(attendu, joursDeDetention(s));
+    return `• ${nom}*${pct(parAn)} par an* · ${pct2(attendu)} sur ${joursDeDetention(s)} j · réf. ${s.entry_price}`;
+  };
+
+  const seul = signaux.length === 1;
+  const titre = seul
+    ? `💵 *CARRY ${signaux[0].pair}*${note}`
+    : `💵 *${signaux.length} carrys ouverts*${note}`;
+
+  return [
+    titre,
+    "Rendement sans pari sur le prix : les deux jambes s'annulent.",
+    "",
+    ...signaux.map((s) => ligne(s, seul)),
+    "",
+    `⏳ Clôture dans ${jours} jours, les deux jambes ensemble`,
+    `🛑 Pire position mesurée sur 6 ans : ${pct(CARRY_PIRE_PERTE_PCT)}`,
+    "",
+    "⚠️ Pas un conseil financier — risque de perte en capital.",
+  ].join("\n");
+}
+
+/**
+ * Bouton qui emmène du canal public jusqu'à l'explication complète.
+ *
+ * Un lien plutôt qu'un `callback_data` : le lecteur d'un canal public n'a
+ * généralement jamais ouvert le bot, et un callback ne peut pas créer cette
+ * conversation. Le lien la crée ET transmet la charge « carry », que le routeur
+ * reconnaît (voir bot/router.ts).
+ */
+export function buildCarryDetailKeyboard(botUsername: string): InlineKeyboard {
+  return [[{ text: "🔁 Comment marche un carry", url: `https://t.me/${botUsername}?start=carry` }]];
 }
 
 /**
