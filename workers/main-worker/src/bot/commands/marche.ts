@@ -279,6 +279,18 @@ const CARRY_RISK =
   "Ce n'est pas « sans risque », et on ne l'écrira jamais. La jambe vendeuse peut être liquidée si la marge " +
   "devient insuffisante, et il reste un risque de plateforme. La pire position mesurée sur ces 6 ans a perdu 19,86 %.";
 
+// Le momentum 4H ne travaille QUE filtre fermé : il n'a donc sa place que dans
+// le message de fermeture. Annoncé pour ce qu'il est — un moteur en observation
+// — parce qu'un abonné qui découvre qu'on lui a caché la fraction incertaine du
+// produit ne revient pas.
+const MOMENTUM_4H_EXPLANATION =
+  "Et depuis peu, un second moteur travaille précisément dans ce régime : le momentum 4H. Il ne cherche pas de " +
+  "croisement d'indicateurs — il classe toutes les cryptos suivies les unes contre les autres sur des bougies de " +
+  "4 heures, et achète les deux plus fortes du moment, tenues 3 jours.\n" +
+  "Il est *en observation*, et c'est écrit sur chacun de ses signaux : mesuré positif trois années sur quatre, mais " +
+  "en recul sur la dernière. Deux places par jour au maximum, jamais plus, et il s'arrêtera de lui-même si ses " +
+  "résultats réels démentent la mesure. À dimensionner plus petit que les autres.";
+
 /**
  * Les carrys réellement ouverts, lus en base au moment de la commande.
  *
@@ -326,17 +338,17 @@ function buildOpenMessage(state: TrendState, carryLine: string | null): string {
     CARRY_EXPLANATION,
     carryLine,
     "",
-    "*Le débit mesuré sur 6 ans*",
+    "*Le débit mesuré*",
     "• dans un marché comme aujourd'hui : 4,35 signaux par jour",
-    "• quand le filtre se referme : 1,15 par jour, tous issus du carry",
-    "• en moyenne : 2,99 par jour, et 80 % des jours ont au moins un signal",
+    "• quand le filtre se referme : le carry prend le relais, accompagné du momentum 4H qui ne travaille que dans ce régime-là",
+    "• au total, jamais plus de 5 par jour : au-delà, ce ne serait plus une sélection",
     "",
     "*Ce qu'il faut savoir sur les signaux directionnels*",
     "Ils réussissent environ une fois sur deux, et le signal médian PERD 0,69 %. Tout le résultat vient d'une minorité de gros gagnants : il faut donc les prendre TOUS. En trier quelques-uns revient statistiquement à ne garder que la partie perdante.",
     "",
     "Le chiffre qui te concerne vraiment, ce n'est pas le rendement de la stratégie mais celui d'une entrée à une date au hasard : après six mois, médiane +5,0 %, 53 % des entrées gagnantes, et pire cas -61,7 %.",
     "",
-    "Et le filtre se refermera : il est fermé 41 % du temps, jusqu'à 381 jours d'affilée. Ce jour-là, les trois familles directionnelles se tairont et seul le carry continuera. Ce sera normal, et /marche te le dira.",
+    "Et le filtre se refermera : il est fermé 41 % du temps, jusqu'à 381 jours d'affilée. Ce jour-là, les trois familles directionnelles se tairont, et le carry ainsi que le momentum 4H prendront le relais. Ce sera normal, et /marche te le dira.",
     "",
     DISCLAIMER,
   ]);
@@ -360,10 +372,12 @@ function buildClosedMessage(state: TrendState, carryLine: string | null): string
     CARRY_EXPLANATION,
     carryLine,
     "",
-    "*Les chiffres mesurés sur 6 ans*",
-    "• dans un marché comme aujourd'hui : 1,15 signal par jour en moyenne, tous issus du carry",
-    "• dans un marché favorable : 4,35 par jour, les quatre familles réunies",
-    "• sur l'ensemble de la période : 2,99 par jour, et 80 % des jours ont au moins un signal",
+    MOMENTUM_4H_EXPLANATION,
+    "",
+    "*Les chiffres mesurés*",
+    "• dans un marché comme aujourd'hui : le carry (1,15 par jour) plus le momentum 4H (jusqu'à 2 par jour)",
+    "• dans un marché favorable : 4,35 par jour, les familles directionnelles réunies",
+    "• au total, jamais plus de 5 signaux par jour : au-delà, ce ne serait plus une sélection",
     "• carry seul : 84,2 % de positions gagnantes, +0,572 % net par position, six années positives sur sept — la septième, 2022, est à -0,046 %, donc plate et non perdante",
     "",
     "*Ce que ce n'est pas*",

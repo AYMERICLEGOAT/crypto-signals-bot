@@ -65,10 +65,12 @@ function buildEngineStateLines(): string[] {
       `Le filtre de tendance est fermé — ${TREND_FILTER_STATUS.detail}. Les trois familles directionnelles ` +
         "(force relative, cassure du plus haut 50 jours, expansion de volatilité) sont donc à l'arrêt : elles " +
         "achètent, et acheter ne paie pas dans ce régime.",
-      "Le carry de financement, lui, continue : il est neutre au marché, donc jamais filtré. C'est la seule " +
-        "famille qui produit en marché baissier. Rythme mesuré sur 6 ans dans ce régime : 1,15 signal par jour " +
-        "en moyenne, tous issus du carry.",
-      "Si tu ne reçois que des carrys en ce moment, ce n'est pas une panne : c'est le fonctionnement prévu.",
+      "Le carry de financement, lui, continue : il est neutre au marché, donc jamais filtré. Rythme mesuré sur " +
+        "6 ans dans ce régime : 1,15 signal par jour en moyenne.",
+      "Le momentum 4H l'accompagne, et lui ne travaille QUE dans ce régime : il classe les cryptos entre elles " +
+        "sur des bougies de 4 heures et achète les deux plus fortes, tenues 3 jours. Il est en observation — " +
+        "mesuré positif trois années sur quatre, en recul sur la dernière — et chacun de ses signaux le dit.",
+      "Si tu ne reçois que ces deux-là en ce moment, ce n'est pas une panne : c'est le fonctionnement prévu.",
     ];
   }
   return [

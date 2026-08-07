@@ -72,11 +72,12 @@ function buildActivationMessage(endsAt: Date): string {
     "Une chose importante à savoir tout de suite : les trois familles d'achat se taisent quand le Bitcoin " +
     "est sous sa moyenne 200 jours, ce qui arrive 41 % du temps (la plus longue fermeture a duré " +
     "381 jours, du 28/12/2021 au 13/01/2023). C'est voulu : on préfère ne rien t'envoyer plutôt que de te " +
-    "faire perdre de l'argent. Le carry, lui, n'est pas filtré et continue dans les deux cas — c'est la " +
-    "seule famille qui produit en marché baissier.\n\n" +
+    "faire perdre de l'argent. Le carry, lui, n'est pas filtré et continue dans les deux cas. Et un second " +
+    "moteur, le momentum 4H, ne travaille QUE dans ce régime baissier — en observation, ce qui est écrit " +
+    "sur chacun de ses signaux.\n\n" +
     `${etatDuFiltre}\n\n` +
-    "Le rythme mesuré sur 6 ans : 4,35 signaux par jour en marché favorable, 1,15 par jour en marché " +
-    "défavorable (tous issus du carry), soit 2,99 en moyenne, et 80 % des jours ont au moins un signal. " +
+    "Le rythme mesuré : 4,35 signaux par jour en marché favorable ; en marché défavorable, le carry " +
+    "(1,15 par jour) accompagné du momentum 4H. Jamais plus de 5 par jour au total. " +
     "Ce sont des moyennes, pas une garantie : trois jours, c'est court, et il est possible que tu tombes " +
     "sur un jour creux.\n\n" +
     "Le silence n'est donc jamais une panne. /demo montre la forme exacte des deux signaux, /marche l'état " +

@@ -119,7 +119,7 @@ function buildCarryScreen(): string {
 function buildSilenceWarning(): string {
   const currentState = TREND_FILTER_STATUS.closed
     ? `C'est le cas aujourd'hui : au ${TREND_FILTER_STATUS.measuredOn}, ${TREND_FILTER_STATUS.detail}, ` +
-      "et seul le carry produit."
+      "et ce sont le carry et le momentum 4H qui produisent."
     : `Au ${TREND_FILTER_STATUS.measuredOn}, le filtre est ouvert. Il peut se refermer n'importe quand, ` +
       "sans préavis.";
 

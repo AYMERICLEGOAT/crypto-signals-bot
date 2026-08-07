@@ -78,8 +78,8 @@ export async function handleDemoCommand(env: Env, telegramId: number): Promise<v
       "━━━━━━━━━━\n" +
       "📬 *Le débit réel*\n" +
       "• marché favorable : 4,35 signaux par jour\n" +
-      "• marché défavorable : 1,15 par jour, tous issus du carry\n" +
-      "• en moyenne : 2,99 par jour, et 80 % des jours ont au moins un signal\n\n" +
+      "• marché défavorable : le carry (1,15 par jour) et le momentum 4H, qui ne travaille que dans ce régime\n" +
+      "• jamais plus de 5 par jour au total : au-delà, ce ne serait plus une sélection\n\n" +
       "⚠️ *Ce qu'il faut accepter*\n" +
       "Les familles directionnelles réussissent environ une fois sur deux, et leur signal médian PERD " +
       "0,69 % — il y a donc une majorité de perdants. Tout le gain vient d'une minorité de gros gagnants. " +
