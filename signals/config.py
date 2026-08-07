@@ -216,8 +216,52 @@ MULTI_TP_TP3_WEIGHT = 0.4       # ...pour en laisser davantage courir jusqu'au r
 # produit assumée d'accepter ce drawdown plus élevé contre le gain de
 # fréquence (validée explicitement, voir aussi ENABLE_MULTI_TP_EXITS
 # ci-dessus pour le même type d'arbitrage qualité/rétention).
+#
+# RELEVÉ À 35 LE 07/08/2026, ET LE CHIFFRE DE 5 ÉTAIT DEVENU DESTRUCTEUR.
+#
+# Tout ce qui précède décrit l'ANCIEN moteur horaire EMA/RSI, dont les signaux
+# se résolvaient en quelques heures : une position libérait vite son slot, et
+# cinq places suffisaient à faire passer ~2 signaux par jour. Les moteurs
+# actuels sortent sur une DURÉE — 7 jours pour la force relative, 3 pour le
+# momentum 4 h — et une position occupe donc son slot du premier au dernier
+# jour. La contrainte n'a plus du tout le même effet, et elle n'a jamais été
+# remesurée après le changement de moteur.
+#
+# Mesuré sur 3 200 jours réels, force relative top 12 tenue 7 jours, un signal
+# refusé étant PERDU et non mis en file d'attente, comme en production :
+#
+#     plafond 5   : 0,30 signal/jour, 91,7 % des signaux PERDUS   <-- déployé
+#     plafond 10  : 0,60 signal/jour, 71,2 % perdus
+#     plafond 20  : 0,94 signal/jour,  1,2 % perdus
+#     plafond 35  : 0,95 signal/jour,  0,0 % perdu
+#     sans plafond: 0,95 signal/jour
+#
+# La stratégie validée tient 14 positions simultanées en médiane et 22 au pic.
+# À cinq places, neuf signaux sur dix n'atteignaient jamais l'abonné — sans
+# aucune trace ailleurs qu'une ligne de log de comptage. C'est exactement le
+# même défaut que le comptage des carrys corrigé le même jour : un garde-fou
+# dimensionné pour un système qui n'existe plus, qui étrangle silencieusement
+# le produit.
+#
+# Un piège à ne pas suivre : à plafond 5, l'espérance PAR SIGNAL monte à
+# +3,734 % contre +2,831 % sans plafond. Ce n'est pas un avantage, c'est un
+# effet de sélection — seuls passent les signaux qui tombent quand une place
+# vient de se libérer. Rapporté au jour, le plafond serré rend 1,12 % contre
+# 2,69 %, soit deux fois et demie moins.
+#
+# 35 = QUOTA_SIGNAUX_MAX x RS_HOLD_DAYS : le nombre exact de positions qu'un
+# quota de 5 signaux par jour tenus 7 jours peut atteindre, et pas une de plus.
+# Ces deux constantes sont définies plus bas dans ce fichier ; la cohérence des
+# trois est vérifiée à la fin (voir « Cohérence du dimensionnement »), pour
+# qu'un changement de quota ou de durée ne puisse pas rétablir l'étranglement
+# sans que rien ne le dise.
+#
+# Le contrôle du VOLUME est désormais l'affaire de l'arbitre (voir
+# signal_arbiter.py) ; ce verrou-ci ne garde que son rôle de frein d'urgence.
+# Le risque reste celui qui a été mesuré et qui est annoncé publiquement :
+# le portefeuille de référence a connu -62,9 % de repli maximal.
 ENABLE_PORTFOLIO_LOCK = True
-MAX_ACTIVE_TRADES = 5
+MAX_ACTIVE_TRADES = 35
 
 # Fenêtre de rattrapage (audit du 01/08/2026, correctif de perte de signaux).
 # Constat : detect_signal() n'examinait que la DERNIÈRE bougie close, alors
@@ -668,3 +712,31 @@ BACKTEST_DAYS = 730
 # le clôturer au marché si ni le SL ni le TP n'ont été touchés.
 BACKTEST_TRADE_TIMEOUT_DAYS = 10
 BACKTEST_TARGET_WIN_RATE = 0.60
+
+
+# ---------------------------------------------------------------------------
+# Cohérence du dimensionnement
+# ---------------------------------------------------------------------------
+#
+# Vérifié à l'import, parce que l'incohérence que ce bloc empêche ne se voit
+# NULLE PART ailleurs : elle ne fait rien planter, ne remplit aucun log
+# d'erreur, et se manifeste seulement par un canal plus silencieux que prévu.
+# Elle a coûté 91,7 % des signaux de force relative jusqu'au 07/08/2026.
+#
+# La règle : le verrou de portefeuille ne doit JAMAIS être la contrainte qui
+# limite le débit. C'est l'arbitre qui décide du volume (QUOTA_SIGNAUX_MAX par
+# jour) ; le verrou n'est là que contre l'accident. Il faut donc qu'il puisse
+# accueillir le pire cas légitime — le quota plein, tenu pendant la plus longue
+# durée de détention d'un moteur directionnel.
+_POSITIONS_NECESSAIRES = QUOTA_SIGNAUX_MAX * max(RS_HOLD_DAYS, M4H_HOLD_BOUGIES // 6)
+
+if ENABLE_PORTFOLIO_LOCK and MAX_ACTIVE_TRADES < _POSITIONS_NECESSAIRES:
+    raise ValueError(
+        f"MAX_ACTIVE_TRADES = {MAX_ACTIVE_TRADES} étrangle le quota de signaux : "
+        f"{QUOTA_SIGNAUX_MAX} signaux par jour tenus jusqu'à "
+        f"{max(RS_HOLD_DAYS, M4H_HOLD_BOUGIES // 6)} jours demandent "
+        f"{_POSITIONS_NECESSAIRES} positions simultanées. Le verrou refuserait "
+        f"silencieusement les signaux excédentaires, sans autre trace qu'une ligne "
+        f"de log de comptage. Relever MAX_ACTIVE_TRADES, ou baisser le quota en "
+        f"connaissance de cause."
+    )
