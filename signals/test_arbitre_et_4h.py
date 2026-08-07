@@ -199,6 +199,47 @@ verifie(config.M4H_HOLD_BOUGIES % m4h.BOUGIES_PAR_JOUR == 0,
 verifie(config.QUOTA_OBSERVATION_MAX >= 1,
         "un moteur en observation publie quand même : l'observer suppose de le voir tourner")
 
+print("\n=== 12. Le verrou de portefeuille ignore les carrys ===")
+# Bug constaté en production : dix carrys ouverts comptaient comme dix
+# positions à RISQUE, pour un maximum de cinq. Les moteurs directionnels
+# étaient donc à zéro slot en permanence — le moteur 4h produisait ses signaux
+# et le verrou les jetait, sans autre trace qu'une ligne de log.
+import storage
+
+_lignes = [
+    {"id": 1, "engine": "carry_funding"},
+    {"id": 2, "engine": "carry_funding"},
+    {"id": 3, "engine": "relative_strength"},
+    {"id": 4, "engine": "momentum_4h"},
+    {"id": 5, "engine": None},            # antérieur à la colonne engine
+]
+
+
+class _FausseReponse:
+    data = _lignes
+
+
+class _FausseTable:
+    def select(self, *a, **k): return self
+    def is_(self, *a): return self
+    def eq(self, *a): return self
+    def execute(self): return _FausseReponse()
+
+
+class _FauxClient:
+    def table(self, _nom): return _FausseTable()
+
+
+_vrai_client = storage.get_client
+storage.get_client = lambda: _FauxClient()
+try:
+    compte = storage.count_open_at_risk_trades()
+finally:
+    storage.get_client = _vrai_client
+
+verifie(compte == 3,
+        f"3 positions à risque comptées sur 5 lignes ouvertes (les 2 carrys exclus), et non {compte}")
+
 print("\n" + "=" * 60)
 if echecs:
     print(f"{len(echecs)} VÉRIFICATION(S) EN ÉCHEC :")

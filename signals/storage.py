@@ -124,17 +124,33 @@ def count_open_at_risk_trades() -> int:
     Worker). Retourne 0 en cas d'échec (dégradation prudente : mieux vaut
     sous-compter et risquer un slot en trop qu'empêcher toute génération de
     signal si Supabase est temporairement indisponible).
+
+    LES CARRYS NE COMPTENT PAS, et l'oubli a coûté cher. Ce verrou plafonne les
+    positions à RISQUE DIRECTIONNEL ; un carry n'en est pas une, ses deux jambes
+    s'annulent. Ils avaient bien été exclus du côté des candidats — mais pas de
+    ce comptage-ci, l'autre membre de la même comparaison. Avec 40 places de
+    carry autorisées pour un maximum de 5 positions à risque, dix carrys ouverts
+    suffisaient à mettre les moteurs directionnels à zéro slot en permanence.
+    Constaté en production : le moteur 4 h produisait ses deux signaux, le
+    verrou les jetait tous les deux, et le seul témoin était une ligne de log
+    annonçant « 10 positions à risque » là où il n'y en avait aucune.
+
+    Le filtrage se fait en Python et non dans la requête : en PostgREST,
+    `engine=not.eq.carry_funding` élimine AUSSI les lignes dont `engine` est nul
+    (la comparaison rend NULL, donc faux), ce qui écarterait du comptage tous
+    les signaux antérieurs à l'introduction de cette colonne — et sous-compter
+    ici, c'est ouvrir plus de positions à risque que le maximum autorisé.
     """
     try:
         resp = (
             get_client()
             .table("signals")
-            .select("id", count="exact")
+            .select("id,engine")
             .is_("outcome", "null")
             .eq("breakeven_active", False)
             .execute()
         )
-        return resp.count or 0
+        return sum(1 for ligne in (resp.data or []) if ligne.get("engine") != "carry_funding")
     except Exception:
         logger.exception("Échec du comptage des positions à risque (verrou de portefeuille), traité comme 0.")
         return 0
