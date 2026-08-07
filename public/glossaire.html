@@ -664,14 +664,39 @@
     border-radius: 4px;
   }
 
-  .step { display: flex; gap: 16px; margin: 22px 0; align-items: flex-start; }
+  /* Le rond porte désormais un pictogramme et non un chiffre : le fond plein
+     bleu écrasait l'émoji, d'où le fond sourd et la bordure. Le numéro d'étape
+     n'a pas disparu pour autant — il est passé au-dessus du titre, là où il se
+     lit vraiment. */
   .step-num {
-    flex: 0 0 38px; height: 38px; border-radius: 50%;
-    background: var(--accent); color: #06101f; font-weight: 800;
-    display: flex; align-items: center; justify-content: center; font-size: 1.05rem;
+    flex: 0 0 42px; width: 42px; height: 42px; border-radius: 50%;
+    background: var(--bg-raised); border: 1px solid var(--border-lit);
+    display: flex; align-items: center; justify-content: center; font-size: 1.25rem;
   }
-  .step-body h3 { margin: 4px 0 6px; font-size: 1.08rem; }
+  .step-count {
+    display: block; font-size: .72rem; font-weight: 700; letter-spacing: .07em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 3px;
+  }
+  .step-body h3 { margin: 0 0 6px; font-size: 1.08rem; }
   .step-body p { margin: 0; color: var(--text-dim); }
+
+  /* Schéma du parcours. Il défile dans son conteneur plutôt que de rétrécir
+     indéfiniment : en dessous de ~560 px, les libellés deviendraient illisibles
+     et un schéma illisible ne vaut pas mieux qu'aucun schéma. */
+  .flow {
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 16px; margin: 22px 0;
+  }
+  .flow svg { display: block; width: 100%; min-width: 560px; height: auto; }
+  .flow-box rect { fill: var(--bg-soft); stroke: var(--border-lit); stroke-width: 1; }
+  .flow-links line, .flow-links path { stroke: currentColor; stroke-width: 1.5; opacity: .55; }
+  .flow-label text {
+    fill: var(--text); font-size: 14px; font-weight: 650; text-anchor: middle;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .flow-label text.dim { fill: var(--text-dim); font-size: 12px; font-weight: 500; }
+  .flow-label text.small { font-size: 11.5px; }
   .breadcrumb { font-size: .85rem; color: var(--text-dim); margin-bottom: 10px; }
   .glossary dt { font-weight: 700; margin-top: 18px; color: var(--accent); }
   .glossary dd { margin: 4px 0 0; color: var(--text-dim); }
