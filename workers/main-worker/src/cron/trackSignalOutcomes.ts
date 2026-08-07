@@ -26,6 +26,7 @@ import { evaluateOutcome, computePnlPct, computeTrailingStop, evaluateMultiTpPro
 import { sendMessage } from "../telegram";
 import { handleAntiStress } from "./antiStress";
 import { typeLabel } from "../signalFormat";
+import { buildReferralLink, REFERRAL_BONUS_DAYS } from "../bot/referral";
 
 // Filet de sécurité, utilisé UNIQUEMENT quand le signal ne porte pas sa propre
 // échéance (signaux antérieurs à hold_until). Voir holdDeadlineMs ci-dessous :
@@ -143,18 +144,41 @@ function formatTp2HitMessage(signal: SignalRecord): string {
   ].join("\n");
 }
 
-/** Étape 2 (célébrations) : message festif diffusé sur le canal VIP quand TP2 ou TP3 est atteint. */
+/**
+ * Message festif du canal VIP quand TP2 ou TP3 est atteint.
+ *
+ * Le rappel du parrainage est en deuxième ligne, court, et jamais à la place de
+ * la nouvelle. Ce canal est lu par des abonnés payants : c'est exactement le
+ * public qui peut recommander le produit, et le seul instant où il en a envie.
+ */
 function formatCelebrationMessage(signal: SignalRecord, level: "TP2" | "TP3", pct: number): string {
   const medal = level === "TP2" ? "🥈" : "🥉";
-  return `${medal} *${level} ATTEINT sur ${signal.pair} !* ${pctLabel(pct)} sécurisés. Félicitations aux abonnés !`;
+  return [
+    `${medal} *${level} ATTEINT sur ${signal.pair} !* ${pctLabel(pct)} sécurisés. Félicitations aux abonnés !`,
+    `🤝 Envie d'en parler ? /referral te donne ton lien : ${REFERRAL_BONUS_DAYS} jours offerts par personne qui s'abonne.`,
+  ].join("\n");
 }
 
-/** Étape 2 : texte simple (pas d'image) que l'abonné peut copier-coller sur ses réseaux. */
-function formatShareableVictory(signal: SignalRecord, pct: number, botUsername: string): string {
-  const escapedUsername = botUsername.replace(/_/g, "\\_");
+/**
+ * Texte que l'abonné peut copier-coller sur ses réseaux, PORTANT SON PROPRE
+ * LIEN DE PARRAINAGE.
+ *
+ * Il n'en portait aucun : on demandait à quelqu'un qui vient de gagner de faire
+ * la promotion du produit, et on ne lui en rendait rien. Avec son lien, le même
+ * partage lui rapporte REFERRAL_BONUS_DAYS jours d'accès par personne qui
+ * s'abonne, et donne une remise à celle qui clique.
+ *
+ * C'est aussi le seul moment du parcours où la demande est naturelle : juste
+ * après une victoire, sur un message qu'il a envie de montrer. Proposé à froid,
+ * le parrainage se lit comme une sollicitation ; proposé ici, comme une occasion.
+ */
+function formatShareableVictory(signal: SignalRecord, pct: number, env: Env, telegramId: number): string {
+  const lien = buildReferralLink(env, telegramId);
   return [
-    "📣 *À partager si tu veux :*",
-    `\`🎯 ${pctLabel(pct)} sur ${signal.pair} avec @${escapedUsername} ! Trade sécurisé automatiquement. Rejoignez l'essai gratuit.\``,
+    "📣 *À partager si tu veux — avec TON lien :*",
+    `\`🎯 ${pctLabel(pct)} sur ${signal.pair} ! Signaux crypto mesurés sur 6 ans, essai gratuit de 3 jours : ${lien}\``,
+    "",
+    `🤝 Chaque personne qui s'abonne via ce lien t'offre ${REFERRAL_BONUS_DAYS} jours d'accès, et lui donne une remise. Ton suivi complet : /referral`,
   ].join("\n");
 }
 
@@ -190,6 +214,29 @@ async function closeSignal(
     await sendMessage(env.TELEGRAM_BOT_TOKEN, channelId, formatPublicCloseMessage(closedSignal, pct, env.TELEGRAM_BOT_USERNAME), {
       markdown: true,
     }).catch((err) => console.error(`[post-trade] Échec de la célébration publique pour le signal #${signal.id}:`, err));
+  }
+}
+
+/**
+ * Comme notifyRecipients, mais le texte est CONSTRUIT PAR DESTINATAIRE.
+ *
+ * Nécessaire dès qu'un message contient quelque chose de personnel — ici le
+ * lien de parrainage. Même découpage en lots et même traitement des erreurs :
+ * un envoi qui échoue ne doit jamais interrompre les autres.
+ */
+async function notifyEachRecipient(env: Env, telegramIds: number[], build: (id: number) => string): Promise<void> {
+  for (let i = 0; i < telegramIds.length; i += BATCH_SIZE) {
+    const batch = telegramIds.slice(i, i + BATCH_SIZE);
+    await Promise.all(
+      batch.map((id) =>
+        sendMessage(env.TELEGRAM_BOT_TOKEN, id, build(id), { markdown: true }).catch((err) =>
+          console.error(`[post-trade] Échec de notification à ${id}:`, err)
+        )
+      )
+    );
+    if (i + BATCH_SIZE < telegramIds.length) {
+      await new Promise((r) => setTimeout(r, DELAY_BETWEEN_BATCHES_MS));
+    }
   }
 }
 
@@ -265,7 +312,7 @@ export async function trackSignalOutcomes(env: Env): Promise<void> {
         const recipients = await getDeliveryRecipients(db, signal.id);
         const pctAtTp2 = computePnlPct(signal.type, signal.entry_price, signal.tp2_price ?? signal.entry_price);
         await notifyRecipients(env, recipients, formatTp2HitMessage(signal));
-        await notifyRecipients(env, recipients, formatShareableVictory(signal, pctAtTp2, env.TELEGRAM_BOT_USERNAME));
+        await notifyEachRecipient(env, recipients, (id) => formatShareableVictory(signal, pctAtTp2, env, id));
         await broadcastCelebration(env, signal, "TP2", pctAtTp2);
         continue;
       }
@@ -277,7 +324,7 @@ export async function trackSignalOutcomes(env: Env): Promise<void> {
         if (isTp3Win) {
           const recipients = await getDeliveryRecipients(db, signal.id);
           const pctAtTp3 = computePnlPct(signal.type, signal.entry_price, progress.exitPrice);
-          await notifyRecipients(env, recipients, formatShareableVictory(signal, pctAtTp3, env.TELEGRAM_BOT_USERNAME));
+          await notifyEachRecipient(env, recipients, (id) => formatShareableVictory(signal, pctAtTp3, env, id));
           await broadcastCelebration(env, signal, "TP3", pctAtTp3);
         }
         await closeSignal(env, db, signal, progress.outcome, progress.exitPrice, progress.closeReason);

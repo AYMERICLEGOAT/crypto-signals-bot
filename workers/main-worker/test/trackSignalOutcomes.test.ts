@@ -611,3 +611,70 @@ describe("trackSignalOutcomes", () => {
     await expect(trackSignalOutcomes(env)).resolves.toBeUndefined();
   });
 });
+
+describe("parrainage dans les célébrations", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  // On demandait à un abonné qui vient de gagner de faire la promotion du
+  // produit, et on ne lui en rendait rien : le texte partageable ne portait
+  // aucun lien de parrainage. Le même partage lui rapporte maintenant des jours
+  // d'accès, et donne une remise à la personne qui clique.
+  it("le texte partageable de TP2 porte le lien de parrainage DU DESTINATAIRE", async () => {
+    const messagesParDestinataire: Record<number, string[]> = {};
+    const messagesCanalVip: string[] = [];
+    const multiTp = {
+      ...recentSignal,
+      id: 40,
+      entry_price: 100,
+      stop_loss: 90,
+      tp1_price: 105,
+      tp2_price: 110,
+      tp3_price: 120,
+      tp1_hit_at: "2026-08-01T00:00:00Z",
+      breakeven_active: true,
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("signals") && url.includes("outcome=is.null") && (!init || init.method === undefined)) {
+          return jsonResponse([multiTp]);
+        }
+        if (url.includes("binance.com")) return jsonResponse([{ symbol: "BTCUSDT", price: "111.00" }]);
+        if (url.includes("signals") && init?.method === "PATCH") return jsonResponse([]);
+        if (url.includes("signal_deliveries") && (!init || init.method === undefined)) {
+          return jsonResponse([{ telegram_id: 777 }, { telegram_id: 888 }]);
+        }
+        if (url.includes("/users") && url.includes("telegram_id=in.")) return jsonResponse([]);
+        if (url.includes("api.telegram.org")) {
+          const body = JSON.parse(init!.body as string);
+          if (body.chat_id === -100999) messagesCanalVip.push(body.text);
+          else (messagesParDestinataire[body.chat_id] ??= []).push(body.text);
+          return jsonResponse({ ok: true, result: {} });
+        }
+        throw new Error(`URL inattendue: ${url}`);
+      })
+    );
+
+    await trackSignalOutcomes({ ...env, TELEGRAM_VIP_CHANNEL_ID: "-100999" } as any);
+
+    // Le code de parrainage est l'identifiant Telegram en base 36 : chaque
+    // abonné reçoit SON lien, et surtout pas celui de son voisin. Le code est
+    // recalculé ici plutôt qu'écrit en dur — un code faux dans le test ne
+    // prouverait rien.
+    const pour777 = (messagesParDestinataire[777] ?? []).join("\n");
+    const pour888 = (messagesParDestinataire[888] ?? []).join("\n");
+    expect(pour777).toContain(`?start=${(777).toString(36)}`);
+    expect(pour888).toContain(`?start=${(888).toString(36)}`);
+    expect(pour777).not.toContain(`?start=${(888).toString(36)}`);
+
+    // Et le partage annonce ce qu'il rapporte, sinon il n'y a aucune raison de
+    // le faire.
+    expect(pour777).toMatch(/jours d'accès/);
+    expect(pour777).toContain("/referral");
+
+    // Le canal VIP le rappelle aussi, sans jamais remplacer la nouvelle.
+    expect(messagesCanalVip.join("\n")).toContain("TP2 ATTEINT");
+    expect(messagesCanalVip.join("\n")).toContain("/referral");
+  });
+});
