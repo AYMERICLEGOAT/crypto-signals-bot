@@ -20,7 +20,12 @@ describe("buildSignalMessage (UX — format de signal plus clair)", () => {
     const text = buildSignalMessage(buySignal);
     expect(text).toContain("🟢");
     expect(text).toContain("ACHAT XRP/USDT");
-    expect(text).toContain("Signal Haute Confiance");
+    // Ce signal de test ne porte AUCUN moteur. Le contexte annonçait alors
+    // « Signal Haute Confiance : EMA + RSI + ADX alignés » — la stratégie
+    // mesurée perdante et désactivée le 03/08/2026. Un signal dont on ignore
+    // le moteur ne doit plus être expliqué par celle-là, ni par aucune autre.
+    expect(text).not.toMatch(/EMA \+ RSI \+ ADX/i);
+    expect(text).toMatch(/Position (haussière|baissière)/i);
     expect(text).toContain("Pas un conseil financier");
   });
 
@@ -65,13 +70,27 @@ describe("buildSignalMessage (UX — format de signal plus clair)", () => {
     expect(text).toContain("rejoins @ProVIPSignals\\_bot");
   });
 
-  it("affiche le badge du moteur d'origine (🎯 par défaut, ⚡ pour le moteur Squeeze 15M)", () => {
+  it("affiche le badge du moteur d'origine, et un badge NEUTRE quand il n'y en a pas", () => {
+    // Le badge par défaut était « 🎯 Haute Confiance ». Ce n'est pas un repli
+    // mais une affirmation de qualité, apposée précisément sur le signal dont
+    // on ne sait rien — et « high_confidence » désigne en base l'ancien moteur
+    // EMA/RSI, mesuré perdant et désactivé.
     const defaultText = buildSignalMessage(buySignal);
-    expect(defaultText).toContain("🎯 Haute Confiance");
+    expect(defaultText).not.toContain("Haute Confiance");
+    expect(defaultText).toContain("📊 Signal");
 
     const squeezeText = buildSignalMessage({ ...buySignal, engine: "squeeze_15m" });
     expect(squeezeText).toContain("⚡ Squeeze 15M");
     expect(squeezeText).toContain("Signal Squeeze 15M");
+  });
+
+  it("étiquette les anciens signaux high_confidence comme provenant d'un moteur retiré", () => {
+    // Dix signaux portent cette valeur en base (26/07 – 03/08). /history peut
+    // les réafficher : republier « Haute Confiance » à leur sujet reviendrait
+    // à réaffirmer aujourd'hui la qualité du moteur que ce projet a désavoué.
+    const text = buildSignalMessage({ ...buySignal, engine: "high_confidence" });
+    expect(text).toContain("Moteur retiré");
+    expect(text).not.toContain("Haute Confiance");
   });
 
   it("gère correctement un signal SELL (contexte baissier, signes inversés)", () => {

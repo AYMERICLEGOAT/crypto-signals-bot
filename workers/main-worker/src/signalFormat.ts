@@ -41,8 +41,14 @@ export interface SignalLike {
   hold_until?: string | null;
 }
 
-const ENGINE_BADGE: Record<string, string> = {
-  high_confidence: "🎯 Haute Confiance",
+export const ENGINE_BADGE: Record<string, string> = {
+  // « 🎯 Haute Confiance » désignait l'ancien moteur EMA/RSI, désactivé le
+  // 03/08/2026 après avoir été mesuré comme la jambe PERDANTE de la stratégie.
+  // Dix signaux portent encore cette valeur en base (26/07 – 03/08). Réafficher
+  // « Haute Confiance » à leur sujet, dans /history par exemple, reviendrait à
+  // republier aujourd'hui une affirmation de qualité sur le moteur que ce
+  // projet a lui-même désavoué.
+  high_confidence: "📕 Moteur retiré",
   squeeze_15m: "⚡ Squeeze 15M",
   relative_strength: "📈 Force Relative",
   carry_funding: "💵 Carry de Financement",
@@ -51,8 +57,22 @@ const ENGINE_BADGE: Record<string, string> = {
   expansion_volatilite: "🌋 Expansion de Volatilité",
 };
 
+/**
+ * Le repli est NEUTRE, et ça compte.
+ *
+ * Il renvoyait « 🎯 Haute Confiance » pour tout moteur absent de la table. Ce
+ * n'est pas un repli : c'est une affirmation de qualité, apposée précisément
+ * sur le signal dont on ne sait rien. La cassure de canal et l'expansion de
+ * volatilité ont été branchées APRÈS ce formatage — pendant l'intervalle,
+ * n'importe quel moteur nouveau aurait été publié comme « haute confiance »
+ * sans que personne l'ait décidé, et sans que rien ne casse.
+ */
+const BADGE_INCONNU = "📊 Signal";
+
 function engineBadge(engine?: string | null): string {
-  return ENGINE_BADGE[engine ?? "high_confidence"] ?? ENGINE_BADGE.high_confidence;
+  // Un signal sans moteur est le cas « on ne sait pas » par excellence : il
+  // reçoit donc le badge neutre, comme un moteur inconnu.
+  return ENGINE_BADGE[engine ?? ""] ?? BADGE_INCONNU;
 }
 
 /**
@@ -96,7 +116,19 @@ function buildContext(type: SignalSide, engine?: string | null): string {
   if (engine === "expansion_volatilite") {
     return `${arrow} Expansion de Volatilité : après une longue phase de calme, l'amplitude des mouvements se réveille à la hausse. C'est le plus rare des signaux du système.`;
   }
-  return `${arrow} Signal Haute Confiance : la tendance vient de basculer ${direction} (EMA + RSI + ADX alignés).`;
+  // LE REPLI NE DÉCRIT PLUS UNE STRATÉGIE QUE LE PROJET A MESURÉE PERDANTE.
+  //
+  // Il annonçait « Signal Haute Confiance : la tendance vient de basculer,
+  // EMA + RSI + ADX alignés ». C'est l'ancien moteur, désactivé le 03/08/2026
+  // après avoir été mesuré comme la jambe PERDANTE de la stratégie. Tout
+  // signal d'un moteur non répertorié — c'est-à-dire tout moteur ajouté sans
+  // passer ici, ce qui s'est produit deux fois — était donc expliqué à
+  // l'abonné comme provenant de cette stratégie-là.
+  //
+  // Le repli dit maintenant ce qu'on sait réellement, c'est-à-dire rien de
+  // plus que la direction. `direction` reste utilisé : c'est la seule
+  // information dont ce chemin dispose avec certitude.
+  return `${arrow} Position ${direction} — les niveaux et la date de sortie sont ci-dessous.`;
 }
 
 /**
