@@ -904,7 +904,7 @@
   <section>
     <h2>Le filtre de tendance, en détail</h2>
     <p>C'est la pièce centrale du moteur directionnel, et celle qui déplaît le plus&nbsp;:
-       <b>41 % du temps, elles n'émettent rien du tout.</b> Pas parce qu'elles sont en panne, mais
+       <b>42 % du temps, ils n'émettent rien du tout.</b> Pas parce qu'elles sont en panne, mais
        parce que le Bitcoin est sous sa moyenne mobile 200 jours et qu'elles ont interdiction
        d'acheter dans ces conditions.</p>
     <p>Ces arrêts peuvent être très longs. Le plus long mesuré sur 6 ans a duré <b>381 jours
@@ -912,11 +912,12 @@
        n'aurait reçu, pendant plus d'un an, aucun signal directionnel.</p>
     <div class="warn">
       <p><b>Au 4 août 2026, le filtre est fermé&nbsp;:</b> le Bitcoin est sous sa moyenne
-         200 jours. La force relative acheteuses sont donc à l'arrêt, et personne ne sait quand
-         elles reprendront. Tape <code>/marche</code> sur le bot pour l'état en direct.</p>
-      <p>Le carry, lui, continue&nbsp;: en marché défavorable, le service produit encore
-         <b>1,15 signal par jour</b> en moyenne mesurée. Mais si tu cherches un service qui envoie
-         plusieurs signaux tous les jours quoi qu'il arrive, ce n'est pas celui-ci.</p>
+         200 jours. Les trois moteurs directionnels sont donc à l'arrêt, et personne ne sait quand
+         ils reprendront. Tape <code>/marche</code> sur le bot pour l'état en direct.</p>
+      <p>Le carry et le momentum 4 heures, eux, continuent&nbsp;: en marché défavorable, le service
+         produit encore <b>3,1 signaux par jour</b> en moyenne mesurée. Mais ce ne
+         sont plus les mêmes moteurs, et le momentum 4 heures est celui dont l'avantage est le moins
+         établi du projet.</p>
     </div>
     <p>Pourquoi accepter ce filtre&nbsp;? Parce qu'acheter du momentum pendant une baisse générale
        est exactement la façon la plus rapide de perdre du capital. Ne rien envoyer est une
@@ -941,12 +942,12 @@
     <p>Backtest sur 6 ans, univers non contaminé par le biais du survivant, entrée décalée d'un
        jour, frais réels déduits, et chaque famille confrontée à un témoin aléatoire.</p>
     <div class="perf-stats">
-      <div class="perf-stat"><b>4,35</b> signaux/jour en marché favorable</div>
-      <div class="perf-stat"><b>1,15</b> signaux/jour en marché défavorable</div>
-      <div class="perf-stat"><b>2,99</b> signaux/jour en moyenne</div>
-      <div class="perf-stat"><b>80 %</b> des jours ont au moins un signal</div>
+      <div class="perf-stat"><b>4,0</b> signaux/jour en marché favorable</div>
+      <div class="perf-stat"><b>3,1</b> signaux/jour en marché défavorable</div>
+      <div class="perf-stat"><b>3,6</b> signaux/jour en moyenne</div>
+      <div class="perf-stat"><b>93 %</b> des jours ont au moins un signal</div>
     </div>
-    <p>Autrement dit&nbsp;: environ un jour sur cinq n'a aucun signal, et le débit dépend fortement
+    <p>Autrement dit&nbsp;: le débit dépend fortement
        du régime de marché. Ces chiffres décrivent une fréquence mesurée sur le passé, pas une
        cadence garantie pour la durée d'un abonnement.</p>
 
