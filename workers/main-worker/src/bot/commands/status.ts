@@ -1,9 +1,10 @@
 import { Env, dbConfig } from "../../env";
-import { sendMessage } from "../../telegram";
+import { sendMessage, InlineKeyboard } from "../../telegram";
 import { getOrCreateUser, isSubscriptionActive, UserRecord } from "../../db/users";
 import { getUserSignalHistory } from "../../db/history";
-import { PLAN_NAMES, isValidPlan } from "../../payments/plans";
+import { PLAN_NAMES, isValidPlan, LIFETIME_PLAN } from "../../payments/plans";
 import { getLoyaltyBadge } from "../loyaltyBadge";
+import { DEBIT, PART_FILTRE_FERME, PART_JOURS_AVEC_SIGNAL } from "../../publishedStats";
 // Source unique de l'état du filtre de tendance (voir commands/subscribe.ts) :
 // le redéclarer ici garantirait qu'une des deux copies devienne fausse.
 import { TREND_FILTER_STATUS } from "./subscribe";
@@ -11,22 +12,30 @@ import { TREND_FILTER_STATUS } from "./subscribe";
 /**
  * /status — « où j'en suis ».
  *
- * Refonte du 04/08/2026. La version précédente tenait en deux lignes : plan et
- * date d'expiration. Correct, mais elle laissait sans réponse la question que
- * se pose réellement un abonné qui tape cette commande, et surtout celui qui la
- * tape parce qu'il n'a rien reçu depuis deux jours : « est-ce que ça marche ? »
+ * Il répond à quatre choses : combien de temps il te reste, ce que le moteur
+ * émet EN CE MOMENT, combien de signaux tu as reçus, et quoi faire ensuite. Un
+ * abonné qui voit « 0 signal reçu » à côté de « filtre fermé, le carry et le
+ * momentum 4H prennent le relais » comprend son silence ; le même abonné sans
+ * cette ligne conclut à une panne et ne renouvelle pas.
  *
- * Elle répond donc maintenant à quatre choses : combien de temps il te reste,
- * ce que le moteur émet EN CE MOMENT (la force relative est
- * filtrées, le carry ne l'est pas), combien de signaux tu as reçus, et quoi
- * faire ensuite. Un abonné qui voit « 0 signal reçu » à côté de « filtre fermé,
- * le carry et le momentum 4H prennent le relais » comprend son silence ; le
- * même abonné sans cette
- * ligne conclut à une panne et ne renouvelle pas.
+ * TROIS CORRECTIONS DU 08/08/2026.
  *
- * Envoyé sans parse_mode, comme avant : le message contient des dates au format
- * français, des pourcentages et des tirets, et un seul caractère mal placé
- * ferait échouer le message ENTIER côté Telegram.
+ * 1. Le bloc « ce que le moteur émet » ne nommait qu'UN moteur directionnel. Il
+ *    y en a trois depuis que la cassure de canal et l'expansion de volatilité
+ *    sont entrées en service. Un remplacement automatique avait au passage
+ *    produit du français cassé — « La force relative (la force relative) est
+ *    donc à l'arrêt : elle achètent » — envoyé tel quel aux abonnés.
+ *
+ * 2. Le plan À VIE affichait un compte à rebours de cent ans. « Il te reste
+ *    36 500 jours » est la façon la plus sûre de faire passer un accès
+ *    définitif pour un bug.
+ *
+ * 3. Aucun bouton. La commande la plus consultée par quelqu'un dont l'accès
+ *    vient d'expirer se terminait sur un nom de commande à recopier.
+ *
+ * Envoyé sans parse_mode : le message contient des dates au format français,
+ * des pourcentages et des tirets, et un seul caractère mal placé ferait échouer
+ * le message ENTIER côté Telegram.
  */
 
 // Assez large pour couvrir tout l'historique réaliste d'un abonné (même borne
@@ -35,7 +44,11 @@ const MAX_SIGNALS = 500;
 
 function planLabel(user: UserRecord): string {
   if (user.plan === 0) return "Essai gratuit";
-  if (isValidPlan(user.plan as number)) return PLAN_NAMES[user.plan as 1 | 2 | 3];
+  // Le garde de type porte sur la variable locale, pas sur `user.plan` : un
+  // `isValidPlan(user.plan as number)` ne rétrécit rien et forcerait un second
+  // cast à l'indexation — celui-là même qui laissait le plan 4 hors du type.
+  const plan = user.plan ?? -1;
+  if (isValidPlan(plan)) return PLAN_NAMES[plan];
   return `Plan ${user.plan}`;
 }
 
@@ -55,32 +68,34 @@ function formatRemaining(msLeft: number): string {
  * Ce que le moteur émet en ce moment, et pourquoi.
  *
  * C'est le bloc qui manquait : sans lui, « abonnement actif » et « aucun signal
- * reçu » se contredisent aux yeux de l'abonné. Le filtre ne commande que les
- * la force relative ; le carry de financement tourne dans les deux
- * régimes parce qu'il est neutre au marché.
+ * reçu » se contredisent aux yeux de l'abonné. Le filtre coupe les TROIS
+ * moteurs directionnels ; le carry est neutre au marché donc jamais filtré, et
+ * le momentum 4H ne travaille QUE quand le filtre est fermé.
  */
 function buildEngineStateLines(): string[] {
   if (TREND_FILTER_STATUS.closed) {
     return [
       `🔻 Ce que le moteur émet en ce moment (mesuré le ${TREND_FILTER_STATUS.measuredOn}) :`,
-      `Le filtre de tendance est fermé — ${TREND_FILTER_STATUS.detail}. La force relative ` +
-        "(la force relative) est donc à l'arrêt : elle " +
-        "achètent, et acheter ne paie pas dans ce régime.",
-      "Le carry de financement, lui, continue : il est neutre au marché, donc jamais filtré. Rythme mesuré sur " +
-        "6 ans dans ce régime : 1,15 signal par jour en moyenne.",
+      `Le filtre de tendance est fermé — ${TREND_FILTER_STATUS.detail}. Les trois moteurs directionnels ` +
+        "sont donc à l'arrêt : force relative, cassure de canal et expansion de volatilité achètent tous " +
+        "les trois une hausse, et acheter ne paie pas dans ce régime.",
+      "Le carry de financement, lui, continue : il est neutre au marché, donc jamais filtré.",
       "Le momentum 4H l'accompagne, et lui ne travaille QUE dans ce régime : il classe les cryptos entre elles " +
         "sur des bougies de 4 heures et achète les deux plus fortes, tenues 3 jours. Il est en observation — " +
         "mesuré positif trois années sur quatre, en recul sur la dernière — et chacun de ses signaux le dit.",
-      "Si tu ne reçois que ces deux-là en ce moment, ce n'est pas une panne : c'est le fonctionnement prévu.",
+      `À eux deux : ${DEBIT.defavorable} signaux par jour en moyenne. Si tu ne reçois que ceux-là en ce ` +
+        "moment, ce n'est pas une panne : c'est le fonctionnement prévu.",
     ];
   }
   return [
     `📈 Ce que le moteur émet en ce moment (mesuré le ${TREND_FILTER_STATUS.measuredOn}) :`,
-    "Le filtre de tendance est ouvert : la force relative et le carry de financement émettent. Le " +
-      "momentum 4H, lui, ne travaille QUE quand le marché baisse : il se tait en ce moment. Rythme mesuré " +
-      "sur 6 ans dans ce régime : 4,35 signaux par jour.",
-    "Le filtre peut se refermer n'importe quand. Ce jour-là, les trois premières se tairont et le carry " +
-      "continuera seul, à 1,15 signal par jour en moyenne.",
+    "Le filtre de tendance est ouvert : les trois moteurs directionnels — force relative, cassure de canal, " +
+      "expansion de volatilité — émettent, et le carry de financement avec eux. Le momentum 4H, lui, ne " +
+      `travaille QUE quand le marché baisse : il se tait en ce moment. Rythme mesuré : ${DEBIT.favorable} ` +
+      "signaux par jour.",
+    `Le filtre peut se refermer n'importe quand — il l'est ${PART_FILTRE_FERME} du temps. Ce jour-là, les ` +
+      `trois directionnels se tairont, et le carry et le momentum 4H prendront le relais à ` +
+      `${DEBIT.defavorable} signaux par jour.`,
   ];
 }
 
@@ -96,8 +111,8 @@ async function buildDeliveryLine(env: Env, telegramId: number): Promise<string> 
     if (deliveries.length === 0) {
       return (
         "📬 Signaux reçus : aucun pour l'instant.\n" +
-        "Sur 6 ans, 80 % des jours comportent au moins un signal — mais ça reste une moyenne, pas une " +
-        "garantie sur une période courte."
+        `Sur 6 ans, ${PART_JOURS_AVEC_SIGNAL} des jours comportent au moins un signal — mais ça reste une ` +
+        "moyenne, pas une garantie sur une période courte."
       );
     }
     const open = deliveries.filter((delivery) => delivery.signals && delivery.signals.outcome === null).length;
@@ -136,37 +151,70 @@ function buildInactiveMessage(user: UserRecord): string {
     "",
     ...buildEngineStateLines(),
     "",
-    "Pour voir avant de décider : /demo montre la forme exacte des deux types de signal, /marche donne l'état du marché recalculé en direct.",
+    "Pour voir avant de décider : /demo montre la forme exacte des signaux, /marche donne l'état du marché recalculé en direct.",
   ].join("\n");
+}
+
+/**
+ * Le bouton qui manquait.
+ *
+ * Quelqu'un dont l'accès vient d'expirer tape /status plus souvent que
+ * n'importe quelle autre commande, et il tombait sur un nom de commande à
+ * recopier. Le bouton dépend de sa situation : un essai jamais utilisé mène à
+ * l'essai, tout le reste mène au tunnel d'abonnement.
+ *
+ * Un abonné payant en cours n'a AUCUN bouton. Lui en montrer un reviendrait à
+ * lui vendre ce qu'il a déjà, et /status est la commande qu'il consulte quand
+ * il se demande si le service fonctionne — pas le moment de lui parler prix.
+ */
+function buildStatusKeyboard(user: UserRecord, active: boolean): InlineKeyboard | undefined {
+  if (active && user.plan !== 0) return undefined;
+  if (!user.trial_used) return [[{ text: "🎁 Essai gratuit — 3 jours", callback_data: "start:trial" }]];
+  return [[{ text: "⭐ Voir les offres", callback_data: "start:subscribe" }]];
 }
 
 export async function handleStatusCommand(env: Env, telegramId: number): Promise<void> {
   const user = await getOrCreateUser(dbConfig(env), telegramId);
 
   if (!isSubscriptionActive(user)) {
-    await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, buildInactiveMessage(user));
+    await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, buildInactiveMessage(user), {
+      keyboard: buildStatusKeyboard(user, false),
+    });
     return;
   }
 
   const expirationDate = new Date(user.expiration as string);
   const badge = getLoyaltyBadge(user);
   const deliveryLine = await buildDeliveryLine(env, telegramId);
+  const aVie = user.plan === LIFETIME_PLAN;
 
   const lines: Array<string | null> = [
     `✅ Accès actif — ${planLabel(user)}`,
-    `⏳ Il te reste ${formatRemaining(expirationDate.getTime() - Date.now())}, jusqu'au ${expirationDate.toLocaleString("fr-FR")}.`,
+    // Un accès à vie affichait « il te reste 36 500 jours, jusqu'au
+    // 12/07/2126 ». C'est la façon la plus sûre de faire passer un accès
+    // définitif pour un bug d'affichage.
+    aVie
+      ? "♾️ Pas d'échéance : cet accès est définitif. Rien à renouveler, jamais."
+      : `⏳ Il te reste ${formatRemaining(expirationDate.getTime() - Date.now())}, jusqu'au ${expirationDate.toLocaleString("fr-FR")}.`,
     badge,
     "",
     deliveryLine,
     "",
     ...buildEngineStateLines(),
     "",
-    user.plan === 0
-      ? "À la fin de l'essai, l'accès s'arrête tout seul — aucun prélèvement, rien à résilier. /subscribe si tu veux continuer."
-      : "Aucun prélèvement automatique : ton accès s'arrête tout seul à échéance. /subscribe pour prolonger quand tu le souhaites.",
+    aVie
+      ? null
+      : user.plan === 0
+        ? "À la fin de l'essai, l'accès s'arrête tout seul — aucun prélèvement, rien à résilier. /subscribe si tu veux continuer."
+        : "Aucun prélèvement automatique : ton accès s'arrête tout seul à échéance. /subscribe pour prolonger quand tu le souhaites.",
     "",
     "⚠️ Signaux informatifs — ni conseil en investissement, ni promesse de gain.",
   ];
 
-  await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, lines.filter((line): line is string => line !== null).join("\n"));
+  await sendMessage(
+    env.TELEGRAM_BOT_TOKEN,
+    telegramId,
+    lines.filter((line): line is string => line !== null).join("\n"),
+    { keyboard: buildStatusKeyboard(user, true) }
+  );
 }

@@ -12,6 +12,7 @@ import {
 } from "../../db/users";
 import { setPendingAction } from "../../db/pendingActions";
 import { buildReferralLink } from "../referral";
+import { DEBIT, DEBIT_PAR_MOTEUR, MAX_PAR_JOUR } from "../../publishedStats";
 import { placesEssaiRestantes, enregistrerEssaiAccorde, ESSAIS_MAX_PAR_JOUR } from "../../db/trialCounter";
 import { addDays } from "../../utils/date";
 // Source unique de l'état du filtre de tendance : le dupliquer ici garantirait
@@ -79,8 +80,9 @@ function buildActivationMessage(endsAt: Date): string {
     "moteur, le momentum 4H, ne travaille QUE dans ce régime baissier — en observation, ce qui est écrit " +
     "sur chacun de ses signaux.\n\n" +
     `${etatDuFiltre}\n\n` +
-    "Le rythme mesuré : 4,35 signaux par jour en marché favorable ; en marché défavorable, le carry " +
-    "(1,15 par jour) accompagné du momentum 4H. Jamais plus de 5 par jour au total. " +
+    `Le rythme mesuré : ${DEBIT.favorable} signaux par jour en marché favorable ; ${DEBIT.defavorable} en ` +
+    `marché défavorable — le carry (${DEBIT_PAR_MOTEUR.carry_funding}) accompagné du momentum 4H ` +
+    `(${DEBIT_PAR_MOTEUR.momentum_4h}). Jamais plus de ${MAX_PAR_JOUR} par jour au total. ` +
     "Ce sont des moyennes, pas une garantie : trois jours, c'est court, et il est possible que tu tombes " +
     "sur un jour creux.\n\n" +
     "Le silence n'est donc jamais une panne. /demo montre la forme exacte des deux signaux, /marche l'état " +

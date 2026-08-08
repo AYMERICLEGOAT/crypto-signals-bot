@@ -1,6 +1,7 @@
 import { Env } from "../../env";
 import { sendMessage } from "../../telegram";
 import { TREND_FILTER_STATUS } from "./subscribe";
+import { DEBIT, PART_FILTRE_FERME, PART_JOURS_AVEC_SIGNAL } from "../../publishedStats";
 
 /**
  * Audit#8 : liste centralisée des commandes — 13 commandes existaient sans qu'aucune ne les récapitule.
@@ -27,9 +28,9 @@ import { TREND_FILTER_STATUS } from "./subscribe";
  * fois ce qui a le plus changé et ce qu'un lecteur a le plus de raisons
  * d'ignorer, puisqu'il n'existe nulle part ailleurs.
  *
- * Le rythme est repris de la mesure 6 ans (2,99 signaux/jour en moyenne) et
- * remplace l'ancien « 8,0 signaux par semaine », qui ne comptait qu'une seule
- * famille et sous-estimait donc le service tout en étant faux.
+ * Le rythme vient de publishedStats.ts et n'est plus recopié ici : les chiffres
+ * précédents avaient été mesurés à deux moteurs et ne décrivaient plus le
+ * produit à cinq. Ce module documente lesquels et pourquoi.
  */
 export async function handleHelpCommand(env: Env, telegramId: number): Promise<void> {
   // Constat daté repris de TREND_FILTER_STATUS (commands/subscribe.ts) : aucune
@@ -61,13 +62,14 @@ export async function handleHelpCommand(env: Env, telegramId: number): Promise<v
       "peut être liquidée si ta marge devient insuffisante, il reste un risque de plateforme, et une " +
       "journée de financement extrême a déjà coûté -19,86 % sur une position.\n\n" +
       "*Le rythme*\n" +
-      "2,99 signaux par jour en moyenne : 4,35 quand le marché est porteur, 1,15 quand il ne l'est pas. " +
-      "80 % des jours ont au moins un signal.\n\n" +
+      `${DEBIT.moyenne} signaux par jour en moyenne : ${DEBIT.favorable} quand le marché est porteur, ` +
+      `${DEBIT.defavorable} quand il ne l'est pas. ${PART_JOURS_AVEC_SIGNAL} des jours ont au moins un ` +
+      "signal.\n\n" +
       "*Le silence*\n" +
-      "La force relative est coupée tant que le Bitcoin reste sous sa moyenne mobile " +
-      "200 jours — 41 % du temps sur 6 ans, jusqu'à 381 jours d'affilée du 28/12/2021 au 13/01/2023. Le " +
-      "carry, lui, n'est pas soumis à ce filtre, et le momentum 4H ne travaille QUE dans ce régime : ce sont " +
-      `les deux moteurs qui produisent en marché baissier. ${filterState} ` +
+      "Les trois moteurs directionnels sont coupés tant que le Bitcoin reste sous sa moyenne mobile " +
+      `200 jours — ${PART_FILTRE_FERME} du temps sur 6 ans, jusqu'à 381 jours d'affilée du 28/12/2021 au ` +
+      "13/01/2023. Le carry, lui, n'est pas soumis à ce filtre, et le momentum 4H ne travaille QUE dans ce " +
+      `régime : ce sont les deux moteurs qui produisent en marché baissier. ${filterState} ` +
       "Le détail est dans /faq, et /marche recalcule cet état en direct.\n\n" +
       "*À savoir avant de suivre les signaux directionnels*\n" +
       "Ils réussissent environ une fois sur deux, et le signal MÉDIAN perd 0,69 %. La rentabilité vient " +

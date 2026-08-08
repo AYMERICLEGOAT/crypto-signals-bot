@@ -1,5 +1,6 @@
 import { Env } from "../../env";
 import { sendMessage } from "../../telegram";
+import { DEBIT, DEBIT_PAR_MOTEUR, MAX_PAR_JOUR, PART_FILTRE_FERME } from "../../publishedStats";
 
 /**
  * Montre la FORME réelle des signaux du moteur — désormais DEUX formes, pas une.
@@ -58,7 +59,7 @@ export async function handleDemoCommand(env: Env, telegramId: number): Promise<v
       "Les jalons servent à suivre la progression. Et le stop est volontairement très large — ce n'est pas " +
       "une gestion fine, c'est une protection catastrophe.\n\n" +
       "Ce moteur se tait dès que le Bitcoin passe sous sa moyenne 200 jours, ce qui arrive " +
-      "41 % du temps (la plus longue fermeture a duré 381 jours, du 28/12/2021 au 13/01/2023).\n\n" +
+      `${PART_FILTRE_FERME} du temps (la plus longue fermeture a duré 381 jours, du 28/12/2021 au 13/01/2023).\n\n` +
       "━━━━━━━━━━\n" +
       "*2. UN CARRY DE FINANCEMENT — neutre au marché*\n\n" +
       "💵 *CARRY* — deux jambes ouvertes en même temps, même montant, même crypto\n" +
@@ -79,9 +80,11 @@ export async function handleDemoCommand(env: Env, telegramId: number): Promise<v
       "marge devient insuffisante, il reste un risque de plateforme, et la pire position mesurée a perdu 19,86 %.\n\n" +
       "━━━━━━━━━━\n" +
       "📬 *Le débit réel*\n" +
-      "• marché favorable : 4,35 signaux par jour\n" +
-      "• marché défavorable : le carry (1,15 par jour) et le momentum 4H, qui ne travaille que dans ce régime\n" +
-      "• jamais plus de 5 par jour au total : au-delà, ce ne serait plus une sélection\n\n" +
+      `• marché favorable : ${DEBIT.favorable} signaux par jour\n` +
+      `• marché défavorable : ${DEBIT.defavorable} par jour — le carry (${DEBIT_PAR_MOTEUR.carry_funding}) et le ` +
+      `momentum 4H (${DEBIT_PAR_MOTEUR.momentum_4h}), qui ne travaille que dans ce régime\n` +
+      `• jamais plus de ${MAX_PAR_JOUR} par jour au total — 5 directionnels au maximum, plus les carrys, ` +
+      "qui ne prennent aucun risque de marché et ne concourent donc pas pour ces places\n\n" +
       "⚠️ *Ce qu'il faut accepter*\n" +
       "Les signaux directionnels réussissent environ une fois sur deux, et leur signal médian PERD " +
       "0,69 % — il y a donc une majorité de perdants. Tout le gain vient d'une minorité de gros gagnants. " +

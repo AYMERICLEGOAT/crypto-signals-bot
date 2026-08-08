@@ -25,6 +25,13 @@ import html
 import json
 
 from config import SITE_BASE_URL, TELEGRAM_BOT_USERNAME, TELEGRAM_CHANNEL_URL
+from published_stats import (
+    DEBIT_FAVORABLE,
+    DEBIT_DEFAVORABLE,
+    DEBIT_MOYEN,
+    PART_FILTRE_FERME,
+    PART_JOURS_AVEC_SIGNAL,
+)
 from html_generator import _STYLE
 from social_meta import social_tags
 
@@ -338,7 +345,7 @@ def build_how_it_works():
   <section>
     <h2>Le filtre de tendance, en détail</h2>
     <p>C'est la pièce centrale du moteur directionnel, et celle qui déplaît le plus&nbsp;:
-       <b>41 % du temps, elles n'émettent rien du tout.</b> Pas parce qu'elles sont en panne, mais
+       <b>{PART_FILTRE_FERME} du temps, ils n'émettent rien du tout.</b> Pas parce qu'elles sont en panne, mais
        parce que le Bitcoin est sous sa moyenne mobile 200 jours et qu'elles ont interdiction
        d'acheter dans ces conditions.</p>
     <p>Ces arrêts peuvent être très longs. Le plus long mesuré sur 6 ans a duré <b>381 jours
@@ -346,11 +353,12 @@ def build_how_it_works():
        n'aurait reçu, pendant plus d'un an, aucun signal directionnel.</p>
     <div class="warn">
       <p><b>Au {FILTER_STATE_DATE}, le filtre est fermé&nbsp;:</b> le Bitcoin est sous sa moyenne
-         200 jours. La force relative acheteuses sont donc à l'arrêt, et personne ne sait quand
-         elles reprendront. Tape <code>/marche</code> sur le bot pour l'état en direct.</p>
-      <p>Le carry, lui, continue&nbsp;: en marché défavorable, le service produit encore
-         <b>1,15 signal par jour</b> en moyenne mesurée. Mais si tu cherches un service qui envoie
-         plusieurs signaux tous les jours quoi qu'il arrive, ce n'est pas celui-ci.</p>
+         200 jours. Les trois moteurs directionnels sont donc à l'arrêt, et personne ne sait quand
+         ils reprendront. Tape <code>/marche</code> sur le bot pour l'état en direct.</p>
+      <p>Le carry et le momentum 4 heures, eux, continuent&nbsp;: en marché défavorable, le service
+         produit encore <b>{DEBIT_DEFAVORABLE} signaux par jour</b> en moyenne mesurée. Mais ce ne
+         sont plus les mêmes moteurs, et le momentum 4 heures est celui dont l'avantage est le moins
+         établi du projet.</p>
     </div>
     <p>Pourquoi accepter ce filtre&nbsp;? Parce qu'acheter du momentum pendant une baisse générale
        est exactement la façon la plus rapide de perdre du capital. Ne rien envoyer est une
@@ -375,12 +383,12 @@ def build_how_it_works():
     <p>Backtest sur 6 ans, univers non contaminé par le biais du survivant, entrée décalée d'un
        jour, frais réels déduits, et chaque famille confrontée à un témoin aléatoire.</p>
     <div class="perf-stats">
-      <div class="perf-stat"><b>4,35</b> signaux/jour en marché favorable</div>
-      <div class="perf-stat"><b>1,15</b> signaux/jour en marché défavorable</div>
-      <div class="perf-stat"><b>2,99</b> signaux/jour en moyenne</div>
-      <div class="perf-stat"><b>80 %</b> des jours ont au moins un signal</div>
+      <div class="perf-stat"><b>{DEBIT_FAVORABLE}</b> signaux/jour en marché favorable</div>
+      <div class="perf-stat"><b>{DEBIT_DEFAVORABLE}</b> signaux/jour en marché défavorable</div>
+      <div class="perf-stat"><b>{DEBIT_MOYEN}</b> signaux/jour en moyenne</div>
+      <div class="perf-stat"><b>{PART_JOURS_AVEC_SIGNAL}</b> des jours ont au moins un signal</div>
     </div>
-    <p>Autrement dit&nbsp;: environ un jour sur cinq n'a aucun signal, et le débit dépend fortement
+    <p>Autrement dit&nbsp;: le débit dépend fortement
        du régime de marché. Ces chiffres décrivent une fréquence mesurée sur le passé, pas une
        cadence garantie pour la durée d'un abonnement.</p>
 
@@ -704,12 +712,12 @@ def build_terms():
     <div class="warn">
       <p><b>L'abonnement court pendant ces périodes.</b> La durée achetée (14, 30 ou 90 jours) s'écoule
          au calendrier. Elle n'est ni suspendue, ni prolongée, ni remboursée, même si aucun signal
-         n'est émis du premier au dernier jour. Deux familles continuent de produire dans ce
-         régime — le carry de financement et le momentum 4 heures — mais le rythme mesuré tombe
-         alors à <strong>1,15 signal par jour</strong> contre 4,35 en marché favorable, et rien ne
-         garantit qu'elles trouvent quoi que ce soit un jour donné. <strong>Il est donc
-         parfaitement possible de payer un abonnement de 30 jours et de ne recevoir aucun
-         signal.</strong></p>
+         directionnel n'est émis du premier au dernier jour. Deux moteurs continuent de produire
+         dans ce régime — le carry de financement et le momentum 4 heures — à un rythme mesuré de
+         <strong>{DEBIT_DEFAVORABLE} signaux par jour</strong> contre {DEBIT_FAVORABLE} en marché
+         favorable, et rien ne garantit qu'ils trouvent quoi que ce soit un jour donné.
+         <strong>Il est donc parfaitement possible de payer un abonnement de 30 jours sans recevoir
+         un seul signal directionnel.</strong></p>
       <p><b>Ce n'est pas une panne, c'est le comportement voulu de la stratégie.</b> Sans cette
          règle d'arrêt, la stratégie n'est positive que 4 années sur 7&nbsp;; avec elle, elle n'a
          aucune année perdante sur les 6 années mesurées. En 2022 et en 2026 elle n'a rien émis,

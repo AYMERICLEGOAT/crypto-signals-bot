@@ -9,6 +9,14 @@ import html
 from datetime import datetime
 
 from config import SITE_NAME, SITE_BASE_URL, TELEGRAM_BOT_USERNAME, TELEGRAM_CHANNEL_URL
+from published_stats import (
+    DEBIT_FAVORABLE,
+    DEBIT_DEFAVORABLE,
+    DEBIT_MOYEN,
+    MAX_PAR_JOUR,
+    PART_FILTRE_FERME,
+    PART_JOURS_AVEC_SIGNAL,
+)
 from content_templates import generate_analysis, format_price
 from equity_curve import build_live_performance_section
 from testimonials import EXAMPLE_TESTIMONIALS, EXAMPLE_TESTIMONIALS_EN
@@ -27,7 +35,7 @@ TELEGRAM_URL = f"https://t.me/{TELEGRAM_BOT_USERNAME}"
 #   5. Momentum 4 heures   (signals/momentum_4h.py), depuis le 07/08/2026
 #
 # Les trois premières sont DIRECTIONNELLES : elles achètent une hausse, et sont
-# coupées quand le Bitcoin passe sous sa moyenne mobile 200 jours (41 % du
+# coupées quand le Bitcoin passe sous sa moyenne mobile 200 jours (42 % du
 # temps). Les deux dernières produisent pendant ces périodes — le carry parce
 # qu'il est neutre au marché, le momentum 4 heures parce qu'il ne travaille QUE
 # dans ce régime-là. Toute la page en tient compte : un carry n'a NI stop loss
@@ -207,17 +215,18 @@ _STRINGS = {
              "étiqueté comme tel, et il s'arrête de lui-même si ses résultats réels démentent la mesure."),
         ),
         "backtest_tiles": (
-            ("2,99", "signaux par jour en moyenne, sur 6 ans"),
-            ("4,35", "par jour en marché favorable, 1,15 en marché défavorable"),
-            ("80 %", "des jours ont au moins un signal"),
+            (DEBIT_MOYEN, "signaux par jour en moyenne, sur 6 ans"),
+            (DEBIT_FAVORABLE, f"par jour en marché favorable, {DEBIT_DEFAVORABLE} en marché défavorable"),
+            (PART_JOURS_AVEC_SIGNAL, "des jours ont au moins un signal"),
             ("84,2 %", "de positions gagnantes pour le carry de financement"),
         ),
         "backtest_filter_heading": "Pourquoi les signaux d'achat se taisent parfois pendant des mois",
-        "backtest_filter": "La force relative est coupée quand le Bitcoin passe sous sa "
-        "moyenne mobile 200 jours. Ce filtre est fermé 41 % du temps et sa plus longue fermeture a duré "
-        "381 jours, du 28/12/2021 au 13/01/2023. Le carry, lui, n'est pas coupé : il est neutre au marché, donc "
-        "une baisse ne le gêne pas. C'est ce qui fait passer le rythme de 0 à 1,15 signal par jour pendant ces "
-        "périodes, contre 4,35 quand le filtre est ouvert.",
+        "backtest_filter": "Les trois moteurs directionnels sont coupés quand le Bitcoin passe sous sa "
+        f"moyenne mobile 200 jours. Ce filtre est fermé {PART_FILTRE_FERME} du temps et sa plus longue "
+        "fermeture a duré 381 jours, du 28/12/2021 au 13/01/2023. Le carry, lui, n'est pas coupé : il est "
+        "neutre au marché, donc une baisse ne le gêne pas, et le momentum 4H ne travaille QUE dans ce "
+        f"régime. Le rythme passe alors à {DEBIT_DEFAVORABLE} signaux par jour, contre {DEBIT_FAVORABLE} "
+        "quand le filtre est ouvert — mais ce ne sont plus les mêmes moteurs.",
         "backtest_honesty_heading": "Ce qu'il faut savoir avant de s'abonner",
         "backtest_honesty": (
             "<b>Prenez tous les signaux, ou aucun.</b> Les familles directionnelles réussissent environ une "
@@ -255,26 +264,26 @@ _STRINGS = {
         "financement couvre ses frais, le second est plafonné à ses deux meilleurs rangs. Rien ne sera inventé "
         "pour remplir la page.",
         "filter_tiles": (
-            ("41 %", "du temps sans signal directionnel, sur 6 ans"),
+            (PART_FILTRE_FERME, "du temps sans signal directionnel, sur 6 ans"),
             ("381 j", "la plus longue fermeture (28/12/2021 → 13/01/2023)"),
-            ("5", "signaux par jour au maximum, tous moteurs confondus"),
+            (str(MAX_PAR_JOUR), "signaux par jour au maximum, tous moteurs confondus"),
             ("84,2 %", "de positions gagnantes pour le carry"),
         ),
         "filter_duration_heading": "Combien de temps ça peut durer",
-        "filter_duration": "Sur les 6 dernières années, ce filtre a été fermé 41 % du temps. La plus longue "
-        "fermeture a duré 381 jours, du 28/12/2021 au 13/01/2023. Un abonnement peut donc traverser plusieurs "
-        "mois d'affilée sans le moindre signal d'achat : c'est à prévoir, pas une anomalie. La différence "
-        "depuis l'ajout du carry, c'est que ces périodes ne sont plus vides : elles produisent 1,15 signal par "
-        "jour en moyenne, contre 4,35 quand le filtre est ouvert.",
+        "filter_duration": f"Sur les 6 dernières années, ce filtre a été fermé {PART_FILTRE_FERME} du temps. "
+        "La plus longue fermeture a duré 381 jours, du 28/12/2021 au 13/01/2023. Un abonnement peut donc "
+        "traverser plusieurs mois d'affilée sans le moindre signal directionnel : c'est à prévoir, pas une "
+        "anomalie. Ces périodes ne sont pas vides pour autant — le carry et le momentum 4H y produisent "
+        f"{DEBIT_DEFAVORABLE} signaux par jour, contre {DEBIT_FAVORABLE} quand le filtre est ouvert.",
         "filter_why_heading": "Pourquoi ne rien acheter vaut mieux",
         "filter_why": "Les familles directionnelles ne gagnent que si le marché monte. Les laisser tourner "
         "pendant une baisse, c'est acheter des hausses qui n'arrivent pas. Le filtre de tendance fait la majeure "
         "partie du travail de la stratégie : le couper pour avoir « quelque chose à publier » reviendrait à "
         "vendre du bruit. Nous préférons publier moins.",
         "filter_resume_heading": "Ce qui se passe ensuite",
-        "filter_resume": "Quand le Bitcoin repasse au-dessus de sa moyenne 200 jours, la force relative "
-        "directionnelles redémarrent seules, au rythme mesuré de 4,35 signaux par jour. Il n'y a rien à "
-        "surveiller ni à réactiver : cette page et le canal reprennent automatiquement.",
+        "filter_resume": "Quand le Bitcoin repasse au-dessus de sa moyenne 200 jours, les trois moteurs "
+        f"directionnels redémarrent seuls, au rythme mesuré de {DEBIT_FAVORABLE} signaux par jour. Il n'y a "
+        "rien à surveiller ni à réactiver : cette page et le canal reprennent automatiquement.",
         "filter_measured": "Chiffres mesurés sur 6 ans (2020-2026), en données journalières, net de frais, avec "
         "un témoin aléatoire pour chaque famille.",
         "filter_note": "Nous préférons ne rien publier plutôt que de vous faire perdre de l'argent en marché "
@@ -709,7 +718,7 @@ def _no_signal_section_html(s):
     Bloc affiché les jours SANS signal, c'est-à-dire quand le filtre de
     tendance est fermé (Bitcoin sous sa moyenne mobile 200 jours).
 
-    Ces jours-là représentent 41 % du temps et peuvent s'enchaîner pendant des
+    Ces jours-là représentent 42 % du temps et peuvent s'enchaîner pendant des
     mois — 381 jours pour la plus longue fermeture mesurée. Les traiter comme
     un incident (page vide, ou pire, signal de remplissage) serait malhonnête
     et ferait fuir l'abonné au moment précis où le filtre lui rend le plus
@@ -749,7 +758,7 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
 
     `signals` peut être vide : depuis le 03/08/2026 le moteur ne publie rien
     tant que le Bitcoin est sous sa moyenne mobile 200 jours, ce qui arrive
-    41 % du temps. La page reste alors complète et explique le silence
+    42 % du temps. La page reste alors complète et explique le silence
     (_no_signal_section_html) au lieu d'afficher une section de signaux vide.
     """
     s = _STRINGS[lang]

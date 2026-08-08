@@ -29,6 +29,13 @@ import html
 from datetime import datetime, timezone
 
 from config import PAIRS, SITE_NAME, SITE_BASE_URL, TELEGRAM_BOT_USERNAME, TELEGRAM_CHANNEL_URL
+from published_stats import (
+    DEBIT_FAVORABLE,
+    DEBIT_DEFAVORABLE,
+    DEBIT_MOYEN,
+    PART_FILTRE_FERME,
+    PART_JOURS_AVEC_SIGNAL,
+)
 from html_generator import _STYLE
 from social_meta import social_tags
 
@@ -357,9 +364,9 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
     canonical_url = f"{SITE_BASE_URL}/"
     title = f"{SITE_NAME} — signaux crypto automatisés sur Telegram"
     description = (
-        "Quatre familles de signaux crypto envoyées automatiquement sur Telegram, dont le carry "
+        "Cinq familles de signaux crypto envoyées automatiquement sur Telegram, dont le carry "
         "de financement : une position neutre au marché à 84,2 % de positions gagnantes. "
-        "2,99 signaux par jour en moyenne mesurée. Essai gratuit de 3 jours, sans moyen de paiement."
+        f"{DEBIT_MOYEN} signaux par jour en moyenne mesurée. Essai gratuit de 3 jours, sans moyen de paiement."
     )
 
     bot = html.escape(telegram_bot_username)
@@ -476,10 +483,10 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
        est jetée. Trois l'ont été.</p>
 
     <div class="kpis">
-      <div class="kpi"><b>4,35</b><span>signaux/jour en marché favorable</span></div>
-      <div class="kpi"><b>1,15</b><span>signaux/jour en marché défavorable</span></div>
-      <div class="kpi"><b class="gold">2,99</b><span>signaux/jour en moyenne</span></div>
-      <div class="kpi"><b>80 %</b><span>des jours ont au moins un signal</span></div>
+      <div class="kpi"><b>{DEBIT_FAVORABLE}</b><span>signaux/jour en marché favorable</span></div>
+      <div class="kpi"><b>{DEBIT_DEFAVORABLE}</b><span>signaux/jour en marché défavorable</span></div>
+      <div class="kpi"><b class="gold">{DEBIT_MOYEN}</b><span>signaux/jour en moyenne</span></div>
+      <div class="kpi"><b>{PART_JOURS_AVEC_SIGNAL}</b><span>des jours ont au moins un signal</span></div>
     </div>
 
     <h3>Ce qu'un abonné peut réellement attendre</h3>
@@ -510,11 +517,12 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
 
   <section>
     <h2>Les silences, dits avant le paiement</h2>
-    <p>Le filtre de tendance a été fermé <b>41 % du temps</b> sur les 6 dernières années, avec une
-       fermeture record de <b>381 jours</b> d'affilée, du 28/12/2021 au 13/01/2023. Pendant ces
-       périodes, la force relative n'émet rien du tout.</p>
-    <p>Depuis l'ajout du carry, ces périodes ne sont plus vides&nbsp;: il reste 1,15 signal par jour en
-       moyenne mesurée. Mais un jour sur cinq n'a toujours aucun signal, et <b>l'abonnement court au
+    <p>Le filtre de tendance a été fermé <b>{PART_FILTRE_FERME} du temps</b> sur les 6 dernières
+       années, avec une fermeture record de <b>381 jours</b> d'affilée, du 28/12/2021 au 13/01/2023.
+       Pendant ces périodes, les trois moteurs directionnels n'émettent rien du tout.</p>
+    <p>Le carry et le momentum 4 heures continuent&nbsp;: ces périodes produisent
+       <b>{DEBIT_DEFAVORABLE} signaux par jour</b> en moyenne mesurée. Mais ce ne sont plus les mêmes
+       moteurs, et <b>l'abonnement court au
        calendrier</b> — il n'est ni suspendu, ni prolongé pendant les jours creux. Les
        <a href="/terms.html">conditions générales</a> l'écrivent noir sur blanc, avant l'achat.</p>
     <p>Pourquoi assumer ce filtre&nbsp;? Parce que c'est lui qui empêche les familles directionnelles

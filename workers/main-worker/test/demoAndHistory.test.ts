@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { handleDemoCommand } from "../src/bot/commands/demo";
 import { handleHistoryCommand } from "../src/bot/commands/history";
+import { PART_FILTRE_FERME } from "../src/publishedStats";
 
 function jsonResponse(body: unknown) {
   return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
@@ -63,7 +64,11 @@ describe("handleDemoCommand", () => {
     // precis figure.
     expect(texte).toContain("84,2 %");
     expect(texte).toContain("0,69 %");   // le signal median des directionnelles PERD
-    expect(texte).toContain("41 %");
+    // Le littéral "41 %" était figé ici. Il a survécu à la mesure qui l'a
+    // corrigé à 42 %, et c'est le test qui a signalé la divergence — pas le
+    // texte. On assert la CONSTANTE : le jour où une nouvelle mesure la
+    // change, le test suit au lieu de bloquer.
+    expect(texte).toContain(PART_FILTRE_FERME);
     expect(texte).toContain("381 jours");
     expect(texte).toMatch(/majorité de perdants/i);
     expect(texte).toMatch(/pas une promesse|risque de perte/i);

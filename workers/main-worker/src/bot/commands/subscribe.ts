@@ -9,6 +9,7 @@ import { buildPlanKeyboard, consentKeyboard } from "../keyboards";
 import { getRemainingDiscoverySlots } from "../../db/offerCounter";
 import { PaidPlan, PLAN_PRICES_USD, PLAN_NAMES, PLAN_DURATION_DAYS, DISCOVERY_PLAN, LIFETIME_PLAN, LIFETIME_MIN_DAYS_PAID, isValidPlan } from "../../payments/plans";
 import { getOrCreateUser } from "../../db/users";
+import { DEBIT, PART_FILTRE_FERME, PART_JOURS_AVEC_SIGNAL } from "../../publishedStats";
 
 /** Site public — même valeur que SITE_BASE_URL dans .github/workflows/website.yml. */
 const TERMS_URL = "https://crypto-signals-bot-site.signalytics.workers.dev/terms.html";
@@ -67,10 +68,10 @@ function buildValueScreen(): string {
     "• Expansion de volatilité : réveil après une longue compression\n" +
     "• Carry de financement : ne parie pas sur le prix, tourne dans les deux régimes\n" +
     "• Momentum 4H : ne travaille QUE quand le marché baisse, et il est en observation\n\n" +
-    "• Quand le marché est favorable : 4,35 signaux par jour\n" +
-    "• Quand il ne l'est pas : 1,15 par jour\n" +
-    "• Moyenne sur toute la période : 2,99 par jour\n" +
-    "• 80 % des jours ont au moins un signal\n\n" +
+    `• Quand le marché est favorable : ${DEBIT.favorable} signaux par jour\n` +
+    `• Quand il ne l'est pas : ${DEBIT.defavorable} par jour — le carry et le momentum 4H prennent le relais\n` +
+    `• Moyenne sur toute la période : ${DEBIT.moyenne} par jour\n` +
+    `• ${PART_JOURS_AVEC_SIGNAL} des jours ont au moins un signal\n\n` +
     "Chaque signal arrive ici avec son entrée, son stop et ses paliers, et il est suivi " +
     "automatiquement jusqu'à la clôture."
   );
@@ -134,11 +135,20 @@ function buildSilenceWarning(): string {
   return (
     "⚠️ À LIRE AVANT DE PAYER\n\n" +
     "Trois choses qui pourraient te faire regretter cet achat. Autant te les dire maintenant.\n\n" +
-    "1. Le service peut devenir très calme, longtemps.\n" +
-    "La force relative est coupée dès que le Bitcoin passe sous sa moyenne 200 jours. " +
-    "Sur 6 ans, ça représente 41 % du temps, avec un record de 381 jours d'affilée, du 28/12/2021 au " +
-    "13/01/2023. Le carry, lui, continue — mais le rythme tombe alors à 1,15 signal par jour au lieu de " +
-    `4,35. ${currentState}\n` +
+    "1. Pendant des mois entiers, tu ne recevras plus le cœur du produit.\n" +
+    "Les trois moteurs directionnels — force relative, cassure de canal, expansion de volatilité — sont " +
+    "coupés dès que le Bitcoin passe sous sa moyenne 200 jours. Sur 6 ans, ça représente " +
+    `${PART_FILTRE_FERME} du temps, avec un record de 381 jours d'affilée, du 28/12/2021 au 13/01/2023.\n` +
+    // Ce paragraphe disait « le rythme tombe à 1,15 par jour ». C'était vrai
+    // avant le momentum 4H, qui ne travaille QUE dans ce régime : le volume ne
+    // s'effondre plus. Le dire tel quel serait aujourd'hui une fausse alerte —
+    // mais remplacer simplement le chiffre transformerait un avertissement en
+    // argument de vente. Ce qui change n'est pas le volume, c'est la NATURE de
+    // ce qu'on reçoit, et c'est ça qu'il faut dire avant un paiement.
+    `Le volume, lui, ne s'effondre pas : ${DEBIT.defavorable} signaux par jour au lieu de ` +
+    `${DEBIT.favorable}. Mais ce ne sont plus les mêmes. Tu reçois alors le carry, qui ne parie pas sur ` +
+    "le prix, et le momentum 4H, dont l'avantage est le moins établi du projet — mesuré positif trois " +
+    `années sur quatre, en recul sur la dernière. ${currentState}\n` +
     "Ton abonnement, lui, se compte en jours calendaires : il court pendant ces périodes, et il peut " +
     "arriver à échéance dans un marché resté calme du début à la fin.\n\n" +
     // Le point que n'importe quel vendeur aurait envie de taire, et le plus
@@ -308,8 +318,9 @@ export async function handlePlanSelection(env: Env, telegramId: number, data: st
       `Quatre points à valider avant de choisir comment payer :\n\n` +
       `• L'accès démarre immédiatement après confirmation du paiement.\n` +
       `• Ton abonnement se compte en jours calendaires, pas en nombre de signaux. Le rythme dépend du ` +
-      `marché : 4,35 signaux par jour quand il est favorable, 1,15 quand il ne l'est pas. Un abonnement ` +
-      `qui se termine sur une période calme ne donne pas droit à un remboursement.\n` +
+      `marché : ${DEBIT.favorable} signaux par jour quand il est favorable, ${DEBIT.defavorable} quand il ` +
+      `ne l'est pas — et ce ne sont alors plus les mêmes moteurs. Un abonnement qui se termine sur une ` +
+      `période calme ne donne pas droit à un remboursement.\n` +
       `• Le paiement se fait en cryptoactifs : il est irréversible, et aucun remboursement n'est possible ` +
       `une fois confirmé. En demandant l'exécution immédiate, tu renonces à ton droit de rétractation de 14 jours.\n` +
       `• Aucune performance n'est garantie. Les signaux ne sont pas un conseil en investissement, ` +

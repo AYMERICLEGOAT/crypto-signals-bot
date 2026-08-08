@@ -43,6 +43,7 @@
 
 import { Env, dbConfig } from "../../env";
 import { sendMessage } from "../../telegram";
+import { DEBIT, DEBIT_PAR_MOTEUR, MAX_PAR_JOUR } from "../../publishedStats";
 import { pairToSymbol } from "../../market/binancePrices";
 import { getOpenCarrySignals } from "../../db/signals";
 
@@ -340,9 +341,9 @@ function buildOpenMessage(state: TrendState, carryLine: string | null): string {
     carryLine,
     "",
     "*Le débit mesuré*",
-    "• dans un marché comme aujourd'hui : 4,35 signaux par jour",
-    "• quand le filtre se referme : le carry prend le relais, accompagné du momentum 4H qui ne travaille que dans ce régime-là",
-    "• au total, jamais plus de 5 par jour : au-delà, ce ne serait plus une sélection",
+    `• dans un marché comme aujourd'hui : ${DEBIT.favorable} signaux par jour`,
+    `• quand le filtre se referme : ${DEBIT.defavorable} par jour — le carry prend le relais, accompagné du momentum 4H qui ne travaille que dans ce régime-là`,
+    `• au total, jamais plus de ${MAX_PAR_JOUR} par jour : 5 directionnels au maximum, plus les carrys, qui ne prennent aucun risque de marché`,
     "",
     "*Ce qu'il faut savoir sur les signaux directionnels*",
     "Ils réussissent environ une fois sur deux, et le signal médian PERD 0,69 %. Tout le résultat vient d'une minorité de gros gagnants : il faut donc les prendre TOUS. En trier quelques-uns revient statistiquement à ne garder que la partie perdante.",
@@ -376,9 +377,9 @@ function buildClosedMessage(state: TrendState, carryLine: string | null): string
     MOMENTUM_4H_EXPLANATION,
     "",
     "*Les chiffres mesurés*",
-    "• dans un marché comme aujourd'hui : le carry (1,15 par jour) plus le momentum 4H (jusqu'à 2 par jour)",
-    "• dans un marché favorable : 4,35 par jour, force relative et carry réunis",
-    "• au total, jamais plus de 5 signaux par jour : au-delà, ce ne serait plus une sélection",
+    `• dans un marché comme aujourd'hui : ${DEBIT.defavorable} par jour — le carry (${DEBIT_PAR_MOTEUR.carry_funding}) plus le momentum 4H (${DEBIT_PAR_MOTEUR.momentum_4h})`,
+    `• dans un marché favorable : ${DEBIT.favorable} par jour, les trois moteurs directionnels et le carry réunis`,
+    `• au total, jamais plus de ${MAX_PAR_JOUR} signaux par jour : 5 directionnels au maximum, plus les carrys, qui ne prennent aucun risque de marché`,
     "• carry seul : 84,2 % de positions gagnantes, +0,572 % net par position, six années positives sur sept — la septième, 2022, est à -0,046 %, donc plate et non perdante",
     "",
     "*Ce que ce n'est pas*",
