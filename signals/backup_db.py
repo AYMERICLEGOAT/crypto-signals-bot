@@ -70,6 +70,18 @@ PUBLIC_TABLES = [
     "offer_counter",
     "chain_state",
     "posted_content",
+    # Ajoutées le 08/08/2026 : elles existaient depuis plusieurs jours et
+    # n'étaient sauvegardées NULLE PART. Une table créée après ce fichier
+    # n'apparaît dans aucune liste, et rien ne le signale.
+    #
+    # Toutes deux publiques après vérification champ par champ :
+    #   channel_posts       canal, categorie, priorite, reference, sent_at.
+    #                       `reference` ne contient que des libellés fixes
+    #                       ("briefing", "digest") ou un identifiant de signal
+    #                       -- jamais de telegram_id (voir channelBudget.ts).
+    #   trial_daily_counter jour (date UTC) et nombre d'essais accordés.
+    "channel_posts",
+    "trial_daily_counter",
 ]
 
 # Contiennent un telegram_id et/ou une adresse (wallet/paiement) -- jamais commitées publiquement.
@@ -176,10 +188,51 @@ def _write_backup(directory: str, label: str, dump: dict, errors: dict, timestam
     return path
 
 
+def _tables_non_couvertes() -> list:
+    """
+    Les tables qui existent en base mais ne figurent dans AUCUNE des deux
+    listes ci-dessus.
+
+    Pourquoi ce contrôle existe : `channel_posts` et `trial_daily_counter` ont
+    vécu plusieurs jours sans être sauvegardées nulle part. Ajouter une table
+    ne casse rien, ne déclenche aucun test, et n'oblige personne à revenir
+    ici — l'oubli est donc le comportement par défaut, et il est silencieux.
+
+    PostgREST expose la liste des tables dans son schéma OpenAPI, à la racine
+    de l'API. Aucune dépendance supplémentaire, aucun accès privilégié.
+
+    Le résultat n'est qu'un AVERTISSEMENT : classer une table à la place d'un
+    humain serait pire que l'oublier. Une table mal classée en PUBLIC finit
+    commitée dans un dépôt public, définitivement.
+    """
+    try:
+        res = requests.get(
+            f"{SUPABASE_URL}/rest/v1/",
+            headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"},
+            timeout=15,
+        )
+        res.raise_for_status()
+        existantes = set(res.json().get("definitions", {}).keys())
+    except Exception:
+        logger.warning("Liste des tables indisponible : contrôle de couverture ignoré.", exc_info=True)
+        return []
+
+    return sorted(existantes - set(PUBLIC_TABLES) - set(SENSITIVE_TABLES))
+
+
 def main() -> int:
     if not SUPABASE_URL or not SUPABASE_KEY:
         logger.error("SUPABASE_URL / SUPABASE_KEY manquants -- impossible de lancer la sauvegarde.")
         return 1
+
+    oubliees = _tables_non_couvertes()
+    if oubliees:
+        logger.warning(
+            "%d table(s) existent en base sans figurer dans PUBLIC_TABLES ni SENSITIVE_TABLES, "
+            "donc SANS AUCUNE SAUVEGARDE : %s. Classe-les à la main dans backup_db.py — "
+            "une table mal classée en PUBLIC serait commitée dans un dépôt public, définitivement.",
+            len(oubliees), ", ".join(oubliees),
+        )
 
     client = create_client(SUPABASE_URL, SUPABASE_KEY)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
