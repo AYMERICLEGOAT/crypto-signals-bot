@@ -132,7 +132,7 @@ function buildSilenceWarning(): string {
     "⚠️ À LIRE AVANT DE PAYER\n\n" +
     "Trois choses qui pourraient te faire regretter cet achat. Autant te les dire maintenant.\n\n" +
     "1. Le service peut devenir très calme, longtemps.\n" +
-    "Les trois familles directionnelles sont coupées dès que le Bitcoin passe sous sa moyenne 200 jours. " +
+    "La force relative est coupée dès que le Bitcoin passe sous sa moyenne 200 jours. " +
     "Sur 6 ans, ça représente 41 % du temps, avec un record de 381 jours d'affilée, du 28/12/2021 au " +
     "13/01/2023. Le carry, lui, continue — mais le rythme tombe alors à 1,15 signal par jour au lieu de " +
     `4,35. ${currentState}\n` +
@@ -171,7 +171,9 @@ export async function handleSubscribeCommand(env: Env, telegramId: number): Prom
     "📅 LES OFFRES",
     "",
     `⭐ Standard — ${PLAN_PRICES_USD[1]} USDT pour ${PLAN_DURATION_DAYS[1]} jours`,
-    "Tous les signaux des trois moteurs, carry compris, au rythme mesuré de 2,99 par jour en moyenne.",
+    "Tous les signaux des trois moteurs AVEC LEURS NIVEAUX — entrée, stop, trois objectifs, durée — au " +
+      "rythme mesuré de 2,99 par jour. C'est la différence avec le canal gratuit, qui voit les signaux " +
+      "partir mais reçoit leurs niveaux seulement à la clôture, quand il est trop tard pour les jouer.",
   ];
   if (proPlanVisible) {
     lines.push(

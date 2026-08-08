@@ -292,6 +292,10 @@ def run_relative_strength_engine() -> list:
         alerts.maybe_alert_data_outage(consecutive_failures)
 
     signals = detect_relative_strength_signals(daily_by_pair, btc_daily, already_open=held)
+    # Les bougies suivent le signal jusqu'au générateur de graphiques : elles
+    # ne sont disponibles qu'ici, et sans elles aucun signal de ce moteur
+    # n'avait d'image (voir _generate_and_upload_chart).
+    signals = [(s, daily_by_pair.get(s["pair"])) for s in signals]
 
     # Marque le passage du jour AVANT de rendre les signaux, et même quand il
     # n'y en a aucun. C'est le cas le plus fréquent — le filtre de tendance est
@@ -489,7 +493,10 @@ def run_momentum_4h_engine() -> list:
                 len(candles), len(ouvertes))
     signaux = momentum_4h.detect_momentum_4h_signals(candles, btc, already_open=ouvertes)
     storage.record_heartbeat("momentum_4h")
-    return signaux
+    # Les bougies accompagnent le signal jusqu'au générateur de graphiques :
+    # elles ne sont disponibles qu'ici, et sans elles aucun signal de ce moteur
+    # n'avait d'image (voir _generate_and_upload_chart).
+    return [(s, candles.get(s["pair"])) for s in signaux]
 
 
 def run_daily_watchlist() -> bool:
@@ -585,11 +592,31 @@ def _generate_and_upload_chart(enriched_df, signal_dict: dict, now_ms: int) -> s
     Ne bloque jamais l'insertion du signal si ça échoue (graphique manquant
     != signal manquant) : retourne None dans ce cas.
     """
-    # Le moteur Force Relative travaille sur des bougies journalières et ne
-    # produit pas de DataFrame horaire enrichi. Sortir tout de suite évite une
-    # trace d'exception par signal, qui ferait croire à une panne dans les logs.
-    if enriched_df is None:
+    # AUCUN des trois moteurs actifs ne produisait de graphique jusqu'au
+    # 08/08/2026, et c'est passé inaperçu longtemps.
+    #
+    # Cette fonction n'acceptait qu'un DataFrame HORAIRE enrichi, celui de
+    # l'ancien moteur EMA/RSI désactivé depuis. La force relative travaille sur
+    # des bougies journalières, le momentum 4 h sur des bougies de 4 heures, et
+    # le carry n'a aucun niveau de prix : les trois passaient donc None, et
+    # sortaient ici. Le canal ne montrait plus une seule image.
+    #
+    # Les deux moteurs directionnels transmettent désormais leurs bougies. Il
+    # suffit d'une colonne `price` — les moyennes mobiles sont optionnelles dans
+    # generate_chart — d'où la conversion ci-dessous quand la colonne s'appelle
+    # `close`, ce qui est le cas des bougies journalières et 4 heures.
+    if enriched_df is None or len(enriched_df) == 0:
         return None
+
+    # Un carry n'a ni stop ni objectif : un graphique tracerait des lignes
+    # horizontales inexistantes. Il n'en a pas besoin, et n'en aura jamais.
+    if signal_dict.get("stop_loss") is None or signal_dict.get("take_profit") is None:
+        return None
+
+    if "price" not in enriched_df.columns:
+        if "close" not in enriched_df.columns:
+            return None
+        enriched_df = enriched_df.rename(columns={"close": "price"})
 
     os.makedirs(config.CHART_TMP_DIR, exist_ok=True)
     pair_slug = signal_dict["pair"].replace("/", "-")
@@ -753,11 +780,8 @@ def run_once(params: dict) -> tuple[int, int]:
     # moteurs, donc le même filtre anti-corrélation et le même verrou de
     # portefeuille juste en dessous.
     if config.ENABLE_RELATIVE_STRENGTH_ENGINE:
-        for rs_signal in run_relative_strength_engine():
-            # Pas de DataFrame enrichi horaire pour ces signaux : ils sont
-            # construits sur des bougies journalières. Le None est accepté en
-            # aval (le graphique est optionnel, voir generate_chart).
-            candidates.append((rs_signal, None))
+        for rs_signal, bougies_jour in run_relative_strength_engine():
+            candidates.append((rs_signal, bougies_jour))
 
     # 💵 Moteur Carry de Financement (voir carry_engine.py). Seule famille du
     # projet positive en marché BAISSIER — 0,49 signal/jour à 75,5 % de
@@ -776,8 +800,8 @@ def run_once(params: dict) -> tuple[int, int]:
     # par edge_guard, qui le suspendra de lui-même si l'espérance réellement
     # réalisée se confirme négative sur 30 trades clôturés.
     if config.ENABLE_MOMENTUM_4H:
-        for signal_4h in run_momentum_4h_engine():
-            candidates.append((signal_4h, None))
+        for signal_4h, bougies_4h in run_momentum_4h_engine():
+            candidates.append((signal_4h, bougies_4h))
 
     if momentum_alerts:
         storage.insert_momentum_alerts(momentum_alerts)

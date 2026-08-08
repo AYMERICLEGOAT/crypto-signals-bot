@@ -14,12 +14,6 @@ import { sleep } from "../../utils/sleep";
 const MESSAGE_2_DELAY_MS = 3_000;
 const MESSAGE_3_DELAY_MS = 10_000;
 
-// Délai de rediffusion sur le canal public, repris de
-// cron/dispatchPublicChannel.ts::CHANNEL_DELAY_MINUTES. Annoncé ici comme un
-// MINIMUM : les heures calmes (utils/quietHours.ts) peuvent repousser un signal
-// détecté la nuit jusqu'à la réouverture du canal, et « différé de 30 minutes »
-// serait alors faux de plusieurs heures pour qui compare les horodatages.
-const PUBLIC_CHANNEL_DELAY_MINUTES = 30;
 
 /**
  * Refonte UX du 01/08/2026 : l'ancien /start envoyait un seul message dense
@@ -116,15 +110,14 @@ export async function handleStart(env: Env, telegramId: number, referralPayload?
   // corriger. On dit ce qui est structurellement vrai — le carry n'est pas
   // coupé par ce filtre — et on renvoie vers /marche, qui recalcule en direct.
   const filterState = TREND_FILTER_STATUS.closed
-    ? `Et ça tombe bien : au ${TREND_FILTER_STATUS.measuredOn}, ${TREND_FILTER_STATUS.detail}. Les trois ` +
-      "moteur directionnel (la force relative) est donc " +
-      "à l'arrêt, et le resteront tant que cette moyenne n'aura pas été repassée — ça peut durer des " +
-      "semaines ou des mois. Deux familles continuent pendant ce temps : le carry, qui n'est pas coupé " +
-      "par ce filtre, et le momentum 4H, qui ne travaille QUE dans ce régime — il est en observation, " +
-      "et chacun de ses signaux le dit."
-    : `Au ${TREND_FILTER_STATUS.measuredOn}, le filtre de tendance est ouvert : les familles ` +
-      "directionnelles émettent. Il peut se refermer sans préavis — elles s'arrêteront alors, et le " +
-      "relais passera au carry et au momentum 4H.";
+    ? `Et ça tombe bien : au ${TREND_FILTER_STATUS.measuredOn}, ${TREND_FILTER_STATUS.detail}. La force ` +
+      "relative est donc à l'arrêt, et le restera tant que cette moyenne n'aura pas été repassée — ça " +
+      "peut durer des semaines ou des mois. Deux moteurs continuent pendant ce temps : le carry, qui " +
+      "n'est pas coupé par ce filtre, et le momentum 4H, qui ne travaille QUE dans ce régime — il est " +
+      "en observation, et chacun de ses signaux le dit."
+    : `Au ${TREND_FILTER_STATUS.measuredOn}, le filtre de tendance est ouvert : la force relative ` +
+      "émet. Il peut se refermer sans préavis — elle s'arrêtera alors, et le relais passera au carry " +
+      "et au momentum 4H.";
 
   await sleep(MESSAGE_2_DELAY_MS);
 
@@ -164,12 +157,19 @@ export async function handleStart(env: Env, telegramId: number, referralPayload?
   // laisser l'utilisateur le découvrir en cliquant évite le mur silencieux qui
   // fait fermer Telegram — et la raison de cette adresse (l'anti-abus) est plus
   // rassurante que la demande brute.
+  // Ce que reçoit VRAIMENT le canal gratuit depuis le 08/08/2026 : l'annonce
+  // du signal sans ses niveaux, puis le signal ENTIER à sa clôture. Le décrire
+  // exactement est la seule façon d'avoir une offre payante lisible — tant
+  // qu'on annonçait « les mêmes signaux », il n'y avait aucune raison de payer,
+  // et personne ne payait.
+  const contenuCanal =
+    "   Tu y vois chaque signal partir en direct (la paire, le moteur, la durée), puis le signal ENTIER à sa " +
+    "clôture — niveaux d'origine et résultat, gagnant ou perdant. Plus un signal complet offert chaque semaine. " +
+    "Rien à donner, rien à installer, tu peux partir quand tu veux.";
+
   const channelStep = env.TELEGRAM_CHANNEL_URL
-    ? `2. Le canal public gratuit : ${env.TELEGRAM_CHANNEL_URL}\n` +
-      `   Il reçoit les mêmes signaux, différés d'au moins ${PUBLIC_CHANNEL_DELAY_MINUTES} minutes, et leur résultat ensuite. ` +
-      "Rien à donner, rien à installer, tu peux partir quand tu veux."
-    : `2. Le canal public gratuit reçoit les mêmes signaux, différés d'au moins ${PUBLIC_CHANNEL_DELAY_MINUTES} minutes, ` +
-      "et leur résultat ensuite. Rien à donner, rien à installer.";
+    ? `2. Le canal public gratuit : ${env.TELEGRAM_CHANNEL_URL}\n${contenuCanal}`
+    : `2. Le canal public gratuit.\n${contenuCanal}`;
 
   await sleep(MESSAGE_3_DELAY_MS - MESSAGE_2_DELAY_MS);
 

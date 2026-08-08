@@ -71,7 +71,7 @@ function buildActivationMessage(endsAt: Date): string {
     "même crypto : achat au comptant et vente à découvert du perpétuel. Le prix ne rentre pas dans " +
     "l'équation, les deux jambes s'annulent. Ce qui est encaissé, c'est le financement versé toutes les " +
     "huit heures par les acheteurs de perpétuels aux vendeurs. Clôture au bout de 21 jours.\n\n" +
-    "Une chose importante à savoir tout de suite : les trois familles d'achat se taisent quand le Bitcoin " +
+    "Une chose importante à savoir tout de suite : la force relative se tait quand le Bitcoin " +
     "est sous sa moyenne 200 jours, ce qui arrive 41 % du temps (la plus longue fermeture a duré " +
     "381 jours, du 28/12/2021 au 13/01/2023). C'est voulu : on préfère ne rien t'envoyer plutôt que de te " +
     "faire perdre de l'argent. Le carry, lui, n'est pas filtré et continue dans les deux cas. Et un second " +

@@ -69,7 +69,7 @@ HERO = {
         "titre_fort": "go quiet",
         "titre_apres": " when there is nothing worth buying.",
         "sous_titre": (
-            "Five engines measured over six years, each validated against a random draw of the same "
+            "Three engines measured over six years, each validated against a random draw of the same "
             "density. When the market does not cooperate, the channel says so instead of inventing "
             "trades. Free on Telegram, no signup."
         ),
@@ -157,6 +157,18 @@ FAQ = {
                 "<p>Les backtests sont mesurés contre un témoin : un tirage au hasard de même densité. Une "
                 "stratégie qui ne bat pas ce témoin est abandonnée — c'est arrivé à dix des douze approches "
                 "testées.</p>",
+            ),
+            (
+                "Qu'est-ce que je reçois en plus si je paie ?",
+                "<p>Les <b>niveaux</b>, au moment où le signal part. Le canal gratuit t'annonce que le signal "
+                "est parti, sur quelle paire et par quel moteur — mais pas où entrer, où placer le stop, ni "
+                "où sont les objectifs.</p>"
+                "<p>Ces niveaux sont publiés sur le canal gratuit à la <b>clôture</b> du signal, avec son "
+                "résultat, gagnant ou perdant. Le relevé public est donc complet et vérifiable par n'importe "
+                "qui : simplement, quand tu le lis, le trade est terminé.</p>"
+                "<p>Et pour que personne n'ait à nous croire sur parole, <b>un signal complet est offert "
+                "chaque semaine</b> sur le canal gratuit, niveaux compris, publié avant de connaître son "
+                "issue.</p>",
             ),
             (
                 "Il faut payer combien, et est-ce que je suis engagé ?",

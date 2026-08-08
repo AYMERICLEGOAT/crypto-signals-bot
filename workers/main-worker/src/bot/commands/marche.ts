@@ -1,8 +1,8 @@
 /**
- * /marche — état EN DIRECT du filtre de tendance des familles directionnelles.
+ * /marche — état EN DIRECT du filtre de tendance de la force relative.
  *
- * Pourquoi cette commande existe. Les trois familles directionnelles (force
- * relative) n'émet rien tant que
+ * Pourquoi cette commande existe. La force relative, seul moteur
+ * directionnel en service, n'émet rien tant que
  * le Bitcoin clôture sous sa moyenne mobile 200 jours (voir
  * signals/relative_strength.py::is_market_in_uptrend). Ce filtre est fermé
  * 41 % du temps, et sa plus longue fermeture a duré 381 jours : sans un
@@ -17,7 +17,7 @@
  * signals/carry_engine.py), qui n'est PAS filtré parce qu'il ne parie sur
  * aucune direction — il ouvre deux jambes qui s'annulent et encaisse le
  * financement. Laisser croire à un abonné, un jour de filtre fermé, que le
- * produit entier est à l'arrêt, c'est lui cacher les deux familles qui produisent
+ * produit entier est à l'arrêt, c'est lui cacher les deux moteurs qui produisent
  * précisément ce jour-là. Les deux messages nomment donc explicitement ce qui
  * s'arrête ET ce qui continue, et la commande va lire en base les carrys
  * réellement ouverts : un fait vérifiable vaut mieux qu'une affirmation.
@@ -59,7 +59,7 @@ const TREND_MA_PERIOD = 200;
 
 // C'est le RÉGIME DE MARCHÉ qui est mesuré, pas la force d'une paire en
 // particulier : le filtre du moteur ne regarde que le Bitcoin. Et il ne
-// commande QUE les trois familles directionnelles — le carry de financement
+// commande QUE la force relative — le carry de financement
 // tourne dans les deux régimes (voir signals/carry_engine.py), et le momentum
 // 4H ne tourne QUE quand le filtre est fermé (voir signals/momentum_4h.py).
 const BTC_PAIR = "BTC/USDT";
@@ -349,7 +349,7 @@ function buildOpenMessage(state: TrendState, carryLine: string | null): string {
     "",
     "Le chiffre qui te concerne vraiment, ce n'est pas le rendement de la stratégie mais celui d'une entrée à une date au hasard : après six mois, médiane +5,0 %, 53 % des entrées gagnantes, et pire cas -61,7 %.",
     "",
-    "Et le filtre se refermera : il est fermé 41 % du temps, jusqu'à 381 jours d'affilée. Ce jour-là, les trois familles directionnelles se tairont, et le carry ainsi que le momentum 4H prendront le relais. Ce sera normal, et /marche te le dira.",
+    "Et le filtre se refermera : il est fermé 41 % du temps, jusqu'à 381 jours d'affilée. Ce jour-là, la force relative se taira, et le carry ainsi que le momentum 4H prendront le relais. Ce sera normal, et /marche te le dira.",
     "",
     DISCLAIMER,
   ]);
@@ -377,7 +377,7 @@ function buildClosedMessage(state: TrendState, carryLine: string | null): string
     "",
     "*Les chiffres mesurés*",
     "• dans un marché comme aujourd'hui : le carry (1,15 par jour) plus le momentum 4H (jusqu'à 2 par jour)",
-    "• dans un marché favorable : 4,35 par jour, les familles directionnelles réunies",
+    "• dans un marché favorable : 4,35 par jour, force relative et carry réunis",
     "• au total, jamais plus de 5 signaux par jour : au-delà, ce ne serait plus une sélection",
     "• carry seul : 84,2 % de positions gagnantes, +0,572 % net par position, six années positives sur sept — la septième, 2022, est à -0,046 %, donc plate et non perdante",
     "",
@@ -400,7 +400,7 @@ function buildUnknownMessage(carryLine: string | null): string {
     "",
     // Même en cas de panne de prix, ce point reste vrai et vérifiable en base :
     // ne pas le dire laisserait croire que tout le produit est hors service.
-    "À noter : ce filtre coupe les trois familles directionnelles, mais il ne met pas le produit à l'arrêt. Le carry de financement, neutre au marché, ne dépend ni de cette moyenne ni de ces sources de prix ; et le momentum 4H, lui, ne se déclenche QUE quand le filtre est fermé.",
+    "À noter : ce filtre coupe la force relative, mais il ne met pas le produit à l'arrêt. Le carry de financement, neutre au marché, ne dépend ni de cette moyenne ni de ces sources de prix ; et le momentum 4H, lui, ne se déclenche QUE quand le filtre est fermé.",
     carryLine,
   ]);
 }

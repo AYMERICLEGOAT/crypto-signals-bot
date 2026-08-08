@@ -17,7 +17,7 @@ import { TREND_FILTER_STATUS } from "./subscribe";
  * tape parce qu'il n'a rien reçu depuis deux jours : « est-ce que ça marche ? »
  *
  * Elle répond donc maintenant à quatre choses : combien de temps il te reste,
- * ce que le moteur émet EN CE MOMENT (les trois familles directionnelles sont
+ * ce que le moteur émet EN CE MOMENT (la force relative est
  * filtrées, le carry ne l'est pas), combien de signaux tu as reçus, et quoi
  * faire ensuite. Un abonné qui voit « 0 signal reçu » à côté de « filtre fermé,
  * le carry et le momentum 4H prennent le relais » comprend son silence ; le
@@ -56,14 +56,14 @@ function formatRemaining(msLeft: number): string {
  *
  * C'est le bloc qui manquait : sans lui, « abonnement actif » et « aucun signal
  * reçu » se contredisent aux yeux de l'abonné. Le filtre ne commande que les
- * trois familles directionnelles ; le carry de financement tourne dans les deux
+ * la force relative ; le carry de financement tourne dans les deux
  * régimes parce qu'il est neutre au marché.
  */
 function buildEngineStateLines(): string[] {
   if (TREND_FILTER_STATUS.closed) {
     return [
       `🔻 Ce que le moteur émet en ce moment (mesuré le ${TREND_FILTER_STATUS.measuredOn}) :`,
-      `Le filtre de tendance est fermé — ${TREND_FILTER_STATUS.detail}. Les trois familles directionnelles ` +
+      `Le filtre de tendance est fermé — ${TREND_FILTER_STATUS.detail}. La force relative ` +
         "(la force relative) est donc à l'arrêt : elle " +
         "achètent, et acheter ne paie pas dans ce régime.",
       "Le carry de financement, lui, continue : il est neutre au marché, donc jamais filtré. Rythme mesuré sur " +

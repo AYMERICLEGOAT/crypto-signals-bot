@@ -37,7 +37,13 @@ def generate_chart(df, signal: dict, output_path: str) -> str:
     ax.axhline(stop_loss, color="#dc2626", linestyle="--", linewidth=1, label="Stop loss")
 
     side = "ACHAT" if signal["type"] == "BUY" else "VENTE"
-    ax.set_title(f"{signal['pair']} — Signal {side}", fontsize=12, fontweight="bold")
+    # L'unité de temps figure dans le titre : un graphique journalier et un
+    # graphique 4 heures se ressemblent trait pour trait, et l'abonné doit
+    # savoir lequel il regarde pour juger de la vitesse du mouvement.
+    unites = {"relative_strength": "journalier", "momentum_4h": "4 heures", "squeeze_15m": "15 minutes"}
+    unite = unites.get(signal.get("engine", ""))
+    titre = f"{signal['pair']} — Signal {side}" + (f" ({unite})" if unite else "")
+    ax.set_title(titre, fontsize=12, fontweight="bold")
     ax.legend(loc="upper left", fontsize=8, framealpha=0.9)
     ax.set_xticks([])
     ax.grid(alpha=0.25)

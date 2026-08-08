@@ -1,4 +1,5 @@
 import { Env, dbConfig } from "../env";
+import { peutPublier, enregistrerEnvoi } from "../channelBudget";
 import { sendMessage } from "../telegram";
 import { selectRows, updateRows } from "../supabaseRest";
 import { isQuietHours } from "../utils/quietHours";
@@ -33,6 +34,10 @@ export async function announceSignalPause(env: Env): Promise<void> {
   const pause = rows[0];
   if (!pause) return;
 
+  // Le régulateur décide si le canal peut parler maintenant (channelBudget.ts).
+  const verdictBudget = await peutPublier(db, "public", "quotidien");
+  if (!verdictBudget.autorise) return;
+
   await sendMessage(
     env.TELEGRAM_BOT_TOKEN,
     Number(env.TELEGRAM_CHANNEL_ID),
@@ -44,6 +49,7 @@ export async function announceSignalPause(env: Env): Promise<void> {
       "signaux dans un contexte de marché peu fiable statistiquement.",
     { markdown: true }
   );
+  await enregistrerEnvoi(db, "public", "quotidien", "pause");
 
   await updateRows(db, "signal_pause", { id: `eq.${pause.id}` }, { announced: true });
 }

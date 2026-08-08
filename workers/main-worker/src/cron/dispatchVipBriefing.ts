@@ -1,4 +1,5 @@
 import { Env, dbConfig } from "../env";
+import { peutPublier, enregistrerEnvoi } from "../channelBudget";
 import { sendMessage } from "../telegram";
 import { getHeartbeat } from "../db/systemHeartbeats";
 import { upsertRow, SupabaseConfig } from "../supabaseRest";
@@ -99,6 +100,11 @@ export async function dispatchVipBriefing(env: Env): Promise<void> {
   lines.push("");
   lines.push("_État du portefeuille suivi, pas une prévision. Le trading comporte un risque de perte en capital._");
 
+  // Le régulateur décide si le canal peut parler maintenant (channelBudget.ts).
+  const verdictBudget = await peutPublier(db, "vip", "quotidien");
+  if (!verdictBudget.autorise) return;
+
   await sendMessage(env.TELEGRAM_BOT_TOKEN, Number(env.TELEGRAM_VIP_CHANNEL_ID), lines.join("\n"), { markdown: true });
+  await enregistrerEnvoi(db, "vip", "quotidien", "briefing");
   await recordSent(db);
 }

@@ -38,6 +38,7 @@
  */
 
 import { Env, dbConfig } from "../env";
+import { peutPublier, enregistrerEnvoi } from "../channelBudget";
 import { hasPostedNoSignalStatusToday, recordNoSignalStatusPost } from "../db/noSignalStatus";
 import { hasRecentSignal } from "../db/signals";
 import { getTrendFilterState } from "../market/trendFilter";
@@ -84,9 +85,9 @@ const CLOSED_VARIANTS: ((ctx: ClosedContext) => string)[] = [
       "📉 *Pourquoi le canal n'émet rien en ce moment*",
       "",
       `Le Bitcoin clôture ${pct(ctx.gapBelow)} % sous sa moyenne mobile 200 jours.`,
-      "Tant que c'est le cas, les trois familles directionnelles n'émettent aucun achat. Aucune exception, aucun signal « quand même ».",
+      "Tant que c'est le cas, la force relative n'émet aucun achat. Aucune exception, aucun signal « quand même ».",
       "",
-      "Deux familles continuent pourtant de travailler dans ce régime : le carry de financement, neutre au marché, et le momentum 4H. Si tu ne vois rien aujourd'hui, c'est qu'elles non plus n'ont rien trouvé qui vaille la peine.",
+      "Deux moteurs continuent pourtant de travailler dans ce régime : le carry de financement, neutre au marché, et le momentum 4H. Si tu ne vois rien aujourd'hui, c'est qu'elles non plus n'ont rien trouvé qui vaille la peine.",
       "",
       "Ce filtre est fermé 41 % du temps. Ce n'est pas une panne : c'est la règle qui tourne.",
     ].join("\n"),
@@ -108,7 +109,7 @@ const CLOSED_VARIANTS: ((ctx: ClosedContext) => string)[] = [
       "🛡️ *Ce que ce silence évite*",
       "",
       "En 2022, détenir les mêmes cryptos coûtait -70,9 %. En 2026, -39,4 %.",
-      "Ces deux années-là, les familles directionnelles n'ont tout simplement rien acheté.",
+      "Ces deux années-là, la force relative n'a tout simplement rien acheté.",
       "",
       "Le filtre ne rend pas les mauvaises années moins mauvaises : il en sort.",
     ].join("\n"),
@@ -282,8 +283,13 @@ export async function dispatchNoSignalStatus(env: Env): Promise<void> {
     body = UNVERIFIED_VARIANTS[pickIndex(UNVERIFIED_VARIANTS.length)]();
   }
 
+  // Le régulateur décide si le canal peut parler maintenant (channelBudget.ts).
+  const verdictBudget = await peutPublier(db, "public", "quotidien");
+  if (!verdictBudget.autorise) return;
+
   await sendMessage(env.TELEGRAM_BOT_TOKEN, Number(env.TELEGRAM_CHANNEL_ID), `${body}\n\n${DISCLAIMER}`, {
     markdown: true,
   });
+  await enregistrerEnvoi(db, "public", "quotidien", "aucun-signal");
   await recordNoSignalStatusPost(db);
 }
