@@ -7,7 +7,8 @@ import { createPendingPayment } from "../../db/payments";
 import { setPendingAction, consumePendingAction } from "../../db/pendingActions";
 import { buildPlanKeyboard, consentKeyboard } from "../keyboards";
 import { getRemainingDiscoverySlots } from "../../db/offerCounter";
-import { PaidPlan, PLAN_PRICES_USD, PLAN_NAMES, PLAN_DURATION_DAYS, DISCOVERY_PLAN, isValidPlan } from "../../payments/plans";
+import { PaidPlan, PLAN_PRICES_USD, PLAN_NAMES, PLAN_DURATION_DAYS, DISCOVERY_PLAN, LIFETIME_PLAN, LIFETIME_MIN_DAYS_PAID, isValidPlan } from "../../payments/plans";
+import { getOrCreateUser } from "../../db/users";
 
 /** Site public — même valeur que SITE_BASE_URL dans .github/workflows/website.yml. */
 const TERMS_URL = "https://crypto-signals-bot-site.signalytics.workers.dev/terms.html";
@@ -157,11 +158,28 @@ function buildSilenceWarning(): string {
   );
 }
 
+/**
+ * Cette personne a-t-elle assez d'ancienneté PAYANTE pour se voir proposer
+ * l'accès à vie ?
+ *
+ * plan_started_at n'est posé qu'au premier abonnement payant et n'est jamais
+ * écrasé (voir db/users.ts) : c'est exactement la date qu'il faut. Un essai
+ * gratuit (plan 0) ne compte pas — l'accès à vie récompense quelqu'un qui a
+ * déjà payé et tenu, pas quelqu'un qui a essayé.
+ */
+function eligibleAccesAVie(user: { plan: number | null; plan_started_at: string | null }): boolean {
+  if (!user.plan_started_at || user.plan === null || user.plan === 0) return false;
+  if (user.plan === LIFETIME_PLAN) return false; // déjà à vie, rien à vendre
+  const jours = (Date.now() - new Date(user.plan_started_at).getTime()) / 86_400_000;
+  return jours >= LIFETIME_MIN_DAYS_PAID;
+}
+
 export async function handleSubscribeCommand(env: Env, telegramId: number): Promise<void> {
   const db = dbConfig(env);
   const remainingDiscoverySlots = await getRemainingDiscoverySlots(db);
-  // Audit#19 : grille simplifiée à 2 paliers pour le lancement (voir keyboards.ts).
   const proPlanVisible = env.PRO_PLAN_VISIBLE === "true";
+  const utilisateur = await getOrCreateUser(db, telegramId);
+  const accesAVie = eligibleAccesAVie(utilisateur);
 
   // Trois écrans courts au lieu d'un pavé : ce qu'on reçoit, ce qui tourne
   // aujourd'hui, puis ce qui pourrait décevoir. Les prix ne viennent qu'après.
@@ -186,6 +204,18 @@ export async function handleSubscribeCommand(env: Env, telegramId: number): Prom
         "temps, et un mois isolé peut ne rien contenir sans que rien ne soit cassé."
     );
   }
+  if (accesAVie) {
+    // Proposé UNIQUEMENT à quelqu'un qui a déjà payé et tenu un mois. Vendre un
+    // accès permanent à un nouveau venu serait malhonnête : il n'a pas encore
+    // vu le produit fonctionner, et le filtre peut rester fermé un an.
+    lines.push(
+      "",
+      `♾️ Accès à vie — ${PLAN_PRICES_USD[LIFETIME_PLAN]} USDT, une fois pour toutes`,
+      "Réservé aux abonnés d'au moins un mois : tu sais maintenant ce que tu achètes. Plus jamais de " +
+        "renouvellement, quoi qu'il arrive au prix. Cinq mois d'abonnement mensuel coûtent déjà autant."
+    );
+  }
+
   if (remainingDiscoverySlots > 0) {
     lines.push(
       "",
@@ -232,6 +262,11 @@ export async function handleSubscribeCommand(env: Env, telegramId: number): Prom
   // explicite pour qui n'a aucune crypto. Sans lui, ce visiteur-là n'avait
   // aucune porte de sortie autre que fermer Telegram.
   const keyboard: InlineKeyboard = buildPlanKeyboard(remainingDiscoverySlots, proPlanVisible);
+  if (accesAVie) {
+    keyboard.push([
+      { text: `♾️ Accès à vie — ${PLAN_PRICES_USD[LIFETIME_PLAN]} USDT`, callback_data: "plan:4" },
+    ]);
+  }
   keyboard.push([{ text: "🧭 Je n'ai jamais acheté de crypto", callback_data: "pay:DEBUTANT:1" }]);
   keyboard.push([{ text: "📖 Guide de paiement complet", callback_data: "pay:guide" }]);
 

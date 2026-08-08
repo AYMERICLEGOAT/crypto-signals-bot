@@ -1,6 +1,8 @@
 import { SupabaseConfig, selectOne, selectRows, insertRow, updateRows, deleteRows } from "../supabaseRest";
 
 export interface UserRecord {
+  /** Offre de prolongation de /cancel : une seule fois par compte, jamais deux. */
+  retention_offer_used?: boolean;
   telegram_id: number;
   wallet_address: string | null;
   plan: number | null;

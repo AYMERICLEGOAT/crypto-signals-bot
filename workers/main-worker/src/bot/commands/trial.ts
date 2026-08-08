@@ -12,6 +12,7 @@ import {
 } from "../../db/users";
 import { setPendingAction } from "../../db/pendingActions";
 import { buildReferralLink } from "../referral";
+import { placesEssaiRestantes, enregistrerEssaiAccorde, ESSAIS_MAX_PAR_JOUR } from "../../db/trialCounter";
 import { addDays } from "../../utils/date";
 // Source unique de l'état du filtre de tendance : le dupliquer ici garantirait
 // qu'une des deux copies devienne fausse (voir commands/subscribe.ts).
@@ -101,6 +102,10 @@ async function grantTrial(env: Env, db: SupabaseConfig, telegramId: number): Pro
   const endsAt = addDays(new Date(), TRIAL_DURATION_DAYS);
   await activateSubscription(db, telegramId, 0, endsAt);
   await markTrialUsed(db, telegramId);
+  // Le compteur du jour n'est incrémenté qu'ici, une fois l'essai RÉELLEMENT
+  // accordé : le décrémenter plus tôt afficherait « plus que X places » à des
+  // gens qui n'en ont jamais pris une.
+  await enregistrerEssaiAccorde(db);
   await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, buildActivationMessage(endsAt));
 }
 
@@ -127,18 +132,42 @@ export async function handleTrialCommand(env: Env, telegramId: number): Promise<
     return;
   }
 
+  // LIMITE QUOTIDIENNE, verifiee ici et pas plus tot : quelqu'un qui n'a pas
+  // encore rempli les conditions ne doit pas consommer une place du jour.
+  const places = await placesEssaiRestantes(db);
+  if (places === 0) {
+    await sendMessage(
+      env.TELEGRAM_BOT_TOKEN,
+      telegramId,
+      `⏳ Les ${ESSAIS_MAX_PAR_JOUR} essais du jour sont tous partis.\n\n` +
+        "Le compteur repart a minuit UTC : reviens demain et tape /trial, ta place sera la.\n\n" +
+        "En attendant, /demo te montre un vrai signal en entier, et le canal public publie chaque " +
+        "signal a sa cloture avec son resultat."
+    );
+    return;
+  }
+
   if (!(await isEligibleForTrial(env, db, telegramId))) {
     const referralLink = buildReferralLink(env, telegramId);
+    // La rareté n'est affichée que si elle est RÉELLE et qu'elle veut dire
+    // quelque chose. Sous six places, elle informe ; au-dessus, elle serait du
+    // décor — et un compteur décoratif détruit la crédibilité de tous les
+    // autres chiffres du produit, y compris ceux qui sont exacts.
+    const rarete =
+      places !== null && places <= 5
+        ? `⏳ Il reste ${places} essai(s) sur les ${ESSAIS_MAX_PAR_JOUR} du jour. Le compteur repart à minuit UTC.\n\n`
+        : "";
     await sendMessage(
       env.TELEGRAM_BOT_TOKEN,
       telegramId,
       "Ton essai gratuit de 3 jours est prêt. Il ne reste qu'une porte à ouvrir, au choix :\n\n" +
         `1️⃣ Rejoins le canal public : ${env.TELEGRAM_CHANNEL_URL ?? "(lien du canal)"}\n` +
-        "Tu y verras les vrais signaux, en différé. Retape /trial ensuite : l'essai démarre dans la seconde.\n\n" +
+        "Tu y verras chaque signal partir, et le signal entier à sa clôture avec son résultat. Retape /trial ensuite : l'essai démarre dans la seconde.\n\n" +
         `2️⃣ Ou partage ton lien : ${referralLink}\n` +
         "Dès qu'une personne démarre le bot avec, ton essai se débloque automatiquement — retape /trial ensuite.\n\n" +
         "Et pour lever le doute tout de suite : l'essai ne demande ni carte bancaire, ni adresse crypto, ni " +
         "moyen de paiement. Il n'y a rien à résilier non plus, il s'arrête tout seul au bout de 3 jours.\n\n" +
+        rarete +
         "En attendant, /demo montre la forme exacte des signaux et /marche l'état du marché en direct."
     );
     return;

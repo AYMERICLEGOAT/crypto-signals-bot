@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { isValidPlan, PLAN_DURATION_DAYS, PLAN_PRICES_USD, DISCOVERY_PLAN, STANDARD_PLAN, PRO_PLAN } from "../src/payments/plans";
+import { isValidPlan, PLAN_DURATION_DAYS, PLAN_PRICES_USD, DISCOVERY_PLAN, STANDARD_PLAN, PRO_PLAN, LIFETIME_PLAN, LIFETIME_MIN_DAYS_PAID } from "../src/payments/plans";
 import { getRemainingDiscoverySlots, incrementDiscoverySlotsUsed } from "../src/db/offerCounter";
 import { buildPlanKeyboard } from "../src/bot/keyboards";
 import { dispatchSignals } from "../src/cron/dispatchSignals";
@@ -19,12 +19,22 @@ const env = {
 } as any;
 
 describe("plans.ts", () => {
-  it("isValidPlan n'accepte que 1, 2 ou 3", () => {
+  it("isValidPlan n'accepte que 1 à 4", () => {
     expect(isValidPlan(1)).toBe(true);
     expect(isValidPlan(2)).toBe(true);
     expect(isValidPlan(3)).toBe(true);
+    // 4 = accès à vie, ajouté le 08/08/2026. Il n'est JAMAIS proposé à un
+    // nouveau venu (voir LIFETIME_MIN_DAYS_PAID) mais reste un plan valide.
+    expect(isValidPlan(4)).toBe(true);
     expect(isValidPlan(0)).toBe(false);
-    expect(isValidPlan(4)).toBe(false);
+    expect(isValidPlan(5)).toBe(false);
+  });
+
+  it("l'accès à vie coûte moins que cinq mois d'abonnement mensuel", () => {
+    // Sinon il n'a aucune raison d'être acheté, et le proposer serait une
+    // sollicitation gratuite adressée à un abonné fidèle.
+    expect(PLAN_PRICES_USD[LIFETIME_PLAN]).toBeLessThan(PLAN_PRICES_USD[STANDARD_PLAN] * 6);
+    expect(LIFETIME_MIN_DAYS_PAID).toBeGreaterThanOrEqual(30);
   });
 
   // Les paliers vendent désormais de la DURÉE et non de la vitesse : le plan

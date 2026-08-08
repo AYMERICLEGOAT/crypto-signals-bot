@@ -16,7 +16,7 @@ import { handleAdminActivateCommand } from "./commands/adminActivate";
 import { handleDemoCommand } from "./commands/demo";
 import { handleHistoryCommand } from "./commands/history";
 import { handleSurveyResponse } from "./commands/surveyResponse";
-import { handleCancelCommand } from "./commands/cancel";
+import { handleCancelCommand, handleCancelExtension } from "./commands/cancel";
 import { handleDeleteMyDataCommand } from "./commands/deleteMyData";
 import { handleHelpCommand } from "./commands/help";
 import { handleFaqCommand } from "./commands/faq";
@@ -150,6 +150,7 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
     else if (data === "start:demo") await handleDemoCommand(env, chatId);
     else if (data === "start:help") await handleHelpCommand(env, chatId);
     else if (data === "start:referral") await handleReferralCommand(env, chatId);
+    else if (data === "cancel:extend") await handleCancelExtension(env, chatId);
     else if (data.startsWith("plan:")) await handlePlanSelection(env, chatId, data);
     else if (data.startsWith("consent:")) await handlePurchaseConsent(env, chatId, data);
     // Avant le préfixe générique "pay:" : "pay:guide" n'est pas un choix de
