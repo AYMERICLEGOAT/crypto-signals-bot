@@ -741,7 +741,18 @@
   <section>
     <h2>1. Objet du service</h2>
     <p>Le service diffuse, de façon automatisée, des signaux d'analyse technique crypto sur
-       40 paires USDT, ainsi qu'un canal public gratuit à diffusion différée. La stratégie classe
+       40 paires USDT. Il comporte deux niveaux, et la différence entre les deux est le cœur de
+       l'abonnement&nbsp;:</p>
+    <ul>
+      <li><strong>Abonnement payant</strong>&nbsp;: chaque signal est transmis avec ses niveaux —
+          prix d'entrée, stop loss, objectifs et durée prévue — au moment où il est détecté.</li>
+      <li><strong>Canal public gratuit</strong>&nbsp;: l'ouverture de chaque signal y est annoncée
+          (paire, moteur, durée prévue) <em>sans ses niveaux</em>. Le signal complet — niveaux
+          d'origine et résultat, gagnant ou perdant — y est publié à sa clôture, plus un signal
+          complet offert par semaine. Le relevé public est donc entier et vérifiable&nbsp;; c'est
+          le moment où il devient exploitable qui distingue l'abonnement.</li>
+    </ul>
+    <p>La stratégie classe
        chaque jour ces 40 paires par force relative (momentum) sur données journalières, retient
        les 12 plus fortes, et clôture chaque position au bout de 7 jours. Un stop large
        (4 x ATR) protège contre l'accident&nbsp;; les objectifs affichés jalonnent la progression
