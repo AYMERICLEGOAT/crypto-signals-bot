@@ -1,7 +1,7 @@
 import { Env, dbConfig } from "../env";
 import { sendMessage } from "../telegram";
 import { getUsersExpiredSince, markReengagementSent } from "../db/users";
-import { getSignalsResolvedSince } from "../db/signals";
+import { getSignalsResolvedSince, getSignalsCreatedSince } from "../db/signals";
 import { SignalRecord } from "../db/signals";
 
 const DAYS_AFTER_EXPIRATION = 3;
@@ -80,10 +80,38 @@ export async function sendReengagementOffers(env: Env): Promise<void> {
     console.error("[reengagement] Récapitulatif indisponible, relance envoyée sans:", err);
   }
 
+  // COMBIEN DE SIGNAUX ONT ÉTÉ MANQUÉS, réellement, depuis LEUR expiration.
+  //
+  // C'est le chiffre qui manquait. Le récapitulatif montrait des clôtures —
+  // donc des trades commencés avant le départ — sans jamais dire ce qui était
+  // parti DEPUIS. Une lecture unique couvrant la plus ancienne expiration du
+  // lot, puis un comptage par personne : pas de requête par utilisateur.
+  //
+  // Le chiffre n'est affiché que s'il est strictement positif. « Tu as manqué
+  // 0 signal » serait à la fois vrai et absurde — et surtout, ce serait la
+  // meilleure raison de ne pas se réabonner.
+  let emisDepuis: { created_at: string }[] = [];
+  try {
+    const plusAncienne = expiredUsers
+      .map((u) => u.expiration)
+      .filter((e): e is string => Boolean(e))
+      .sort()[0];
+    if (plusAncienne) emisDepuis = await getSignalsCreatedSince(db, plusAncienne);
+  } catch (err) {
+    console.error("[reengagement] Comptage des signaux manqués indisponible :", err);
+  }
+
   for (const user of expiredUsers) {
-    const body = recap
-      ? `👋 Ton accès s'est terminé il y a quelques jours.\n\n${recap}\n\n`
-      : "👋 Ça fait quelques jours qu'on ne t'a plus envoyé de signaux.\n\n";
+    const manques = user.expiration
+      ? emisDepuis.filter((s) => new Date(s.created_at) > new Date(user.expiration as string)).length
+      : 0;
+    const ligneManques = manques > 0 ? `📡 ${manques} signal(aux) sont partis depuis la fin de ton accès.\n\n` : "";
+
+    const body =
+      ligneManques +
+      (recap
+        ? `👋 Ton accès s'est terminé il y a quelques jours.\n\n${recap}\n\n`
+        : "👋 Ça fait quelques jours qu'on ne t'a plus envoyé de signaux.\n\n");
 
     await sendMessage(
       env.TELEGRAM_BOT_TOKEN,

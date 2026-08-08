@@ -1,6 +1,9 @@
 import { SupabaseConfig, selectOne, selectRows, insertRow, updateRows, deleteRows } from "../supabaseRest";
+import { FOUNDER_MAX } from "../bot/loyaltyBadge";
 
 export interface UserRecord {
+  /** Rang de Fondateur, figé au premier paiement. Voir bot/loyaltyBadge.ts. */
+  founder_rank?: number | null;
   /** Déjà retiré du canal VIP après expiration (voir cron/revokeExpiredVip.ts). */
   vip_removed?: boolean;
   /** Offre de prolongation de /cancel : une seule fois par compte, jamais deux. */
@@ -159,10 +162,43 @@ export async function activateSubscription(
     const user = await getUserIfExists(db, telegramId);
     if (user && !user.plan_started_at) {
       patch.plan_started_at = new Date().toISOString();
+      // RANG DE FONDATEUR, attribué au tout premier paiement et jamais
+      // recalculé (voir bot/loyaltyBadge.ts). Compté sur les rangs déjà
+      // attribués plutôt que sur le nombre de payeurs : deux personnes qui
+      // paient la même minute obtiennent alors deux rangs distincts, là où un
+      // comptage de payeurs leur donnerait le même.
+      //
+      // Un échec de lecture laisse le rang vide : mieux vaut un badge manquant
+      // qu'un rang faux, et le premier paiement ne doit surtout pas échouer
+      // pour cette raison.
+      const rang = await nextFounderRank(db);
+      if (rang !== null) patch.founder_rank = rang;
     }
   }
 
   await updateRows(db, "users", { telegram_id: `eq.${telegramId}` }, patch);
+}
+
+/**
+ * Prochain rang de Fondateur libre, ou `null` si la lecture échoue.
+ *
+ * Rend `null` au-delà de FOUNDER_MAX : les rangs sont épuisés, et il n'y a
+ * plus rien à attribuer.
+ */
+async function nextFounderRank(db: SupabaseConfig): Promise<number | null> {
+  try {
+    const rows = await selectRows<{ founder_rank: number }>(db, "users", {
+      founder_rank: "not.is.null",
+      select: "founder_rank",
+      order: "founder_rank.desc",
+      limit: "1",
+    });
+    const suivant = (rows[0]?.founder_rank ?? 0) + 1;
+    return suivant <= FOUNDER_MAX ? suivant : null;
+  } catch (err) {
+    console.error("[fondateur] Attribution du rang impossible, laissé vide :", err);
+    return null;
+  }
 }
 
 export async function markTrialUsed(db: SupabaseConfig, telegramId: number): Promise<void> {

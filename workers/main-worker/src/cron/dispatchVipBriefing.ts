@@ -1,4 +1,5 @@
 import { Env, dbConfig } from "../env";
+import { getTrendFilterState } from "../market/trendFilter";
 import { peutPublier, enregistrerEnvoi } from "../channelBudget";
 import { sendMessage } from "../telegram";
 import { getHeartbeat } from "../db/systemHeartbeats";
@@ -64,7 +65,21 @@ export async function dispatchVipBriefing(env: Env): Promise<void> {
   const secured = open.filter((s) => s.tp1_hit_at != null);
   const atRisk = open.filter((s) => s.tp1_hit_at == null);
 
-  const lines: string[] = [`🔑 *Briefing VIP — ${now.toISOString().slice(0, 10)}*`, ""];
+  // L'ÉTAT DU FILTRE EN PREMIER. C'est la question qu'un abonné se pose chaque
+  // matin — « pourquoi c'est calme ? » — et la seule à laquelle le briefing
+  // pouvait répondre sans qu'il ait à taper /marche. Le taire, c'est laisser un
+  // silence de plusieurs semaines ressembler à une panne.
+  const trend = await getTrendFilterState().catch(() => null);
+  const etatFiltre =
+    trend === null
+      ? "🌐 État du marché indisponible en ce moment (sources de prix injoignables)."
+      : trend.isClosed
+        ? `📉 Filtre de tendance FERMÉ — le Bitcoin est ${Math.abs(trend.gapPct).toFixed(1).replace(".", ",")} % sous sa moyenne 200 jours. ` +
+          "Les trois moteurs directionnels se taisent ; le carry et le momentum 4H travaillent."
+        : `📈 Filtre de tendance OUVERT — le Bitcoin est ${trend.gapPct.toFixed(1).replace(".", ",")} % au-dessus de sa moyenne 200 jours. ` +
+          "Les moteurs directionnels émettent.";
+
+  const lines: string[] = [`🔑 *Briefing VIP — ${now.toISOString().slice(0, 10)}*`, "", etatFiltre, ""];
 
   lines.push(`📂 *Positions ouvertes : ${open.length}*`);
   if (open.length === 0) {
@@ -90,9 +105,14 @@ export async function dispatchVipBriefing(env: Env): Promise<void> {
       if (s.outcome_price == null) return sum;
       return sum + computePnlPct(s.type, s.entry_price, s.outcome_price);
     }, 0);
-    const sign = total >= 0 ? "+" : "";
+    // MOYENNE par signal, pas somme. Additionner les pourcentages de plusieurs
+    // trades ne décrit aucun rendement : la somme suppose une mise totale sur
+    // chacun, alors que le message de signal conseille 2 %. Même correction que
+    // dans /history et /myperformance.
+    const moyenne = total / resolved.length;
+    const sign = moyenne >= 0 ? "+" : "";
     lines.push(`✅ ${wins} gagnante(s) — ❌ ${losses} perdante(s)`);
-    lines.push(`Somme des variations : ${sign}${total.toFixed(2)}% _(hors pondération Multi-TP et frais)_`);
+    lines.push(`Résultat moyen : ${sign}${moyenne.toFixed(2)} % par signal _(hors pondération Multi-TP et frais)_`);
   } else {
     lines.push("_Aucune clôture sur la période._");
   }

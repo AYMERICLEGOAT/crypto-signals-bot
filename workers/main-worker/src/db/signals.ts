@@ -161,7 +161,11 @@ export async function hasRecentSignal(db: SupabaseConfig, hours: number): Promis
 
 /** Bloc 12.3 — récap hebdomadaire : signaux émis depuis `sinceIso`. */
 export async function getSignalsCreatedSince(db: SupabaseConfig, sinceIso: string): Promise<SignalRecord[]> {
-  return selectRows<SignalRecord>(db, "signals", { created_at: `gte.${sinceIso}`, select: "id" });
+  // `created_at` est sélectionné en plus de `id` : la relance post-expiration
+  // (cron/reengagementOffer.ts) compte les signaux partis après l'expiration
+  // PROPRE à chaque personne, et sans cette colonne le filtre comparerait des
+  // dates indéfinies — il aurait silencieusement compté zéro à chaque fois.
+  return selectRows<SignalRecord>(db, "signals", { created_at: `gte.${sinceIso}`, select: "id,created_at" });
 }
 
 /** Bloc 12.3 — récap hebdomadaire : signaux résolus (TP/SL/expiré) depuis `sinceIso`. */
