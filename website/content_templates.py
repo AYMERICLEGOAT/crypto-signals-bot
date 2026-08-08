@@ -132,6 +132,33 @@ _ANALYSE_PAR_MOTEUR = {
             "the strategy was validated on."
         ),
     },
+    "cassure_canal": {
+        "fr": (
+            "Sur {pair}, le prix vient de franchir son plus haut des 50 derniers jours. Ce moteur "
+            "n'anticipe pas la cassure : il attend qu'elle ait eu lieu et achète la continuation. "
+            "Entrée vers {entry}, stop loss à {sl} ({sl_pct}), objectif principal à {tp} ({tp_pct}), "
+            "sortie prévue au bout de {jours} jours quoi qu'il arrive."
+        ),
+        "en": (
+            "On {pair}, price has just cleared its highest level of the past 50 days. This engine does "
+            "not anticipate the breakout: it waits for it to happen and buys the continuation. Entry "
+            "near {entry}, stop loss at {sl} ({sl_pct}), main target at {tp} ({tp_pct}), exit after "
+            "{jours} days regardless."
+        ),
+    },
+    "expansion_volatilite": {
+        "fr": (
+            "Sur {pair}, l'amplitude des mouvements était comprimée depuis plusieurs semaines et vient "
+            "de se réveiller à la hausse. C'est le plus rare des signaux du système. Entrée vers "
+            "{entry}, stop loss à {sl} ({sl_pct}), objectif principal à {tp} ({tp_pct}), sortie prévue "
+            "au bout de {jours} jours."
+        ),
+        "en": (
+            "On {pair}, trading ranges had been compressed for weeks and have just expanded upward. "
+            "This is the rarest signal the system produces. Entry near {entry}, stop loss at {sl} "
+            "({sl_pct}), main target at {tp} ({tp_pct}), exit after {jours} days."
+        ),
+    },
     "momentum_4h": {
         "fr": (
             "Sur {pair}, même principe de classement que la force relative, mais mesuré sur des "

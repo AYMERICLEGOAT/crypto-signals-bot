@@ -151,12 +151,12 @@ FILTER_STATE_DATE = "4 août 2026"
 # Un pictogramme par étape. Il ne décore pas : sur une page de neuf étapes, il
 # donne un point d'accroche qui permet de retrouver « celle du filtre » ou
 # « celle du carry » sans relire les titres un par un.
-STEP_ICONS = ["⚙️", "🚦", "📈", "💵", "🧪", "📩", "🔍"]
+STEP_ICONS = ["⚙️", "🚦", "📈", "🚀", "🌋", "💵", "🧪", "📩", "🔍"]
 
 STEPS = [
-    ("Trois moteurs tournent en parallèle, pas un seul",
-     "Le premier achète (il parie sur la hausse), le deuxième est neutre au marché, et le "
-     "troisième ne travaille QUE lorsque le marché baisse. Tous ont été validés face à un témoin "
+    ("Cinq moteurs tournent en parallèle, pas un seul",
+     "Trois achètent une hausse, un est neutre au marché, et le dernier ne travaille QUE lorsque "
+     "le marché baisse. Tous ont été validés face à un témoin "
      "aléatoire : un moteur qui ne bat pas un tirage au sort à contraintes égales est jeté, quelle "
      "que soit son espérance affichée. Sur douze approches testées, deux seulement ont été "
      "retenues."),
@@ -170,15 +170,25 @@ STEPS = [
      "plus forte à la plus faible selon leur progression récente. Les 12 premières sont achetées et "
      "tenues 7 jours, puis clôturées sur le temps. C'est du momentum, rien de plus : aucun "
      "indicateur secret."),
-    ("Moteur 2 — Carry de financement : gagner sans dépendre du prix",
+    ("Moteur 2 — Cassure de canal : acheter la sortie de range",
+     "Quand le prix franchit son plus haut des 50 derniers jours, la position s'ouvre. On "
+     "n'anticipe pas la cassure, on attend qu'elle ait eu lieu — c'est toute la différence. Mesuré "
+     "sur 6 ans avec le filtre de tendance : 815 signaux, 51,4 % de gagnants, +5,69 % par signal, "
+     "contre +0,9 % pour un tirage au sort de même densité."),
+    ("Moteur 3 — Expansion de volatilité : entrer quand le marché se réveille",
+     "Après une longue phase de compression, où l'amplitude des mouvements s'est resserrée, le "
+     "retour de la volatilité déclenche l'entrée — à condition que la journée soit haussière. "
+     "C'est le plus rare des cinq moteurs : 210 signaux en 6 ans, 52,4 % de gagnants, +5,64 % par "
+     "signal."),
+    ("Moteur 4 — Carry de financement : gagner sans dépendre du prix",
      "Deux jambes de même montant : achat au comptant, et vente à découvert du contrat perpétuel. "
      "Les deux s'annulent, donc le prix n'entre pas dans l'équation. Le gain vient du financement "
      "que les acheteurs de perpétuels versent aux vendeurs toutes les 8 heures. Il produit dans "
      "les deux régimes de marché."),
-    ("Moteur 3 — Momentum 4 heures : le seul qui achète quand le marché baisse",
+    ("Moteur 5 — Momentum 4 heures : le seul qui achète quand le marché baisse",
      "Même classement que la force relative, mais mesuré sur des bougies de 4 heures, limité aux "
      "deux paires les plus fortes et tenu 3 jours. Sa particularité : il ne se déclenche QUE "
-     "lorsque le Bitcoin est sous sa moyenne 200 jours — exactement le créneau où les trois moteurs "
+     "lorsque le Bitcoin est sous sa moyenne 200 jours — exactement le créneau où les moteurs "
      "acheteurs se taisent. Il est présenté EN OBSERVATION, et c'est écrit sur chacun de ses "
      "signaux : positif trois années sur quatre, mais en recul sur la dernière. Deux places par "
      "jour au maximum, et il s'arrête de lui-même si ses résultats réels démentent la mesure."),
@@ -256,7 +266,7 @@ def build_how_it_works():
   <header class="hero">
     <span class="status-pill"><span class="status-dot"></span>Aucune intervention humaine, aucune opinion</span>
     <h1>Comment ça marche</h1>
-    <p class="hero-sub">Trois moteurs de signaux, dont un qui ne dépend pas du prix et un qui ne
+    <p class="hero-sub">Cinq moteurs de signaux, dont un qui ne dépend pas du prix et un qui ne
        travaille que lorsque le marché baisse. Étape par étape, avec les chiffres tels qu'ils ont
        été mesurés — y compris ceux qui dérangent.</p>
     <div class="actions">
@@ -274,7 +284,7 @@ def build_how_it_works():
   </section>
 
   <section>
-    <h2>Les sept étapes, en détail</h2>
+    <h2>Les neuf étapes, en détail</h2>
 {steps_html}
   </section>
 
@@ -351,7 +361,7 @@ def build_how_it_works():
   <section>
     <h2>Pas d'indicateur magique</h2>
     <p>Le classement de la force relative est construit à partir du RSI, mais un simple tri par
-       rendement passé fait aussi bien&nbsp;: c'est du momentum, point. Aucun des trois moteurs
+       rendement passé fait aussi bien&nbsp;: c'est du momentum, point. Aucun des cinq moteurs
        ne repose sur un indicateur propriétaire ou sur une recette cachée&nbsp;; toutes sont des
        mécaniques connues, appliquées sans exception et sans état d'âme.</p>
     <p>Ce qui fait la différence n'est pas l'indicateur, c'est la discipline&nbsp;: des niveaux
@@ -688,8 +698,9 @@ def build_terms():
     <h2>2. Périodes sans aucun signal — à lire avant de payer</h2>
     <p><strong>Ce service peut ne diffuser aucun signal pendant des périodes prolongées, y compris
        pendant la totalité d'un abonnement payé.</strong></p>
-    <p>La force relative, seul moteur directionnel en service, n'émet aucun signal tant que le
-       Bitcoin est sous sa moyenne mobile 200 jours.</p>
+    <p>Les trois moteurs directionnels (force relative, cassure de canal, expansion de
+       volatilité) n'émettent aucun signal tant que le Bitcoin est sous sa moyenne mobile
+       200 jours.</p>
     <div class="warn">
       <p><b>L'abonnement court pendant ces périodes.</b> La durée achetée (14 ou 30 jours) s'écoule
          au calendrier. Elle n'est ni suspendue, ni prolongée, ni remboursée, même si aucun signal

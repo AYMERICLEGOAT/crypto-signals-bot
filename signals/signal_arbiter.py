@@ -13,21 +13,25 @@ LA DIFFICULTÉ RÉELLE : METTRE LES MOTEURS SUR LA MÊME ÉCHELLE.
 
 Leurs espérances mesurées ne sont pas comparables telles quelles :
 
-    force relative      +3,220 % par signal, tenu  7 jours
-    momentum 4 h        +0,805 % par signal, tenu  3 jours
-    carry de financement +0,572 % par position, tenue 21 jours
+    expansion de volatilité +4,992 % par signal, tenu  7 jours
+    cassure de canal        +4,657 % par signal, tenu  7 jours
+    force relative          +2,275 % par signal, tenu  7 jours
+    momentum 4 h            +0,805 % par signal, tenu  3 jours
+    carry de financement    +0,572 % par position, tenue 21 jours
 
-Prises au pied de la lettre, ces trois lignes diraient que la force relative
-vaut six fois le carry. C'est faux : elles n'immobilisent pas le capital aussi
+Prises au pied de la lettre, ces lignes diraient que l'expansion de volatilité
+vaut neuf fois le carry. C'est faux : elles n'immobilisent pas le capital aussi
 longtemps. Un carry qui rend +0,572 % en 21 jours et un momentum qui rend
-+0,580 % en 3 jours ne sont pas la même affaire — le second travaille sept fois
++0,805 % en 3 jours ne sont pas la même affaire — le second travaille sept fois
 plus vite.
 
 L'unité commune est donc l'ESPÉRANCE PAR JOUR DE CAPITAL IMMOBILISÉ :
 
-    force relative      +3,220 / 7  = +0,460 %/jour
-    momentum 4 h        +0,805 / 3  = +0,268 %/jour
-    carry               +0,572 / 21 = +0,027 %/jour
+    expansion de volatilité +4,992 / 7  = +0,713 %/jour
+    cassure de canal        +4,657 / 7  = +0,665 %/jour
+    force relative          +2,275 / 7  = +0,325 %/jour
+    momentum 4 h            +0,805 / 3  = +0,268 %/jour
+    carry                   +0,572 / 21 = +0,027 %/jour
 
 Le classement qui en découle est celui qu'un gérant utiliserait, et il est très
 différent de celui des chiffres bruts. C'est cette valeur qui départage les
@@ -74,8 +78,21 @@ logger = logging.getLogger(__name__)
 # Modifier l'une d'elles sans relancer le module correspondant fausserait
 # l'arbitrage entre moteurs, qui repose entièrement dessus.
 PROFILS = {
-    # backtest_frontiere_production : top 12, 7 jours, filtre de tendance actif.
-    "relative_strength": {"esperance_pct": 3.22, "jours": 7, "reussite_pct": 47.7},
+    # LES TROIS MOTEURS DIRECTIONNELS SONT MESURÉS AVEC LE MÊME PROTOCOLE, et
+    # c'est indispensable : entrée à la clôture du lendemain, sortie à la
+    # clôture après 7 jours, frais déduits, filtre de tendance actif, aucun
+    # stop. Les chiffres précédents mêlaient des mesures avec et sans stop
+    # intrabar — soit deux stratégies différentes comparées comme si elles
+    # étaient la même chose, exactement l'incomparabilité que ce module existe
+    # pour supprimer.
+    #
+    # L'espérance de la force relative passe donc de 3,22 % à 2,275 % : ce n'est
+    # pas une dégradation du moteur, c'est la fin d'une comparaison faussée.
+    "relative_strength": {"esperance_pct": 2.275, "jours": 7, "reussite_pct": 47.3},
+    # backtest_deux_familles : mesurées seules, filtre actif, p = 0,000 contre
+    # un témoin aléatoire de même densité.
+    "cassure_canal": {"esperance_pct": 4.657, "jours": 7, "reussite_pct": 49.3},
+    "expansion_volatilite": {"esperance_pct": 4.992, "jours": 7, "reussite_pct": 51.6},
     # backtest_carry_stop : 40 places, 21 jours, univers élargi, stop actif.
     "carry_funding": {"esperance_pct": 0.572, "jours": 21, "reussite_pct": 84.2},
     # backtest_4h : top 2, 3 jours, restreint aux marchés défavorables — la

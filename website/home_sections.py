@@ -47,7 +47,7 @@ HERO = {
         "titre_fort": "se taisent",
         "titre_apres": " quand il n'y a rien à acheter.",
         "sous_titre": (
-            "Trois moteurs mesurés sur six ans, chacun validé contre un tirage au hasard de même "
+            "Cinq moteurs mesurés sur six ans, chacun validé contre un tirage au hasard de même "
             "densité. Quand le marché ne se prête pas, le canal le dit au lieu d'inventer des "
             "trades. Gratuit sur Telegram, sans inscription."
         ),
@@ -69,7 +69,7 @@ HERO = {
         "titre_fort": "go quiet",
         "titre_apres": " when there is nothing worth buying.",
         "sous_titre": (
-            "Three engines measured over six years, each validated against a random draw of the same "
+            "Five engines measured over six years, each validated against a random draw of the same "
             "density. When the market does not cooperate, the channel says so instead of inventing "
             "trades. Free on Telegram, no signup."
         ),

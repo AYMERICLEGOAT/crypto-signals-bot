@@ -47,6 +47,8 @@ const ENGINE_BADGE: Record<string, string> = {
   relative_strength: "📈 Force Relative",
   carry_funding: "💵 Carry de Financement",
   momentum_4h: "🧪 Momentum 4H (en observation)",
+  cassure_canal: "🚀 Cassure de Canal",
+  expansion_volatilite: "🌋 Expansion de Volatilité",
 };
 
 function engineBadge(engine?: string | null): string {
@@ -87,6 +89,12 @@ function buildContext(type: SignalSide, engine?: string | null): string {
   }
   if (engine === "momentum_4h") {
     return `${arrow} Momentum 4H : même principe, mesuré sur des bougies de 4 heures. Ce moteur ne se déclenche QUE quand le marché est baissier — le créneau où les autres se taisent.`;
+  }
+  if (engine === "cassure_canal") {
+    return `${arrow} Cassure de Canal : le prix vient de franchir son plus haut des 50 derniers jours. On n'anticipe pas la cassure, on attend qu'elle ait eu lieu — c'est toute la différence.`;
+  }
+  if (engine === "expansion_volatilite") {
+    return `${arrow} Expansion de Volatilité : après une longue phase de calme, l'amplitude des mouvements se réveille à la hausse. C'est le plus rare des signaux du système.`;
   }
   return `${arrow} Signal Haute Confiance : la tendance vient de basculer ${direction} (EMA + RSI + ADX alignés).`;
 }

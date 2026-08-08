@@ -234,7 +234,9 @@ async function closeSignal(
   signal: SignalRecord,
   outcome: "WIN" | "LOSS",
   outcomePrice: number | null,
-  closeReason: CloseReason
+  closeReason: CloseReason,
+  /** Texte personnalisé ajouté au message de clôture, par destinataire. */
+  supplement?: (telegramId: number) => string
 ): Promise<void> {
   await markSignalClosed(db, signal.id, { outcome, outcomePrice, closeReason });
 
@@ -242,7 +244,12 @@ async function closeSignal(
   const pct = outcomePrice !== null ? computePnlPct(signal.type, signal.entry_price, outcomePrice) : 0;
 
   const recipients = await getDeliveryRecipients(db, signal.id);
-  await notifyRecipients(env, recipients, formatSubscriberCloseMessage(closedSignal, pct));
+  const messageCloture = formatSubscriberCloseMessage(closedSignal, pct);
+  if (supplement) {
+    await notifyEachRecipient(env, recipients, (id) => `${messageCloture}\n\n${supplement(id)}`);
+  } else {
+    await notifyRecipients(env, recipients, messageCloture);
+  }
   await handleAntiStress(env, recipients, outcome).catch((err) =>
     console.error(`[post-trade] Échec du mécanisme anti-stress pour le signal #${signal.id}:`, err)
   );
@@ -349,8 +356,13 @@ export async function trackSignalOutcomes(env: Env): Promise<void> {
         await markTp2Hit(db, signal.id);
         const recipients = await getDeliveryRecipients(db, signal.id);
         const pctAtTp2 = computePnlPct(signal.type, signal.entry_price, signal.tp2_price ?? signal.entry_price);
-        await notifyRecipients(env, recipients, formatTp2HitMessage(signal));
-        await notifyEachRecipient(env, recipients, (id) => formatShareableVictory(signal, pctAtTp2, env, id));
+        // UN seul message, pas deux. L'annonce du TP2 et le texte partageable
+        // partaient dos à dos dans la même seconde : deux notifications pour un
+        // seul événement, c'est la définition du spam. Assemblés, ils se lisent
+        // mieux — la bonne nouvelle, puis quoi en faire.
+        await notifyEachRecipient(env, recipients, (id) =>
+          `${formatTp2HitMessage(signal)}\n\n${formatShareableVictory(signal, pctAtTp2, env, id)}`
+        );
         await broadcastCelebration(env, signal, "TP2", pctAtTp2);
         continue;
       }
@@ -360,12 +372,17 @@ export async function trackSignalOutcomes(env: Env): Promise<void> {
         // couverte par formatSubscriberCloseMessage, pas de doublon festif.
         const isTp3Win = signal.tp3_price != null && progress.outcome === "WIN" && progress.exitPrice === signal.tp3_price;
         if (isTp3Win) {
-          const recipients = await getDeliveryRecipients(db, signal.id);
           const pctAtTp3 = computePnlPct(signal.type, signal.entry_price, progress.exitPrice);
-          await notifyEachRecipient(env, recipients, (id) => formatShareableVictory(signal, pctAtTp3, env, id));
           await broadcastCelebration(env, signal, "TP3", pctAtTp3);
+          // Le texte partageable voyage AVEC le message de clôture au lieu de le
+          // précéder d'une seconde : deux notifications pour la même nouvelle
+          // n'apportaient rien, sinon une vibration de plus.
+          await closeSignal(env, db, signal, progress.outcome, progress.exitPrice, progress.closeReason, (id) =>
+            formatShareableVictory(signal, pctAtTp3, env, id)
+          );
+        } else {
+          await closeSignal(env, db, signal, progress.outcome, progress.exitPrice, progress.closeReason);
         }
-        await closeSignal(env, db, signal, progress.outcome, progress.exitPrice, progress.closeReason);
         continue;
       }
       // "none" : ni niveau franchi ni stop touché -> vérifie le timeout ci-dessous.

@@ -42,6 +42,7 @@ from indicators import compute_all_indicators, ema
 from strategy import detect_signals_with_catchup, is_still_actionable
 from squeeze_engine import detect_squeeze_signal
 from relative_strength import detect_relative_strength_signals
+import cassure_expansion
 import carry_engine
 import momentum_4h
 import signal_arbiter
@@ -292,9 +293,24 @@ def run_relative_strength_engine() -> list:
         alerts.maybe_alert_data_outage(consecutive_failures)
 
     signals = detect_relative_strength_signals(daily_by_pair, btc_daily, already_open=held)
+
+    # CASSURE DE CANAL et EXPANSION DE VOLATILITÉ (voir cassure_expansion.py).
+    #
+    # Ils réutilisent les bougies journalières que la force relative vient de
+    # charger : les recharger coûterait 40 appels réseau pour exactement les
+    # mêmes données. Leurs positions ouvertes sont comptées séparément — deux
+    # moteurs peuvent légitimement viser la même paire le même jour, mais aucun
+    # ne doit rouvrir une position qu'il détient déjà.
+    for moteur, detecteur in (
+        (cassure_expansion.ENGINE_CASSURE, cassure_expansion.detect_cassure_signals),
+        (cassure_expansion.ENGINE_EXPANSION, cassure_expansion.detect_expansion_signals),
+    ):
+        deja = storage.pairs_signalled_by_engine(moteur, config.RS_HOLD_DAYS * 24)
+        signals.extend(detecteur(daily_by_pair, btc_daily, already_open=deja))
+
     # Les bougies suivent le signal jusqu'au générateur de graphiques : elles
-    # ne sont disponibles qu'ici, et sans elles aucun signal de ce moteur
-    # n'avait d'image (voir _generate_and_upload_chart).
+    # ne sont disponibles qu'ici, et sans elles aucun signal de ces moteurs
+    # n'aurait d'image (voir _generate_and_upload_chart).
     signals = [(s, daily_by_pair.get(s["pair"])) for s in signals]
 
     # Marque le passage du jour AVANT de rendre les signaux, et même quand il

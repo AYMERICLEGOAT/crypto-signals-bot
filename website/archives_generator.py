@@ -297,7 +297,7 @@ _ARCHIVES_EXTRA = """
 """
 
 
-# Les trois moteurs diffusés. Le momentum 4 heures depuis le
+# Les cinq moteurs diffusés. Le momentum 4 heures depuis le
 # 07/08/2026. Décrits ici plutôt qu'en dur dans le HTML pour que la page
 # d'accueil et le balisage schema.org ne puissent pas diverger — c'est exactement
 # ce qui avait laissé la page décrire un moteur qui n'était plus diffusé.
@@ -312,7 +312,7 @@ FAMILIES = [
      "Directionnel"),
     ("Expansion de volatilité",
      "Après une longue phase de compression, le réveil de la volatilité déclenche l'entrée. "
-     "C'est le plus rare des trois moteurs.",
+     "C'est le plus rare des cinq moteurs.",
      "Directionnel"),
     ("Carry de financement",
      "Position neutre au marché en deux jambes : achat au comptant + vente du perpétuel. "
@@ -320,7 +320,7 @@ FAMILIES = [
      "Neutre au marché"),
     ("Momentum 4 heures",
      "Le seul moteur qui ne travaille QUE lorsque le marché baisse : il occupe le créneau où "
-     "les trois moteurs directionnels se taisent. Même classement que la force relative, mais "
+     "les moteurs directionnels se taisent. Même classement que la force relative, mais "
      "sur des bougies de 4 heures, limité aux deux plus fortes et tenu 3 jours. Positif trois "
      "années sur quatre, en recul sur la dernière : il est publié en le disant.",
      "En observation"),
@@ -459,7 +459,7 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
   </div>
 
   <section>
-    <h2>Les trois moteurs</h2>
+    <h2>Les cinq moteurs</h2>
     <p>Elles ne se ressemblent pas, et c'est le but&nbsp;: quand l'une s'arrête, les autres peuvent
        continuer. Les trois premières achètent — elles sont donc coupées quand le Bitcoin passe sous
        sa moyenne 200 jours. La quatrième ne dépend pas de la direction du marché.</p>
@@ -574,7 +574,7 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
 
   <section>
     <h2>Pour aller plus loin</h2>
-    <p><a href="/comment-ca-marche.html">Comment ça marche</a> détaille les trois moteurs étape par
+    <p><a href="/comment-ca-marche.html">Comment ça marche</a> détaille les cinq moteurs étape par
        étape. <a href="/a-propos.html">À propos</a> raconte d'où vient ce projet et ce qu'il ne fait
        pas. <a href="/glossaire.html">Le glossaire</a> et les <a href="/guides/">guides</a> expliquent
        les termes employés dans un signal.</p>

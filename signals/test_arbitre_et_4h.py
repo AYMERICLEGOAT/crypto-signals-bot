@@ -52,15 +52,24 @@ print("\n=== 1. L'unité commune de l'arbitre ===")
 # C'est le cœur du système : +3,22 % sur 7 jours et +0,572 % sur 21 jours ne
 # se comparent pas tels quels. Ramenés au jour de capital immobilisé, le
 # classement change complètement.
-verifie(abs(arb.esperance_par_jour("relative_strength") - 3.22 / 7) < 1e-9,
-        "force relative : +3,22 % sur 7 jours -> 0,460 %/jour")
+# Les trois moteurs directionnels sont mesurés avec le MÊME protocole depuis le
+# 08/08/2026 : mêler des chiffres obtenus avec et sans stop intrabar revenait à
+# comparer deux stratégies différentes, exactement ce que l'arbitre existe pour
+# empêcher.
+verifie(abs(arb.esperance_par_jour("relative_strength") - 2.275 / 7) < 1e-9,
+        "force relative : +2,275 % sur 7 jours -> 0,325 %/jour")
+verifie(abs(arb.esperance_par_jour("cassure_canal") - 4.657 / 7) < 1e-9,
+        "cassure de canal : +4,657 % sur 7 jours -> 0,665 %/jour")
+verifie(abs(arb.esperance_par_jour("expansion_volatilite") - 4.992 / 7) < 1e-9,
+        "expansion de volatilité : +4,992 % sur 7 jours -> 0,713 %/jour")
 verifie(abs(arb.esperance_par_jour("carry_funding") - 0.572 / 21) < 1e-9,
         "carry : +0,572 % sur 21 jours -> 0,027 %/jour")
 verifie(abs(arb.esperance_par_jour("momentum_4h") - 0.805 / 3) < 1e-9,
         "momentum 4h : +0,805 % sur 3 jours -> 0,268 %/jour (mesure du top 2, celle qui est publiée)")
-verifie(arb.esperance_par_jour("relative_strength") > arb.esperance_par_jour("momentum_4h")
+verifie(arb.esperance_par_jour("expansion_volatilite") > arb.esperance_par_jour("cassure_canal")
+        > arb.esperance_par_jour("relative_strength") > arb.esperance_par_jour("momentum_4h")
         > arb.esperance_par_jour("carry_funding"),
-        "l'ordre est force relative > momentum 4h > carry, et non l'ordre des chiffres bruts")
+        "l'ordre suit l'espérance PAR JOUR, et non l'ordre des chiffres bruts")
 verifie(arb.esperance_par_jour("moteur_inconnu") == 0.0,
         "un moteur sans profil rend 0 : jamais préféré à un moteur mesuré, mais pas rejeté")
 

@@ -47,11 +47,12 @@ export async function handleHelpCommand(env: Env, telegramId: number): Promise<v
     telegramId,
     "📖 *Commandes disponibles*\n\n" +
       "*Comment fonctionne le bot*\n" +
-      "Trois moteurs, tous mesurés sur 6 ans de données et comparés à un tirage aléatoire pour " +
-      "vérifier qu'ils ne doivent rien au hasard. La FORCE RELATIVE achète les cryptos les plus fortes " +
-      "du moment, et ne travaille qu'en marché porteur. Le CARRY DE FINANCEMENT ne parie pas sur le prix " +
-      "du tout. Le MOMENTUM 4H ne travaille QUE quand le marché baisse — il est en observation, et " +
-      "chacun de ses signaux le dit.\n\n" +
+      "Cinq moteurs, tous mesurés sur 6 ans de données et comparés à un tirage aléatoire pour " +
+      "vérifier qu'ils ne doivent rien au hasard. Trois achètent une hausse en marché porteur : la " +
+      "FORCE RELATIVE (les cryptos les plus fortes du moment), la CASSURE DE CANAL (franchissement du " +
+      "plus haut 50 jours) et l'EXPANSION DE VOLATILITÉ (réveil après compression). Le CARRY DE " +
+      "FINANCEMENT ne parie pas sur le prix du tout. Le MOMENTUM 4H ne travaille QUE quand le marché " +
+      "baisse — il est en observation, et chacun de ses signaux le dit.\n\n" +
       "*Le carry de financement, en deux phrases*\n" +
       "Achat au comptant et vente à découvert du perpétuel, même montant : les deux jambes s'annulent, " +
       "donc le prix n'entre pas dans l'équation. Ce que tu encaisses, c'est le financement que les " +

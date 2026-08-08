@@ -660,6 +660,37 @@ M4H_TOP_N = 2
 # Le MINIMUM n'est PAS une limite, c'est un objectif journalisé. Rien n'est
 # jamais ajouté pour l'atteindre : compléter avec les moins bons candidats du
 # jour reviendrait à diffuser exactement ceux que la mesure dit perdants.
+# --- Cassure de canal et expansion de volatilité (voir cassure_expansion.py) ---
+#
+# Les deux familles que le produit ANNONÇAIT sans les émettre. Mesurées seules,
+# avec le filtre de tendance et une barre fixée avant de regarder les résultats
+# (backtest_deux_familles.py) :
+#
+#   cassure de canal        815 signaux | 51,4 % gagnants | +5,689 % | p = 0,000
+#   expansion de volatilité 210 signaux | 52,4 % gagnants | +5,640 % | p = 0,000
+#
+# Le témoin aléatoire de même densité rend +0,9 % : l'écart ne doit rien au
+# hasard. Dix approches sur douze ont échoué exactement à cette étape.
+ENABLE_CASSURE_ENGINE = True
+ENABLE_EXPANSION_ENGINE = True
+
+# 50 jours : la valeur mesurée. Plus court multiplierait les faux départs, plus
+# long ne déclencherait presque jamais sur cet univers.
+CASSURE_FENETRE_JOURS = 50
+
+# Rapport ATR court / ATR long. Sous 1 pendant toute la compression, au-dessus
+# le jour du réveil.
+EXPANSION_ATR_COURT = 7
+EXPANSION_ATR_LONG = 50
+EXPANSION_COMPRESSION_JOURS = 20
+
+# Plafonds par moteur et par jour. La mesure donne 0,32 et 0,09 signal par jour :
+# ces bornes ne mordent qu'en cas d'anomalie — un jour où trente paires
+# franchiraient leur plus haut ensemble est un jour de marché exceptionnel, pas
+# trente occasions indépendantes.
+CASSURE_MAX_PAR_JOUR = 3
+EXPANSION_MAX_PAR_JOUR = 2
+
 QUOTA_SIGNAUX_MIN = 2
 QUOTA_SIGNAUX_MAX = 5
 

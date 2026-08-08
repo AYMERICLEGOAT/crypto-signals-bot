@@ -69,14 +69,14 @@ _STRINGS = {
             f"financement, position neutre au marché dont le résultat ne dépend pas du prix. Les familles "
             f"directionnelles sont à l'arrêt aujourd'hui. Résultats réels inclus."
             if n_carry == n
-            else f"Analyse gratuite de {n} signaux crypto ({pairs}) du {date_str}, issus de trois moteurs "
-            f"mesurés sur 6 ans : force relative, carry de financement et momentum 4 heures. "
-            f"Résultats réels inclus."
+            else f"Analyse gratuite de {n} signaux crypto ({pairs}) du {date_str}, issus de cinq moteurs "
+            f"mesurés sur 6 ans : force relative, cassure de canal, expansion de volatilité, carry de "
+            f"financement et momentum 4 heures. Résultats réels inclus."
         ),
         "h1": lambda date_str: f"Signaux crypto gratuits — {date_str}",
-        "subtitle": "Trois moteurs de signaux, chacun validé contre un témoin aléatoire : force relative, "
-        "carry de financement, et momentum 4 heures. Les deux derniers continuent de produire quand le "
-        "marché baisse. Mis à jour chaque jour.",
+        "subtitle": "Cinq moteurs de signaux, chacun validé contre un témoin aléatoire : force relative, "
+        "cassure de canal, expansion de volatilité, carry de financement et momentum 4 heures. Les deux "
+        "derniers continuent de produire quand le marché baisse. Mis à jour chaque jour.",
         "signals_heading": lambda n: f"🔎 Les {n} derniers signaux",
         "signals_note": "Trois familles achètent une hausse : entrée, stop volontairement large à 4x l'ATR "
         "(une protection contre l'accident, pas un outil de gestion), jalons de suivi à 4x, 8x et 12x l'ATR, et "
@@ -145,7 +145,7 @@ _STRINGS = {
         # différents : les mélanger serait exactement la faute du
         # « 61,2 % de réussite ».
         "perf_engine_note": "Ces résultats peuvent inclure des signaux émis par des moteurs précédents, "
-        "désactivés depuis. Ils ne décrivent donc pas les trois moteurs présentés plus haut, qui n'ont pas "
+        "désactivés depuis. Ils ne décrivent donc pas les cinq moteurs présentés plus haut, qui n'ont pas "
         "encore d'historique en direct. Le résultat d'un carry, lui, ne se mesure pas sur un prix mais sur le "
         "financement encaissé, frais déduits.",
         "perf_secured": lambda count, pct: f"🔒 {count} ({pct:.0f}%) trades sécurisés (TP1 atteint, break-even ou mieux)",
@@ -177,7 +177,7 @@ _STRINGS = {
         "backtest_stat": "Après six mois : +5,0 % en médiane",
         "backtest_subscriber": "53 % des entrées sont gagnantes à six mois, et le pire cas mesuré est -61,7 %. "
         "Ce n'est pas un produit qui enrichit vite : c'est un produit qui limite la casse, et il peut faire mal.",
-        "backtest_how_heading": "Les trois moteurs",
+        "backtest_how_heading": "Les cinq moteurs",
         "backtest_how": "Aucune n'a été retenue sur sa seule espérance : chacune a été confrontée à un témoin "
         "aléatoire, et une famille qui ne bat pas un tirage au sort à contraintes égales est écartée. Sept ont "
         "été testées, trois ont été rejetées.",

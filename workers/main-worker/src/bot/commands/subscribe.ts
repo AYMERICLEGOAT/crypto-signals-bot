@@ -59,9 +59,11 @@ export const TREND_FILTER_STATUS = {
 function buildValueScreen(): string {
   return (
     "📡 CE QUE TU REÇOIS\n\n" +
-    "Trois moteurs indépendants, validés sur 6 ans avec un témoin aléatoire — c'est-à-dire " +
+    "Cinq moteurs indépendants, validés sur 6 ans avec un témoin aléatoire — c'est-à-dire " +
     "comparés à un tirage au sort, pour vérifier qu'ils font mieux que la chance.\n\n" +
-    "• Force relative : achète les cryptos les plus fortes du moment, en marché porteur\n" +
+    "• Force relative : achète les cryptos les plus fortes du moment\n" +
+    "• Cassure de canal : franchissement du plus haut 50 jours\n" +
+    "• Expansion de volatilité : réveil après une longue compression\n" +
     "• Carry de financement : ne parie pas sur le prix, tourne dans les deux régimes\n" +
     "• Momentum 4H : ne travaille QUE quand le marché baisse, et il est en observation\n\n" +
     "• Quand le marché est favorable : 4,35 signaux par jour\n" +
@@ -171,7 +173,7 @@ export async function handleSubscribeCommand(env: Env, telegramId: number): Prom
     "📅 LES OFFRES",
     "",
     `⭐ Standard — ${PLAN_PRICES_USD[1]} USDT pour ${PLAN_DURATION_DAYS[1]} jours`,
-    "Tous les signaux des trois moteurs AVEC LEURS NIVEAUX — entrée, stop, trois objectifs, durée — au " +
+    "Tous les signaux des cinq moteurs AVEC LEURS NIVEAUX — entrée, stop, trois objectifs, durée — au " +
       "rythme mesuré de 2,99 par jour. C'est la différence avec le canal gratuit, qui voit les signaux " +
       "partir mais reçoit leurs niveaux seulement à la clôture, quand il est trop tard pour les jouer.",
   ];
