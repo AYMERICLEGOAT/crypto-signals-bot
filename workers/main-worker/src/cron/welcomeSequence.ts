@@ -29,6 +29,13 @@ export async function sendWelcomeFollowUps(env: Env): Promise<void> {
 
   const due1d = await getUsersDueForWelcomeFollowUp(db, HOURS_BEFORE_FOLLOWUP_1D, "welcome_1d_sent");
   for (const user of due1d) {
+    // Quelqu'un en essai reçoit le point de mi-parcours (cron/trialMidpointRecap.ts),
+    // qui lui montre ce qu'il a RÉELLEMENT reçu. Lui envoyer en plus ce rappel
+    // générique ferait deux messages le même jour, dont un qui n'apprend rien.
+    if (user.plan === 0) {
+      await markWelcomeFollowUpSent(db, user.telegram_id, "welcome_1d_sent");
+      continue;
+    }
     await sendMessage(
       env.TELEGRAM_BOT_TOKEN,
       user.telegram_id,

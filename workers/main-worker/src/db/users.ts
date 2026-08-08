@@ -2,6 +2,8 @@ import { SupabaseConfig, selectOne, selectRows, insertRow, updateRows, deleteRow
 import { FOUNDER_MAX } from "../bot/loyaltyBadge";
 
 export interface UserRecord {
+  /** Point de mi-essai déjà envoyé (voir cron/trialMidpointRecap.ts). */
+  trial_recap_sent?: boolean;
   /** Rang de Fondateur, figé au premier paiement. Voir bot/loyaltyBadge.ts. */
   founder_rank?: number | null;
   /** Déjà retiré du canal VIP après expiration (voir cron/revokeExpiredVip.ts). */
@@ -156,6 +158,9 @@ export async function activateSubscription(
     // de la NOUVELLE période (voir cron/revokeExpiredVip.ts). Sans cette
     // remise à zéro, un abonné retiré une fois ne le serait plus jamais.
     vip_removed: false,
+    // Remis à zéro pour qu'un nouvel essai reçoive son point de mi-parcours
+    // (voir cron/trialMidpointRecap.ts).
+    trial_recap_sent: false,
   };
 
   if (plan > 0) {

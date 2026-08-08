@@ -32,6 +32,7 @@ import { dispatchSelectivityDigest } from "./cron/dispatchSelectivityDigest";
 import { monthlyRecap } from "./cron/monthlyRecap";
 import { rotateVipInviteLinkIfDue } from "./bot/vipChannel";
 import { revokeExpiredVip } from "./cron/revokeExpiredVip";
+import { sendTrialMidpointRecap } from "./cron/trialMidpointRecap";
 import { pingSupabase } from "./supabaseRest";
 import { dbConfig } from "./env";
 import { timingSafeEqual } from "./utils/timingSafeEqual";
@@ -140,6 +141,7 @@ export default {
           await sendReengagementOffers(env).catch((err) => console.error("[cron] Erreur sendReengagementOffers:", err));
           await sendSatisfactionSurveys(env).catch((err) => console.error("[cron] Erreur sendSatisfactionSurveys:", err));
           await sendWelcomeFollowUps(env).catch((err) => console.error("[cron] Erreur sendWelcomeFollowUps:", err));
+          await sendTrialMidpointRecap(env).catch((err) => console.error("[cron] Erreur sendTrialMidpointRecap:", err));
           await runDailyMaintenance(env).catch((err) => console.error("[cron] Erreur runDailyMaintenance:", err));
           await ensureChannelPinned(env).catch((err) => console.error("[cron] Erreur ensureChannelPinned:", err));
           await postChannelReminder(env).catch((err) => console.error("[cron] Erreur postChannelReminder:", err));
