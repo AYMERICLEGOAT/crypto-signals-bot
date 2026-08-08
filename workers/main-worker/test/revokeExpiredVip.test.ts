@@ -150,3 +150,43 @@ describe("Retrait du canal VIP à l'expiration", () => {
     expect(messages).toHaveLength(0);
   });
 });
+
+describe("Retrait VIP — protections supplémentaires", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("ne touche JAMAIS l'administrateur, même s'il est simple membre du canal", async () => {
+    // Protégé par son identifiant et pas seulement par son rôle : rien ne
+    // garantit qu'il soit administrateur du canal plutôt que simple membre, et
+    // se faire expulser de son propre canal par son propre bot serait une façon
+    // idiote de découvrir cette tâche.
+    const bannis: number[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("/users") && (!init || init.method === undefined)) {
+          return jsonResponse([{ telegram_id: 777, expiration: "2026-08-01T00:00:00Z" }]);
+        }
+        if (url.includes("getChatMember")) return jsonResponse({ ok: true, result: { status: "member" } });
+        if (url.includes("unbanChatMember")) return jsonResponse({ ok: true });
+        if (url.includes("banChatMember")) {
+          bannis.push(JSON.parse(init!.body as string).user_id);
+          return jsonResponse({ ok: true });
+        }
+        return jsonResponse([]);
+      })
+    );
+
+    await revokeExpiredVip({ ...env, ADMIN_TELEGRAM_ID: "777" } as any);
+    expect(bannis).toHaveLength(0);
+  });
+
+  it("ne prétend pas que l'expiration vient d'avoir lieu", async () => {
+    // Ce passage rattrape aussi des expirations anciennes : dater l'événement à
+    // tort se remarque immédiatement chez quelqu'un qui a expiré il y a trois
+    // semaines, et abîme la crédibilité de tout le reste.
+    const { messages } = stub();
+    await revokeExpiredVip(env);
+    expect(messages[0].text).not.toMatch(/vient de/i);
+    expect(messages[0].text).toMatch(/a expiré/i);
+  });
+});

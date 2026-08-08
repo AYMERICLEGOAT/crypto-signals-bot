@@ -78,6 +78,15 @@ export async function revokeExpiredVip(env: Env): Promise<void> {
   }
 
   for (const membre of expires) {
+    // L'ADMINISTRATEUR est protégé par son identifiant, et pas seulement par
+    // son rôle dans le canal : rien ne garantit qu'il y soit administrateur
+    // plutôt que simple membre, et se faire expulser de son propre canal par
+    // son propre bot serait une façon idiote de découvrir cette tâche.
+    if (env.ADMIN_TELEGRAM_ID && String(membre.telegram_id) === env.ADMIN_TELEGRAM_ID) {
+      await marquerTraite(env, membre.telegram_id);
+      continue;
+    }
+
     const statut = await getChatMemberStatus(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_VIP_CHANNEL_ID, membre.telegram_id).catch(
       () => null
     );
@@ -94,7 +103,10 @@ export async function revokeExpiredVip(env: Env): Promise<void> {
     await sendMessage(
       env.TELEGRAM_BOT_TOKEN,
       membre.telegram_id,
-      "🔒 Ton accès au canal VIP vient de prendre fin, ton abonnement ayant expiré.\n\n" +
+      // Pas « vient de prendre fin » : ce passage rattrape aussi des
+      // expirations anciennes, et dater l'événement à tort se remarque
+      // immédiatement chez quelqu'un qui a expiré il y a trois semaines.
+      "🔒 Ton abonnement a expiré : ton accès au canal VIP prend fin ici.\n\n" +
         "Rien n'est perdu : /subscribe te rouvre l'accès immédiatement, et tu retrouveras le canal " +
         "au même endroit. Le canal public, lui, reste ouvert — tu y verras chaque signal partir, et le " +
         "signal entier à sa clôture avec son résultat.\n\n" +
