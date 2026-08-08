@@ -23,6 +23,7 @@ describe("runDailyMaintenance", () => {
   it("calcule et archive l'instantané, purge les vieilles alertes momentum et les paiements en attente périmés", async () => {
     let insertedStats: any = null;
     let purgedMomentum = false;
+    let purgedJournal = false;
     let expiredPayments = false;
 
     vi.stubGlobal(
@@ -48,6 +49,12 @@ describe("runDailyMaintenance", () => {
           purgedMomentum = true;
           return new Response(null, { status: 204 });
         }
+        // Le journal de diffusion (voir channelBudget.ts) est purgé ici aussi :
+        // il ne sert qu'aux décisions du jour et au diagnostic récent.
+        if (url.includes("channel_posts") && init?.method === "DELETE") {
+          purgedJournal = true;
+          return new Response(null, { status: 204 });
+        }
         if (url.includes("pending_payments") && init?.method === "PATCH") {
           expiredPayments = true;
           const body = JSON.parse(init.body as string);
@@ -66,6 +73,7 @@ describe("runDailyMaintenance", () => {
     expect(insertedStats.winrate_rolling_30d).toBeCloseTo(2 / 3);
     expect(insertedStats.total_revenue_usdt).toBe(58);
     expect(purgedMomentum).toBe(true);
+    expect(purgedJournal).toBe(true);
     expect(expiredPayments).toBe(true);
   });
 

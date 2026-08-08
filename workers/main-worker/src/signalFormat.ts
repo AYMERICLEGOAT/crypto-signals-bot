@@ -341,6 +341,58 @@ export function buildCarryMessage(
 }
 
 /**
+ * Annonce d'un signal sur le canal PUBLIC : la preuve, pas le produit.
+ *
+ * POURQUOI CE FORMAT EXISTE, ET CE QU'IL CORRIGE.
+ *
+ * Le canal gratuit recevait jusqu'ici le message COMPLET — paire, entrée, stop,
+ * trois objectifs, durée — trente minutes après les abonnés payants. Sur un
+ * signal dont la sortie est à trois jours au plus court et vingt-et-un au plus
+ * long, trente minutes ne valent rien : un lecteur du canal gratuit obtenait
+ * cent pour cent de ce que l'abonné payait. Il n'existait donc aucune raison de
+ * payer, et personne ne payait.
+ *
+ * Ce que le canal gratuit garde, et c'est beaucoup : il apprend qu'un signal
+ * vient de partir, de quel moteur il vient, et il recevra à la clôture le
+ * signal ENTIER avec son résultat — gagnant ou perdant, sans exception. Le
+ * relevé public reste donc complet et vérifiable ; c'est seulement le moment où
+ * il devient jouable qui se paie.
+ *
+ * Ce que ce format ne fait PAS, délibérément : il ne cache rien qui serait
+ * ensuite dissimulé. Tout ce qui manque ici est publié quelques jours plus
+ * tard, au même endroit. Un canal qui ne montrerait que ses gains serait une
+ * arnaque ; un canal qui montre tout, mais après, est une démonstration.
+ */
+export function buildPublicTeaserMessage(
+  signal: SignalLike,
+  opts: { botUsername?: string; delayNote?: string } = {}
+): string {
+  const emoji = signal.type === "BUY" ? "🟢" : "🔴";
+  const escapedUsername = opts.botUsername?.replace(/_/g, "\\_");
+  const jours = signal.hold_until
+    ? Math.round((new Date(signal.hold_until).getTime() - new Date(signal.created_at).getTime()) / 86400000)
+    : null;
+
+  const lines: Array<string | null> = [
+    `${emoji} *Nouveau signal — ${signal.pair}*`,
+    `${engineBadge(signal.engine)}${opts.delayNote ? ` _(${opts.delayNote})_` : ""}`,
+    "",
+    buildContext(signal.type, signal.engine),
+    "",
+    jours ? `⏳ Durée prévue : ${jours} jours` : null,
+    "🔒 Entrée, stop et objectifs : réservés aux abonnés.",
+    "",
+    "📊 Ce signal sera republié ICI à sa clôture, en entier et avec son résultat — gagnant ou perdant. " +
+      "Rien n'est retiré après coup : c'est comme ça que le relevé public se construit.",
+  ];
+
+  if (escapedUsername) {
+    lines.push("", `🎁 Pour le recevoir avec ses niveaux, au moment où il part : @${escapedUsername} — essai gratuit de 3 jours.`);
+  }
+  return lines.filter((l): l is string => l !== null).join("\n");
+}
+
+/**
  * Perte maximale mesurée sur une position de carry, sur 6 ans, stop de
  * financement actif (voir signals/backtest_carry_stop.py). Sans ce stop, la
  * pire position atteignait -66,70 %.

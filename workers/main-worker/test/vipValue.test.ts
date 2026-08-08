@@ -25,8 +25,9 @@ describe("Valeur du canal VIP", () => {
     vi.useRealTimers();
   });
 
-  it("les alertes momentum vont exclusivement en VIP, jamais sur le canal public", async () => {
-    vi.setSystemTime(new Date(Date.UTC(2026, 7, 2, 12, 0)));
+  it("le bilan momentum va exclusivement en VIP, jamais sur le canal public", async () => {
+    // 18 h UTC : le bilan quotidien ne part qu'à partir de 17 h.
+    vi.setSystemTime(new Date(Date.UTC(2026, 7, 2, 18, 0)));
     const publicSent: string[] = [];
     const vipSent: string[] = [];
 
@@ -52,9 +53,11 @@ describe("Valeur du canal VIP", () => {
     await dispatchMomentumAlerts(env);
 
     expect(publicSent).toHaveLength(0);
-    expect(vipSent.length).toBeGreaterThan(0);
-    // Le message VIP n'invite pas à s'abonner : le lecteur l'est déjà.
-    expect(vipSent[0]).toContain("Réservé aux abonnés");
+    // UN seul message, pas un par alerte : c'est tout l'objet du bilan.
+    expect(vipSent).toHaveLength(1);
+    expect(vipSent[0]).toContain("P1/USDT");
+    expect(vipSent[0]).toContain("P3/USDT");
+    // Il n'invite pas à s'abonner : le lecteur l'est déjà.
     expect(vipSent[0]).not.toContain("/subscribe");
   });
 

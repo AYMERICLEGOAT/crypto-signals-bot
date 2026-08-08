@@ -6,6 +6,7 @@
  */
 
 import { Env, dbConfig } from "../env";
+import { peutPublier, enregistrerEnvoi } from "../channelBudget";
 import { sendMessage } from "../telegram";
 import { hasPostedFearGreedToday, recordFearGreedPost } from "../db/fearGreedPosts";
 import { isQuietHours } from "../utils/quietHours";
@@ -76,6 +77,13 @@ export async function dispatchFearGreed(env: Env): Promise<void> {
   ];
   const text = lines.filter((line): line is string => line !== null && line !== "").join("\n");
 
+  // Le régulateur décide si le canal peut parler maintenant (voir
+  // channelBudget.ts). Sa garde quotidienne ci-dessus dit « une fois par jour
+  // au plus » ; celle-ci dit « pas dans la minute qui suit un autre message ».
+  const verdict = await peutPublier(db, "public", "editorial");
+  if (!verdict.autorise) return;
+
   await sendMessage(env.TELEGRAM_BOT_TOKEN, Number(env.TELEGRAM_CHANNEL_ID), text, { markdown: true });
+  await enregistrerEnvoi(db, "public", "editorial", "fear-greed");
   await recordFearGreedPost(db, value, classification);
 }

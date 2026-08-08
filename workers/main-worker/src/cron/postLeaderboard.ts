@@ -7,6 +7,7 @@
  */
 
 import { Env, dbConfig } from "../env";
+import { peutPublier, enregistrerEnvoi } from "../channelBudget";
 import { hasPostedLeaderboardThisWeek, recordLeaderboardPost } from "../db/leaderboardPosts";
 import { getTopReferrersSince, TopReferrer } from "../db/referralRewards";
 import { sendMessage } from "../telegram";
@@ -44,6 +45,13 @@ export async function postLeaderboard(env: Env): Promise<void> {
   if (top.length === 0) return; // rien à célébrer cette semaine : on retente au prochain cycle, sans "consommer" le créneau hebdo
 
   const channelId = Number(env.TELEGRAM_CHANNEL_ID);
+  // Le régulateur décide si le canal peut parler maintenant (voir
+  // channelBudget.ts). Sa garde quotidienne ci-dessus dit « une fois par jour
+  // au plus » ; celle-ci dit « pas dans la minute qui suit un autre message ».
+  const verdict = await peutPublier(db, "public", "editorial");
+  if (!verdict.autorise) return;
+
   await sendMessage(env.TELEGRAM_BOT_TOKEN, channelId, formatLeaderboard(top), { markdown: true });
+  await enregistrerEnvoi(db, "public", "editorial", "classement");
   await recordLeaderboardPost(db);
 }

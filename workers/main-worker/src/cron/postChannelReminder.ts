@@ -25,9 +25,16 @@ import { upsertRow, selectRows, SupabaseConfig } from "../supabaseRest";
 import { getTrendFilterState } from "../market/trendFilter";
 import { sendMessage } from "../telegram";
 import { isQuietHours } from "../utils/quietHours";
+import { peutPublier, enregistrerEnvoi } from "../channelBudget";
 
 const JOB_NAME = "channel_reminder";
-const REMINDER_INTERVAL_HOURS = 3;
+// PORTÉ DE 3 À 8 HEURES le 08/08/2026, après avoir compté ce que le canal
+// envoie réellement dans une journée. À 3 heures d'intervalle, ce seul module
+// produisait jusqu'à HUIT messages par jour — plus que les signaux eux-mêmes.
+// Un rappel n'apprend rien : il redit où s'abonner. Trois par jour au maximum
+// suffisent largement à ce qu'un nouveau venu le voie, et huit garantissent
+// surtout qu'il mette le canal en sourdine.
+const REMINDER_INTERVAL_HOURS = 8;
 // Un signal publié dans cette fenêtre rend le rappel superflu : il porte
 // déjà son propre appel à l'action.
 const QUIET_BEFORE_REMINDER_HOURS = 3;
@@ -47,7 +54,7 @@ const QUIET_BEFORE_REMINDER_HOURS = 3;
  * le canal doit savoir où aller) mais change de nature : il espace, et il
  * annonce la situation réelle au lieu de la masquer.
  */
-const CLOSED_FILTER_INTERVAL_HOURS = 12;
+const CLOSED_FILTER_INTERVAL_HOURS = 24;
 
 async function hasRecentChannelSignal(db: SupabaseConfig, hours: number): Promise<boolean> {
   const since = new Date(Date.now() - hours * 3_600_000).toISOString();
@@ -98,15 +105,26 @@ export async function postChannelReminder(env: Env): Promise<void> {
   // de le publier une fois de trop.
   const trend = await getTrendFilterState();
 
+  // Le régulateur passe avant les deux branches (voir channelBudget.ts) : un
+  // rappel est le message le moins urgent du canal, il ne doit jamais tomber
+  // juste après autre chose.
+  const verdict = await peutPublier(db, "public", "editorial");
+  if (!verdict.autorise) return;
+
   if (trend?.isClosed) {
     if (hoursSinceLastReminder < CLOSED_FILTER_INTERVAL_HOURS) return;
 
     await sendMessage(
       env.TELEGRAM_BOT_TOKEN,
       Number(env.TELEGRAM_CHANNEL_ID),
-      "⏸️ Aucun signal en ce moment : le Bitcoin est sous sa moyenne 200 jours, et la stratégie n'émet rien dans ce cas.\n" +
-        `Pour comprendre la méthode et être là à la réouverture : @${env.TELEGRAM_BOT_USERNAME}`
+      // « la stratégie n'émet rien dans ce cas » était faux : le carry et le
+      // momentum 4H travaillent précisément dans ce régime. Le dire évite la
+      // contradiction avec les signaux qui partent le même jour.
+      "⏸️ Le Bitcoin est sous sa moyenne 200 jours : la force relative ne prend plus de position.\n" +
+        "Le carry de financement et le momentum 4H, eux, travaillent dans ce régime.\n" +
+        `Pour comprendre la méthode et recevoir ce qui sort : @${env.TELEGRAM_BOT_USERNAME}`
     );
+    await enregistrerEnvoi(db, "public", "editorial", "rappel-filtre-ferme");
     await recordReminderSent(db);
     return;
   }
@@ -117,5 +135,6 @@ export async function postChannelReminder(env: Env): Promise<void> {
     `🔒 Pour recevoir ces signaux en temps réel, avec TP/SL et sécurisation automatique : @${env.TELEGRAM_BOT_USERNAME}\n` +
       "🎁 Essai gratuit de 3 jours avec /trial"
   );
+  await enregistrerEnvoi(db, "public", "editorial", "rappel");
   await recordReminderSent(db);
 }

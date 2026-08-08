@@ -1,4 +1,5 @@
 import { Env, dbConfig } from "../env";
+import { peutPublier, enregistrerEnvoi } from "../channelBudget";
 import { sendMessage } from "../telegram";
 import { getNextCryptoFact, markCryptoFactSent, hasSentCryptoFactToday } from "../db/cryptoFacts";
 import { isQuietHours } from "../utils/quietHours";
@@ -27,8 +28,17 @@ export async function dispatchCryptoFact(env: Env): Promise<void> {
   // (bug vécu le 29/07 sur /help et /referral, même famille).
   const escapedUsername = env.TELEGRAM_BOT_USERNAME?.replace(/_/g, "\\_");
   const cta = escapedUsername ? `\n\n@${escapedUsername} pour des signaux en temps réel` : "";
+  // Le régulateur décide si le canal peut parler maintenant (voir
+  // channelBudget.ts). La garde quotidienne plus haut dit « une fois par jour
+  // au plus » ; celle-ci dit « pas dans la minute qui suit un autre message ».
+  // On sort AVANT de marquer l'anecdote comme envoyée : sinon elle serait
+  // consommée sans jamais avoir été publiée, et perdue pour toujours.
+  const verdict = await peutPublier(db, "public", "editorial");
+  if (!verdict.autorise) return;
+
   await sendMessage(env.TELEGRAM_BOT_TOKEN, Number(env.TELEGRAM_CHANNEL_ID), `💡 *Le saviez-vous ?*\n\n${fact.content}${cta}`, {
     markdown: true,
   });
+  await enregistrerEnvoi(db, "public", "editorial", "anecdote");
   await markCryptoFactSent(db, fact.id);
 }

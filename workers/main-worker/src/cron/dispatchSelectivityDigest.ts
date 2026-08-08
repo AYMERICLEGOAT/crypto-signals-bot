@@ -1,4 +1,5 @@
 import { Env, dbConfig } from "../env";
+import { peutPublier, enregistrerEnvoi } from "../channelBudget";
 import { sendMessage } from "../telegram";
 import { getHeartbeat } from "../db/systemHeartbeats";
 import { upsertRow, SupabaseConfig } from "../supabaseRest";
@@ -99,6 +100,12 @@ export async function dispatchSelectivityDigest(env: Env): Promise<void> {
     lines.push("", `📡 Les signaux en temps réel : @${escaped}`);
   }
 
+  // Voir channelBudget.ts. On sort avant recordSent : un digest bloqué doit
+  // pouvoir repartir au cycle suivant, pas être consommé sans avoir été publié.
+  const verdict = await peutPublier(db, "public", "quotidien");
+  if (!verdict.autorise) return;
+
   await sendMessage(env.TELEGRAM_BOT_TOKEN, Number(env.TELEGRAM_CHANNEL_ID), lines.join("\n"), { markdown: true });
+  await enregistrerEnvoi(db, "public", "quotidien", "digest");
   await recordSent(db);
 }

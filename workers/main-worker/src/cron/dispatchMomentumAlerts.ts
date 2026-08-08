@@ -1,92 +1,114 @@
 /**
- * Alertes Momentum (signals/momentum.py) — contexte de marché, PAS des
- * trades (ni stop loss ni take profit). Le format (⚡, pas de BUY/SELL)
- * évite toute confusion avec cron/dispatchSignals.ts.
+ * Alertes Momentum : UN bilan groupé par jour sur le canal VIP.
  *
- * Diffusées sur le canal VIP uniquement depuis le 02/08/2026 : voir le
- * commentaire dans la fonction pour le raisonnement complet.
+ * CE QUI A CHANGÉ, ET POURQUOI.
+ *
+ * Ces alertes partaient une par une, jusqu'à huit par jour, trois par cycle de
+ * cinq minutes. L'historique du module raconte une longue suite de réductions —
+ * 30+ par jour, puis 8, puis 3 par cycle — chacune motivée par le même retour :
+ * « c'est du spam ». Réduire le débit n'a jamais réglé le problème, parce que
+ * le problème n'était pas le débit.
+ *
+ * Une alerte momentum n'est PAS actionnable, et le module le dit lui-même :
+ * « dynamique de marché, PAS un signal de trading, ni stop loss ni take
+ * profit ». Un message qu'on ne peut pas jouer, envoyé huit fois par jour dans
+ * un canal dont on attend des trades, n'est pas de l'information : c'est du
+ * bruit qui rend les vrais signaux plus difficiles à voir. Sur le canal VIP, ces
+ * huit messages noyaient les célébrations de TP2 et TP3 — c'est-à-dire la seule
+ * chose que l'abonné a payée pour lire.
+ *
+ * Elles sont donc groupées en UN bilan quotidien. Le même contenu, une fois,
+ * lisible d'un coup d'œil, et qui prend enfin la forme de ce qu'il est : un
+ * état du marché, pas une alerte. Rien n'est perdu — les alertes non diffusées
+ * restent en base et rejoignent le bilan du lendemain.
+ *
+ * Le canal public, lui, reçoit le bilan de sélectivité (voir
+ * dispatchSelectivityDigest.ts), qui dit combien de configurations ont été
+ * examinées puis écartées. Le même fait, transformé en preuve de sélectivité.
  */
 
 import { Env, dbConfig } from "../env";
-import { getUnsentMomentumAlerts, markMomentumAlertSent, countMomentumAlertsSentSince, MomentumAlertRecord } from "../db/momentumAlerts";
+import { getUnsentMomentumAlerts, markMomentumAlertSent, MomentumAlertRecord } from "../db/momentumAlerts";
 import { sendMessage } from "../telegram";
 import { isQuietHours } from "../utils/quietHours";
+import { peutPublier, enregistrerEnvoi } from "../channelBudget";
+import { getHeartbeat } from "../db/systemHeartbeats";
+import { upsertRow } from "../supabaseRest";
 
-/** Même contenu, sans l'appel à l'abonnement : le lecteur est déjà abonné. */
-function formatVipMomentumAlert(alert: MomentumAlertRecord): string {
+const JOB_NAME = "momentum_digest_vip";
+
+/**
+ * Heure du bilan, en UTC. En fin d'après-midi : la séance européenne est
+ * terminée et l'américaine est ouverte, la journée a donc livré l'essentiel de
+ * ses mouvements. Publier le matin résumerait surtout la nuit.
+ */
+const HEURE_BILAN_UTC = 17;
+
+/**
+ * Plafond de lignes dans le bilan. Au-delà, la liste cesse d'être lisible et
+ * redevient ce qu'on essaie d'éviter — un mur. Les alertes en trop restent en
+ * base, non marquées, et partiront le lendemain.
+ */
+const MAX_LIGNES = 8;
+
+function debutDeJourUtc(): Date {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+function construireBilan(alertes: MomentumAlertRecord[]): string {
+  const lignes = alertes.map((a) => `• *${a.pair}* — ${a.detail}`);
   return [
-    `⚡ *Alerte Momentum — ${alert.pair}*`,
-    alert.detail,
+    `⚡ *Mouvements du jour — ${alertes.length} paire${alertes.length > 1 ? "s" : ""}*`,
     "",
-    "ℹ️ Dynamique de marché, PAS un signal de trading (ni stop loss ni take profit).",
-    "🔑 Réservé aux abonnés : le canal public ne reçoit qu'un bilan agrégé en fin de journée.",
+    ...lignes,
+    "",
+    "ℹ️ Du CONTEXTE de marché, pas des trades : ces paires ont bougé fort, mais aucune ne remplit " +
+      "les conditions d'entrée de la stratégie. Ni entrée, ni stop, ni objectif — rien à jouer ici.",
+    "",
+    "C'est justement ce que le filtrage écarte. Les vrais signaux arrivent séparément, avec leurs niveaux.",
   ].join("\n");
 }
 
-// Surplus dirigé vers le canal VIP à chaque cycle, en plus du quota public.
-// Volontairement modeste : l'objectif est de donner un avantage réel aux
-// abonnés, pas de reproduire en VIP le spam qu'on vient de retirer du canal
-// public.
-
-// Retour admin (29/07 puis 30/07, "120 messages d'un coup") : le vrai bug
-// n'était pas cette limite mais countMomentumAlertsSentSince (voir
-// db/momentumAlerts.ts) qui comptait par date de DÉTECTION au lieu de date
-// d'ENVOI -- un stock d'alertes en retard se drainait alors sans jamais
-// compter contre le plafond quotidien, cycle de 5 min après cycle de 5 min.
-// Corrigé (sent_at). Abaissée à 3 en plus (30/07) pour étaler davantage tout
-// pic ponctuel : aucune alerte n'est perdue, juste diffusée plus lentement.
-// Ramené de 3 à 2 le 02/08/2026 : le canal public recevait des rafales
-// d'alertes perçues comme du spam. Le surplus n'est pas perdu -- il reste
-// en base non envoyé et part au cycle suivant, étalé dans le temps.
-const MAX_ALERTS_PER_DISPATCH = 3;
-
-// Retour admin (29/07) : étaler sur plusieurs cycles de 5 min ne suffisait pas
-// -- avec 28 paires et le cron toutes les 5 min, la pile peut se reconstituer
-// aussi vite qu'elle se vide un jour de marché agité, et le total sur une
-// journée entière restait perçu comme du spam (30+ alertes/jour). Plafond
-// quotidien réel, distinct du plafond par cycle ci-dessus : au-delà, les
-// alertes restent en attente (rien n'est perdu) mais ne sont plus diffusées
-// avant le lendemain -- mieux vaut un canal qui garde de la valeur perçue
-// qu'un canal qui rattrape coûte que coûte tout son retard.
-const MAX_ALERTS_PER_DAY = 8;
-
-function startOfTodayUtcIso(): string {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
-}
-
 export async function dispatchMomentumAlerts(env: Env): Promise<void> {
-  // Aucune publication la nuit (voir utils/quietHours.ts).
   if (isQuietHours()) return;
-  // Canal VIP UNIQUEMENT depuis le 02/08/2026. Ces alertes sont les
-  // configurations que la stratégie a examinées puis ÉCARTÉES : non
-  // actionnables par construction (ni entrée, ni stop, ni objectif), et
-  // jusqu'à 8 par jour contre ~2,5 vrais signaux, elles noyaient le canal
-  // public sous ses propres rejets. Le canal public reçoit désormais un
-  // BILAN quotidien agrégé à la place (voir dispatchSelectivityDigest.ts),
-  // qui transforme le même fait en preuve de sélectivité.
-  //
-  // Elles gardent en revanche une vraie valeur pour un abonné qui trade
-  // activement : le contexte de marché en temps réel. C'est exactement le
-  // type de différence qui justifie un abonnement.
   if (!env.TELEGRAM_VIP_CHANNEL_ID) return;
 
   const db = dbConfig(env);
-  const vipChannelId = Number(env.TELEGRAM_VIP_CHANNEL_ID);
+  const maintenant = new Date();
+  if (maintenant.getUTCHours() < HEURE_BILAN_UTC) return;
 
-  const sentToday = await countMomentumAlertsSentSince(db, startOfTodayUtcIso());
-  const remainingToday = MAX_ALERTS_PER_DAY - sentToday;
-  if (remainingToday <= 0) return;
+  // « Est-ce déjà fait aujourd'hui ? » plutôt qu'une fenêtre horaire : les
+  // déclenchements de cron sont régulièrement retardés, et une fenêtre ratée
+  // ferait sauter le bilan de la journée entière sans que rien ne le signale.
+  // Même raisonnement que storage.daily_job_already_ran_today côté Python.
+  const dernier = await getHeartbeat(db, JOB_NAME);
+  if (dernier && new Date(dernier.last_run_at) >= debutDeJourUtc()) return;
 
-  const due = await getUnsentMomentumAlerts(db, Math.min(MAX_ALERTS_PER_DISPATCH, remainingToday));
-  if (due.length === 0) return;
+  const alertes = await getUnsentMomentumAlerts(db, MAX_LIGNES);
+  if (alertes.length === 0) return;
 
-  for (const alert of due) {
-    try {
-      await sendMessage(env.TELEGRAM_BOT_TOKEN, vipChannelId, formatVipMomentumAlert(alert), { markdown: true });
-      await markMomentumAlertSent(db, alert.id);
-    } catch (err) {
-      console.error(`[momentum-alerts] Échec de diffusion VIP pour l'alerte #${alert.id}:`, err);
-    }
+  const verdict = await peutPublier(db, "vip", "quotidien");
+  if (!verdict.autorise) return;
+
+  try {
+    await sendMessage(env.TELEGRAM_BOT_TOKEN, Number(env.TELEGRAM_VIP_CHANNEL_ID), construireBilan(alertes), {
+      markdown: true,
+    });
+  } catch (err) {
+    // Rien n'est marqué en cas d'échec : les alertes repartiront au prochain
+    // passage plutôt que d'être consommées sans avoir été lues.
+    console.error("[momentum-alerts] Échec de diffusion du bilan VIP :", err);
+    return;
   }
+
+  await enregistrerEnvoi(db, "vip", "quotidien", "bilan-momentum");
+  for (const alerte of alertes) {
+    await markMomentumAlertSent(db, alerte.id).catch((err) =>
+      console.error(`[momentum-alerts] Marquage impossible pour l'alerte #${alerte.id}:`, err)
+    );
+  }
+  await upsertRow(db, "system_heartbeats", { job_name: JOB_NAME, last_run_at: maintenant.toISOString() }, "job_name").catch((err) =>
+    console.error("[momentum-alerts] Enregistrement du passage impossible :", err)
+  );
 }

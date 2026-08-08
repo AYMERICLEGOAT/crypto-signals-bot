@@ -95,7 +95,10 @@ describe("Bilan de sélectivité (remplace le flot d'alertes publiques)", () => 
   });
 
   it("les alertes individuelles ne vont plus JAMAIS sur le canal public", async () => {
-    vi.setSystemTime(new Date(Date.UTC(2026, 7, 2, 12, 0)));
+    // Le bilan momentum ne part qu'à partir de 17 h UTC (voir
+    // dispatchMomentumAlerts.ts) : sans cette heure, le test vérifierait
+    // simplement que rien ne part, ce qui ne prouverait rien.
+    vi.setSystemTime(new Date(Date.UTC(2026, 7, 2, 18, 0)));
     const chats: string[] = [];
     vi.stubGlobal(
       "fetch",

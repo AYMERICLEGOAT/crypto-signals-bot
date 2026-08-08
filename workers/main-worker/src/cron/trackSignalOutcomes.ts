@@ -104,16 +104,54 @@ function formatSubscriberCloseMessage(signal: SignalRecord, pct: number): string
   }
 }
 
+/**
+ * Clôture sur le canal PUBLIC : le signal entier, cette fois.
+ *
+ * C'est la contrepartie du format d'annonce sans niveaux (voir
+ * signalFormat.buildPublicTeaserMessage). À l'ouverture, le canal gratuit
+ * apprend qu'un signal part et de quel moteur ; à la clôture, il reçoit TOUT —
+ * les niveaux qui avaient été réservés, le résultat, et le pourcentage.
+ *
+ * Sans ces niveaux ici, le relevé public serait invérifiable : « ce signal a
+ * gagné 4 % » ne veut rien dire si l'on ne sait ni où il entrait ni où il
+ * s'arrêtait. Les publier après coup ne coûte rien — le trade est terminé — et
+ * c'est ce qui transforme une affirmation en démonstration.
+ *
+ * Les pertes sont publiées exactement au même endroit, dans le même format, et
+ * sans adoucissement. Un canal qui ne montrerait que ses gains ne prouverait
+ * rien du tout.
+ */
 function formatPublicCloseMessage(signal: SignalRecord, pct: number, botUsername: string): string {
   const escapedUsername = botUsername.replace(/_/g, "\\_");
-  const base = `${typeLabel(signal.type)} ${signal.pair} — entrée ${signal.entry_price} → sortie ${signal.outcome_price} (${pctLabel(pct)}).`;
-  if (signal.close_reason === "tp_hit") {
-    return [`🎉 *Objectif atteint !*`, base, "", `Envie de ne rater aucun signal comme celui-ci ? Rejoins @${escapedUsername}`].join("\n");
-  }
+  const gagnant = signal.outcome === "WIN";
+  const titre = gagnant ? "✅ *Signal clôturé — gagnant*" : "❌ *Signal clôturé — perdant*";
+
+  const niveaux: string[] = [`💵 Entrée : ${signal.entry_price}`];
+  if (signal.stop_loss != null) niveaux.push(`🛑 Stop : ${signal.stop_loss}`);
+  if (signal.tp1_price != null) niveaux.push(`🥇 TP1 : ${signal.tp1_price}`);
+  if (signal.tp2_price != null) niveaux.push(`🥈 TP2 : ${signal.tp2_price}`);
+  if (signal.tp3_price != null) niveaux.push(`🥉 TP3 : ${signal.tp3_price}`);
+
+  const cause =
+    signal.close_reason === "tp_hit"
+      ? "Objectif atteint."
+      : signal.close_reason === "sl_hit"
+        ? "Stop loss touché. La perte était bornée à l'avance — c'est à ça que sert un stop."
+        : `Clôturé à l'échéance, ${holdDurationDays(signal)} jours après l'ouverture, sans avoir touché ni l'objectif ni le stop.`;
+
   return [
-    `📉 *Signal clôturé*`,
-    base,
-    "La gestion du risque fait partie de la stratégie : chaque signal a un stop loss défini à l'avance.",
+    titre,
+    `${typeLabel(signal.type)} *${signal.pair}* — sortie à ${signal.outcome_price} (*${pctLabel(pct)}*)`,
+    "",
+    "_Les niveaux tels qu'ils avaient été envoyés aux abonnés :_",
+    ...niveaux,
+    "",
+    cause,
+    "",
+    "📊 Chaque signal est republié ici à sa clôture, gagnant ou perdant, avec ses niveaux d'origine. " +
+      "Rien n'est retiré après coup.",
+    "",
+    `🎁 Pour les recevoir au moment où ils partent : @${escapedUsername} — essai gratuit de 3 jours.`,
   ].join("\n");
 }
 

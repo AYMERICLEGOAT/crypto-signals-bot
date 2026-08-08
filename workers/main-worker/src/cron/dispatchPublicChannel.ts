@@ -12,8 +12,11 @@
 import { Env, dbConfig } from "../env";
 import { getSignalsDueForPublicChannel, markSentToChannel, SignalRecord } from "../db/signals";
 import { sendMessage, sendPhoto } from "../telegram";
-import { buildSignalMessage, buildCarryShortMessage, buildCarryDetailKeyboard } from "../signalFormat";
+import { buildSignalMessage, buildCarryShortMessage, buildCarryDetailKeyboard, buildPublicTeaserMessage } from "../signalFormat";
+import { getHeartbeat } from "../db/systemHeartbeats";
+import { upsertRow } from "../supabaseRest";
 import { isQuietHours } from "../utils/quietHours";
+import { peutPublier, enregistrerEnvoi } from "../channelBudget";
 
 const CHANNEL_DELAY_MINUTES = 30;
 
@@ -33,6 +36,29 @@ function formatDelayNote(signal: SignalRecord): string {
   return minutes < 90
     ? `signal différé de ${minutes} min`
     : `signal différé de ${Math.round(minutes / 60)} h (détecté cette nuit, publié à la réouverture du canal)`;
+}
+
+/**
+ * UN signal complet par semaine sur le canal gratuit, niveaux compris.
+ *
+ * Sans lui, le canal public ne montrerait que des annonces sans niveaux et des
+ * résultats passés. Un visiteur méfiant — et il a raison de l'être dans ce
+ * secteur — peut soupçonner un relevé arrangé après coup. Un signal entier,
+ * publié AVANT de connaître son issue, est la seule chose qui lève ce doute :
+ * il est vérifiable en direct par n'importe qui.
+ *
+ * Un par semaine, pas plus : c'est assez pour prouver le mécanisme, trop peu
+ * pour remplacer l'abonnement. Le premier signal de la semaine est choisi, pas
+ * le meilleur — choisir le meilleur serait précisément le biais de sélection
+ * qu'on prétend écarter.
+ */
+const JOB_ECHANTILLON = "signal_complet_public";
+
+async function echantillonHebdoDu(db: ReturnType<typeof dbConfig>): Promise<boolean> {
+  const dernier = await getHeartbeat(db, JOB_ECHANTILLON).catch(() => null);
+  if (!dernier) return true;
+  const jours = (Date.now() - new Date(dernier.last_run_at).getTime()) / 86_400_000;
+  return jours >= 7;
 }
 
 function formatPublicChannelMessage(signal: SignalRecord, botUsername: string): string {
@@ -67,14 +93,43 @@ export async function dispatchPublicChannel(env: Env): Promise<void> {
   const directionnels = due.filter((s) => s.type !== "CARRY");
 
   for (const signal of directionnels) {
-    const text = formatPublicChannelMessage(signal, env.TELEGRAM_BOT_USERNAME);
+    // Un signal n'est jamais retenu par le plafond quotidien (voir
+    // channelBudget.ts) — mais il RESPECTE l'espacement, qui étale les rafales
+    // sans en perdre aucune. Un signal reporté de vingt minutes reste jouable :
+    // sa sortie est à trois jours au plus court.
+    const verdict = await peutPublier(db, "public", "signal");
+    if (!verdict.autorise) break;
+
+    // Un seul signal complet par semaine (voir echantillonHebdoDu). Les autres
+    // partent en annonce sans niveaux : c'est ce qui distingue le canal gratuit
+    // de l'abonnement, et le relevé public reste entier puisque tout est
+    // republié à la clôture.
+    const complet = await echantillonHebdoDu(db);
+    const text = complet
+      ? `🎁 *Signal offert de la semaine — le format complet*\n\n${formatPublicChannelMessage(signal, env.TELEGRAM_BOT_USERNAME)}`
+      : buildPublicTeaserMessage(signal, {
+          botUsername: env.TELEGRAM_BOT_USERNAME,
+          delayNote: formatDelayNote(signal),
+        });
+
     try {
-      if (signal.chart_url) {
+      // Le graphique n'accompagne QUE le signal complet : sur une annonce sans
+      // niveaux, il donnerait à lire ce que le texte vient de réserver.
+      if (complet && signal.chart_url) {
         await sendPhoto(env.TELEGRAM_BOT_TOKEN, channelId, signal.chart_url, { caption: text, markdown: true });
       } else {
         await sendMessage(env.TELEGRAM_BOT_TOKEN, channelId, text, { markdown: true });
       }
       await markSentToChannel(db, signal.id);
+      await enregistrerEnvoi(db, "public", "signal", `signal:${signal.id}`);
+      if (complet) {
+        await upsertRow(
+          db,
+          "system_heartbeats",
+          { job_name: JOB_ECHANTILLON, last_run_at: new Date().toISOString() },
+          "job_name"
+        ).catch((err) => console.error("[public-channel] Marquage de l'échantillon hebdo impossible :", err));
+      }
     } catch (err) {
       console.error(`[public-channel] Échec de diffusion pour le signal #${signal.id}:`, err);
     }
@@ -85,6 +140,9 @@ export async function dispatchPublicChannel(env: Env): Promise<void> {
     // longue reste celle des abonnés (dispatchSignals) et de /carry — dans un
     // canal, le bloc pédagogique de 1 200 caractères répété à chaque lot se
     // lisait comme du spam, et c'en était.
+    const verdictCarry = await peutPublier(db, "public", "signal");
+    if (!verdictCarry.autorise) return;
+
     const text = buildCarryShortMessage(carrys, { delayNote: formatDelayNote(carrys[0]) });
     try {
       await sendMessage(env.TELEGRAM_BOT_TOKEN, channelId, text, {
@@ -97,6 +155,7 @@ export async function dispatchPublicChannel(env: Env): Promise<void> {
       for (const signal of carrys) {
         await markSentToChannel(db, signal.id);
       }
+      await enregistrerEnvoi(db, "public", "signal", `carrys:${carrys.length}`);
     } catch (err) {
       console.error(`[public-channel] Échec de diffusion du lot de ${carrys.length} carry(s):`, err);
     }

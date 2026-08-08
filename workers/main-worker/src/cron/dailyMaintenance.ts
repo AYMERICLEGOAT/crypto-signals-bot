@@ -9,9 +9,13 @@ import { Env, dbConfig } from "../env";
 import { hasComputedStatsToday, computeAndStoreDailyStats } from "../db/dailyStats";
 import { purgeOldSentMomentumAlerts } from "../db/momentumAlerts";
 import { expireStalePendingPayments } from "../db/payments";
+import { purgerJournal } from "../channelBudget";
 
 const MOMENTUM_ALERT_RETENTION_DAYS = 30;
 const PENDING_PAYMENT_STALE_DAYS = 7;
+// Le journal de diffusion ne sert qu'aux décisions du jour et au diagnostic
+// récent (voir channelBudget.ts) : trente jours suffisent largement.
+const CHANNEL_POSTS_RETENTION_DAYS = 30;
 
 export async function runDailyMaintenance(env: Env): Promise<void> {
   const db = dbConfig(env);
@@ -20,4 +24,5 @@ export async function runDailyMaintenance(env: Env): Promise<void> {
   await computeAndStoreDailyStats(db);
   await purgeOldSentMomentumAlerts(db, MOMENTUM_ALERT_RETENTION_DAYS);
   await expireStalePendingPayments(db, PENDING_PAYMENT_STALE_DAYS);
+  await purgerJournal(db, CHANNEL_POSTS_RETENTION_DAYS);
 }

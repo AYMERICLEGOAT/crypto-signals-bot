@@ -1,4 +1,5 @@
 import { Env, dbConfig } from "../env";
+import { peutPublier, enregistrerEnvoi } from "../channelBudget";
 import { sendMessage } from "../telegram";
 import { getNextEducationalPost, markEducationalPostSent, hasSentEducationalPostToday } from "../db/educationalPosts";
 import { isQuietHours } from "../utils/quietHours";
@@ -44,6 +45,13 @@ export async function dispatchEducationalPost(env: Env): Promise<void> {
   if (!post) return;
 
   const cta = env.TELEGRAM_BOT_USERNAME ? `\n\n@${env.TELEGRAM_BOT_USERNAME} pour des signaux en temps réel` : "";
+  // Le régulateur décide si le canal peut parler maintenant (voir
+  // channelBudget.ts). Sa garde quotidienne ci-dessus dit « une fois par jour
+  // au plus » ; celle-ci dit « pas dans la minute qui suit un autre message ».
+  const verdict = await peutPublier(db, "public", "editorial");
+  if (!verdict.autorise) return;
+
   await sendMessage(env.TELEGRAM_BOT_TOKEN, Number(env.TELEGRAM_CHANNEL_ID), post.content + cta);
+  await enregistrerEnvoi(db, "public", "editorial", "pedagogie");
   await markEducationalPostSent(db, post.id);
 }

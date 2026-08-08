@@ -1098,3 +1098,46 @@ alter table signals add column if not exists hold_until timestamptz;
 
 create index if not exists idx_signals_carry_open
   on signals (hold_until) where outcome is null;
+
+-- ---------------------------------------------------------------------------
+-- Section 47 — Le journal de diffusion, et le budget de messages qui en découle
+-- ---------------------------------------------------------------------------
+--
+-- LE PROBLÈME MESURÉ. Vingt-sept tâches planifiées écrivent dans les canaux, et
+-- chacune ne connaît qu'elle-même. Chacune a bien sa propre garde « déjà envoyé
+-- aujourd'hui », mais rien n'empêche six d'entre elles de se déclencher dans la
+-- MÊME minute : le cron */15 les exécute à la suite dans une seule invocation.
+-- D'où les rafales de quatre messages d'un coup.
+--
+-- Le compte du pire jour réaliste sur le canal public, avant ce correctif :
+-- 1 liste du jour + 5 signaux + 1 lot de carrys + 5 clôtures + 1 anecdote +
+-- 1 post pédagogique + 1 Fear and Greed + 1 digest + 8 rappels de canal
+-- (toutes les 3 h) + les suspensions de volatilité, non bornées. Soit plus de
+-- vingt-cinq messages par jour, dont l'immense majorité n'apprend rien.
+--
+-- Un canal qui publie vingt-cinq fois par jour n'est pas un canal très actif :
+-- c'est un canal qu'on met en sourdine, et une mise en sourdine ne se défait
+-- jamais.
+--
+-- CE QUE CETTE TABLE PERMET. Un journal unique de tout ce qui part, par canal.
+-- Il rend possibles trois règles qu'aucune tâche ne pouvait appliquer seule :
+-- un plafond quotidien par canal, un espacement minimal entre deux messages, et
+-- une priorité — un signal passe toujours avant une anecdote.
+--
+-- `categorie` sert au diagnostic et aux quotas par famille ; `priorite` décide
+-- qui passe quand la place manque (plus le nombre est petit, plus c'est
+-- prioritaire).
+create table if not exists channel_posts (
+  id bigserial primary key,
+  canal text not null,                     -- 'public' | 'vip'
+  categorie text not null,                 -- 'signal' | 'resultat' | 'quotidien' | 'editorial'
+  priorite smallint not null default 50,
+  reference text,                          -- identifiant libre (ex: 'signal:42'), pour tracer
+  sent_at timestamptz not null default now()
+);
+
+create index if not exists idx_channel_posts_canal_date on channel_posts (canal, sent_at desc);
+
+-- Purge : ce journal ne sert qu'aux décisions du jour et au diagnostic récent.
+-- Sans nettoyage il grossirait indéfiniment pour rien (voir
+-- cron/dailyMaintenance.ts, qui supprime les lignes de plus de 30 jours).
