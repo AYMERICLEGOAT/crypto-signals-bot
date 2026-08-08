@@ -31,6 +31,7 @@ import { dispatchVipBriefing } from "./cron/dispatchVipBriefing";
 import { dispatchSelectivityDigest } from "./cron/dispatchSelectivityDigest";
 import { monthlyRecap } from "./cron/monthlyRecap";
 import { rotateVipInviteLinkIfDue } from "./bot/vipChannel";
+import { revokeExpiredVip } from "./cron/revokeExpiredVip";
 import { pingSupabase } from "./supabaseRest";
 import { dbConfig } from "./env";
 import { timingSafeEqual } from "./utils/timingSafeEqual";
@@ -146,6 +147,7 @@ export default {
           await dispatchSelectivityDigest(env).catch((err) => console.error("[cron] Erreur dispatchSelectivityDigest:", err));
           await monthlyRecap(env).catch((err) => console.error("[cron] Erreur monthlyRecap:", err));
           await rotateVipInviteLinkIfDue(env).catch((err) => console.error("[cron] Erreur rotateVipInviteLinkIfDue:", err));
+          await revokeExpiredVip(env).catch((err) => console.error("[cron] Erreur revokeExpiredVip:", err));
         })()
       );
     }

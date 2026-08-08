@@ -115,6 +115,25 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
       await handleReviewCommand(env, chatId);
     } else if (text && !text.startsWith("/")) {
       await handleTextMessage(env, chatId, text);
+    } else if (text.startsWith("/")) {
+      // UNE COMMANDE INCONNUE NE DOIT JAMAIS ÊTRE ACCUEILLIE PAR LE SILENCE.
+      //
+      // Une faute de frappe ne déclenchait aucune réponse, et rien ne distingue
+      // alors une erreur de saisie d'un bot en panne. Quelqu'un qui tape
+      // /suscribe au lieu de /subscribe repart en pensant que le service ne
+      // fonctionne pas — au moment précis où il essayait de payer.
+      //
+      // Les trois commandes proposées sont celles qui servent le plus souvent,
+      // et les seules qui ne demandent rien.
+      await sendMessage(
+        env.TELEGRAM_BOT_TOKEN,
+        chatId,
+        `Je ne connais pas la commande ${text.split(/\s+/)[0]}.\n\n` +
+          "Les plus utiles :\n" +
+          "/help — toutes les commandes\n" +
+          "/marche — l'état du marché en direct\n" +
+          "/demo — un vrai signal, en entier"
+      );
     }
     return;
   }

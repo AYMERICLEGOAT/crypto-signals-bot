@@ -142,6 +142,36 @@ export async function getChatMemberStatus(token: string, chatId: string | number
   return json.ok ? json.result?.status ?? null : null;
 }
 
+/**
+ * Retire quelqu'un d'un canal, sans le bannir durablement.
+ *
+ * Telegram n'a pas d'« expulser » : la seule façon de faire sortir un membre
+ * est `banChatMember`, qui l'empêche AUSSI de revenir. On le débannit donc
+ * immédiatement après (`only_if_banned`), ce qui laisse la porte ouverte à un
+ * futur réabonnement. Sans ce second appel, un ancien abonné qui repaie ne
+ * pourrait plus jamais rentrer, et personne ne comprendrait pourquoi.
+ *
+ * Rend true si la personne a bien été retirée. Un échec n'est jamais fatal pour
+ * l'appelant : Telegram refuse notamment de retirer un administrateur, et un
+ * membre déjà parti renvoie une erreur qu'il faut simplement ignorer.
+ */
+export async function removeChatMember(token: string, chatId: string | number, userId: number): Promise<boolean> {
+  try {
+    await callTelegramApi(token, "banChatMember", { chat_id: chatId, user_id: userId });
+  } catch (err) {
+    console.error(`[telegram] Retrait impossible de ${userId} du canal ${chatId}:`, err);
+    return false;
+  }
+  // Le débannissement est volontairement silencieux : s'il échoue, la personne
+  // est sortie (l'essentiel) et pourra être débannie à la main si elle repaie.
+  await callTelegramApi(token, "unbanChatMember", {
+    chat_id: chatId,
+    user_id: userId,
+    only_if_banned: true,
+  }).catch((err) => console.error(`[telegram] Débannissement de ${userId} impossible:`, err));
+  return true;
+}
+
 /** Canal VIP (abonnés payants) : le bot doit être admin du chat avec le droit "inviter des utilisateurs". */
 export async function createChatInviteLink(token: string, chatId: string | number, name?: string): Promise<string> {
   const res = await fetch(`${API_BASE}${token}/createChatInviteLink`, {

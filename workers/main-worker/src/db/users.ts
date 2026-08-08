@@ -1,6 +1,8 @@
 import { SupabaseConfig, selectOne, selectRows, insertRow, updateRows, deleteRows } from "../supabaseRest";
 
 export interface UserRecord {
+  /** Déjà retiré du canal VIP après expiration (voir cron/revokeExpiredVip.ts). */
+  vip_removed?: boolean;
   /** Offre de prolongation de /cancel : une seule fois par compte, jamais deux. */
   retention_offer_used?: boolean;
   telegram_id: number;
@@ -147,6 +149,10 @@ export async function activateSubscription(
     // annulation précédente (Bloc 7 — /cancel) : la personne est clairement
     // revenue, les relances futures doivent reprendre normalement.
     cancelled: false,
+    // Remis à false pour que le retrait du canal VIP puisse se rejouer à la fin
+    // de la NOUVELLE période (voir cron/revokeExpiredVip.ts). Sans cette
+    // remise à zéro, un abonné retiré une fois ne le serait plus jamais.
+    vip_removed: false,
   };
 
   if (plan > 0) {
