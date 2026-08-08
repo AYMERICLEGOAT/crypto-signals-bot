@@ -130,10 +130,10 @@ describe("buildPlanKeyboard", () => {
   });
 });
 
-describe("Effet Sniper — dispatchSignals (vitesse Pro/essai)", () => {
+describe("dispatchSignals — tous les abonnés actifs, en même temps", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("n'envoie qu'aux abonnés Pro et essai gratuit, jamais à Standard/Découverte, et trace les livraisons (Bloc 4)", async () => {
+  it("envoie à TOUS les abonnés actifs, quel que soit leur palier, et trace les livraisons", async () => {
     const notified: number[] = [];
     let recordedDeliveries: any[] | null = null;
     vi.stubGlobal(
@@ -167,14 +167,20 @@ describe("Effet Sniper — dispatchSignals (vitesse Pro/essai)", () => {
     );
 
     await dispatchSignals(env);
-    expect(notified.sort()).toEqual([1, 2]);
+    // Le filtre ne gardait que le palier le plus cher et l'essai : les autres
+    // attendaient quinze minutes. Quinze minutes ne valent rien sur une
+    // position tenue trois à vingt-et-un jours, et les paliers vendent
+    // désormais de la durée, pas de la vitesse.
+    expect(notified.sort()).toEqual([1, 2, 3, 4]);
     expect(recordedDeliveries).toEqual(
       expect.arrayContaining([
         { signal_id: 1, telegram_id: 1, tier: "pro" },
         { signal_id: 1, telegram_id: 2, tier: "pro" },
       ])
     );
-    expect(recordedDeliveries).toHaveLength(2);
+    // Quatre abonnés actifs, quatre livraisons tracées : plus aucun palier
+    // n'attend son tour.
+    expect(recordedDeliveries).toHaveLength(4);
   });
 });
 

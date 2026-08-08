@@ -86,8 +86,16 @@ PROFILS = {
     # étaient la même chose, exactement l'incomparabilité que ce module existe
     # pour supprimer.
     #
-    # L'espérance de la force relative passe donc de 3,22 % à 2,275 % : ce n'est
-    # pas une dégradation du moteur, c'est la fin d'une comparaison faussée.
+    # L'espérance de la force relative passe de 3,22 % à 2,275 %, et ce n'est pas
+    # une dégradation du moteur : c'est la fin d'une comparaison faussée.
+    #
+    # À noter, parce que l'écart est troublant et qu'il a été vérifié : le
+    # +3,22 % publié partout ne se REPRODUIT PAS sur les 40 paires réellement
+    # suivies. Le module canonique du projet (backtest_rsi_production) y donne
+    # +2,831 % et 48,3 % de réussite. Les textes publics ont été corrigés en
+    # conséquence. La valeur retenue ici (2,275 %) reste celle du protocole
+    # commun aux trois moteurs directionnels, qui est le seul à permettre de les
+    # CLASSER entre eux — c'est l'unique usage de ce dictionnaire.
     "relative_strength": {"esperance_pct": 2.275, "jours": 7, "reussite_pct": 47.3},
     # backtest_deux_familles : mesurées seules, filtre actif, p = 0,000 contre
     # un témoin aléatoire de même densité.

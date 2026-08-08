@@ -25,7 +25,9 @@ function planLabel(plan: number): string {
  */
 export async function handleAdminActivateCommand(env: Env, adminTelegramId: number, rawArgs: string): Promise<void> {
   if (!isAdmin(env, adminTelegramId)) {
-    await sendMessage(env.TELEGRAM_BOT_TOKEN, adminTelegramId, "Commande réservée à l'administrateur.");
+    await sendMessage(env.TELEGRAM_BOT_TOKEN, adminTelegramId, "Cette commande est réservée à l'administrateur.\n\n" +
+        "Pour ce que tu cherches, c'est probablement /help (toutes les commandes), " +
+        "/status (ton abonnement) ou /subscribe (les offres).");
     return;
   }
 

@@ -41,6 +41,9 @@ TELEGRAM_URL = f"https://t.me/{TELEGRAM_BOT_USERNAME}"
 #
 # Les chiffres qui décrivaient l'ancien moteur à famille unique (8,0 signaux par
 # semaine, 47,7 % de réussite, +3,22 % d'espérance, +83,3 % par an) ont tous été
+# retirés. Le +3,22 % lui-même ne se reproduit d'ailleurs PAS sur les 40 paires
+# réellement suivies : le module canonique y donne +2,83 % et 48,3 % de réussite,
+# et ce sont ces valeurs qui sont publiées depuis le 08/08/2026.
 # retirés : ils ne décrivent plus ce que fait le moteur. Ceux qui les remplacent
 # proviennent de la mesure sur 6 ans du portefeuille des moteurs retenus —
 # aucun n'est arrondi à l'avantage.
@@ -404,7 +407,7 @@ _STRINGS = {
         "backtest_tiles": (
             ("8.0", "signals per week while the filter is open"),
             ("47.7%", "winning signals"),
-            ("+3.22%", "expectancy per signal, net of fees"),
+            ("+2.83%", "expectancy per signal, net of fees"),
             ("+16.88%", "average winner, versus -9.24% for a loser"),
         ),
         "backtest_filter_heading": "Why the channel sometimes goes quiet for months",

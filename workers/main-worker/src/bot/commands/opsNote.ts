@@ -11,7 +11,9 @@ import { recordAdminNote } from "../../db/adminNotes";
  */
 export async function handleOpsNoteCommand(env: Env, telegramId: number, note: string): Promise<void> {
   if (!env.ADMIN_TELEGRAM_ID || String(telegramId) !== env.ADMIN_TELEGRAM_ID) {
-    await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, "Commande réservée à l'administrateur.");
+    await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, "Cette commande est réservée à l'administrateur.\n\n" +
+        "Pour ce que tu cherches, c'est probablement /help (toutes les commandes), " +
+        "/status (ton abonnement) ou /subscribe (les offres).");
     return;
   }
 

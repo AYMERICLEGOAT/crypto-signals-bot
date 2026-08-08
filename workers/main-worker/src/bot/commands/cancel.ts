@@ -2,6 +2,7 @@ import { Env, dbConfig } from "../../env";
 import { sendMessage, InlineKeyboard } from "../../telegram";
 import { getOrCreateUser, markUserCancelled, isSubscriptionActive, activateSubscription } from "../../db/users";
 import { updateRows } from "../../supabaseRest";
+import { exitSurveyKeyboard } from "../keyboards";
 import { addDays } from "../../utils/date";
 
 /**
@@ -84,10 +85,23 @@ export async function handleCancelCommand(env: Env, telegramId: number, rawArgs:
   }
 
   await markUserCancelled(db, telegramId);
+  // L'enquête de départ est POSÉE ICI, et c'est le seul endroit où elle a du
+  // sens. Le clavier existait depuis des mois (bot/keyboards.ts) mais n'était
+  // attaché à aucun message : personne n'a jamais pu y répondre, et /stats
+  // affichait « aucune réponse » sans que ce soit un signal.
+  //
+  // Une seule question, facultative, dans le message qu'on envoie de toute
+  // façon. Aucun envoi supplémentaire : la personne vient de demander le
+  // silence, le lui demander une fois est un dû, deux fois serait exactement ce
+  // qu'elle a refusé.
   await sendMessage(
     env.TELEGRAM_BOT_TOKEN,
     telegramId,
-    "✅ C'est noté : plus aucune relance ni offre ne te sera envoyée. Ton accès déjà payé reste valable jusqu'à son expiration."
+    "✅ C'est noté : plus aucune relance ni offre ne te sera envoyée. Ton accès déjà payé reste valable " +
+      "jusqu'à son expiration.\n\n" +
+      "Si tu veux bien, une seule question — elle sert vraiment à améliorer le produit, et tu peux " +
+      "l'ignorer :",
+    { keyboard: exitSurveyKeyboard }
   );
 }
 

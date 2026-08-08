@@ -20,11 +20,19 @@ export async function dispatchSignals(env: Env): Promise<void> {
   const unsent = await getUnsentSignals(db);
   if (unsent.length === 0) return;
 
-  // Effet Sniper (Bloc 2.2) : Pro (et essai gratuit, déjà instantané avant ce
-  // bloc) reçoivent les signaux en premier ; Standard/Découverte suivent 15
-  // minutes plus tard via cron/dispatchStandardTier.ts.
+  // TOUS LES ABONNÉS ACTIFS, sans distinction de palier (08/08/2026).
+  //
+  // Ce filtre ne gardait que le plan Pro et l'essai gratuit : les paliers
+  // Mensuel et Découverte devaient attendre dispatchStandardTier, quinze
+  // minutes plus tard. C'était « l'Effet Sniper », censé donner de la valeur au
+  // palier le plus cher — mais quinze minutes ne valent rien sur une position
+  // qui se ferme au bout de trois à vingt-et-un jours, et les paliers vendent
+  // désormais de la DURÉE (voir payments/plans.ts).
+  //
+  // dispatchStandardTier reste en place comme filet de rattrapage : il envoie à
+  // qui n'a pas encore reçu, quelle qu'en soit la raison.
   const activeUsers = await getActiveUsers(db);
-  const activeIds = activeUsers.filter((u) => u.plan === PRO_PLAN || u.plan === TRIAL_PLAN).map((u) => u.telegram_id);
+  const activeIds = activeUsers.map((u) => u.telegram_id);
 
   // UX — trailing stop (préférence /prefs, opt-in) : calculé une fois pour
   // tout le lot plutôt que par signal, le sous-ensemble d'abonnés concerné

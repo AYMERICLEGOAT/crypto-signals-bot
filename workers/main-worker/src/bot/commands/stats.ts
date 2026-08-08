@@ -14,7 +14,9 @@ const EXIT_SURVEY_LABELS = {
 /** /stats — réservé à ADMIN_TELEGRAM_ID. Aucun chiffre inventé : "n/a" si une donnée n'existe pas encore. */
 export async function handleStatsCommand(env: Env, telegramId: number): Promise<void> {
   if (!env.ADMIN_TELEGRAM_ID || String(telegramId) !== env.ADMIN_TELEGRAM_ID) {
-    await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, "Commande réservée à l'administrateur.");
+    await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, "Cette commande est réservée à l'administrateur.\n\n" +
+        "Pour ce que tu cherches, c'est probablement /help (toutes les commandes), " +
+        "/status (ton abonnement) ou /subscribe (les offres).");
     return;
   }
 
