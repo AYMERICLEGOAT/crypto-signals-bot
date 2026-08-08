@@ -5,48 +5,98 @@ function jsonResponse(body: unknown) {
   return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
 }
 
-const env = { TELEGRAM_BOT_TOKEN: "fake-token", SUPABASE_URL: "https://fake-supabase.test", SUPABASE_KEY: "k" } as any;
+const env = {
+  TELEGRAM_BOT_TOKEN: "fake-token",
+  SUPABASE_URL: "https://fake-supabase.test",
+  SUPABASE_KEY: "k",
+} as any;
 
-describe("handleGuideCommand (Bloc 21)", () => {
+function stub(signalRecent: unknown[] = []) {
+  const messages: { text: string; keyboard?: unknown }[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("api.telegram.org")) {
+        const b = JSON.parse(init!.body as string);
+        messages.push({ text: b.text, keyboard: b.reply_markup });
+        return jsonResponse({ ok: true, result: {} });
+      }
+      return jsonResponse(signalRecent);
+    })
+  );
+  return messages;
+}
+
+describe("/guide", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("utilise le dernier signal réel comme exemple concret quand il existe", async () => {
-    let sentText = "";
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string, init?: RequestInit) => {
-        if (url.includes("/signals") && url.includes("order=created_at.desc")) {
-          return jsonResponse([{ id: 9, pair: "ETH/USDT", type: "SELL", entry_price: 3000, stop_loss: 3060, take_profit: 2880, created_at: "2026-01-01T00:00:00Z" }]);
-        }
-        if (url.includes("api.telegram.org")) {
-          sentText = JSON.parse(init!.body as string).text;
-          return jsonResponse({ ok: true, result: {} });
-        }
-        throw new Error(`URL inattendue: ${url}`);
-      })
-    );
-
+  it("ne dit JAMAIS de placer un take profit pour sécuriser le gain", async () => {
+    // C'est l'instruction qui figurait à l'étape 5 et qui contredisait toute
+    // la stratégie : la sortie est temporelle, et couper au jalon conserve
+    // les perdants en se privant des seuls gagnants qui paient.
+    const messages = stub();
     await handleGuideCommand(env, 1);
-    expect(sentText).toContain("ETH/USDT");
-    expect(sentText).toContain("3000");
-    expect(sentText).toContain("Pas un conseil financier");
+    const texte = messages.map((m) => m.text).join("\n");
+    expect(texte).not.toMatch(/place un ordre take profit/i);
+    expect(texte).not.toMatch(/sécuriser le gain si l'objectif est atteint/i);
   });
 
-  it("retombe sur un exemple générique si aucun signal réel n'existe encore", async () => {
-    let sentText = "";
+  it("dit explicitement que les jalons ne sont pas des sorties", async () => {
+    const messages = stub();
+    await handleGuideCommand(env, 1);
+    const texte = messages.map((m) => m.text).join("\n");
+    expect(texte).toMatch(/jalons ne sont pas des sorties/i);
+    expect(texte).toMatch(/suivre la progression/i);
+  });
+
+  it("annonce la sortie comme une DATE, pas comme un prix", async () => {
+    const messages = stub();
+    await handleGuideCommand(env, 1);
+    const texte = messages.map((m) => m.text).join("\n");
+    expect(texte).toMatch(/se ferme sur une\s+DATE/i);
+    expect(texte).toContain("7 jours");
+    expect(texte).toContain("3 jours");
+  });
+
+  it("explique le carry, qui n'a ni stop ni take profit", async () => {
+    // Un abonné qui recevait son premier carry avec l'ancien guide en tête
+    // cherchait un stop loss qui n'existe pas.
+    const messages = stub();
+    await handleGuideCommand(env, 1);
+    const texte = messages.map((m) => m.text).join("\n");
+    expect(texte).toMatch(/NI stop loss NI take profit/i);
+    expect(texte).toContain("21 jours");
+  });
+
+  it("tient en trois étapes", async () => {
+    const messages = stub();
+    await handleGuideCommand(env, 1);
+    const texte = messages.map((m) => m.text).join("\n");
+    expect(texte).toContain("3 étapes");
+    expect(texte).not.toMatch(/^\s*[4-9]\.\s/m);
+  });
+
+  it("porte un bouton d'action", async () => {
+    const messages = stub();
+    await handleGuideCommand(env, 1);
+    expect(JSON.stringify(messages[0].keyboard)).toContain("start:demo");
+  });
+
+  it("survit à une base de données injoignable", async () => {
+    // getLatestSignal échoue -> exemple de repli, la commande doit répondre.
+    const messages: { text: string }[] = [];
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
-        if (url.includes("/signals")) return jsonResponse([]);
         if (url.includes("api.telegram.org")) {
-          sentText = JSON.parse(init!.body as string).text;
+          messages.push({ text: JSON.parse(init!.body as string).text });
           return jsonResponse({ ok: true, result: {} });
         }
-        throw new Error(`URL inattendue: ${url}`);
+        throw new Error("supabase injoignable");
       })
     );
-
     await handleGuideCommand(env, 1);
-    expect(sentText).toContain("exemple, aucun signal réel émis");
+    expect(messages.length).toBeGreaterThan(0);
+    expect(messages[0].text).toMatch(/aucun signal réel émis/i);
   });
 });

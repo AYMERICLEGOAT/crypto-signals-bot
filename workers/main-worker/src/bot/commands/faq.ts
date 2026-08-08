@@ -1,6 +1,7 @@
 import { Env } from "../../env";
 import { sendMessage } from "../../telegram";
 import { TREND_FILTER_STATUS } from "./subscribe";
+import { DEBIT, PART_FILTRE_FERME } from "../../publishedStats";
 
 /**
  * /faq — répond aux OBJECTIONS, pas aux questions confortables.
@@ -34,13 +35,23 @@ import { TREND_FILTER_STATUS } from "./subscribe";
  * ce projet à plusieurs reprises. Le gain de mise en forme ne vaut pas le
  * risque d'un message entièrement non délivré.
  *
- * Envoyé en DEUX messages explicites depuis le 03/08/2026 : les quatre
- * questions ajoutées font passer le texte au-dessus des 4096 caractères de
- * Telegram, et le découpage automatique de splitMessage() coupait alors au
- * dernier saut de ligne disponible -- en pratique entre le titre d'une
- * question et sa réponse. Découper nous-mêmes sur une frontière de thème
- * (« pourquoi ça se tait » / « le service ») rend la coupure lisible au lieu
- * de la subir. splitMessage() reste le filet de sécurité si un bloc grossit.
+ * Envoyé en TROIS messages explicites : le texte dépasse les 4096 caractères
+ * de Telegram, et le découpage automatique de splitMessage() coupe au dernier
+ * saut de ligne disponible -- en pratique entre le titre d'une question et sa
+ * réponse. Découper nous-mêmes sur une frontière de thème (« pourquoi ça se
+ * tait » / « l'argent et la confiance » / « l'usage ») rend la coupure lisible
+ * au lieu de la subir. splitMessage() reste le filet de sécurité.
+ *
+ * Le passage de deux à trois parties date du 08/08/2026 : la partie 2 avait
+ * franchi la limite et produisait un fragment orphelin de 173 caractères.
+ *
+ * CORRECTION DU 08/08/2026, la plus importante de ce fichier. La réponse
+ * « Combien de signaux par semaine » affirmait : « Quand il est fermé : zéro,
+ * sans exception. » C'est la croyance exacte qui fait résilier, et elle est
+ * fausse depuis la mise en service du momentum 4H, qui ne travaille QUE dans
+ * ce régime. Le rythme hebdomadaire qui l'accompagnait décrivait en outre le
+ * moteur à famille unique, retiré partout ailleurs mais survivant ici. Les
+ * chiffres viennent désormais de publishedStats.ts.
  */
 export async function handleFaqCommand(env: Env, telegramId: number): Promise<void> {
   const channel = env.TELEGRAM_CHANNEL_URL ?? "notre canal public";
@@ -78,7 +89,7 @@ export async function handleFaqCommand(env: Env, telegramId: number): Promise<vo
     "",
     "▸ Combien de temps ce silence peut-il durer ?",
     "Longtemps, et il vaut mieux le savoir avant de s'abonner qu'après.",
-    "Sur les 6 dernières années, le filtre a été fermé 41 % du temps. Il y a eu",
+    `Sur les 6 dernières années, le filtre a été fermé ${PART_FILTRE_FERME} du temps. Il y a eu`,
     "11 fermetures d'au moins une semaine, dont la médiane est de 25 jours.",
     "Mais la plus longue a duré 381 jours, soit 12,7 mois d'affilée (du",
     "28/12/2021 au 13/01/2023).",
@@ -103,21 +114,26 @@ export async function handleFaqCommand(env: Env, telegramId: number): Promise<vo
     "de tendance, pas du classement. Le classement n'ajoute qu'environ",
     "1,1 point d'espérance par signal.",
     "",
-    "▸ Combien de signaux par semaine quand le marché est favorable ?",
-    "8,0 par semaine en moyenne, mesuré sur 6 ans, pendant les périodes où le",
-    "filtre est ouvert. Quand il est fermé : zéro, sans exception.",
-    "Ce n'est pas un quota, c'est une moyenne constatée : certaines semaines en",
-    "produisent davantage, d'autres moins. Forcer des signaux pour tenir une",
-    "promesse de fréquence est exactement ce que nous refusons de faire.",
+    "▸ Combien de signaux vais-je recevoir ?",
+    `${DEBIT.favorable} par jour quand le filtre est ouvert, ${DEBIT.defavorable} quand il est fermé.`,
+    "Fermé ne veut donc pas dire silence complet : les trois moteurs",
+    "directionnels s'arrêtent, mais le carry de financement continue (il est",
+    "neutre au marché) et le momentum 4 h ne travaille QUE dans ce régime.",
+    "Ce qui change n'est pas le volume, c'est la NATURE de ce que tu reçois —",
+    "et le momentum 4 h est le moteur dont l'avantage est le moins établi du",
+    "projet : positif trois années sur quatre, en recul sur la dernière.",
+    "Ce ne sont pas des quotas mais des moyennes constatées. Forcer des signaux",
+    "pour tenir une promesse de fréquence est exactement ce que nous refusons",
+    "de faire.",
     "",
-    "Suite ci-dessous : l'argent, la confiance, l'usage au quotidien.",
+    "Suite ci-dessous : l'argent et la confiance, puis l'usage au quotidien.",
   ].join("\n");
 
-  // Partie 2 : le service lui-même. Les objections historiques (rentabilité,
-  // arnaque, taux de réussite) restent groupées et dans cet ordre : c'est la
-  // progression logique quand la première partie a déjà été lue.
+  // Partie 2 : la confiance et l'argent. Les objections historiques
+  // (rentabilité, arnaque, taux de réussite) restent groupées et dans cet
+  // ordre : c'est la progression logique quand la première partie a été lue.
   const service = [
-    "❓ QUESTIONS FRÉQUENTES (2/2) — l'argent, la confiance, l'usage",
+    "❓ QUESTIONS FRÉQUENTES (2/3) — l'argent et la confiance",
     "",
     "▸ Est-ce que je vais gagner de l'argent ?",
     "Nous ne le promettons pas, et personne ne devrait vous le promettre.",
@@ -125,8 +141,8 @@ export async function handleFaqCommand(env: Env, telegramId: number): Promise<vo
     "tirée au hasard. Mesuré sur 6 ans, net de frais :",
     "- après 3 mois : médiane 0,0 %, 43 % des entrées gagnantes, pire cas -49,0 %",
     "- après 6 mois : médiane +5,0 %, 53 % des entrées gagnantes, pire cas -61,7 %",
-    "Le backtest du portefeuille complet, lui, affiche +83,3 % par an avec une",
-    "baisse maximale de -62,9 % en cours de route. Ce n'est PAS ce que touche",
+    "Le backtest de la force relative seule, lui, affiche +83,3 % par an avec",
+    "une baisse maximale de -62,9 % en cours de route. Ce n'est PAS ce que touche",
     "un abonné : il suppose d'avoir pris tous les signaux depuis le premier",
     "jour, sans jamais en rater un ni s'arrêter pendant la baisse. Les deux",
     "lignes au-dessus décrivent bien mieux une expérience réelle.",
@@ -162,14 +178,24 @@ export async function handleFaqCommand(env: Env, telegramId: number): Promise<vo
     "Litecoin, Monero) — pas encore de carte bancaire, autant le dire avant.",
     "Aucun prélèvement automatique : ça s'arrête tout seul à échéance.",
     "",
+    "Suite ci-dessous : l'usage au quotidien.",
+  ].join("\n");
+
+  // Partie 3 : l'usage concret, une fois la décision prise.
+  const usage = [
+    "❓ QUESTIONS FRÉQUENTES (3/3) — l'usage au quotidien",
+    "",
     "▸ Faut-il de l'expérience ?",
-    "Pas pour lire un signal : chacun indique entrée, stop loss et objectifs.",
+    "Pas pour lire un signal : un signal directionnel indique entrée, stop loss",
+    "et jalons ; un carry indique ses deux jambes et sa date de clôture.",
     "Mais oui pour l'utiliser correctement — savoir calculer sa taille de",
     "position à partir de son stop est indispensable. /guide explique la",
     "marche à suivre pas à pas.",
     "",
     "▸ Que se passe-t-il après l'ouverture d'un signal ?",
-    "La position est tenue 7 jours, puis clôturée. La sortie est TEMPORELLE :",
+    "La position est tenue puis clôturée à une DATE : 7 jours pour la force",
+    "relative, la cassure de canal et l'expansion de volatilité, 3 jours pour",
+    "le momentum 4 h, 21 jours pour un carry. La sortie est TEMPORELLE :",
     "c'est la date qui ferme le trade, pas un objectif de prix. Les paliers",
     "annoncés (4, 8 et 12 fois l'ATR) jalonnent la progression pour toi, ils ne",
     "déclenchent pas la clôture.",
@@ -196,4 +222,5 @@ export async function handleFaqCommand(env: Env, telegramId: number): Promise<vo
 
   await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, silence);
   await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, service);
+  await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, usage);
 }

@@ -25,7 +25,11 @@ const SOURCES = import.meta.glob("../src/**/*.ts", { query: "?raw", import: "def
 describe("Les chiffres périmés ne doivent pas revenir dans les textes", () => {
   // Mesurés à DEUX moteurs (force relative + carry), publiés alors que cinq
   // émettaient. Voir publishedStats.ts pour le détail.
-  const PERIMES = ["4,35", "2,99 signaux", "1,15 signal par jour"];
+  // Les trois premiers datent de l'époque à deux moteurs. Le quatrième est
+  // plus ancien encore — il décrivait le moteur à famille UNIQUE, et il avait
+  // été « retiré partout » selon un commentaire du site : il survivait en
+  // réalité dans /faq et dans un message diffusé au canal public.
+  const PERIMES = ["4,35", "2,99 signaux", "1,15 signal par jour", "8,0 signaux par semaine", "8,0 par semaine"];
 
   it("le scan couvre réellement les sources", () => {
     // Sans ce garde-fou, un glob qui ne correspond à rien rendrait le test

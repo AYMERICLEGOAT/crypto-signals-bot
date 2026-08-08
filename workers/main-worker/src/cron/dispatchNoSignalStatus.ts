@@ -43,6 +43,7 @@ import { hasPostedNoSignalStatusToday, recordNoSignalStatusPost } from "../db/no
 import { hasRecentSignal } from "../db/signals";
 import { getTrendFilterState } from "../market/trendFilter";
 import { sendMessage } from "../telegram";
+import { DEBIT } from "../publishedStats";
 import { isQuietHours } from "../utils/quietHours";
 
 // Doit rester aligné sur signals/config.py::PAIRS. Le texte annonçait
@@ -85,9 +86,9 @@ const CLOSED_VARIANTS: ((ctx: ClosedContext) => string)[] = [
       "📉 *Pourquoi le canal n'émet rien en ce moment*",
       "",
       `Le Bitcoin clôture ${pct(ctx.gapBelow)} % sous sa moyenne mobile 200 jours.`,
-      "Tant que c'est le cas, la force relative n'émet aucun achat. Aucune exception, aucun signal « quand même ».",
+      "Tant que c'est le cas, les trois moteurs directionnels n'émettent aucun achat. Aucune exception, aucun signal « quand même ».",
       "",
-      "Deux moteurs continuent pourtant de travailler dans ce régime : le carry de financement, neutre au marché, et le momentum 4H. Si tu ne vois rien aujourd'hui, c'est qu'elles non plus n'ont rien trouvé qui vaille la peine.",
+      "Deux moteurs continuent pourtant de travailler dans ce régime : le carry de financement, neutre au marché, et le momentum 4H. Si tu ne vois rien aujourd'hui, c'est qu'eux non plus n'ont rien trouvé qui vaille la peine.",
       "",
       "Ce filtre est fermé 41 % du temps. Ce n'est pas une panne : c'est la règle qui tourne.",
     ].join("\n"),
@@ -141,7 +142,7 @@ const CLOSED_VARIANTS: ((ctx: ClosedContext) => string)[] = [
     [
       "📊 *À quoi ressemble une période d'ouverture*",
       "",
-      "Quand le filtre est ouvert, le rythme mesuré est de 8,0 signaux par semaine.",
+      `Quand le filtre est ouvert, le rythme mesuré est de ${DEBIT.favorable} signaux par jour.`,
       "Taux de réussite 48,3 %, espérance +2,83 % par signal net de frais.",
       "Gagnant moyen +16,88 %, perdant moyen -9,24 %.",
       "",

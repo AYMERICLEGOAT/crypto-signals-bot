@@ -17,12 +17,65 @@ describe("/faq — traitement des objections (audit du 01/08/2026)", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("répond franchement sur la rentabilité au lieu de l'éluder", async () => {
-    let sent = "";
+    // Les messages sont ACCUMULÉS, pas écrasés. Écraser ne conservait que le
+    // dernier envoi : le jour où la FAQ est passée de deux parties à trois,
+    // le test s'est mis à ne relire qu'un fragment et a échoué sur du contenu
+    // pourtant bien présent.
+    const envoyes: string[] = [];
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
         if (url.includes("api.telegram.org")) {
-          sent = JSON.parse(init!.body as string).text;
+          envoyes.push(JSON.parse(init!.body as string).text);
+          return jsonResponse({ ok: true, result: {} });
+        }
+        throw new Error(`URL inattendue: ${url}`);
+      })
+    );
+
+    await handleFaqCommand(env, 1);
+    const sent = envoyes.join("\n");
+
+    expect(sent).toContain("Nous ne le promettons pas");
+    expect(sent).toContain("n'a pas démontré");
+    // L'objection "arnaque" est traitée de front, pas contournée.
+    expect(sent).toContain("arnaque");
+    // Le piège du taux de réussite est expliqué chiffres à l'appui.
+    expect(sent).toContain("70% de réussite");
+  });
+
+  it("ne dit plus que le filtre fermé signifie zéro signal", async () => {
+    // C'était la croyance qui fait résilier, et elle est fausse depuis le
+    // momentum 4H — qui ne travaille QUE dans ce régime.
+    const envoyes: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("api.telegram.org")) {
+          envoyes.push(JSON.parse(init!.body as string).text);
+          return jsonResponse({ ok: true, result: {} });
+        }
+        throw new Error(`URL inattendue: ${url}`);
+      })
+    );
+
+    await handleFaqCommand(env, 1);
+    const sent = envoyes.join("\n");
+
+    expect(sent).not.toMatch(/zéro, sans exception/i);
+    expect(sent).toMatch(/Fermé ne veut donc pas dire silence complet/i);
+  });
+
+  it("découpe lui-même ses messages au lieu de subir la coupure de Telegram", async () => {
+    // Chaque partie doit tenir sous la limite : au-dessus, splitMessage()
+    // coupe au dernier saut de ligne et produit un fragment orphelin — c'est
+    // arrivé, avec 173 caractères isolés.
+    const tailles: number[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("api.telegram.org")) {
+          tailles.push(JSON.parse(init!.body as string).text.length);
           return jsonResponse({ ok: true, result: {} });
         }
         throw new Error(`URL inattendue: ${url}`);
@@ -31,12 +84,12 @@ describe("/faq — traitement des objections (audit du 01/08/2026)", () => {
 
     await handleFaqCommand(env, 1);
 
-    expect(sent).toContain("Nous ne le promettons pas");
-    expect(sent).toContain("n'a pas démontré");
-    // L'objection "arnaque" est traitée de front, pas contournée.
-    expect(sent).toContain("arnaque");
-    // Le piège du taux de réussite est expliqué chiffres à l'appui.
-    expect(sent).toContain("70% de réussite");
+    expect(tailles).toHaveLength(3);
+    for (const taille of tailles) {
+      expect(taille).toBeLessThan(4096);
+      // Aucun fragment orphelin : une partie de FAQ fait au moins un écran.
+      expect(taille).toBeGreaterThan(800);
+    }
   });
 
   it("n'utilise pas Markdown — un seul caractère mal échappé ferait tomber tout le message", async () => {
