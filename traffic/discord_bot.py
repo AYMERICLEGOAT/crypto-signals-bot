@@ -9,9 +9,9 @@ Gateway Intents) — sans ça, le bot ne reçoit pas le contenu des messages et
 !signal ne fonctionnera pas (voir README).
 
 Si tu ne veux pas faire tourner de processus persistant, utilise seulement
-discord_publisher.py (déjà appelé par promo_main.py) : le message quotidien
-fonctionnera, mais pas la commande !signal, qui a besoin d'une connexion
-Discord active en permanence.
+discord_publisher.py (déjà appelé par discord_daily.py) : le message
+quotidien fonctionnera, mais pas la commande !signal, qui a besoin d'une
+connexion Discord active en permanence.
 """
 
 import logging

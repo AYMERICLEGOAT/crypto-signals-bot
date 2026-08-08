@@ -1,7 +1,11 @@
 """
 Point d'entrée pour la publication Discord quotidienne (GitHub Actions,
-voir .github/workflows/discord.yml). Isolé de promo_main.py pour ne
-déclencher QUE Discord depuis ce workflow (pas Twitter/Reddit).
+voir .github/workflows/discord.yml).
+
+Discord est le seul canal d'acquisition automatisé qui reste. Twitter et
+Reddit ont été retirés le 08/08/2026 : l'un rendait 403 à chaque tentative,
+l'autre n'avait aucun identifiant configuré. Ils tournaient tous les jours
+sans jamais rien publier.
 """
 
 import logging

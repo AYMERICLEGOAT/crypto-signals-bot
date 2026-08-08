@@ -1,8 +1,8 @@
 """
 Publication Discord "one-shot" via l'API REST (pas besoin d'une connexion
-gateway persistante) — utilisé par l'orchestrateur quotidien
-(promo_main.py). Pour la commande à la demande `!signal`, voir
-discord_bot.py (processus séparé et persistant, optionnel).
+gateway persistante) — appelé par discord_daily.py. Pour la commande à la
+demande `!signal`, voir discord_bot.py (processus séparé et persistant,
+optionnel).
 """
 
 import logging

@@ -1,7 +1,7 @@
 """
 Résumé macro quotidien (prix BTC, volatilité 24h, position relative
 EMA9/EMA21) — publié quand aucun signal réel n'existe, pour ne jamais
-laisser les comptes Twitter/Discord silencieux. Contenu strictement
+laisser le canal Discord silencieux. Contenu strictement
 factuel (chiffres réels via l'API publique Binance), pas promotionnel :
 aucune promesse, aucun appel à l'action commercial.
 """
