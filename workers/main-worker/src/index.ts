@@ -104,8 +104,27 @@ export default {
     if (event.cron === "*/15 * * * *") {
       ctx.waitUntil(
         (async () => {
-          await dispatchCryptoFact(env).catch((err) => console.error("[cron] Erreur dispatchCryptoFact:", err));
-          await dispatchFearGreed(env).catch((err) => console.error("[cron] Erreur dispatchFearGreed:", err));
+          // TROIS TÂCHES RETIRÉES DE LA CHAÎNE LE 08/08/2026, après avoir lu ce
+          // qu'elles publiaient réellement. Les modules restent en place : la
+          // décision doit rester traçable, pas effacée en silence.
+          //
+          //   dispatchCryptoFact — 51 anecdotes du type « le dernier bitcoin
+          //     sera miné vers 2140 » ou « le Salvador a adopté le bitcoin ».
+          //     Vrai, sans aucun rapport avec le produit, et surtout : sur un
+          //     canal qui vend de la mesure, publier de la trivia le fait
+          //     ressembler à tous les autres canaux crypto. Ça ne remplit pas
+          //     le canal, ça le banalise.
+          //
+          //   dispatchFearGreed — un indice de sentiment repris d'un site
+          //     tiers, accompagné de « pas un signal de trading ». N'importe
+          //     qui peut le consulter, personne ne peut rien en faire. Un
+          //     message dont on doit préciser qu'il ne sert à rien n'a pas
+          //     besoin d'être envoyé.
+          //
+          //   postLeaderboard — le classement des meilleurs parrains. Sur un
+          //     canal qui compte deux personnes, publier un podium de
+          //     parrainage ne motive personne : ça signale surtout qu'il n'y a
+          //     personne. À reconsidérer le jour où l'audience existe.
           await dispatchWeeklyRecap(env).catch((err) => console.error("[cron] Erreur dispatchWeeklyRecap:", err));
           await dispatchEducationalPost(env).catch((err) => console.error("[cron] Erreur dispatchEducationalPost:", err));
           await dispatchNoSignalStatus(env).catch((err) => console.error("[cron] Erreur dispatchNoSignalStatus:", err));
@@ -116,7 +135,6 @@ export default {
           await trackCarryOutcomes(env).catch((err) => console.error("[cron] Erreur trackCarryOutcomes:", err));
           await runLuckyVipDay(env).catch((err) => console.error("[cron] Erreur luckyVipDay:", err));
           await revertLuckyVip(env).catch((err) => console.error("[cron] Erreur revertLuckyVip:", err));
-          await postLeaderboard(env).catch((err) => console.error("[cron] Erreur postLeaderboard:", err));
           await checkExpirationReminders(env).catch((err) => console.error("[cron] Erreur checkExpirationReminders:", err));
           await sendReengagementOffers(env).catch((err) => console.error("[cron] Erreur sendReengagementOffers:", err));
           await sendSatisfactionSurveys(env).catch((err) => console.error("[cron] Erreur sendSatisfactionSurveys:", err));

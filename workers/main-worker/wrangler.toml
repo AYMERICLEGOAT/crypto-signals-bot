@@ -36,7 +36,13 @@ ONCHAIN_CONTRACT_POLLING_ENABLED = "false"
 # lancement (Standard + Découverte suffisent tant qu'il n'y a pas de volume
 # justifiant la priorité de diffusion payante). Passer à "true" une fois une
 # base d'abonnés établie.
-PRO_PLAN_VISIBLE = "false"
+# Le palier long est affiché depuis le 08/08/2026. Il était masqué parce que
+# sa différence — quinze minutes d'avance — ne valait rien sur une position
+# tenue plusieurs jours. Il vend maintenant de la DURÉE (90 jours à 15 USDT
+# par mois au lieu de 19), c'est-à-dire la seule échelle à laquelle cette
+# stratégie peut être jugée : le filtre est fermé 41 % du temps et un mois
+# isolé peut ne rien contenir.
+PRO_PLAN_VISIBLE = "true"
 MONERO_MIN_CONFIRMATIONS = "10"
 LTC_MIN_CONFIRMATIONS = "1"
 TELEGRAM_BOT_USERNAME = "ProVIPSignals_bot"

@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { isValidPlan, PLAN_DURATION_DAYS, DISCOVERY_PLAN, STANDARD_PLAN, PRO_PLAN } from "../src/payments/plans";
+import { isValidPlan, PLAN_DURATION_DAYS, PLAN_PRICES_USD, DISCOVERY_PLAN, STANDARD_PLAN, PRO_PLAN } from "../src/payments/plans";
 import { getRemainingDiscoverySlots, incrementDiscoverySlotsUsed } from "../src/db/offerCounter";
 import { buildPlanKeyboard } from "../src/bot/keyboards";
 import { dispatchSignals } from "../src/cron/dispatchSignals";
-import { dispatchStandardTier } from "../src/cron/dispatchStandardTier";
+import { dispatchStandardTier, SNIPER_DELAY_MINUTES } from "../src/cron/dispatchStandardTier";
 import { startUsdtPayment } from "../src/payments/usdt";
 
 function jsonResponse(body: unknown) {
@@ -27,10 +27,25 @@ describe("plans.ts", () => {
     expect(isValidPlan(4)).toBe(false);
   });
 
-  it("Découverte dure 14 jours, Standard et Pro 30 jours", () => {
+  // Les paliers vendent désormais de la DURÉE et non de la vitesse : le plan
+  // le plus cher coûtait le double pour quinze minutes d'avance sur une
+  // position tenue trois à vingt-et-un jours, c'est-à-dire pour rien.
+  it("les trois paliers se distinguent par leur durée : 14, 30 et 90 jours", () => {
     expect(PLAN_DURATION_DAYS[DISCOVERY_PLAN]).toBe(14);
     expect(PLAN_DURATION_DAYS[STANDARD_PLAN]).toBe(30);
-    expect(PLAN_DURATION_DAYS[PRO_PLAN]).toBe(30);
+    expect(PLAN_DURATION_DAYS[PRO_PLAN]).toBe(90);
+  });
+
+  it("le palier long coûte moins cher AU MOIS, sinon il n'a aucune raison d'exister", () => {
+    const parMoisMensuel = PLAN_PRICES_USD[STANDARD_PLAN] / (PLAN_DURATION_DAYS[STANDARD_PLAN] / 30);
+    const parMoisLong = PLAN_PRICES_USD[PRO_PLAN] / (PLAN_DURATION_DAYS[PRO_PLAN] / 30);
+    expect(parMoisLong).toBeLessThan(parMoisMensuel);
+  });
+
+  it("aucun palier payant n'est retardé par rapport à un autre", () => {
+    // Vendre de la vitesse sur un horizon de plusieurs jours revenait à
+    // facturer une différence qui n'existe pas.
+    expect(SNIPER_DELAY_MINUTES).toBe(0);
   });
 });
 
@@ -67,12 +82,26 @@ describe("offerCounter", () => {
 });
 
 describe("buildPlanKeyboard", () => {
-  it("affiche Standard, Pro et Découverte (avec le compteur réel) s'il reste des places", () => {
+  it("affiche les trois paliers, avec le compteur RÉEL du pack Découverte", () => {
     const kb = buildPlanKeyboard(7);
     const labels = kb.flat().map((b) => b.text);
-    expect(labels.some((l) => l.includes("Standard"))).toBe(true);
-    expect(labels.some((l) => l.includes("Pro"))).toBe(true);
+    expect(labels.some((l) => l.includes("Mensuel"))).toBe(true);
+    expect(labels.some((l) => l.includes("Trimestriel"))).toBe(true);
     expect(labels.some((l) => l.includes("Découverte") && l.includes("7 places"))).toBe(true);
+  });
+
+  it("propose le TRIMESTRIEL en premier : c'est la durée sur laquelle la stratégie se juge", () => {
+    // Le filtre de tendance est fermé 41 % du temps, jusqu'à 381 jours
+    // d'affilée. Trente jours peuvent ne rien contenir sans que rien ne soit
+    // cassé — proposer d'abord la durée qui permet de conclure évite à
+    // quelqu'un d'acheter un échantillon qui ne prouve rien.
+    const labels = buildPlanKeyboard(7).flat().map((b) => b.text);
+    expect(labels[0]).toContain("Trimestriel");
+  });
+
+  it("affiche le prix AU MOIS du palier long, sinon la remise est invisible", () => {
+    const labels = buildPlanKeyboard(7).flat().map((b) => b.text);
+    expect(labels.find((l) => l.includes("Trimestriel"))).toContain("par mois");
   });
 
   it("masque complètement l'offre Découverte si les places sont épuisées", () => {
@@ -82,11 +111,11 @@ describe("buildPlanKeyboard", () => {
     expect(labels).toHaveLength(2);
   });
 
-  it("Audit#19 : masque Pro quand proPlanVisible=false, sans toucher Standard/Découverte", () => {
+  it("peut masquer le palier long sans toucher aux deux autres", () => {
     const kb = buildPlanKeyboard(7, false);
     const labels = kb.flat().map((b) => b.text);
-    expect(labels.some((l) => l.includes("Standard"))).toBe(true);
-    expect(labels.some((l) => l.includes("Pro"))).toBe(false);
+    expect(labels.some((l) => l.includes("Mensuel"))).toBe(true);
+    expect(labels.some((l) => l.includes("Trimestriel"))).toBe(false);
     expect(labels.some((l) => l.includes("Découverte"))).toBe(true);
   });
 });

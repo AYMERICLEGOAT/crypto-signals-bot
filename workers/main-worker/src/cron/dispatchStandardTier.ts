@@ -1,9 +1,21 @@
 /**
- * Effet Sniper (Bloc 2.2) : diffuse les signaux aux abonnés Standard et
- * Découverte SNIPER_DELAY_MINUTES après leur envoi immédiat aux abonnés Pro
- * (cron/dispatchSignals.ts) — la rapidité de réception fait partie de la
- * valeur différenciante du plan Pro. Le canal public gratuit (Bloc "vitrine",
- * cron/dispatchPublicChannel.ts) reste diffusé encore plus tard.
+ * Filet de rattrapage : tout abonné payant qui n'a pas reçu un signal le reçoit
+ * ici.
+ *
+ * CE MODULE NE DIFFÈRE PLUS RIEN (08/08/2026). Il retardait les paliers les
+ * moins chers de quinze minutes, pour que le plan Pro ait « la rapidité » comme
+ * valeur différenciante. Sur une position qui se ferme au bout de trois à
+ * vingt-et-un jours, quinze minutes ne valent rien : cette différence était
+ * vendue sans exister. Les paliers se distinguent désormais par leur DURÉE
+ * (voir payments/plans.ts), et tous les abonnés payants reçoivent au même
+ * moment.
+ *
+ * Le module reste, et il sert : il rattrape tout abonné que dispatchSignals
+ * aurait manqué — plan changé entre deux cycles, envoi Telegram échoué,
+ * utilisateur activé entre-temps. C'est un filet, plus un palier.
+ *
+ * Le canal public gratuit (cron/dispatchPublicChannel.ts) reste diffusé plus
+ * tard, et surtout sans les niveaux : c'est là qu'est la vraie différence.
  */
 
 import { Env, dbConfig } from "../env";
@@ -14,7 +26,10 @@ import { recordDeliveries, getDeliveryRecipients } from "../db/signalDeliveries"
 import { sendMessage, sendPhoto } from "../telegram";
 import { buildSignalMessage } from "../signalFormat";
 
-export const SNIPER_DELAY_MINUTES = 15;
+// Zéro : plus aucun palier payant n'est retardé. La constante reste pour que
+// getSignalsDueForStandardTier garde sa signature, et pour que ce choix soit
+// visible au lieu d'être un appel sans argument.
+export const SNIPER_DELAY_MINUTES = 0;
 
 const BATCH_SIZE = 25;
 const DELAY_BETWEEN_BATCHES_MS = 1200;

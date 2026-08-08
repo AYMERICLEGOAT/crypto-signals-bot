@@ -53,18 +53,23 @@ export function buildStartMessage3Keyboard(showTrial: boolean): InlineKeyboard {
 }
 
 /**
- * Ancrage psychologique (Bloc 2.2) : Standard en premier, puis Pro, puis
- * Découverte en dernier avec un compteur RÉEL de places restantes (jamais
- * décoratif — voir db/offerCounter.ts). Si épuisée, l'option n'est plus
- * proposée du tout plutôt que d'afficher "0 places".
+ * Les trois paliers, du plus engageant au moins engageant.
  *
- * Audit#19 : `proPlanVisible` (par défaut true, passé à false par
- * subscribe.ts tant que env.PRO_PLAN_VISIBLE !== "true") masque Pro pour
- * simplifier le choix au lancement — sans avantage démontrable tant qu'il
- * n'y a pas assez d'abonnés pour que la priorité de diffusion (Effet
- * Sniper) fasse une vraie différence. Le plan et son fonctionnement restent
- * intacts : c'est une simplification d'affichage, réversible en repassant
- * le flag à "true".
+ * L'ordre place le TRIMESTRIEL en premier depuis le 08/08/2026, et ce n'est
+ * pas un artifice d'ancrage : c'est le palier qui correspond à l'horizon réel
+ * de la stratégie. Le filtre de tendance est fermé 41 % du temps, jusqu'à
+ * 381 jours d'affilée — un mois isolé peut ne rien contenir sans que rien ne
+ * soit cassé, et les CGV le disent. Proposer d'abord la durée sur laquelle le
+ * produit peut être jugé honnêtement est le contraire d'une astuce : c'est
+ * éviter à quelqu'un d'acheter trente jours et de conclure sur un échantillon
+ * qui ne prouve rien.
+ *
+ * Le palier long était masqué jusqu'ici (`proPlanVisible`) parce que sa seule
+ * différence — quinze minutes d'avance — ne valait rien. Il vend maintenant de
+ * la durée, à 15 USDT par mois au lieu de 19.
+ *
+ * Le compteur du pack Découverte est RÉEL (voir db/offerCounter.ts), jamais
+ * décoratif. Épuisé, l'option disparaît au lieu d'afficher « 0 places ».
  */
 export function buildPlanKeyboard(remainingDiscoverySlots: number, proPlanVisible = true): InlineKeyboard {
   // Prix/durées dérivés de payments/plans.ts (source unique) au lieu de
@@ -72,12 +77,19 @@ export function buildPlanKeyboard(remainingDiscoverySlots: number, proPlanVisibl
   // toucher que le message texte de subscribe.ts, pas ces boutons, et
   // l'utilisateur cliquait sur un montant qui ne correspondait plus à celui
   // réellement facturé.
-  const keyboard: InlineKeyboard = [
-    [{ text: `⭐ Standard — ${PLAN_PRICES_USD[STANDARD_PLAN]} USDT / ${PLAN_DURATION_DAYS[STANDARD_PLAN]}j`, callback_data: "plan:1" }],
-  ];
+  const keyboard: InlineKeyboard = [];
   if (proPlanVisible) {
-    keyboard.push([{ text: `🎯 Pro — ${PLAN_PRICES_USD[PRO_PLAN]} USDT / ${PLAN_DURATION_DAYS[PRO_PLAN]}j`, callback_data: "plan:2" }]);
+    const parMois = Math.round(PLAN_PRICES_USD[PRO_PLAN] / (PLAN_DURATION_DAYS[PRO_PLAN] / 30));
+    keyboard.push([
+      {
+        text: `🎯 Trimestriel — ${PLAN_PRICES_USD[PRO_PLAN]} USDT / ${PLAN_DURATION_DAYS[PRO_PLAN]}j (${parMois} USDT par mois)`,
+        callback_data: "plan:2",
+      },
+    ]);
   }
+  keyboard.push([
+    { text: `⭐ Mensuel — ${PLAN_PRICES_USD[STANDARD_PLAN]} USDT / ${PLAN_DURATION_DAYS[STANDARD_PLAN]}j`, callback_data: "plan:1" },
+  ]);
   if (remainingDiscoverySlots > 0) {
     keyboard.push([
       {

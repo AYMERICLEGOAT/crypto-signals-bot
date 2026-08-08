@@ -172,7 +172,7 @@ export async function handleSubscribeCommand(env: Env, telegramId: number): Prom
   const lines = [
     "📅 LES OFFRES",
     "",
-    `⭐ Standard — ${PLAN_PRICES_USD[1]} USDT pour ${PLAN_DURATION_DAYS[1]} jours`,
+    `⭐ Mensuel — ${PLAN_PRICES_USD[1]} USDT pour ${PLAN_DURATION_DAYS[1]} jours`,
     "Tous les signaux des cinq moteurs AVEC LEURS NIVEAUX — entrée, stop, trois objectifs, durée — au " +
       "rythme mesuré de 2,99 par jour. C'est la différence avec le canal gratuit, qui voit les signaux " +
       "partir mais reçoit leurs niveaux seulement à la clôture, quand il est trop tard pour les jouer.",
@@ -180,8 +180,10 @@ export async function handleSubscribeCommand(env: Env, telegramId: number): Prom
   if (proPlanVisible) {
     lines.push(
       "",
-      `🎯 Pro — ${PLAN_PRICES_USD[2]} USDT pour ${PLAN_DURATION_DAYS[2]} jours`,
-      "Les mêmes signaux, mais envoyés en priorité, avant tout le monde."
+      `🎯 Trimestriel — ${PLAN_PRICES_USD[2]} USDT pour ${PLAN_DURATION_DAYS[2]} jours`,
+      "Les mêmes signaux, sur trois mois — soit 15 USDT par mois au lieu de 19. C'est surtout la " +
+        "durée sur laquelle cette stratégie peut être jugée : le filtre de tendance est fermé 41 % du " +
+        "temps, et un mois isolé peut ne rien contenir sans que rien ne soit cassé."
     );
   }
   if (remainingDiscoverySlots > 0) {
