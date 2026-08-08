@@ -32,7 +32,10 @@ export async function handleMyPerformanceCommand(env: Env, telegramId: number): 
   let slCount = 0;
   let expiredCount = 0;
   let openCount = 0;
-  let cumulativePct = 0;
+  // MOYENNE par signal, jamais la somme : additionner les pourcentages de
+  // plusieurs trades ne décrit aucun rendement réel, et suppose une mise
+  // totale sur chacun — alors que le message de signal conseille 2 %.
+  let sommePct = 0;
   let closedCount = 0;
   let securedCount = 0;
 
@@ -58,14 +61,17 @@ export async function handleMyPerformanceCommand(env: Env, telegramId: number): 
 
     const pct = pnlPct(signal);
     if (pct !== null) {
-      cumulativePct += pct;
+      sommePct += pct;
       closedCount += 1;
     }
   }
 
   const closedTotal = tpCount + slCount + expiredCount;
   const winRateStr = closedTotal > 0 ? `${((tpCount / closedTotal) * 100).toFixed(0)}%` : "n/a (aucun signal clôturé)";
-  const cumulativeStr = closedCount > 0 ? `${cumulativePct >= 0 ? "+" : ""}${cumulativePct.toFixed(1)}%` : "n/a";
+  const moyenneStr =
+    closedCount > 0
+      ? `${sommePct / closedCount >= 0 ? "+" : ""}${(sommePct / closedCount).toFixed(2)} % par signal`
+      : "n/a";
 
   const user = await getOrCreateUser(db, telegramId);
   const badge = getLoyaltyBadge(user);
@@ -77,7 +83,10 @@ export async function handleMyPerformanceCommand(env: Env, telegramId: number): 
     `Signaux reçus : ${deliveries.length}`,
     `✅ Take profit : ${tpCount} — ❌ Stop loss : ${slCount} — ⌛ Expiré : ${expiredCount} — 🔵 En cours : ${openCount}`,
     `Taux de réussite personnel : ${winRateStr}`,
-    `Gain/perte cumulé (${closedCount} signal(aux) clôturé(s)) : ${cumulativeStr}`,
+    `Résultat moyen (${closedCount} signal(aux) clôturé(s)) : ${moyenneStr}`,
+    "_Une moyenne par signal, pas un rendement de portefeuille : ce que tu as réellement gagné dépend " +
+      "de ce que tu as misé sur chacun. C'est aussi l'unité dans laquelle nos chiffres publiés sont " +
+      "exprimés, donc la seule qui s'y compare._",
   ];
   if (totalCommissions > 0) lines.push(`💰 Commissions virtuelles de parrainage cumulées : ${totalCommissions.toFixed(2)} USDT`);
   if (badge) lines.push(`\n${badge}`);

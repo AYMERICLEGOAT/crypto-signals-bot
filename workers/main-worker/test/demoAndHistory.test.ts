@@ -82,7 +82,7 @@ describe("handleHistoryCommand", () => {
           return jsonResponse([
             {
               delivered_at: "2026-07-20T10:00:00Z", tier: "standard",
-              signals: { pair: "BTC/USDT", type: "BUY", entry_price: 60000, stop_loss: 58800, take_profit: 62400, outcome: "WIN", outcome_price: 62400, close_reason: "tp_hit" },
+              signals: { pair: "BTC/USDT", type: "BUY", entry_price: 60000, stop_loss: 58800, take_profit: 62400, outcome: "WIN", outcome_price: 62400, close_reason: "tp_hit", engine: "cassure_canal" },
             },
             {
               delivered_at: "2026-07-18T10:00:00Z", tier: "standard",
@@ -102,7 +102,13 @@ describe("handleHistoryCommand", () => {
     await handleHistoryCommand(env, 42);
     expect(sentText).toContain("TP atteint");
     expect(sentText).toContain("En cours");
-    expect(sentText).toContain("Cumul sur 1 signal");
+    // MOYENNE par signal, et non somme : additionner des pourcentages de trades
+    // ne décrit aucun rendement réel et suppose une mise totale sur chacun.
+    expect(sentText).toContain("Moyenne sur 1 signal");
+    expect(sentText).toContain("par signal");
+    expect(sentText).not.toContain("Cumul");
+    // Chaque ligne nomme son moteur : cinq cohabitent.
+    expect(sentText).toContain("cassure");
   });
 
   it("répond proprement si aucun signal n'a encore été reçu", async () => {
