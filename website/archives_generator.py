@@ -37,6 +37,7 @@ from published_stats import (
     PART_JOURS_AVEC_SIGNAL,
 )
 from html_generator import _STYLE
+from html_generator import GOOGLE_SITE_VERIFICATION
 from social_meta import social_tags
 
 BACKTEST_WINDOW_DAYS = 730  # doit rester synchronisé avec signals/config.py (BACKTEST_DAYS)
@@ -384,6 +385,7 @@ def build_waiting_homepage(backtest_stats, telegram_bot_username):
     return f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
+  {GOOGLE_SITE_VERIFICATION}
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{html.escape(title)}</title>
@@ -648,6 +650,7 @@ def build_archives_page(trades, backtest_stats, canonical_path="/archives.html")
     return f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
+  {GOOGLE_SITE_VERIFICATION}
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{html.escape(title)}</title>

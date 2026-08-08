@@ -33,6 +33,7 @@ from published_stats import (
     PART_JOURS_AVEC_SIGNAL,
 )
 from html_generator import _STYLE
+from html_generator import GOOGLE_SITE_VERIFICATION
 from social_meta import social_tags
 
 _EXTRA = """
@@ -107,6 +108,7 @@ def _shell(title, description, path, body, kind="website", jsonld=None):
     return f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
+  {GOOGLE_SITE_VERIFICATION}
   <meta charset="UTF-8">
   <title>{html.escape(title)}</title>
   <meta name="description" content="{html.escape(description)}">

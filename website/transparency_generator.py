@@ -19,6 +19,7 @@ from equity_curve import build_distribution_svg
 # sombre atterrissait sur une page blanche, ce qui se lit comme une erreur
 # de site avant de se lire comme une autre page.
 from theme import STYLE as _STYLE
+from html_generator import GOOGLE_SITE_VERIFICATION
 
 MIN_DAYS_FOR_PAGE = 3
 _CLOSE_REASON_LABEL = {"tp_hit": "Take profit ✅", "sl_hit": "Stop loss ❌", "expired": "Expiré ⌛"}
@@ -117,6 +118,7 @@ def build_transparency_page(history, canonical_path="/transparency.html", resolv
     return f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
+  {GOOGLE_SITE_VERIFICATION}
   <meta charset="UTF-8">
   <title>{html.escape(title)}</title>
   <meta name="description" content="{html.escape(description)}">

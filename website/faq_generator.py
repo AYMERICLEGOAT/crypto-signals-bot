@@ -23,6 +23,7 @@ import json
 
 from config import SITE_BASE_URL, TELEGRAM_BOT_USERNAME
 from html_generator import _STYLE
+from html_generator import GOOGLE_SITE_VERIFICATION
 from social_meta import social_tags
 
 _EXTRA = """
@@ -190,6 +191,7 @@ def build_faq_page():
     return f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
+  {GOOGLE_SITE_VERIFICATION}
   <meta charset="UTF-8">
   <title>FAQ — les questions qu'on nous pose vraiment</title>
   <meta name="description" content="{html.escape(description)}">

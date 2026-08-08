@@ -18,8 +18,25 @@ from published_stats import (
     PART_JOURS_AVEC_SIGNAL,
 )
 from content_templates import generate_analysis, format_price
+
 from equity_curve import build_live_performance_section
 from testimonials import EXAMPLE_TESTIMONIALS, EXAMPLE_TESTIMONIALS_EN
+
+# Preuve de propriete du site pour Google Search Console.
+#
+# Definie ICI et importee par les cinq autres generateurs plutot que recopiee
+# huit fois. Le site construit son <head> a huit endroits distincts
+# (html_generator, pages_generator, archives_generator x2, faq_generator,
+# guides_generator x2, transparency_generator) : une valeur recopiee autant de
+# fois finit toujours par manquer sur la page qu'on vient d'ajouter.
+#
+# Google ne verifie que l'URL declaree, donc l'accueil suffirait ; la mettre
+# partout ne coute rien et evite qu'un changement de page verifiee casse la
+# propriete.
+GOOGLE_SITE_VERIFICATION = (
+    '<meta name="google-site-verification" '
+    'content="iwkjLubh4IiT0MuD5EGIiy8KniPxQ6KivFdZA7frUdg" />'
+)
 
 TELEGRAM_URL = f"https://t.me/{TELEGRAM_BOT_USERNAME}"
 
@@ -818,6 +835,7 @@ def build_daily_page(signals, performance_stats, page_date, canonical_path, lang
     return f"""<!DOCTYPE html>
 <html lang="{s["html_lang"]}">
 <head>
+  {GOOGLE_SITE_VERIFICATION}
   <meta charset="UTF-8">
   <title>{html.escape(title)}</title>
   <meta name="description" content="{html.escape(description)}">

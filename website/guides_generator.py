@@ -20,6 +20,7 @@ import json
 from config import SITE_BASE_URL, TELEGRAM_BOT_USERNAME
 from guides_content import GUIDES
 from html_generator import _STYLE
+from html_generator import GOOGLE_SITE_VERIFICATION
 
 GUIDES_DIR = "guides"
 
@@ -110,6 +111,7 @@ def build_guide_page(guide):
     return f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
+  {GOOGLE_SITE_VERIFICATION}
   <meta charset="UTF-8">
   <title>{html.escape(guide["title"])}</title>
   <meta name="description" content="{html.escape(guide["description"])}">
@@ -166,6 +168,7 @@ def build_guides_index():
     return f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
+  {GOOGLE_SITE_VERIFICATION}
   <meta charset="UTF-8">
   <title>Guides trading crypto : comprendre avant de trader</title>
   <meta name="description" content="Guides pédagogiques gratuits sur le trading crypto : lire un signal, gérer son risque, comprendre le RSI et les moyennes mobiles, repérer un backtest truqué.">
