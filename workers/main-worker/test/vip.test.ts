@@ -18,6 +18,7 @@ describe("handleVipCommand", () => {
 
   it("refuse un utilisateur sans abonnement payant actif", async () => {
     let sentText = "";
+    let sentKeyboard = "";
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
@@ -25,7 +26,9 @@ describe("handleVipCommand", () => {
           return jsonResponse([{ telegram_id: 1, plan: 0, expiration: "2099-01-01T00:00:00Z" }]);
         }
         if (url.includes("api.telegram.org")) {
-          sentText = JSON.parse(init!.body as string).text;
+          const corps = JSON.parse(init!.body as string);
+          sentText = corps.text;
+          sentKeyboard = JSON.stringify(corps.reply_markup ?? "");
           return jsonResponse({ ok: true, result: {} });
         }
         throw new Error(`URL inattendue: ${url}`);
@@ -33,11 +36,12 @@ describe("handleVipCommand", () => {
     );
 
     await handleVipCommand(env, 1);
-    expect(sentText).toContain("/subscribe");
+    expect(`${sentText} ${sentKeyboard}`).toMatch(/\/subscribe|start:subscribe/);
   });
 
   it("refuse un abonnement Standard expiré", async () => {
     let sentText = "";
+    let sentKeyboard = "";
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
@@ -45,7 +49,9 @@ describe("handleVipCommand", () => {
           return jsonResponse([{ telegram_id: 1, plan: 1, expiration: "2020-01-01T00:00:00Z" }]);
         }
         if (url.includes("api.telegram.org")) {
-          sentText = JSON.parse(init!.body as string).text;
+          const corps = JSON.parse(init!.body as string);
+          sentText = corps.text;
+          sentKeyboard = JSON.stringify(corps.reply_markup ?? "");
           return jsonResponse({ ok: true, result: {} });
         }
         throw new Error(`URL inattendue: ${url}`);
@@ -53,11 +59,12 @@ describe("handleVipCommand", () => {
     );
 
     await handleVipCommand(env, 1);
-    expect(sentText).toContain("/subscribe");
+    expect(`${sentText} ${sentKeyboard}`).toMatch(/\/subscribe|start:subscribe/);
   });
 
   it("envoie le lien existant à un abonné Pro actif sans en créer un nouveau", async () => {
     let sentText = "";
+    let sentKeyboard = "";
     let createCalled = false;
     vi.stubGlobal(
       "fetch",
@@ -76,7 +83,9 @@ describe("handleVipCommand", () => {
           return jsonResponse({ ok: true, result: { invite_link: "https://t.me/+new" } });
         }
         if (url.includes("api.telegram.org")) {
-          sentText = JSON.parse(init!.body as string).text;
+          const corps = JSON.parse(init!.body as string);
+          sentText = corps.text;
+          sentKeyboard = JSON.stringify(corps.reply_markup ?? "");
           return jsonResponse({ ok: true, result: {} });
         }
         throw new Error(`URL inattendue: ${url}`);
@@ -90,6 +99,7 @@ describe("handleVipCommand", () => {
 
   it("crée un premier lien s'il n'en existe aucun encore", async () => {
     let sentText = "";
+    let sentKeyboard = "";
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
@@ -102,7 +112,9 @@ describe("handleVipCommand", () => {
           return jsonResponse({ ok: true, result: { invite_link: "https://t.me/+brandnew" } });
         }
         if (url.includes("api.telegram.org")) {
-          sentText = JSON.parse(init!.body as string).text;
+          const corps = JSON.parse(init!.body as string);
+          sentText = corps.text;
+          sentKeyboard = JSON.stringify(corps.reply_markup ?? "");
           return jsonResponse({ ok: true, result: {} });
         }
         throw new Error(`URL inattendue: ${url}`);
@@ -115,6 +127,7 @@ describe("handleVipCommand", () => {
 
   it("indique que le VIP n'est pas configuré si TELEGRAM_VIP_CHANNEL_ID est absent", async () => {
     let sentText = "";
+    let sentKeyboard = "";
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
@@ -122,7 +135,9 @@ describe("handleVipCommand", () => {
           return jsonResponse([{ telegram_id: 1, plan: 1, expiration: "2099-01-01T00:00:00Z" }]);
         }
         if (url.includes("api.telegram.org")) {
-          sentText = JSON.parse(init!.body as string).text;
+          const corps = JSON.parse(init!.body as string);
+          sentText = corps.text;
+          sentKeyboard = JSON.stringify(corps.reply_markup ?? "");
           return jsonResponse({ ok: true, result: {} });
         }
         throw new Error(`URL inattendue: ${url}`);

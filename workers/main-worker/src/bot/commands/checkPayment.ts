@@ -18,7 +18,9 @@ export async function handleCheckPaymentCommand(env: Env, telegramId: number): P
   const latest = await getLatestPaymentAnyStatus(db, telegramId);
 
   if (!latest) {
-    await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, "Aucun paiement en attente. Utilise /subscribe pour choisir un plan.");
+    await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, "Aucun paiement en attente.", {
+      keyboard: [[{ text: "⭐ Voir les offres", callback_data: "start:subscribe" }]],
+    });
     return;
   }
 
@@ -29,7 +31,13 @@ export async function handleCheckPaymentCommand(env: Env, telegramId: number): P
     await sendMessage(
       env.TELEGRAM_BOT_TOKEN,
       telegramId,
-      `✅ Paiement confirmé ! Ton abonnement ${planLabel} est actif. Vérifie les détails avec /status.`
+      `✅ Paiement confirmé — ton abonnement ${planLabel} est actif.`,
+      {
+        keyboard: [
+          [{ text: "🔒 Rejoindre le canal VIP", callback_data: "start:vip" }],
+          [{ text: "📊 Voir mon accès", callback_data: "start:status" }],
+        ],
+      }
     );
     return;
   }
@@ -38,7 +46,9 @@ export async function handleCheckPaymentCommand(env: Env, telegramId: number): P
     await sendMessage(
       env.TELEGRAM_BOT_TOKEN,
       telegramId,
-      `⌛ Ton dernier paiement en attente (${planLabel}, ${label}) a expiré sans être détecté. Utilise /pay pour relancer, ou /subscribe pour repartir de zéro.`
+      `⌛ Ton dernier paiement en attente (${planLabel}, ${label}) a expiré sans être détecté.\n\n` +
+        "Si tu as réellement envoyé les fonds, ils ne sont pas perdus : réponds ici et on vérifie à la main.",
+      { keyboard: [[{ text: "🔄 Reprendre depuis le début", callback_data: "start:subscribe" }]] }
     );
     return;
   }

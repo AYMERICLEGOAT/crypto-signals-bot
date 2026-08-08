@@ -14,19 +14,25 @@ export async function handlePayCommand(env: Env, telegramId: number): Promise<vo
   const db = dbConfig(env);
   const pending = await getLatestPendingPaymentAnyMethod(db, telegramId);
 
-  if (env.PAYMENT_GUIDE_IMAGE_URL) {
-    await sendPhoto(env.TELEGRAM_BOT_TOKEN, telegramId, env.PAYMENT_GUIDE_IMAGE_URL, {
-      caption: "Comment payer ton abonnement",
-    });
-  }
-
+  // L'IMAGE PART APRÈS LA VÉRIFICATION, PAS AVANT.
+  //
+  // Elle était envoyée systématiquement : quelqu'un sans paiement en cours
+  // recevait un guide de paiement illustré, puis « aucun paiement en attente ».
+  // Deux messages, dont un qui ne sert à rien et qui contredit l'autre.
   if (!pending) {
     await sendMessage(
       env.TELEGRAM_BOT_TOKEN,
       telegramId,
-      "Aucun paiement en attente. Utilise /subscribe pour choisir un plan et un moyen de paiement."
+      "Aucun paiement en attente.\n\nSi tu veux t'abonner, le bouton ci-dessous ouvre les offres.",
+      { keyboard: [[{ text: "⭐ Voir les offres", callback_data: "start:subscribe" }]] }
     );
     return;
+  }
+
+  if (env.PAYMENT_GUIDE_IMAGE_URL) {
+    await sendPhoto(env.TELEGRAM_BOT_TOKEN, telegramId, env.PAYMENT_GUIDE_IMAGE_URL, {
+      caption: "Comment payer ton abonnement",
+    });
   }
 
   const label = METHOD_LABEL[pending.method] ?? pending.method;
@@ -39,6 +45,10 @@ export async function handlePayCommand(env: Env, telegramId: number): Promise<vo
     lines.push(`📱 [Ouvrir directement dans ton wallet](litecoin:${pending.pay_address}?amount=${pending.amount_expected})`);
   }
   lines.push("Confirmation automatique dès réception (vérifiée toutes les 5 minutes).");
+  lines.push("Rien à renvoyer, rien à signaler : l'accès s'ouvre tout seul.");
 
-  await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, lines.join("\n"), { markdown: true });
+  await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, lines.join("\n"), {
+    markdown: true,
+    keyboard: [[{ text: "📘 Guide de paiement complet", callback_data: "pay:guide" }]],
+  });
 }

@@ -49,6 +49,9 @@ describe("handleCheckPaymentCommand", () => {
   it("propose de relancer pour un paiement expiré", async () => {
     const text = await run({ method: "XMR", plan: 3, pay_address: "4abc", amount_expected: 0.1, status: "expired" });
     expect(text).toContain("expiré");
-    expect(text).toContain("/pay");
+    // Le rebond est un BOUTON désormais, plus un nom de commande à recopier.
+    // On vérifie surtout ce qui manquait : que quelqu'un ayant réellement
+    // envoyé des fonds sache qu'ils ne sont pas perdus.
+    expect(text).toMatch(/pas perdus/i);
   });
 });

@@ -61,6 +61,20 @@ export const LIFETIME_PLAN: PaidPlan = 4;
 /** Ancienneté payante minimale avant que l'accès à vie soit proposé. */
 export const LIFETIME_MIN_DAYS_PAID = 30;
 
+/**
+ * Les paliers qu'un texte a le droit d'énumérer devant n'importe qui.
+ *
+ * L'accès à vie en est volontairement absent : le nommer, même sans son prix,
+ * suffirait à le rendre visible à un nouveau venu, ce que tout le raisonnement
+ * ci-dessus interdit.
+ *
+ * Cette liste existe parce que /vip citait « Standard, Pro ou Découverte »,
+ * écrit à la main : « Pro » n'existait plus et les deux autres avaient été
+ * renommés. Une énumération recopiée survit toujours au changement de
+ * tarification qui la rend fausse.
+ */
+export const PUBLIC_PLANS: readonly PaidPlan[] = [STANDARD_PLAN, PRO_PLAN, DISCOVERY_PLAN];
+
 export function isValidPlan(value: number): value is PaidPlan {
   return value === 1 || value === 2 || value === 3 || value === 4;
 }

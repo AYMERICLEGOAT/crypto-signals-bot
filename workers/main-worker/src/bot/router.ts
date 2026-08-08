@@ -169,6 +169,9 @@ export async function routeUpdate(env: Env, update: TelegramUpdate): Promise<voi
     else if (data === "start:demo") await handleDemoCommand(env, chatId);
     else if (data === "start:help") await handleHelpCommand(env, chatId);
     else if (data === "start:referral") await handleReferralCommand(env, chatId);
+    // Proposé juste après une confirmation de paiement : c'est le seul moment
+    // où rejoindre le canal VIP est l'action évidente à faire ensuite.
+    else if (data === "start:vip") await handleVipCommand(env, chatId);
     else if (data === "cancel:extend") await handleCancelExtension(env, chatId);
     else if (data.startsWith("plan:")) await handlePlanSelection(env, chatId, data);
     else if (data.startsWith("consent:")) await handlePurchaseConsent(env, chatId, data);
