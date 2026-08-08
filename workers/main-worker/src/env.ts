@@ -71,7 +71,6 @@ export interface Env {
   // Découverte tant qu'il reste des places) pour le lancement — Pro reste
   // entièrement fonctionnel (voir payments/plans.ts) mais masqué de
   // /subscribe tant que ce flag n'est pas "true" (voir bot/keyboards.ts).
-  PRO_PLAN_VISIBLE?: string;
 }
 
 export function dbConfig(env: Env): SupabaseConfig {

@@ -36,6 +36,7 @@ import { Env, dbConfig } from "../env";
 import { hasRecentSignal } from "../db/signals";
 import { getHeartbeat, markNoSignalAlerted } from "../db/systemHeartbeats";
 import { sendMessage } from "../telegram";
+import { PART_FILTRE_FERME } from "../publishedStats";
 
 const JOB_NAME = "signals";
 // 72h : le moteur ne tourne qu'une fois par jour et n'ouvre que sur les paires
@@ -65,7 +66,7 @@ export async function checkSignalFreshness(env: Env): Promise<void> {
     `ℹ️ Aucun signal généré depuis plus de ${STALENESS_THRESHOLD_HOURS}h, ` +
       "alors que le générateur tourne normalement (heartbeat à jour, sources de données OK).\n\n" +
       "Cause attendue en premier lieu : le filtre de tendance est fermé (Bitcoin sous sa moyenne 200 jours), " +
-      "auquel cas il n'y a RIEN à corriger — c'est le comportement prévu, 41 % du temps. " +
+      `auquel cas il n'y a RIEN à corriger — c'est le comportement prévu, ${PART_FILTRE_FERME} du temps. ` +
       "À ne creuser (seuils, classement, univers) que si le filtre est ouvert."
   );
   await markNoSignalAlerted(db, JOB_NAME, true);

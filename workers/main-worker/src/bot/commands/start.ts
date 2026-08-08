@@ -5,6 +5,7 @@ import { buildStartMessage1Keyboard, buildStartMessage2Keyboard, buildStartMessa
 import { attributeReferralIfNeeded } from "../referral";
 import { TREND_FILTER_STATUS } from "./subscribe";
 import { sleep } from "../../utils/sleep";
+import { PART_FILTRE_FERME } from "../../publishedStats";
 
 // Cumulés depuis l'appel de /start (pas l'un après l'autre) : +3s puis +10s
 // au total, un rythme qui laisse le temps de lire chaque message sans faire
@@ -138,7 +139,7 @@ export async function handleStart(env: Env, telegramId: number, referralPayload?
       "• Chaque chiffre vient d'un test sur 6 ans, comparé à un tirage aléatoire pour vérifier qu'il ne " +
       "doit rien au hasard. Sur douze approches essayées, deux ont été retenues.\n" +
       "• Les pertes sont publiées comme les gains, sur le canal gratuit. Rien n'est effacé.\n" +
-      "• Le silence a occupé 41 % du temps sur 6 ans, dont une fois 381 jours d'affilée. C'est écrit " +
+      `• Le silence a occupé ${PART_FILTRE_FERME} du temps sur 6 ans, dont une fois 381 jours d'affilée. C'est écrit ` +
       "ici, avant que tu paies quoi que ce soit.\n\n" +
       "💵 ET UNE POSITION OÙ LE PRIX N'A AUCUNE IMPORTANCE\n\n" +
       "Tu achètes au comptant, et tu vends à découvert le même montant en perpétuel. Les deux jambes " +

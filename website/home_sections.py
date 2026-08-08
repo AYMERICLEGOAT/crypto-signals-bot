@@ -30,6 +30,7 @@ remboursement.
 import html
 
 from config import TELEGRAM_BOT_USERNAME, TELEGRAM_CHANNEL_URL
+from published_stats import PART_FILTRE_FERME
 
 TELEGRAM_URL = f"https://t.me/{TELEGRAM_BOT_USERNAME}"
 
@@ -134,7 +135,7 @@ FAQ = {
             (
                 "Pourquoi je ne reçois rien pendant des semaines ?",
                 "<p>Parce que le marché baisse. Les moteurs qui achètent une hausse sont coupés tant que le "
-                "Bitcoin est sous sa moyenne 200 jours — 41 % du temps sur six ans, et jusqu'à "
+                f"Bitcoin est sous sa moyenne 200 jours — {PART_FILTRE_FERME} du temps sur six ans, et jusqu'à "
                 "<b>381 jours d'affilée</b> entre décembre 2021 et janvier 2023.</p>"
                 "<p>Deux moteurs continuent pendant ce temps : le carry de financement, qui ne parie pas sur "
                 "le prix, et le momentum 4H. La commande /marche recalcule cet état en direct, à la demande.</p>",

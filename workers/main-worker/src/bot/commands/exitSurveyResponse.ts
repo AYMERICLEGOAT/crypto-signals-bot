@@ -1,6 +1,7 @@
 import { Env, dbConfig } from "../../env";
 import { sendMessage } from "../../telegram";
 import { recordExitSurveyResponse, ExitSurveyReason } from "../../db/exitSurveys";
+import { PART_FILTRE_FERME } from "../../publishedStats";
 
 /**
  * Réponse à l'enquête de départ, posée après /cancel confirm.
@@ -33,7 +34,7 @@ const REPONSES: Record<ExitSurveyReason, string> = {
   frequency:
     "Noté, et c'est le retour le plus fréquent.\n\n" +
     "Ce silence est voulu : les moteurs directionnels sont coupés tant que le Bitcoin est sous sa moyenne " +
-    "200 jours, soit 41 % du temps sur six ans. Sans cette règle, la stratégie n'est positive que 4 années " +
+    `200 jours, soit ${PART_FILTRE_FERME} du temps sur six ans. Sans cette règle, la stratégie n'est positive que 4 années ` +
     "sur 7 ; avec elle, aucune année perdante sur 6.\n\n" +
     "Ça ne rend pas l'attente agréable pour autant, et c'est une raison légitime de partir.",
 

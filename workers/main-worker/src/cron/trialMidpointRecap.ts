@@ -38,6 +38,7 @@ import { activateSubscription } from "../db/users";
 import { getTrendFilterState } from "../market/trendFilter";
 import { addDays } from "../utils/date";
 import { computePnlPct } from "../signalMath";
+import { PART_FILTRE_FERME } from "../publishedStats";
 
 /** Heures écoulées depuis le début de l'essai avant d'envoyer le point. */
 const HEURES_AVANT_RECAP = 24;
@@ -174,7 +175,7 @@ async function construireSansSignal(env: Env, db: ReturnType<typeof dbConfig>, e
     "",
     raison,
     "",
-    "Sur six ans, ce silence occupe 41 % du temps, avec un record de 381 jours d'affilée. C'est ce qui " +
+    `Sur six ans, ce silence occupe ${PART_FILTRE_FERME} du temps, avec un record de 381 jours d'affilée. C'est ce qui ` +
       "évite les années à -70 % : sans cette règle, la stratégie n'est positive que 4 années sur 7 ; avec " +
       "elle, aucune année perdante sur 6.",
     "",

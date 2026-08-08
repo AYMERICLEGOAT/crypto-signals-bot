@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { dispatchNoSignalStatus } from "../src/cron/dispatchNoSignalStatus";
+import { PART_FILTRE_FERME } from "../src/publishedStats";
 
 function jsonResponse(body: unknown) {
   return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
@@ -99,7 +100,10 @@ describe("dispatchNoSignalStatus (post « état du marché »)", () => {
     await dispatchNoSignalStatus(env);
 
     expect(state.recorded).toBe(true);
-    expect(state.postedText).toContain("41 %"); // la statistique de fermeture, présente dans toutes les variantes utiles
+    // La statistique de fermeture, présente dans toutes les variantes utiles.
+    // Lue depuis publishedStats : une copie en dur ici avait figé « 41 % »
+    // pendant que la mesure canonique passait à 42 %.
+    expect(state.postedText).toContain(PART_FILTRE_FERME);
     expect(state.postedText).toContain("Pas un conseil en investissement");
   });
 

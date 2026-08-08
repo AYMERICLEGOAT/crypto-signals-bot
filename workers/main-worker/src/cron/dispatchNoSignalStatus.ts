@@ -43,7 +43,7 @@ import { hasPostedNoSignalStatusToday, recordNoSignalStatusPost } from "../db/no
 import { hasRecentSignal } from "../db/signals";
 import { getTrendFilterState } from "../market/trendFilter";
 import { sendMessage } from "../telegram";
-import { DEBIT } from "../publishedStats";
+import { DEBIT, PART_FILTRE_FERME } from "../publishedStats";
 import { isQuietHours } from "../utils/quietHours";
 
 // Doit rester aligné sur signals/config.py::PAIRS. Le texte annonçait
@@ -90,7 +90,7 @@ const CLOSED_VARIANTS: ((ctx: ClosedContext) => string)[] = [
       "",
       "Deux moteurs continuent pourtant de travailler dans ce régime : le carry de financement, neutre au marché, et le momentum 4H. Si tu ne vois rien aujourd'hui, c'est qu'eux non plus n'ont rien trouvé qui vaille la peine.",
       "",
-      "Ce filtre est fermé 41 % du temps. Ce n'est pas une panne : c'est la règle qui tourne.",
+      `Ce filtre est fermé ${PART_FILTRE_FERME} du temps. Ce n'est pas une panne : c'est la règle qui tourne.`,
     ].join("\n"),
 
   // 2. La durée : désamorcer l'impatience avant qu'elle ne s'installe.
@@ -183,7 +183,7 @@ const CLOSED_VARIANTS: ((ctx: ClosedContext) => string)[] = [
       `Il classe ${WATCHED_PAIRS_COUNT} paires par force relative sur données journalières, achète les 12 plus fortes et les tient 7 jours.`,
       "La sortie est temporelle, pas sur objectif de prix. Le stop, large (4x ATR), ne sert qu'à la catastrophe : il ne se déclenche que dans 5 % des cas.",
       "",
-      "Et rien de tout cela ne tourne tant que le Bitcoin est sous sa moyenne 200 jours, ce qui représente 41 % du temps sur les 6 dernières années.",
+      `Et rien de tout cela ne tourne tant que le Bitcoin est sous sa moyenne 200 jours, ce qui représente ${PART_FILTRE_FERME} du temps sur les 6 dernières années.`,
     ].join("\n"),
 
   // 11. La distribution des gains. C'est la chose la plus importante à faire
@@ -200,7 +200,7 @@ const CLOSED_VARIANTS: ((ctx: ClosedContext) => string)[] = [
       "",
       "Concrètement : trier les signaux, n'en prendre que quelques-uns parce qu'ils « semblent » meilleurs, revient statistiquement à ne garder que la partie perdante.",
       "",
-      "C'est aussi pour ça que le canal se tait 41 % du temps : le tri, c'est le filtre qui le fait, pas l'intuition.",
+      `C'est aussi pour ça que le canal se tait ${PART_FILTRE_FERME} du temps : le tri, c'est le filtre qui le fait, pas l'intuition.`,
     ].join("\n"),
 
   // 10. Le choix assumé, pour que le silence soit lu comme une force.
@@ -211,7 +211,7 @@ const CLOSED_VARIANTS: ((ctx: ClosedContext) => string)[] = [
       "Il serait simple de publier un signal par jour pour occuper le canal.",
       "Mais un signal émis en marché baissier n'est pas un service rendu : c'est une perte transférée à celui qui le suit.",
       "",
-      "Le filtre est fermé 41 % du temps. Sur ces périodes, ce canal reste silencieux — c'est exactement ce pour quoi il est conçu.",
+      `Le filtre est fermé ${PART_FILTRE_FERME} du temps. Sur ces périodes, ce canal reste silencieux — c'est exactement ce pour quoi il est conçu.`,
     ].join("\n"),
 ];
 
@@ -228,7 +228,7 @@ const UNVERIFIED_VARIANTS: (() => string)[] = [
       "📡 *Aucun signal aujourd'hui*",
       "",
       `La stratégie surveille ${WATCHED_PAIRS_COUNT} paires et n'émet que lorsque ses critères sont réunis.`,
-      "Le premier d'entre eux est un filtre de tendance qui la met totalement hors marché 41 % du temps.",
+      `Le premier d'entre eux est un filtre de tendance qui la met totalement hors marché ${PART_FILTRE_FERME} du temps.`,
       "",
       "Aucun signal n'est forcé pour faire du volume.",
     ].join("\n"),
@@ -237,7 +237,7 @@ const UNVERIFIED_VARIANTS: (() => string)[] = [
     [
       "📡 *Journée sans signal*",
       "",
-      "Un jour sans signal n'est pas un incident : sur 6 ans, le filtre de tendance de la stratégie est resté fermé 41 % du temps, dont une période de 381 jours d'affilée.",
+      `Un jour sans signal n'est pas un incident : sur 6 ans, le filtre de tendance de la stratégie est resté fermé ${PART_FILTRE_FERME} du temps, dont une période de 381 jours d'affilée.`,
       "",
       "Le canal publie quand les critères sont réunis, et se tait le reste du temps.",
     ].join("\n"),

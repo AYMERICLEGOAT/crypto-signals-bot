@@ -64,29 +64,32 @@ export function buildStartMessage3Keyboard(showTrial: boolean): InlineKeyboard {
  * éviter à quelqu'un d'acheter trente jours et de conclure sur un échantillon
  * qui ne prouve rien.
  *
- * Le palier long était masqué jusqu'ici (`proPlanVisible`) parce que sa seule
- * différence — quinze minutes d'avance — ne valait rien. Il vend maintenant de
- * la durée, à 15 USDT par mois au lieu de 19.
+ * Le palier long était masqué jusqu'ici derrière un drapeau `PRO_PLAN_VISIBLE`,
+ * hérité d'une époque où sa seule différence — quinze minutes d'avance — ne
+ * valait rien. Il vend maintenant de la durée, et il est le palier mis en
+ * avant : le garder derrière un drapeau nommé d'après un palier supprimé était
+ * un piège. Toute valeur autre que la chaîne exacte « true » l'aurait fait
+ * disparaître en silence, du texte ET des boutons, sans qu'aucun test échoue.
+ * Le drapeau est supprimé.
  *
  * Le compteur du pack Découverte est RÉEL (voir db/offerCounter.ts), jamais
  * décoratif. Épuisé, l'option disparaît au lieu d'afficher « 0 places ».
  */
-export function buildPlanKeyboard(remainingDiscoverySlots: number, proPlanVisible = true): InlineKeyboard {
+export function buildPlanKeyboard(remainingDiscoverySlots: number): InlineKeyboard {
   // Prix/durées dérivés de payments/plans.ts (source unique) au lieu de
   // valeurs recopiées à la main : un changement de prix ne pouvait sinon
   // toucher que le message texte de subscribe.ts, pas ces boutons, et
   // l'utilisateur cliquait sur un montant qui ne correspondait plus à celui
   // réellement facturé.
-  const keyboard: InlineKeyboard = [];
-  if (proPlanVisible) {
-    const parMois = Math.round(PLAN_PRICES_USD[PRO_PLAN] / (PLAN_DURATION_DAYS[PRO_PLAN] / 30));
-    keyboard.push([
+  const parMois = Math.round(PLAN_PRICES_USD[PRO_PLAN] / (PLAN_DURATION_DAYS[PRO_PLAN] / 30));
+  const keyboard: InlineKeyboard = [
+    [
       {
         text: `🎯 Trimestriel — ${PLAN_PRICES_USD[PRO_PLAN]} USDT / ${PLAN_DURATION_DAYS[PRO_PLAN]}j (${parMois} USDT par mois)`,
         callback_data: "plan:2",
       },
-    ]);
-  }
+    ],
+  ];
   keyboard.push([
     { text: `⭐ Mensuel — ${PLAN_PRICES_USD[STANDARD_PLAN]} USDT / ${PLAN_DURATION_DAYS[STANDARD_PLAN]}j`, callback_data: "plan:1" },
   ]);

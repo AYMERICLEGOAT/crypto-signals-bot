@@ -14,6 +14,7 @@ import { getMomentumAlertsSince } from "../db/momentumAlerts";
 import { computePnlPct } from "../signalMath";
 import { getTrendFilterState } from "../market/trendFilter";
 import { isQuietHours } from "../utils/quietHours";
+import { PART_FILTRE_FERME } from "../publishedStats";
 
 const RECAP_WEEKDAY_UTC = 0; // dimanche
 const RECAP_HOUR_UTC = 18;
@@ -60,7 +61,7 @@ export async function dispatchWeeklyRecap(env: Env): Promise<void> {
         ? `Le Bitcoin est resté sous sa moyenne mobile 200 jours (${Math.abs(state.gapPct).toFixed(1).replace(".", ",")} % en dessous à la dernière clôture). Le filtre de tendance a donc tenu la stratégie hors marché toute la semaine.`
         : "Aucune configuration n'a rempli les critères de la stratégie cette semaine.",
       "",
-      "Ce filtre est fermé 41 % du temps. Sans lui, la stratégie n'est positive que 4 années sur 7 ; avec lui, elle n'a aucune année perdante sur 6 ans.",
+      `Ce filtre est fermé ${PART_FILTRE_FERME} du temps. Sans lui, la stratégie n'est positive que 4 années sur 7 ; avec lui, elle n'a aucune année perdante sur 6 ans.`,
       "",
       "⚠️ Pas un conseil en investissement. Performance passée ne garantit pas les résultats futurs.",
     ].join("\n");

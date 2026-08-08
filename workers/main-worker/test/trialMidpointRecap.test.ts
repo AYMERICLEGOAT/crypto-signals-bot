@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { sendTrialMidpointRecap } from "../src/cron/trialMidpointRecap";
+import { PART_FILTRE_FERME } from "../src/publishedStats";
 
 function jsonResponse(body: unknown) {
   return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
@@ -118,7 +119,9 @@ describe("Point de mi-essai — aucun signal reçu", () => {
     const { messages } = stub({ historique: [], filtreFerme: true });
     await sendTrialMidpointRecap(env);
     expect(messages[0].text).toMatch(/tu n'as rien reçu/i);
-    expect(messages[0].text).toContain("41 %");
+    // Le chiffre vient de publishedStats, jamais d'une copie locale : c'est
+    // ainsi que « 41 % » et « 42 % » ont pu coexister dans des textes voisins.
+    expect(messages[0].text).toContain(PART_FILTRE_FERME);
   });
 
   it("prolonge l'essai automatiquement", async () => {

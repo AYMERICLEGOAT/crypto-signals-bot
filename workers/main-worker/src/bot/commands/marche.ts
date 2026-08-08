@@ -43,7 +43,7 @@
 
 import { Env, dbConfig } from "../../env";
 import { sendMessage } from "../../telegram";
-import { DEBIT, DEBIT_PAR_MOTEUR, MAX_PAR_JOUR } from "../../publishedStats";
+import { DEBIT, DEBIT_PAR_MOTEUR, MAX_PAR_JOUR, PART_FILTRE_FERME } from "../../publishedStats";
 import { pairToSymbol } from "../../market/binancePrices";
 import { getOpenCarrySignals } from "../../db/signals";
 
@@ -350,7 +350,7 @@ function buildOpenMessage(state: TrendState, carryLine: string | null): string {
     "",
     "Le chiffre qui te concerne vraiment, ce n'est pas le rendement de la stratégie mais celui d'une entrée à une date au hasard : après six mois, médiane +5,0 %, 53 % des entrées gagnantes, et pire cas -61,7 %.",
     "",
-    "Et le filtre se refermera : il est fermé 41 % du temps, jusqu'à 381 jours d'affilée. Ce jour-là, la force relative se taira, et le carry ainsi que le momentum 4H prendront le relais. Ce sera normal, et /marche te le dira.",
+    `Et le filtre se refermera : il est fermé ${PART_FILTRE_FERME} du temps, jusqu'à 381 jours d'affilée. Ce jour-là, la force relative se taira, et le carry ainsi que le momentum 4H prendront le relais. Ce sera normal, et /marche te le dira.`,
     "",
     DISCLAIMER,
   ]);
@@ -385,7 +385,7 @@ function buildClosedMessage(state: TrendState, carryLine: string | null): string
     "*Ce que ce n'est pas*",
     CARRY_RISK,
     "",
-    "Quant au filtre directionnel, il est fermé 41 % du temps. La plus longue fermeture a duré 381 jours, du 28/12/2021 au 13/01/2023, et personne ne peut te dire quand celle-ci se terminera. C'est exactement pour ces périodes-là que le carry existe.",
+    `Quant au filtre directionnel, il est fermé ${PART_FILTRE_FERME} du temps. La plus longue fermeture a duré 381 jours, du 28/12/2021 au 13/01/2023, et personne ne peut te dire quand celle-ci se terminera. C'est exactement pour ces périodes-là que le carry existe.`,
     "",
     DISCLAIMER,
   ]);

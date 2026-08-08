@@ -187,7 +187,6 @@ function eligibleAccesAVie(user: { plan: number | null; plan_started_at: string 
 export async function handleSubscribeCommand(env: Env, telegramId: number): Promise<void> {
   const db = dbConfig(env);
   const remainingDiscoverySlots = await getRemainingDiscoverySlots(db);
-  const proPlanVisible = env.PRO_PLAN_VISIBLE === "true";
   const utilisateur = await getOrCreateUser(db, telegramId);
   const accesAVie = eligibleAccesAVie(utilisateur);
 
@@ -201,19 +200,16 @@ export async function handleSubscribeCommand(env: Env, telegramId: number): Prom
     "📅 LES OFFRES",
     "",
     `⭐ Mensuel — ${PLAN_PRICES_USD[1]} USDT pour ${PLAN_DURATION_DAYS[1]} jours`,
-    "Tous les signaux des cinq moteurs AVEC LEURS NIVEAUX — entrée, stop, trois objectifs, durée — au " +
-      "rythme mesuré de 2,99 par jour. C'est la différence avec le canal gratuit, qui voit les signaux " +
+    `Tous les signaux des cinq moteurs AVEC LEURS NIVEAUX — entrée, stop, trois objectifs, durée — au ` +
+      `rythme mesuré de ${DEBIT.moyenne} par jour. C'est la différence avec le canal gratuit, qui voit les signaux ` +
       "partir mais reçoit leurs niveaux seulement à la clôture, quand il est trop tard pour les jouer.",
+    "",
+    `🎯 Trimestriel — ${PLAN_PRICES_USD[2]} USDT pour ${PLAN_DURATION_DAYS[2]} jours`,
+    `Les mêmes signaux, sur trois mois — soit ${Math.round(PLAN_PRICES_USD[2] / (PLAN_DURATION_DAYS[2] / 30))} USDT par mois ` +
+      `au lieu de ${PLAN_PRICES_USD[1]}. C'est surtout la durée sur laquelle cette stratégie peut être jugée : le ` +
+      `filtre de tendance est fermé ${PART_FILTRE_FERME} du temps, et un mois isolé peut ne rien contenir sans que ` +
+      "rien ne soit cassé.",
   ];
-  if (proPlanVisible) {
-    lines.push(
-      "",
-      `🎯 Trimestriel — ${PLAN_PRICES_USD[2]} USDT pour ${PLAN_DURATION_DAYS[2]} jours`,
-      "Les mêmes signaux, sur trois mois — soit 15 USDT par mois au lieu de 19. C'est surtout la " +
-        "durée sur laquelle cette stratégie peut être jugée : le filtre de tendance est fermé 41 % du " +
-        "temps, et un mois isolé peut ne rien contenir sans que rien ne soit cassé."
-    );
-  }
   if (accesAVie) {
     // Proposé UNIQUEMENT à quelqu'un qui a déjà payé et tenu un mois. Vendre un
     // accès permanent à un nouveau venu serait malhonnête : il n'a pas encore
@@ -271,7 +267,7 @@ export async function handleSubscribeCommand(env: Env, telegramId: number): Prom
   // Deux issues ajoutées sous les plans : le guide, et surtout un chemin
   // explicite pour qui n'a aucune crypto. Sans lui, ce visiteur-là n'avait
   // aucune porte de sortie autre que fermer Telegram.
-  const keyboard: InlineKeyboard = buildPlanKeyboard(remainingDiscoverySlots, proPlanVisible);
+  const keyboard: InlineKeyboard = buildPlanKeyboard(remainingDiscoverySlots);
   if (accesAVie) {
     keyboard.push([
       { text: `♾️ Accès à vie — ${PLAN_PRICES_USD[LIFETIME_PLAN]} USDT`, callback_data: "plan:4" },
@@ -293,7 +289,13 @@ export async function handlePlanSelection(env: Env, telegramId: number, data: st
     const db = dbConfig(env);
     const remaining = await getRemainingDiscoverySlots(db);
     if (remaining <= 0) {
-      await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, "⚠️ Le Pack Découverte est épuisé. Choisis Standard ou Pro avec /subscribe.");
+      await sendMessage(
+        env.TELEGRAM_BOT_TOKEN,
+        telegramId,
+        "⚠️ Le pack Découverte est épuisé — les places étaient réelles, et elles sont prises.\n\n" +
+          "Les deux autres paliers restent ouverts :",
+        { keyboard: buildPlanKeyboard(0) }
+      );
       return;
     }
   }
@@ -513,7 +515,13 @@ export async function handlePaymentMethodSelection(env: Env, telegramId: number,
   if (plan === DISCOVERY_PLAN) {
     const remaining = await getRemainingDiscoverySlots(db);
     if (remaining <= 0) {
-      await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, "⚠️ Le Pack Découverte est épuisé. Choisis Standard ou Pro avec /subscribe.");
+      await sendMessage(
+        env.TELEGRAM_BOT_TOKEN,
+        telegramId,
+        "⚠️ Le pack Découverte est épuisé — les places étaient réelles, et elles sont prises.\n\n" +
+          "Les deux autres paliers restent ouverts :",
+        { keyboard: buildPlanKeyboard(0) }
+      );
       return;
     }
   }

@@ -4,6 +4,7 @@ import { getOrCreateUser, markUserCancelled, isSubscriptionActive, activateSubsc
 import { updateRows } from "../../supabaseRest";
 import { exitSurveyKeyboard } from "../keyboards";
 import { addDays } from "../../utils/date";
+import { PART_FILTRE_FERME } from "../../publishedStats";
 
 /**
  * /cancel — arrêter les relances commerciales.
@@ -66,7 +67,7 @@ export async function handleCancelCommand(env: Env, telegramId: number, rawArgs:
 
     const offreTexte = offreDisponible
       ? `\n\nAvant de partir, une chose et une seule : si tu t'arrêtes parce que le marché a été calme, ` +
-        `${JOURS_OFFERTS} jours te sont offerts pour voir la suite. Le filtre de tendance est fermé 41 % du ` +
+        `${JOURS_OFFERTS} jours te sont offerts pour voir la suite. Le filtre de tendance est fermé ${PART_FILTRE_FERME} du ` +
         "temps — il arrive qu'un abonnement entier tombe dans un creux, et ce n'est pas représentatif.\n" +
         "Aucune contrepartie, aucune relance supplémentaire. Si tu déclines, on n'en reparle plus."
       : "";

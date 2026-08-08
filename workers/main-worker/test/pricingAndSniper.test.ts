@@ -121,12 +121,18 @@ describe("buildPlanKeyboard", () => {
     expect(labels).toHaveLength(2);
   });
 
-  it("peut masquer le palier long sans toucher aux deux autres", () => {
-    const kb = buildPlanKeyboard(7, false);
-    const labels = kb.flat().map((b) => b.text);
-    expect(labels.some((l) => l.includes("Mensuel"))).toBe(true);
-    expect(labels.some((l) => l.includes("Trimestriel"))).toBe(false);
-    expect(labels.some((l) => l.includes("Découverte"))).toBe(true);
+  it("propose TOUJOURS le Trimestriel, et en premier", () => {
+    // Il était masquable par un drapeau d'environnement hérité d'un palier
+    // supprimé : toute valeur autre que la chaîne exacte « true » faisait
+    // disparaître en silence le palier mis en avant, sans qu'aucun test
+    // échoue. Le drapeau est supprimé, cette propriété le verrouille.
+    for (const places of [0, 7]) {
+      const labels = buildPlanKeyboard(places)
+        .flat()
+        .map((b) => b.text);
+      expect(labels[0]).toContain("Trimestriel");
+      expect(labels.some((l) => l.includes("Mensuel"))).toBe(true);
+    }
   });
 });
 

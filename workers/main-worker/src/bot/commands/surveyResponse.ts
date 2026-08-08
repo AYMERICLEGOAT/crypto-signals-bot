@@ -2,6 +2,7 @@ import { Env, dbConfig } from "../../env";
 import { sendMessage } from "../../telegram";
 import { setSurveyResponse } from "../../db/users";
 import { buildReferralLink, REFERRAL_BONUS_DAYS } from "../referral";
+import { PART_FILTRE_FERME } from "../../publishedStats";
 
 /**
  * Réponse au sondage de satisfaction envoyé au septième jour d'abonnement.
@@ -43,7 +44,7 @@ export async function handleSurveyResponse(env: Env, telegramId: number, data: s
         "Ce qui aiderait vraiment : réponds simplement à ce message en expliquant ce qui ne va pas. " +
         "L'administrateur le lit, il n'y a rien à remplir et personne d'autre ne le verra.\n\n" +
         "Deux choses qui reviennent souvent, au cas où : le silence en marché baissier est voulu (les " +
-        "moteurs directionnels sont coupés 41 % du temps), et la majorité des signaux perdent — tout le " +
+        `moteurs directionnels sont coupés ${PART_FILTRE_FERME} du temps), et la majorité des signaux perdent — tout le ` +
         "résultat vient d'une minorité de gros gagnants. /faq détaille les deux.";
 
   await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, texte);

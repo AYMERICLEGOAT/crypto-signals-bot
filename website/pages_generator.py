@@ -170,7 +170,7 @@ STEPS = [
     ("Le filtre de tendance décide si la force relative a le droit d'acheter",
      "Une seule question avant tout le reste : le Bitcoin est-il au-dessus de sa moyenne mobile "
      "200 jours ? S'il est en dessous, la force relative se tait, quelles que soient "
-     "les opportunités apparentes. Sur les 6 dernières années mesurées, ce filtre a été fermé 41 % "
+     f"les opportunités apparentes. Sur les 6 dernières années mesurées, ce filtre a été fermé {PART_FILTRE_FERME} "
      "du temps, et sa plus longue fermeture a duré 381 jours d'affilée."),
     ("Moteur 1 — Force relative : acheter ce qui monte déjà",
      "Une fois par jour, sur des clôtures journalières, les 40 paires suivies sont classées de la "
@@ -464,7 +464,7 @@ def build_how_it_works():
     }
     return _shell(
         "Comment ça marche — force relative et filtre de tendance",
-        "Le fonctionnement réel du bot : classement des 40 paires par force relative, achat des 12 plus fortes, sortie après 7 jours, et aucun signal quand le Bitcoin est sous sa moyenne 200 jours (41 % du temps).",
+        f"Le fonctionnement réel du bot : classement des 40 paires par force relative, achat des 12 plus fortes, sortie après 7 jours, et aucun signal quand le Bitcoin est sous sa moyenne 200 jours ({PART_FILTRE_FERME} du temps).",
         "/comment-ca-marche", body, jsonld=jsonld,
     )
 
@@ -511,7 +511,7 @@ def build_about():
        Le détail complet est sur la page
        <a href="/comment-ca-marche.html">Comment ça marche</a>.</p>
     <p>Et surtout, il ne fait rien quand le Bitcoin est sous sa moyenne mobile 200 jours — soit
-       41 % du temps sur les 6 dernières années, avec une fermeture record de 381 jours
+       {PART_FILTRE_FERME} du temps sur les 6 dernières années, avec une fermeture record de 381 jours
        consécutifs. C'est ce filtre qui fait la majeure partie du travail : le classement par force
        relative, lui, n'apporte qu'environ 1,1 point. Nous préférons le dire que laisser croire à
        un indicateur miracle.</p>
@@ -661,7 +661,7 @@ def build_terms():
     Générées depuis le 03/08/2026 (avant : public/terms.html, écrit à la main).
     Le déclencheur est la section 2 ci-dessous : le moteur Force Relative
     n'émet aucun signal quand le Bitcoin est sous sa moyenne 200 jours, soit
-    41 % du temps, une fois pendant 381 jours d'affilée. Vendre un abonnement
+    42 % du temps, une fois pendant 381 jours d'affilée. Vendre un abonnement
     de 30 jours sans avoir écrit noir sur blanc qu'il peut ne rien contenir
     serait une omission trompeuse (art. L121-3 du code de la consommation) —
     et, plus simplement, une façon de prendre l'argent de quelqu'un qui n'a pas
@@ -881,7 +881,7 @@ def build_terms():
 """
     return _shell(
         "Conditions générales de vente et d'utilisation",
-        "Conditions d'accès, tarifs, paiement et résiliation. Contient la clause des périodes sans aucun signal : le service n'émet rien quand le Bitcoin est sous sa moyenne 200 jours, historiquement 41 % du temps.",
+        f"Conditions d'accès, tarifs, paiement et résiliation. Contient la clause des périodes sans aucun signal : le service n'émet rien quand le Bitcoin est sous sa moyenne 200 jours, historiquement {PART_FILTRE_FERME} du temps.",
         "/terms.html", body,
     )
 

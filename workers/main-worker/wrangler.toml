@@ -42,7 +42,6 @@ ONCHAIN_CONTRACT_POLLING_ENABLED = "false"
 # par mois au lieu de 19), c'est-à-dire la seule échelle à laquelle cette
 # stratégie peut être jugée : le filtre est fermé 41 % du temps et un mois
 # isolé peut ne rien contenir.
-PRO_PLAN_VISIBLE = "true"
 MONERO_MIN_CONFIRMATIONS = "10"
 LTC_MIN_CONFIRMATIONS = "1"
 TELEGRAM_BOT_USERNAME = "ProVIPSignals_bot"
