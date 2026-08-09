@@ -51,6 +51,31 @@ def load_enriched(pair):
     ).reset_index(drop=True)
 
 
+# CE FICHIER A BESOIN D'UN CACHE LOCAL, ET LE DIT PLUTÔT QUE D'ÉCHOUER.
+#
+# Il lit signals/data/diag_cache, qui n'est PAS versionné (voir .gitignore) :
+# 90 jours de bougies horaires par paire, trop volumineux pour le dépôt. Sur un
+# runner GitHub le répertoire est donc vide, load_enriched() rend None pour
+# toutes les paires, et les compteurs restent à zéro — ce qui faisait échouer
+# « assez de bougies comparées (0) » alors que rien n'est cassé.
+#
+# Il vérifie par ailleurs une propriété du moteur Haute Confiance (detect_signal
+# sur EMA/RSI), désactivé le 03/08/2026. Sa valeur est donc historique : il
+# protège du regard vers le futur le jour où ce code servirait de nouveau.
+#
+# Sortir en 0 avec un message explicite est la seule option honnête : échouer
+# rendrait la CI rouge en permanence pour une raison fausse, et passer en
+# silence laisserait croire que la vérification a eu lieu.
+if not os.path.isdir(CACHE_DIR) or not os.listdir(CACHE_DIR):
+    print(
+        "IGNORÉ : le cache de bougies (signals/data/diag_cache) est absent.\n"
+        "  Ce fichier compare 90 jours de bougies horaires par paire ; ces données ne sont pas\n"
+        "  versionnées et ne sont pas récupérables depuis un runner GitHub, dont les IP sont\n"
+        "  bloquées par Binance (451). Lance-le en local, où le cache existe.\n"
+        "  Aucune vérification n'a été effectuée — ce n'est pas un succès."
+    )
+    raise SystemExit(0)
+
 print("\n[1] Absence de regard vers le futur (at_index == évaluation tronquée)")
 tested = mismatches = signals_seen = 0
 for pair in list(config.PAIRS)[:8]:
