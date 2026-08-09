@@ -13,6 +13,7 @@ import { SupabaseConfig } from "../supabaseRest";
 import { PLAN_DURATION_DAYS, DISCOVERY_PLAN, STANDARD_PLAN, isValidPlan } from "../payments/plans";
 import { incrementDiscoverySlotsUsed, incrementEarlyAdopterSlotsUsed } from "../db/offerCounter";
 import { getUserIfExists } from "../db/users";
+import { journaliserErreurUneFois, signalerRetablissement } from "../utils/logUneFois";
 
 const EARLY_ADOPTER_BONUS_DAYS = 30;
 
@@ -215,11 +216,31 @@ async function processLitecoinPayments(env: Env): Promise<void> {
   }
 }
 
+/**
+ * Les quatre collecteurs de paiement, chacun isolé des autres.
+ *
+ * LES ÉCHECS SONT JOURNALISÉS UNE FOIS PAR PANNE, plus un rappel toutes les six
+ * heures. Ce cron tourne toutes les cinq minutes : une cause permanente — le
+ * RPC Polygon public élague son historique, donc `eth_getLogs` sur un bloc
+ * ancien échouera indéfiniment — produisait 288 lignes identiques par jour, au
+ * milieu desquelles une vraie panne devenait invisible.
+ *
+ * Le rétablissement est journalisé lui aussi : sans ça, on ne saurait jamais
+ * qu'une panne s'est terminée.
+ */
 export async function pollPayments(env: Env): Promise<void> {
-  await Promise.all([
-    processUsdtEvents(env).catch((err) => console.error("[usdt] Erreur du cron:", err)),
-    processUsdtTransfers(env).catch((err) => console.error("[usdt-offchain] Erreur du cron:", err)),
-    processMoneroPayments(env).catch((err) => console.error("[monero] Erreur du cron:", err)),
-    processLitecoinPayments(env).catch((err) => console.error("[litecoin] Erreur du cron:", err)),
-  ]);
+  const collecteurs: Array<[string, Promise<unknown>]> = [
+    ["usdt", processUsdtEvents(env)],
+    ["usdt-offchain", processUsdtTransfers(env)],
+    ["monero", processMoneroPayments(env)],
+    ["litecoin", processLitecoinPayments(env)],
+  ];
+
+  await Promise.all(
+    collecteurs.map(([cle, promesse]) =>
+      promesse
+        .then(() => signalerRetablissement(cle))
+        .catch((err) => journaliserErreurUneFois(cle, err))
+    )
+  );
 }

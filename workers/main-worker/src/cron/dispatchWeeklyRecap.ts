@@ -15,6 +15,7 @@ import { computePnlPct } from "../signalMath";
 import { getTrendFilterState } from "../market/trendFilter";
 import { isQuietHours } from "../utils/quietHours";
 import { PART_FILTRE_FERME } from "../publishedStats";
+import { enregistrerEnvoi } from "../channelBudget";
 
 const RECAP_WEEKDAY_UTC = 0; // dimanche
 const RECAP_HOUR_UTC = 18;
@@ -67,6 +68,7 @@ export async function dispatchWeeklyRecap(env: Env): Promise<void> {
     ].join("\n");
 
     await sendMessage(env.TELEGRAM_BOT_TOKEN, Number(env.TELEGRAM_CHANNEL_ID), silentText, { markdown: true });
+    await enregistrerEnvoi(db, "public", "quotidien", "recap-hebdo");
     await recordWeeklyRecapPost(db);
     return;
   }
@@ -145,6 +147,10 @@ export async function dispatchWeeklyRecap(env: Env): Promise<void> {
   );
   const text = lines.join("\n");
 
+  // Non GATE par le regulateur : hebdomadaire, deja verrouille par le jour,
+  // l heure et hasPostedWeeklyRecapRecently. Mais COMPTABILISE, sinon il
+  // pousserait la journee au-dela du plafond sans que rien ne le sache.
   await sendMessage(env.TELEGRAM_BOT_TOKEN, Number(env.TELEGRAM_CHANNEL_ID), text, { markdown: true });
+  await enregistrerEnvoi(db, "public", "quotidien", "recap-hebdo");
   await recordWeeklyRecapPost(db);
 }

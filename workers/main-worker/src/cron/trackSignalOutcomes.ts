@@ -27,6 +27,7 @@ import { sendMessage } from "../telegram";
 import { handleAntiStress } from "./antiStress";
 import { typeLabel } from "../signalFormat";
 import { buildReferralLink, REFERRAL_BONUS_DAYS } from "../bot/referral";
+import { peutPublier, enregistrerEnvoi } from "../channelBudget";
 
 // Filet de sécurité, utilisé UNIQUEMENT quand le signal ne porte pas sa propre
 // échéance (signaux antérieurs à hold_until). Voir holdDeadlineMs ci-dessous :
@@ -223,9 +224,21 @@ function formatShareableVictory(signal: SignalRecord, pct: number, env: Env, tel
 async function broadcastCelebration(env: Env, signal: SignalRecord, level: "TP2" | "TP3", pct: number): Promise<void> {
   if (!env.TELEGRAM_VIP_CHANNEL_ID) return;
   const channelId = Number(env.TELEGRAM_VIP_CHANNEL_ID);
+
+  // Le régulateur décide du MOMENT, jamais du contenu. La catégorie
+  // « resultat » ignore le plafond quotidien — une preuve du produit ne doit
+  // jamais être retenue — mais respecte l'espacement minimal. Sans lui, cinq
+  // positions franchissant TP2 dans le même cycle produisaient cinq messages
+  // en quelques secondes, ce qui se lit comme du spam même quand c'est une
+  // bonne nouvelle.
+  const db = dbConfig(env);
+  const verdict = await peutPublier(db, "vip", "resultat");
+  if (!verdict.autorise) return;
+
   await sendMessage(env.TELEGRAM_BOT_TOKEN, channelId, formatCelebrationMessage(signal, level, pct), { markdown: true }).catch((err) =>
     console.error(`[post-trade] Échec de la célébration VIP pour le signal #${signal.id} (${level}):`, err)
   );
+  await enregistrerEnvoi(db, "vip", "resultat", `tp:${signal.id}:${level}`);
 }
 
 async function closeSignal(
@@ -256,9 +269,16 @@ async function closeSignal(
 
   if (signal.sent_to_channel && env.TELEGRAM_CHANNEL_ID) {
     const channelId = Number(env.TELEGRAM_CHANNEL_ID);
-    await sendMessage(env.TELEGRAM_BOT_TOKEN, channelId, formatPublicCloseMessage(closedSignal, pct, env.TELEGRAM_BOT_USERNAME), {
-      markdown: true,
-    }).catch((err) => console.error(`[post-trade] Échec de la célébration publique pour le signal #${signal.id}:`, err));
+    // Même règle que la célébration VIP : espacé, jamais plafonné. La
+    // republication d'un signal à sa clôture est ce que le canal gratuit promet
+    // dans sa description — elle ne peut pas être supprimée, seulement différée.
+    const verdictPublic = await peutPublier(db, "public", "resultat");
+    if (verdictPublic.autorise) {
+      await sendMessage(env.TELEGRAM_BOT_TOKEN, channelId, formatPublicCloseMessage(closedSignal, pct, env.TELEGRAM_BOT_USERNAME), {
+        markdown: true,
+      }).catch((err) => console.error(`[post-trade] Échec de la célébration publique pour le signal #${signal.id}:`, err));
+      await enregistrerEnvoi(db, "public", "resultat", `cloture:${signal.id}`);
+    }
   }
 }
 

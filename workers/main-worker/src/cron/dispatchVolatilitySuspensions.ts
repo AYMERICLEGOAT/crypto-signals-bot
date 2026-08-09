@@ -8,6 +8,7 @@
 import { Env, dbConfig } from "../env";
 import { getUnsentVolatilitySuspensions, markVolatilitySuspensionSent, VolatilitySuspensionRecord } from "../db/volatilitySuspensions";
 import { sendMessage } from "../telegram";
+import { peutPublier, enregistrerEnvoi } from "../channelBudget";
 import { isQuietHours } from "../utils/quietHours";
 
 function formatSuspensionMessage(event: VolatilitySuspensionRecord): string {
@@ -30,12 +31,28 @@ export async function dispatchVolatilitySuspensions(env: Env): Promise<void> {
   const channelId = Number(env.TELEGRAM_CHANNEL_ID);
   const due = await getUnsentVolatilitySuspensions(db);
 
+  // UN SEUL ÉVÉNEMENT PAR PASSAGE, ET SEULEMENT SI LE CANAL PEUT PARLER.
+  //
+  // Cette boucle envoyait autant de messages qu'il y avait d'événements en
+  // attente, d'affilée, sans passer par le régulateur. Une secousse de marché
+  // suspend plusieurs paires en même temps : cinq suspensions produisaient donc
+  // cinq messages en quelques secondes sur le canal public. C'est précisément
+  // la rafale que channelBudget existe pour empêcher.
+  //
+  // Le reste attend le cycle suivant : ces événements ne sont pas des signaux à
+  // jouer, ils ne perdent rien à sortir quelques minutes plus tard. Ils ne sont
+  // marqués comme envoyés qu'après un envoi réussi, donc rien n'est perdu.
   for (const event of due) {
+    const verdict = await peutPublier(db, "public", "quotidien");
+    if (!verdict.autorise) return;
+
     try {
       await sendMessage(env.TELEGRAM_BOT_TOKEN, channelId, formatSuspensionMessage(event), { markdown: true });
       await markVolatilitySuspensionSent(db, event.id);
+      await enregistrerEnvoi(db, "public", "quotidien", `suspension:${event.id}`);
     } catch (err) {
       console.error(`[volatility-suspensions] Échec de diffusion pour l'événement #${event.id}:`, err);
     }
+    return;
   }
 }
