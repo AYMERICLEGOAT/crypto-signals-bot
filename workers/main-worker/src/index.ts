@@ -119,6 +119,35 @@ export default {
     }
 
     if (event.cron === "*/15 * * * *") {
+      // LA CHAÎNE ÉTAIT TROP LONGUE POUR UNE SEULE INVOCATION.
+      //
+      // Dix-neuf tâches s'exécutaient à la suite dans le même appel, chacune
+      // consommant plusieurs sous-requêtes (lectures Supabase, envois
+      // Telegram). Un Worker Cloudflare est plafonné à 50 sous-requêtes par
+      // invocation : la chaîne l'épuisait, et TOUT ce qui venait après mourait
+      // sur « Too many subrequests by single Worker invocation ».
+      //
+      // Constaté en production le 09/08/2026 : les huit dernières tâches ne
+      // s'exécutaient plus du tout — dont la séquence de bienvenue, les
+      // relances de réabonnement, les enquêtes de satisfaction et l'épinglage
+      // du canal. Des mécaniques de rétention et de revenu, mortes en silence,
+      // sans qu'aucune alerte ne se déclenche puisque chaque .catch()
+      // journalisait sans faire échouer le cron.
+      //
+      // Le cron des quinze minutes se déclenche à :00, :15, :30 et :45. On
+      // répartit donc les tâches sur ces quatre créneaux : chaque invocation
+      // n'en exécute qu'un quart, et le budget de sous-requêtes redevient très
+      // large. Chaque tâche tourne une fois par heure au lieu de quatre.
+      //
+      // Ce rythme est sans conséquence : toutes ces tâches raisonnent en jours
+      // ou en semaines (rappels d'expiration, récap hebdomadaire, retrait VIP à
+      // échéance) et portent déjà un drapeau « déjà envoyé » en base. Aucune
+      // n'est perdue, elles sont seulement différées d'au plus 45 minutes.
+      //
+      // Les tâches critiques pour le revenu occupent le premier créneau : si un
+      // jour un groupe devait de nouveau saturer, ce ne serait pas celui-là.
+      const creneau = Math.floor(new Date().getUTCMinutes() / 15) % 4;
+
       ctx.waitUntil(
         (async () => {
           // TROIS TÂCHES RETIRÉES DE LA CHAÎNE LE 08/08/2026, après avoir lu ce
@@ -126,45 +155,54 @@ export default {
           // décision doit rester traçable, pas effacée en silence.
           //
           //   dispatchCryptoFact — 51 anecdotes du type « le dernier bitcoin
-          //     sera miné vers 2140 » ou « le Salvador a adopté le bitcoin ».
-          //     Vrai, sans aucun rapport avec le produit, et surtout : sur un
-          //     canal qui vend de la mesure, publier de la trivia le fait
-          //     ressembler à tous les autres canaux crypto. Ça ne remplit pas
-          //     le canal, ça le banalise.
+          //     sera miné vers 2140 ». Vrai, sans rapport avec le produit, et
+          //     sur un canal qui vend de la mesure, ça le banalise.
           //
-          //   dispatchFearGreed — un indice de sentiment repris d'un site
-          //     tiers, accompagné de « pas un signal de trading ». N'importe
-          //     qui peut le consulter, personne ne peut rien en faire. Un
-          //     message dont on doit préciser qu'il ne sert à rien n'a pas
-          //     besoin d'être envoyé.
+          //   dispatchFearGreed — un indice repris d'un site tiers, accompagné
+          //     de « pas un signal de trading ». Un message dont on doit
+          //     préciser qu'il ne sert à rien n'a pas besoin d'être envoyé.
           //
-          //   postLeaderboard — le classement des meilleurs parrains. Sur un
-          //     canal qui compte deux personnes, publier un podium de
-          //     parrainage ne motive personne : ça signale surtout qu'il n'y a
-          //     personne. À reconsidérer le jour où l'audience existe.
-          await dispatchWeeklyRecap(env).catch((err) => console.error("[cron] Erreur dispatchWeeklyRecap:", err));
-          await dispatchEducationalPost(env).catch((err) => console.error("[cron] Erreur dispatchEducationalPost:", err));
-          await dispatchNoSignalStatus(env).catch((err) => console.error("[cron] Erreur dispatchNoSignalStatus:", err));
-          // Suivi des carrys : cadence de 15 minutes et non de 5, parce que la
-          // clôture est TEMPORELLE. Une position tenue 21 jours n'a aucun
-          // besoin d'être examinée toutes les 5 minutes, et chaque passage
-          // interroge l'API de financement paire par paire.
+          //   postLeaderboard — un podium de parrainage sur un canal qui compte
+          //     deux personnes signale surtout qu'il n'y a personne.
+
+          if (creneau === 0) {
+            // ABONNEMENTS ET RÉTENTION — le groupe qu'on ne veut jamais perdre.
+            await checkExpirationReminders(env).catch((err) => console.error("[cron] Erreur checkExpirationReminders:", err));
+            await sendWelcomeFollowUps(env).catch((err) => console.error("[cron] Erreur sendWelcomeFollowUps:", err));
+            await sendTrialMidpointRecap(env).catch((err) => console.error("[cron] Erreur sendTrialMidpointRecap:", err));
+            await revokeExpiredVip(env).catch((err) => console.error("[cron] Erreur revokeExpiredVip:", err));
+            return;
+          }
+
+          if (creneau === 1) {
+            // RECONQUÊTE ET ENQUÊTES.
+            await sendReengagementOffers(env).catch((err) => console.error("[cron] Erreur sendReengagementOffers:", err));
+            await sendSatisfactionSurveys(env).catch((err) => console.error("[cron] Erreur sendSatisfactionSurveys:", err));
+            await runLuckyVipDay(env).catch((err) => console.error("[cron] Erreur luckyVipDay:", err));
+            await revertLuckyVip(env).catch((err) => console.error("[cron] Erreur revertLuckyVip:", err));
+            return;
+          }
+
+          if (creneau === 2) {
+            // CONTENU DES CANAUX. Chacune porte sa propre fenêtre horaire et
+            // son drapeau « déjà publié » : passer une fois par heure suffit.
+            await dispatchWeeklyRecap(env).catch((err) => console.error("[cron] Erreur dispatchWeeklyRecap:", err));
+            await dispatchEducationalPost(env).catch((err) => console.error("[cron] Erreur dispatchEducationalPost:", err));
+            await dispatchNoSignalStatus(env).catch((err) => console.error("[cron] Erreur dispatchNoSignalStatus:", err));
+            await postChannelReminder(env).catch((err) => console.error("[cron] Erreur postChannelReminder:", err));
+            await dispatchVipBriefing(env).catch((err) => console.error("[cron] Erreur dispatchVipBriefing:", err));
+            return;
+          }
+
+          // MAINTENANCE ET PÉRIODIQUES. trackCarryOutcomes reste ici : la
+          // clôture d'un carry est TEMPORELLE, une position tenue 21 jours n'a
+          // aucun besoin d'être examinée quatre fois par heure.
           await trackCarryOutcomes(env).catch((err) => console.error("[cron] Erreur trackCarryOutcomes:", err));
-          await runLuckyVipDay(env).catch((err) => console.error("[cron] Erreur luckyVipDay:", err));
-          await revertLuckyVip(env).catch((err) => console.error("[cron] Erreur revertLuckyVip:", err));
-          await checkExpirationReminders(env).catch((err) => console.error("[cron] Erreur checkExpirationReminders:", err));
-          await sendReengagementOffers(env).catch((err) => console.error("[cron] Erreur sendReengagementOffers:", err));
-          await sendSatisfactionSurveys(env).catch((err) => console.error("[cron] Erreur sendSatisfactionSurveys:", err));
-          await sendWelcomeFollowUps(env).catch((err) => console.error("[cron] Erreur sendWelcomeFollowUps:", err));
-          await sendTrialMidpointRecap(env).catch((err) => console.error("[cron] Erreur sendTrialMidpointRecap:", err));
           await runDailyMaintenance(env).catch((err) => console.error("[cron] Erreur runDailyMaintenance:", err));
           await ensureChannelPinned(env).catch((err) => console.error("[cron] Erreur ensureChannelPinned:", err));
-          await postChannelReminder(env).catch((err) => console.error("[cron] Erreur postChannelReminder:", err));
-          await dispatchVipBriefing(env).catch((err) => console.error("[cron] Erreur dispatchVipBriefing:", err));
           await dispatchSelectivityDigest(env).catch((err) => console.error("[cron] Erreur dispatchSelectivityDigest:", err));
           await monthlyRecap(env).catch((err) => console.error("[cron] Erreur monthlyRecap:", err));
           await rotateVipInviteLinkIfDue(env).catch((err) => console.error("[cron] Erreur rotateVipInviteLinkIfDue:", err));
-          await revokeExpiredVip(env).catch((err) => console.error("[cron] Erreur revokeExpiredVip:", err));
         })()
       );
     }

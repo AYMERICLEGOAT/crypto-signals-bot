@@ -21,6 +21,13 @@ import { peutPublier, enregistrerEnvoi } from "../channelBudget";
 const CHANNEL_DELAY_MINUTES = 30;
 
 /**
+ * Limite Telegram d'une legende de photo. Un message normal accepte 4096
+ * caracteres, une legende seulement 1024 : c'est cet ecart qui faisait
+ * disparaitre l'echantillon hebdomadaire.
+ */
+const LEGENDE_MAX = 1024;
+
+/**
  * Le délai annoncé est CALCULÉ, pas écrit en dur (02/08/2026). Depuis
  * l'instauration des heures calmes, un signal détecté à 3 h du matin n'est
  * publié ici qu'après 7 h : annoncer « différé de 30 min » serait alors
@@ -115,8 +122,28 @@ export async function dispatchPublicChannel(env: Env): Promise<void> {
     try {
       // Le graphique n'accompagne QUE le signal complet : sur une annonce sans
       // niveaux, il donnerait à lire ce que le texte vient de réserver.
+      //
+      // UNE LÉGENDE TELEGRAM EST LIMITÉE À 1024 CARACTÈRES, un message à 4096.
+      // Un signal complet en fait ~1400 : envoyé en légende de photo, il était
+      // rejeté par un 400 « message caption is too long », attrapé plus bas et
+      // journalisé — donc l'échantillon offert de la semaine, le poste le plus
+      // précieux du canal gratuit, disparaissait EN SILENCE dès que le signal
+      // portait un graphique. Les signaux sans graphique passaient par
+      // sendMessage et sortaient normalement, ce qui rendait la panne
+      // intermittente et donc invisible.
+      //
+      // On envoie alors la photo avec une légende courte, puis le texte entier
+      // en message séparé : les deux arrivent, dans l'ordre, et rien n'est
+      // tronqué.
       if (complet && signal.chart_url) {
-        await sendPhoto(env.TELEGRAM_BOT_TOKEN, channelId, signal.chart_url, { caption: text, markdown: true });
+        if (text.length <= LEGENDE_MAX) {
+          await sendPhoto(env.TELEGRAM_BOT_TOKEN, channelId, signal.chart_url, { caption: text, markdown: true });
+        } else {
+          await sendPhoto(env.TELEGRAM_BOT_TOKEN, channelId, signal.chart_url, {
+            caption: `📈 ${signal.pair} — le détail complet juste en dessous.`,
+          });
+          await sendMessage(env.TELEGRAM_BOT_TOKEN, channelId, text, { markdown: true });
+        }
       } else {
         await sendMessage(env.TELEGRAM_BOT_TOKEN, channelId, text, { markdown: true });
       }
