@@ -41,8 +41,23 @@ jobs:
           # et npm ci echouait sur EBADENGINE au premier passage.
           node-version: "22"
 
+      # `npm install` et non `npm ci`, à contrecœur et pour une raison précise.
+      #
+      # vitest-pool-workers embarque son propre wrangler, dont la peerDependency
+      # réclame @cloudflare/workers-types en 4.x, tandis que la racine du projet
+      # est en 5.x. npm install résout ce conflit en silence — c'est ce que fait
+      # la machine de développement — mais npm ci refuse : « Missing:
+      # @cloudflare/workers-types@4.x from lock file ». Régénérer le lockfile
+      # depuis zéro n'y change rien : ce peer imbriqué n'entre jamais dans
+      # l'arbre.
+      #
+      # Le compromis : on perd la reproductibilité stricte de npm ci. Il ne
+      # porte que sur l'outillage de TEST (vitest, wrangler, miniflare), jamais
+      # sur du code livré — un Worker Cloudflare ne bundle que ses propres
+      # sources. Faire l'inverse laisserait la CI rouge en permanence, et une CI
+      # rouge en permanence est une CI que plus personne ne lit.
       - name: Installer les dépendances
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       # Le typage d'abord : une erreur de type est plus rapide à lire qu'un
       # test qui échoue pour la même raison.
