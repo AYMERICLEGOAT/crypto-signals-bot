@@ -9,7 +9,7 @@
 import { Env, dbConfig } from "../env";
 import { sendMessage } from "../telegram";
 import { hasPostedWeeklyRecapRecently, recordWeeklyRecapPost } from "../db/weeklyRecapPosts";
-import { getSignalsCreatedSince, getSignalsResolvedSince } from "../db/signals";
+import { getSignalsCreatedSince, getSignalsResolvedSince, getOpenSignals } from "../db/signals";
 import { getMomentumAlertsSince } from "../db/momentumAlerts";
 import { computePnlPct } from "../signalMath";
 import { getTrendFilterState } from "../market/trendFilter";
@@ -106,7 +106,28 @@ export async function dispatchWeeklyRecap(env: Env): Promise<void> {
       `💼 Portefeuille fictif (10%/trade, non composé) : ${sign}${paperPnlPct.toFixed(1)}%`
     );
   } else {
-    lines.push("⏳ Aucune position clôturée cette semaine (les positions sont tenues 7 jours).");
+    // « Aucune position clôturée » se lit comme « il ne s'est rien passé », et
+    // c'est faux : les positions courent. Sur un produit qui tient ses trades
+    // entre 3 et 21 jours selon le moteur, la plupart des semaines n'ont AUCUNE
+    // clôture — ce message était donc le plus fréquent du canal, et le plus
+    // décourageant.
+    //
+    // Le nombre de positions réellement ouvertes est la preuve que la machine
+    // travaille, et il annonce ce qui va être publié. Lecture tolérante à
+    // l'échec : le récap doit partir même si ce comptage tombe.
+    let ouvertes = 0;
+    try {
+      ouvertes = (await getOpenSignals(db)).length;
+    } catch (err) {
+      console.error("[recap] Comptage des positions ouvertes indisponible :", err);
+    }
+    lines.push(
+      ouvertes > 0
+        ? `⏳ Aucune clôture cette semaine, et c'est normal : ${ouvertes} position(s) sont en cours. Les durées ` +
+            "vont de 3 jours (momentum 4H) à 21 jours (carry). Chacune sera republiée ICI à sa clôture, en " +
+            "entier et avec son résultat — gagnant ou perdant."
+        : "⏳ Aucune position clôturée cette semaine (les durées vont de 3 à 21 jours selon le moteur)."
+    );
   }
 
   // Les alertes momentum proviennent des moteurs Haute Confiance et Squeeze,
