@@ -54,6 +54,21 @@ export default {
       // Empêche quiconque découvre l'URL de déclencher n'importe quelle
       // commande du bot : seul Telegram, qui renvoie ce secret configuré via
       // setWebhook, passe ce contrôle.
+      // Secret non configuré : on refuse TOUT, et on le dit dans les logs.
+      //
+      // Sans ce garde-fou, le webhook restait ouvert à la seule protection de
+      // l'obscurité de son URL — n'importe qui la découvrant pouvait piloter le
+      // bot. Le journaliser explicitement évite l'autre issue : chercher
+      // pendant des heures pourquoi le bot ne répond plus alors qu'il refuse
+      // simplement, et correctement, faute de secret.
+      if (!env.TELEGRAM_WEBHOOK_SECRET) {
+        console.error(
+          "[webhook] TELEGRAM_WEBHOOK_SECRET absent : toutes les requêtes sont refusées. " +
+            "Pose le secret (wrangler secret put TELEGRAM_WEBHOOK_SECRET) puis relance setWebhook."
+        );
+        return new Response("unauthorized", { status: 401 });
+      }
+
       const secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token");
       if (!secret || !timingSafeEqual(secret, env.TELEGRAM_WEBHOOK_SECRET)) {
         return new Response("unauthorized", { status: 401 });

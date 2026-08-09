@@ -5,7 +5,20 @@
  * réponse. Boucle toujours sur la longueur maximale, jamais de retour
  * anticipé sur un mismatch.
  */
-export function timingSafeEqual(a: string, b: string): boolean {
+export function timingSafeEqual(a: string | undefined, b: string | undefined): boolean {
+  // NE JAMAIS LEVER D'EXCEPTION SUR UNE VALEUR ABSENTE.
+  //
+  // La signature promettait deux `string`, mais TELEGRAM_WEBHOOK_SECRET est
+  // optionnel dans Env : secret jamais posé, faute de frappe, rotation ratée.
+  // `undefined.length` levait alors un TypeError qui remontait jusqu'au
+  // handler fetch et transformait « refuser la requête » en erreur 500 — le
+  // bot devenait muet et le symptôme ressemblait à une panne d'infrastructure
+  // plutôt qu'à une configuration manquante.
+  //
+  // Une valeur absente n'est égale à rien, pas même à une autre absente : deux
+  // secrets non configurés ne doivent surtout pas s'authentifier mutuellement.
+  if (typeof a !== "string" || typeof b !== "string") return false;
+
   const maxLength = Math.max(a.length, b.length);
   let diff = a.length ^ b.length;
 
