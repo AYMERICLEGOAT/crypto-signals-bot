@@ -77,7 +77,7 @@ function buildActivationMessage(endsAt: Date): string {
     `est sous sa moyenne 200 jours, ce qui arrive ${PART_FILTRE_FERME} du temps (la plus longue fermeture a duré ` +
     "381 jours, du 28/12/2021 au 13/01/2023). C'est voulu : on préfère ne rien t'envoyer plutôt que de te " +
     "faire perdre de l'argent. Le carry, lui, n'est pas filtré et continue dans les deux cas. Et un second " +
-    "moteur, le momentum 4H, ne travaille QUE dans ce régime baissier — en observation, ce qui est écrit " +
+    "moteur, le momentum 4H, ne travaille QUE dans ce régime baissier — et c'est là qu'il rend le plus, ce qui est écrit " +
     "sur chacun de ses signaux.\n\n" +
     `${etatDuFiltre}\n\n` +
     `Le rythme mesuré : ${DEBIT.favorable} signaux par jour en marché favorable ; ${DEBIT.defavorable} en ` +

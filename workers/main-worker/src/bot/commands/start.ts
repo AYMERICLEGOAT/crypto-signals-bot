@@ -5,7 +5,7 @@ import { buildStartMessage1Keyboard, buildStartMessage2Keyboard, buildStartMessa
 import { attributeReferralIfNeeded } from "../referral";
 import { TREND_FILTER_STATUS } from "./subscribe";
 import { sleep } from "../../utils/sleep";
-import { PART_FILTRE_FERME } from "../../publishedStats";
+import { PART_FILTRE_FERME, MOMENTUM_4H } from "../../publishedStats";
 
 // Cumulés depuis l'appel de /start (pas l'un après l'autre) : +3s puis +10s
 // au total, un rythme qui laisse le temps de lire chaque message sans faire
@@ -115,7 +115,7 @@ export async function handleStart(env: Env, telegramId: number, referralPayload?
       "relative est donc à l'arrêt, et le restera tant que cette moyenne n'aura pas été repassée — ça " +
       "peut durer des semaines ou des mois. Deux moteurs continuent pendant ce temps : le carry, qui " +
       "n'est pas coupé par ce filtre, et le momentum 4H, qui ne travaille QUE dans ce régime — il est " +
-      "en observation, et chacun de ses signaux le dit."
+      `${MOMENTUM_4H.esperanceParJour} par jour de capital immobilisé, le meilleur rendement quotidien disponible quand le marché baisse.`
     : `Au ${TREND_FILTER_STATUS.measuredOn}, le filtre de tendance est ouvert : la force relative ` +
       "émet. Il peut se refermer sans préavis — elle s'arrêtera alors, et le relais passera au carry " +
       "et au momentum 4H.";

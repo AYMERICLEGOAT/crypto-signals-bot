@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildSignalMessage, ENGINE_BADGE } from "../src/signalFormat";
+import { MOMENTUM_4H } from "../src/publishedStats";
 
 /**
  * Chaque signal doit dire de quel moteur il vient.
@@ -60,11 +61,19 @@ describe("Étiquetage des moteurs", () => {
     }
   });
 
-  it("le momentum 4H dit qu'il est en observation, dans son étiquette même", () => {
-    // C'est le seul moteur dont la mesure est ambiguë. L'abonné doit pouvoir
-    // le voir sans aller lire /help.
-    expect(ENGINE_BADGE.momentum_4h).toMatch(/observation/i);
-    expect(buildSignalMessage(signal("momentum_4h") as any)).toMatch(/observation/i);
+  it("le momentum 4H publie sa réserve dans le CORPS du signal", () => {
+    // La réserve était collée au nom du moteur dans le badge, si bien que
+    // chaque signal s'ouvrait sur une mise en garde avant qu'un seul chiffre
+    // soit lu — alors que ce moteur rend environ neuf fois le carry par jour
+    // de capital immobilisé.
+    //
+    // Ce qui doit être garanti n'est pas l'endroit, c'est la PRÉSENCE : la
+    // mesure complète et sa limite doivent figurer là où quelqu'un décide
+    // d'engager de l'argent, c'est-à-dire dans le message du signal.
+    const message = buildSignalMessage(signal("momentum_4h") as any);
+    expect(message).toMatch(/en recul sur la dernière/i);
+    expect(message).toMatch(/deux places par jour/i);
+    expect(message).toContain(MOMENTUM_4H.esperanceParJour);
   });
 
   it("un moteur inconnu ne fait pas tomber le message", () => {

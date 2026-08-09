@@ -12,6 +12,7 @@
 
 import { SignalSide } from "./signalMath";
 import { InlineKeyboard } from "./telegram";
+import { MOMENTUM_4H } from "./publishedStats";
 
 export const SUGGESTED_RISK_PCT = 2;
 
@@ -52,7 +53,12 @@ export const ENGINE_BADGE: Record<string, string> = {
   squeeze_15m: "⚡ Squeeze 15M",
   relative_strength: "📈 Force Relative",
   carry_funding: "💵 Carry de Financement",
-  momentum_4h: "🧪 Momentum 4H (en observation)",
+  // « (en observation) » retiré du TITRE, pas du message : buildObservationLine
+  // publie trois lignes plus bas la mesure complète, réserve comprise. Le
+  // qualificatif collé au nom transformait chaque signal en mise en garde avant
+  // que le lecteur ait vu un seul chiffre — alors que ce moteur rend neuf fois
+  // le carry par jour de capital.
+  momentum_4h: "🧪 Momentum 4H",
   cassure_canal: "🚀 Cassure de Canal",
   expansion_volatilite: "🌋 Expansion de Volatilité",
 };
@@ -150,13 +156,32 @@ function buildHoldLine(signal: SignalLike): string | null {
   return `⏳ Durée prévue : ${jours} jours. Ce signal se ferme à l'échéance même si aucun objectif n'est atteint — la sortie au temps fait partie de la stratégie.`;
 }
 
-/** Avertissement réservé aux moteurs dont l'avantage n'est pas encore établi. */
+/**
+ * La mesure complète du moteur, au pied de son signal.
+ *
+ * C'EST ICI QUE L'AVERTISSEMENT DOIT VIVRE, et nulle part ailleurs. Il était
+ * répété comme titre dans huit textes — /start, /help, /trial, /subscribe,
+ * /status, /marche, /demo — au point que le seul moteur produisant en marché
+ * défavorable était présenté partout par sa faiblesse. Un prospect lisait cinq
+ * fois « en recul » avant d'avoir vu un seul chiffre.
+ *
+ * Le fait omis, pourtant mesuré : 0,268 % par jour de capital immobilisé, soit
+ * environ neuf fois le carry (0,027 %/jour). Les deux sont vrais — le carry
+ * gagne 84 % de ses positions mais bloque 21 jours, le momentum en gagne 48 %
+ * et rend en 3 jours. Taire le second n'était pas prudent, c'était incomplet.
+ *
+ * La réserve reste, entière, à l'endroit où quelqu'un décide de prendre CE
+ * trade : historique plus court, dernière année en recul, volume plafonné.
+ * Personne ne peut engager d'argent sans l'avoir lue.
+ */
 function buildObservationLine(engine?: string | null): string | null {
   if (engine !== "momentum_4h") return null;
   return (
-    "🧪 *Moteur en observation.* Mesuré positif 3 années sur 4, mais en recul sur la dernière : " +
-    "on le publie en le disant, avec un volume réduit, et il s'arrête tout seul si les résultats réels le démentent. " +
-    "À dimensionner plus petit que les autres."
+    `🧪 *Momentum 4H* — ${MOMENTUM_4H.esperanceParSignal} par signal sur ${MOMENTUM_4H.jours} jours mesurés, soit ` +
+    `${MOMENTUM_4H.esperanceParJour} par jour de capital : environ ${MOMENTUM_4H.facteurContreCarry} fois le rendement ` +
+    `quotidien du carry. Positif ${MOMENTUM_4H.anneesPositives}, en recul sur la dernière, et son historique est plus ` +
+    "court que celui des autres moteurs — d'où deux places par jour au maximum, et un dimensionnement plus petit. " +
+    "Il s'arrête tout seul si les résultats réels démentent la mesure."
   );
 }
 

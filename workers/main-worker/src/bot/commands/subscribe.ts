@@ -9,7 +9,7 @@ import { buildPlanKeyboard, consentKeyboard } from "../keyboards";
 import { getRemainingDiscoverySlots } from "../../db/offerCounter";
 import { PaidPlan, PLAN_PRICES_USD, PLAN_NAMES, PLAN_DURATION_DAYS, DISCOVERY_PLAN, LIFETIME_PLAN, LIFETIME_MIN_DAYS_PAID, isValidPlan } from "../../payments/plans";
 import { getOrCreateUser } from "../../db/users";
-import { DEBIT, PART_FILTRE_FERME, PART_JOURS_AVEC_SIGNAL } from "../../publishedStats";
+import { DEBIT, PART_FILTRE_FERME, PART_JOURS_AVEC_SIGNAL, MOMENTUM_4H } from "../../publishedStats";
 
 /** Site public — même valeur que SITE_BASE_URL dans .github/workflows/website.yml. */
 const TERMS_URL = "https://crypto-signals-bot-site.signalytics.workers.dev/terms.html";
@@ -67,7 +67,8 @@ function buildValueScreen(): string {
     "• Cassure de canal : franchissement du plus haut 50 jours\n" +
     "• Expansion de volatilité : réveil après une longue compression\n" +
     "• Carry de financement : ne parie pas sur le prix, tourne dans les deux régimes\n" +
-    "• Momentum 4H : ne travaille QUE quand le marché baisse, et il est en observation\n\n" +
+    `• Momentum 4H : ne travaille QUE quand le marché baisse — ${MOMENTUM_4H.esperanceParJour} par jour de ` +
+    "capital, le meilleur rendement quotidien disponible dans ce régime\n\n" +
     `Rythme MOYEN mesuré sur 6 ans — pas une garantie sur ta période :\n` +
     `• Marché favorable : ${DEBIT.favorable} signaux par jour\n` +
     `• Marché défavorable : ${DEBIT.defavorable} par jour — le carry et le momentum 4H prennent le relais\n` +

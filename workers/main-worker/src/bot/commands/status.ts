@@ -5,7 +5,7 @@ import { getUserSignalHistory } from "../../db/history";
 import { PLAN_NAMES, isValidPlan, LIFETIME_PLAN } from "../../payments/plans";
 import { getLoyaltyBadge } from "../loyaltyBadge";
 import { lireDebitReel, formaterDebitReel } from "../../db/debitReel";
-import { DEBIT, PART_FILTRE_FERME, PART_JOURS_AVEC_SIGNAL } from "../../publishedStats";
+import { DEBIT, PART_FILTRE_FERME, PART_JOURS_AVEC_SIGNAL, MOMENTUM_4H } from "../../publishedStats";
 // Source unique de l'état du filtre de tendance (voir commands/subscribe.ts) :
 // le redéclarer ici garantirait qu'une des deux copies devienne fausse.
 import { TREND_FILTER_STATUS } from "./subscribe";
@@ -101,8 +101,10 @@ async function buildEngineStateLines(env: Env): Promise<string[]> {
         "les trois une hausse, et acheter ne paie pas dans ce régime.",
       "Le carry de financement, lui, continue : il est neutre au marché, donc jamais filtré.",
       "Le momentum 4H l'accompagne, et lui ne travaille QUE dans ce régime : il classe les cryptos entre elles " +
-        "sur des bougies de 4 heures et achète les deux plus fortes, tenues 3 jours. Il est en observation — " +
-        "mesuré positif trois années sur quatre, en recul sur la dernière — et chacun de ses signaux le dit.",
+        `sur des bougies de 4 heures et achète les deux plus fortes, tenues 3 jours. Mesuré : ${MOMENTUM_4H.esperanceParSignal} ` +
+        `par signal en ${MOMENTUM_4H.jours} jours, soit ${MOMENTUM_4H.esperanceParJour} par jour de capital immobilisé — environ ` +
+        `${MOMENTUM_4H.facteurContreCarry} fois le rendement quotidien du carry. Son historique commence en 2023, plus court que celui des ` +
+        "autres moteurs : il reste donc plafonné à deux places par jour, et chacun de ses signaux porte le détail.",
       `À eux deux, sur six ans : ${DEBIT.defavorable} signaux par jour en moyenne. Le carry ne se déclenche ` +
         "toutefois que si le financement couvre ses frais — quand il est plat, comme en ce moment, le " +
         "momentum 4H travaille seul et le débit descend. Ce n'est pas une panne : c'est le fonctionnement prévu.",

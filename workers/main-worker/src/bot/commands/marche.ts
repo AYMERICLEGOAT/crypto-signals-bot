@@ -43,7 +43,7 @@
 
 import { Env, dbConfig } from "../../env";
 import { sendMessage } from "../../telegram";
-import { DEBIT, DEBIT_PAR_MOTEUR, MAX_PAR_JOUR, PART_FILTRE_FERME } from "../../publishedStats";
+import { DEBIT, DEBIT_PAR_MOTEUR, MAX_PAR_JOUR, PART_FILTRE_FERME, MOMENTUM_4H } from "../../publishedStats";
 import { pairToSymbol } from "../../market/binancePrices";
 import { getOpenCarrySignals } from "../../db/signals";
 
@@ -289,9 +289,12 @@ const MOMENTUM_4H_EXPLANATION =
   "Et depuis peu, un second moteur travaille précisément dans ce régime : le momentum 4H. Il ne cherche pas de " +
   "croisement d'indicateurs — il classe toutes les cryptos suivies les unes contre les autres sur des bougies de " +
   "4 heures, et achète les deux plus fortes du moment, tenues 3 jours.\n" +
-  "Il est *en observation*, et c'est écrit sur chacun de ses signaux : mesuré positif trois années sur quatre, mais " +
-  "en recul sur la dernière. Deux places par jour au maximum, jamais plus, et il s'arrêtera de lui-même si ses " +
-  "résultats réels démentent la mesure. À dimensionner plus petit que les autres.";
+  `Mesuré : ${MOMENTUM_4H.esperanceParSignal} par signal en ${MOMENTUM_4H.jours} jours, soit ` +
+  `${MOMENTUM_4H.esperanceParJour} par jour de capital immobilisé — environ ${MOMENTUM_4H.facteurContreCarry} fois ` +
+  "le rendement quotidien du carry. C'est ce qui travaille le mieux quand les moteurs directionnels se taisent.\n" +
+  `Son historique commence en 2023, plus court que celui des autres : positif ${MOMENTUM_4H.anneesPositives}, en ` +
+  "recul sur la dernière. D'où deux places par jour au maximum, un dimensionnement plus petit, et un arrêt " +
+  "automatique si ses résultats réels démentent la mesure. Le détail est écrit sur chacun de ses signaux.";
 
 /**
  * Les carrys réellement ouverts, lus en base au moment de la commande.

@@ -1,7 +1,7 @@
 import { Env } from "../../env";
 import { sendMessage } from "../../telegram";
 import { TREND_FILTER_STATUS } from "./subscribe";
-import { DEBIT, PART_FILTRE_FERME, PART_JOURS_AVEC_SIGNAL } from "../../publishedStats";
+import { DEBIT, PART_FILTRE_FERME, PART_JOURS_AVEC_SIGNAL, MOMENTUM_4H } from "../../publishedStats";
 
 /**
  * Audit#8 : liste centralisée des commandes — 13 commandes existaient sans qu'aucune ne les récapitule.
@@ -53,7 +53,8 @@ export async function handleHelpCommand(env: Env, telegramId: number): Promise<v
       "FORCE RELATIVE (les cryptos les plus fortes du moment), la CASSURE DE CANAL (franchissement du " +
       "plus haut 50 jours) et l'EXPANSION DE VOLATILITÉ (réveil après compression). Le CARRY DE " +
       "FINANCEMENT ne parie pas sur le prix du tout. Le MOMENTUM 4H ne travaille QUE quand le marché " +
-      "baisse — il est en observation, et chacun de ses signaux le dit.\n\n" +
+      `baisse — ${MOMENTUM_4H.esperanceParSignal} par signal en ${MOMENTUM_4H.jours} jours. Chacun porte le ` +
+      "détail de sa mesure.\n\n" +
       "*Le carry de financement, en deux phrases*\n" +
       "Achat au comptant et vente à découvert du perpétuel, même montant : les deux jambes s'annulent, " +
       "donc le prix n'entre pas dans l'équation. Ce que tu encaisses, c'est le financement que les " +

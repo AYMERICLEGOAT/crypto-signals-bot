@@ -72,8 +72,9 @@ export async function handleDemoCommand(env: Env, telegramId: number): Promise<v
       "🛑 Aucun stop de prix : il n'y a rien à protéger de ce côté-là\n\n" +
       "Elle produit AUSSI quand le Bitcoin est sous sa moyenne 200 jours : elle n'est pas filtrée, parce " +
       "qu'elle ne parie sur aucune direction. Le momentum 4H tient l'autre bout de ce créneau — il ne " +
-      "travaille QUE dans ce régime-là — mais il est en observation, et le carry reste la famille la mieux " +
-      "établie des deux.\n\n" +
+      "travaille QUE dans ce régime-là, et c'est là qu'il rend le plus : environ neuf fois le carry par " +
+      "jour de capital immobilisé. Le carry reste le mieux établi des deux — historique plus long, quatre " +
+      "fois plus de positions mesurées.\n\n" +
       "📊 Mesuré sur 6 ans : 84,2 % de positions gagnantes, +0,572 % net par position, six années positives " +
       "sur sept — la septième, 2022, est à -0,046 %, donc plate et non perdante.\n\n" +
       "⚠️ Ce n'est pas « sans risque », et on ne l'écrira jamais : ta jambe vendeuse peut être liquidée si ta " +

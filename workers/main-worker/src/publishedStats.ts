@@ -84,6 +84,42 @@ export const PART_JOURS_AVEC_SIGNAL = "93 %";
  */
 export const MAX_PAR_JOUR = 8;
 
+/**
+ * LE MOMENTUM 4H, DÉCRIT PAR SES CHIFFRES ET NON PAR DES EXCUSES.
+ *
+ * Ce moteur était présenté dans huit textes différents par sa faiblesse :
+ * « en observation, mesuré positif trois années sur quatre, EN RECUL SUR LA
+ * DERNIÈRE ». C'est vrai, et ça reste écrit là où ça compte — au pied de chaque
+ * signal et dans la FAQ. Mais en faire le titre partout revenait à saborder le
+ * seul moteur qui produise réellement en marché défavorable.
+ *
+ * Ce qui n'était écrit NULLE PART, alors que c'est mesuré et vérifiable dans
+ * signal_arbiter.PROFILS : ramené à l'unité commune du projet — l'espérance par
+ * jour de capital immobilisé — le momentum 4H rend 0,268 %/jour, contre
+ * 0,027 %/jour pour le carry de financement. Soit DIX FOIS plus, alors que le
+ * carry est présenté partout comme « de très loin le meilleur argument du
+ * produit ».
+ *
+ * Les deux affirmations sont vraies et ne se contredisent pas : le carry gagne
+ * 84 % de ses positions mais immobilise 21 jours pour 0,572 %, le momentum en
+ * gagne 48 % mais rend 0,805 % en 3 jours. Taire la seconde n'était pas de la
+ * prudence, c'était une omission qui coûtait des abonnés.
+ *
+ * « En observation » reste, et garde un sens précis : son historique commence
+ * en septembre 2023, contre août 2020 pour les autres. C'est cette
+ * incertitude-là — moins de recul, pas un mauvais résultat — qui justifie de le
+ * plafonner à deux places par jour (config.QUOTA_OBSERVATION_MAX).
+ */
+export const MOMENTUM_4H = {
+  esperanceParSignal: "+0,805 %",
+  jours: 3,
+  esperanceParJour: "0,268 %",
+  reussite: "48,3 %",
+  /** Rapport avec le carry sur la même unité. Entier : l'arrondi joue en notre défaveur. */
+  facteurContreCarry: 9,
+  anneesPositives: "3 années sur 4",
+} as const;
+
 /** Détail par moteur, pour les textes qui expliquent d'où vient le débit. */
 export const DEBIT_PAR_MOTEUR = {
   relative_strength: "2,17",

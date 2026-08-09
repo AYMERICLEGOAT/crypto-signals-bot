@@ -4,6 +4,7 @@ import { describe, it, expect } from "vitest";
 // décimale et espace insécable. Un même message affichait auparavant "+10.0%"
 // et "84,2 %" à deux lignes d'écart.
 import { buildSignalMessage, SUGGESTED_RISK_PCT } from "../src/signalFormat";
+import { MOMENTUM_4H } from "../src/publishedStats";
 
 const buySignal = {
   type: "BUY" as const,
@@ -182,13 +183,20 @@ describe("buildSignalMessage — le moteur en observation le dit", () => {
     hold_until: "2026-01-04T00:00:00Z",
   };
 
-  it("marque le momentum 4H comme en observation, dans le badge ET dans le corps", () => {
+  it("publie la mesure du momentum 4H ET sa limite, dans le corps du signal", () => {
+    // La réserve vivait dans le badge, collée au nom du moteur : chaque signal
+    // s'ouvrait donc sur une mise en garde avant qu'un chiffre soit lu, alors
+    // que ce moteur rend environ neuf fois le carry par jour de capital.
+    //
+    // Elle a été déplacée, pas supprimée. Ce test verrouille les DEUX moitiés :
+    // le fait vendeur et le fait gênant doivent figurer ensemble, là où
+    // quelqu'un décide d'engager de l'argent.
     const text = buildSignalMessage(signal4h);
-    expect(text).toContain("Momentum 4H (en observation)");
-    expect(text).toContain("Moteur en observation");
-    // L'honnêteté porte sur le fait gênant, pas seulement sur l'étiquette.
+    expect(text).toContain("Momentum 4H");
+    expect(text).toContain(MOMENTUM_4H.esperanceParJour);
     expect(text).toContain("en recul sur la dernière");
-    expect(text).toContain("dimensionner plus petit");
+    expect(text).toContain("deux places par jour");
+    expect(text).toContain("dimensionnement plus petit");
   });
 
   it("annonce ses 3 jours de détention, la durée sur laquelle il a été mesuré", () => {
