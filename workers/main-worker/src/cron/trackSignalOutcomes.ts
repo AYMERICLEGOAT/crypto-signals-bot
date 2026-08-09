@@ -62,6 +62,20 @@ function holdDurationDays(signal: SignalRecord): number {
   return Math.max(1, Math.round(jours));
 }
 
+/**
+ * Jours RÉELLEMENT écoulés depuis l'émission, distinct de holdDurationDays qui
+ * rend la durée PRÉVUE.
+ *
+ * La différence compte : un signal de 7 jours clôturé sur objectif au deuxième
+ * jour annoncerait « les abonnés l'avaient il y a 7 jours », ce qui serait
+ * faux. On mesure donc l'écart réel jusqu'à maintenant — cette fonction n'est
+ * appelée qu'au moment de la clôture.
+ */
+function joursDepuisEmission(signal: SignalRecord, maintenant = Date.now()): number {
+  const jours = (maintenant - new Date(signal.created_at).getTime()) / (24 * 60 * 60 * 1000);
+  return Math.max(1, Math.round(jours));
+}
+
 function pctLabel(pct: number): string {
   return `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
 }
@@ -149,6 +163,20 @@ function formatPublicCloseMessage(signal: SignalRecord, pct: number, botUsername
     "",
     cause,
     "",
+    // L'ASYMÉTRIE, ÉNONCÉE PLUTÔT QUE SUGGÉRÉE.
+    //
+    // Le message publiait déjà les niveaux d'origine, mais sans jamais dire
+    // QUAND les abonnés les avaient reçus. Un lecteur du canal gratuit voyait
+    // donc des chiffres sans comprendre qu'il les découvrait avec plusieurs
+    // jours de retard — c'est-à-dire sans comprendre ce qu'il n'a pas.
+    //
+    // Cette différence de calendrier EST le produit : le canal gratuit reçoit
+    // tout, mais après. Le dire au moment exact où la preuve est sous les yeux
+    // est plus convaincant que n'importe quel argument de vente, et c'est
+    // strictement vrai.
+    `⏱️ Les abonnés avaient ces niveaux il y a ${joursDepuisEmission(signal)} jour(s), au moment où le ` +
+      "signal est parti. C'est la seule chose qui sépare ce canal d'un abonnement.",
+    "",
     "📊 Chaque signal est republié ici à sa clôture, gagnant ou perdant, avec ses niveaux d'origine. " +
       "Rien n'est retiré après coup.",
     "",
@@ -219,6 +247,34 @@ function formatShareableVictory(signal: SignalRecord, pct: number, env: Env, tel
     "",
     `🤝 Chaque personne qui s'abonne via ce lien t'offre ${REFERRAL_BONUS_DAYS} jours d'accès, et lui donne une remise. Ton suivi complet : /referral`,
   ].join("\n");
+}
+
+/**
+ * Le bloc de partage, joint à TOUTE clôture gagnante — et à aucune perdante.
+ *
+ * Il n'était attaché qu'aux clôtures TP3. Or TP3 est le cas le plus rare du
+ * produit : un gain sur TP1, sur TP2, ou à l'échéance après sécurisation
+ * n'entraînait aucune proposition de parrainage. La grande majorité des bonnes
+ * nouvelles passait donc sans que le seul avantage réel dont dispose l'abonné —
+ * +{REFERRAL_BONUS_DAYS} jours par filleul payant — lui soit rappelé.
+ *
+ * Le moment fait tout : proposé à froid, le parrainage se lit comme une
+ * sollicitation ; proposé sur un message qu'on a envie de montrer, comme une
+ * occasion. C'est exactement pour ça qu'il ne doit JAMAIS accompagner une
+ * perte : demander de partager un trade perdant serait absurde, et le rappel
+ * du bonus au pire moment se lit comme de l'indécence.
+ *
+ * Retourne `undefined` sur une perte, ce que closeSignal interprète comme
+ * « pas de supplément » — le message de clôture part alors inchangé.
+ */
+function partageSiGagnant(
+  env: Env,
+  signal: SignalRecord,
+  resultat: { outcome: "WIN" | "LOSS"; exitPrice: number | null }
+): ((telegramId: number) => string) | undefined {
+  if (resultat.outcome !== "WIN" || resultat.exitPrice === null) return undefined;
+  const pct = computePnlPct(signal.type, signal.entry_price, resultat.exitPrice);
+  return (telegramId: number) => formatShareableVictory(signal, pct, env, telegramId);
 }
 
 async function broadcastCelebration(env: Env, signal: SignalRecord, level: "TP2" | "TP3", pct: number): Promise<void> {
@@ -401,7 +457,7 @@ export async function trackSignalOutcomes(env: Env): Promise<void> {
             formatShareableVictory(signal, pctAtTp3, env, id)
           );
         } else {
-          await closeSignal(env, db, signal, progress.outcome, progress.exitPrice, progress.closeReason);
+          await closeSignal(env, db, signal, progress.outcome, progress.exitPrice, progress.closeReason, partageSiGagnant(env, signal, progress));
         }
         continue;
       }
@@ -445,6 +501,7 @@ export async function trackSignalOutcomes(env: Env): Promise<void> {
     }
 
     const outcomePrice = currentPrice ?? null;
-    await closeSignal(env, db, signal, outcome, outcomePrice, closeReason);
+    await closeSignal(env, db, signal, outcome, outcomePrice, closeReason,
+      partageSiGagnant(env, signal, { outcome, exitPrice: outcomePrice }));
   }
 }
