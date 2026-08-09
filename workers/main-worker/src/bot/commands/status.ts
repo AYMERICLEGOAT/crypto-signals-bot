@@ -4,6 +4,7 @@ import { getOrCreateUser, isSubscriptionActive, UserRecord } from "../../db/user
 import { getUserSignalHistory } from "../../db/history";
 import { PLAN_NAMES, isValidPlan, LIFETIME_PLAN } from "../../payments/plans";
 import { getLoyaltyBadge } from "../loyaltyBadge";
+import { lireDebitReel, formaterDebitReel } from "../../db/debitReel";
 import { DEBIT, PART_FILTRE_FERME, PART_JOURS_AVEC_SIGNAL } from "../../publishedStats";
 // Source unique de l'état du filtre de tendance (voir commands/subscribe.ts) :
 // le redéclarer ici garantirait qu'une des deux copies devienne fausse.
@@ -72,9 +73,28 @@ function formatRemaining(msLeft: number): string {
  * moteurs directionnels ; le carry est neutre au marché donc jamais filtré, et
  * le momentum 4H ne travaille QUE quand le filtre est fermé.
  */
-function buildEngineStateLines(): string[] {
+async function buildEngineStateLines(env: Env): Promise<string[]> {
+  // LE DÉBIT RÉELLEMENT MESURÉ, à côté de la moyenne historique.
+  //
+  // Les chiffres de publishedStats sont des moyennes sur six ans, et elles sont
+  // justes. Mais « le carry et le momentum prennent le relais à 3,1 signaux par
+  // jour » se lit comme une promesse sur aujourd'hui, alors que le carry ne
+  // produit rien tant que le financement reste sous le seuil qui couvre ses
+  // frais. Le 09/08/2026, le débit réel était de 2,0 par jour.
+  //
+  // Un abonné qui constate l'écart seul conclut qu'on lui a menti. Le publier
+  // nous-mêmes, à côté de la moyenne, est la seule version qui tienne dans le
+  // temps — et c'est la règle que ce projet s'applique partout ailleurs.
+  //
+  // Silence volontaire si la lecture échoue : afficher « 0 par jour » sur une
+  // panne de base ferait fuir quelqu'un pour une raison entièrement fausse.
+  const reel = await lireDebitReel(dbConfig(env));
+  const ligneReelle = reel ? [formaterDebitReel(reel)] : [];
+
   if (TREND_FILTER_STATUS.closed) {
     return [
+      ...ligneReelle,
+      "",
       `🔻 Ce que le moteur émet en ce moment (mesuré le ${TREND_FILTER_STATUS.measuredOn}) :`,
       `Le filtre de tendance est fermé — ${TREND_FILTER_STATUS.detail}. Les trois moteurs directionnels ` +
         "sont donc à l'arrêt : force relative, cassure de canal et expansion de volatilité achètent tous " +
@@ -83,11 +103,14 @@ function buildEngineStateLines(): string[] {
       "Le momentum 4H l'accompagne, et lui ne travaille QUE dans ce régime : il classe les cryptos entre elles " +
         "sur des bougies de 4 heures et achète les deux plus fortes, tenues 3 jours. Il est en observation — " +
         "mesuré positif trois années sur quatre, en recul sur la dernière — et chacun de ses signaux le dit.",
-      `À eux deux : ${DEBIT.defavorable} signaux par jour en moyenne. Si tu ne reçois que ceux-là en ce ` +
-        "moment, ce n'est pas une panne : c'est le fonctionnement prévu.",
+      `À eux deux, sur six ans : ${DEBIT.defavorable} signaux par jour en moyenne. Le carry ne se déclenche ` +
+        "toutefois que si le financement couvre ses frais — quand il est plat, comme en ce moment, le " +
+        "momentum 4H travaille seul et le débit descend. Ce n'est pas une panne : c'est le fonctionnement prévu.",
     ];
   }
   return [
+    ...ligneReelle,
+    "",
     `📈 Ce que le moteur émet en ce moment (mesuré le ${TREND_FILTER_STATUS.measuredOn}) :`,
     "Le filtre de tendance est ouvert : les trois moteurs directionnels — force relative, cassure de canal, " +
       "expansion de volatilité — émettent, et le carry de financement avec eux. Le momentum 4H, lui, ne " +
@@ -133,7 +156,7 @@ async function buildDeliveryLine(env: Env, telegramId: number): Promise<string> 
  * alors qu'il l'a déjà utilisé, et permet de dire à un ancien abonné qu'il a
  * simplement expiré — pas qu'il a été coupé.
  */
-function buildInactiveMessage(user: UserRecord): string {
+async function buildInactiveMessage(env: Env, user: UserRecord): Promise<string> {
   const expired = user.expiration ? new Date(user.expiration) : null;
   const header =
     expired && expired.getTime() <= Date.now()
@@ -149,7 +172,7 @@ function buildInactiveMessage(user: UserRecord): string {
     "",
     cta,
     "",
-    ...buildEngineStateLines(),
+    ...(await buildEngineStateLines(env)),
     "",
     "Pour voir avant de décider : /demo montre la forme exacte des signaux, /marche donne l'état du marché recalculé en direct.",
   ].join("\n");
@@ -177,7 +200,7 @@ export async function handleStatusCommand(env: Env, telegramId: number): Promise
   const user = await getOrCreateUser(dbConfig(env), telegramId);
 
   if (!isSubscriptionActive(user)) {
-    await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, buildInactiveMessage(user), {
+    await sendMessage(env.TELEGRAM_BOT_TOKEN, telegramId, await buildInactiveMessage(env, user), {
       keyboard: buildStatusKeyboard(user, false),
     });
     return;
@@ -200,7 +223,7 @@ export async function handleStatusCommand(env: Env, telegramId: number): Promise
     "",
     deliveryLine,
     "",
-    ...buildEngineStateLines(),
+    ...(await buildEngineStateLines(env)),
     "",
     aVie
       ? null

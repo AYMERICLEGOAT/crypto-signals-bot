@@ -69,7 +69,28 @@ def only_closed_candles(df: pd.DataFrame, interval_ms: int) -> pd.DataFrame:
 
 
 def load_active_params() -> dict:
-    """Charge les paramètres actifs depuis Supabase, ou les valeurs par défaut de config.py."""
+    """
+    Charge les paramètres EMA/RSI actifs depuis Supabase, ou les valeurs par
+    défaut de config.py.
+
+    CES PARAMÈTRES NE PILOTENT QUE LE MOTEUR HAUTE CONFIANCE, désactivé le
+    03/08/2026 après avoir été mesuré perdant. Quand il l'est, run_once()
+    court-circuite la boucle entière et ne regarde jamais ce dictionnaire.
+
+    On sortait quand même, toutes les trente minutes, une lecture Supabase
+    inutile ET cette ligne de journal :
+
+        Paramètres actifs chargés depuis Supabase
+        (source=EMA9-21_RSI40-60_geometrieG6_walkforward_20260801, win_rate=48.7%)
+
+    Lue dans les logs, elle décrit un produit qui n'existe plus : elle annonce
+    comme « actifs » les réglages de la stratégie qu'on a justement retirée
+    parce qu'elle perdait de l'argent. Le jour où quelqu'un diagnostique une
+    panne, c'est la première fausse piste qu'il suivra.
+    """
+    if not config.ENABLE_HIGH_CONFIDENCE_ENGINE:
+        return {}
+
     row = params_store.load_active_params()
     if row:
         logger.info(

@@ -68,9 +68,13 @@ function buildValueScreen(): string {
     "• Expansion de volatilité : réveil après une longue compression\n" +
     "• Carry de financement : ne parie pas sur le prix, tourne dans les deux régimes\n" +
     "• Momentum 4H : ne travaille QUE quand le marché baisse, et il est en observation\n\n" +
-    `• Quand le marché est favorable : ${DEBIT.favorable} signaux par jour\n` +
-    `• Quand il ne l'est pas : ${DEBIT.defavorable} par jour — le carry et le momentum 4H prennent le relais\n` +
-    `• Moyenne sur toute la période : ${DEBIT.moyenne} par jour\n` +
+    `Rythme MOYEN mesuré sur 6 ans — pas une garantie sur ta période :\n` +
+    `• Marché favorable : ${DEBIT.favorable} signaux par jour\n` +
+    `• Marché défavorable : ${DEBIT.defavorable} par jour — le carry et le momentum 4H prennent le relais\n` +
+    `• Toutes périodes confondues : ${DEBIT.moyenne} par jour\n` +
+    "Le carry ne se déclenche que si le financement couvre ses frais. Quand il est plat, il ne sort rien " +
+    "et le débit tombe sous ces moyennes — /status affiche le chiffre réellement mesuré sur 14 jours, " +
+    "regarde-le avant de payer.\n" +
     `• ${PART_JOURS_AVEC_SIGNAL} des jours ont au moins un signal\n\n` +
     "Chaque signal arrive ici avec son entrée, son stop et ses paliers, et il est suivi " +
     "automatiquement jusqu'à la clôture."
