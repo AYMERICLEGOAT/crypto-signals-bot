@@ -1,0 +1,70 @@
+name: Syndication Dev.to (hebdomadaire)
+
+# LEVIER D'ACQUISITION — mis en place le 09/08/2026.
+#
+# Le projet n'a que deux canaux d'acquisition : le référencement du site et
+# Discord. Twitter et Reddit sont fermés définitivement. Le site est hébergé sur
+# un sous-domaine workers.dev, dont l'autorité est proche de zéro : il lui faut
+# des liens entrants depuis des domaines établis pour espérer ranker.
+#
+# Dev.to est la seule plateforme qui réunisse les cinq conditions du projet :
+# API d'écriture gratuite, aucun KYC, un vrai fil de découverte, une tolérance à
+# l'auto-promotion quand le contenu est substantiel, et le support de
+# `canonical_url` — ce dernier point étant décisif, puisqu'il fait que chaque
+# article RENFORCE le site au lieu de lui faire concurrence.
+#
+# Cadence hebdomadaire, un article par passage. Très en dessous des limites de
+# la plateforme, et proche du rythme d'un humain qui écrit — ce qui est
+# exactement l'intention.
+
+on:
+  schedule:
+    # Lundi 09:00 UTC : le pic de lecture de Dev.to est en journée de semaine.
+    - cron: "0 9 * * 1"
+  workflow_dispatch: {}
+
+concurrency:
+  group: devto-publish
+  cancel-in-progress: false
+
+jobs:
+  publier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installer les dépendances
+        run: pip install -r traffic/requirements.txt
+
+      # AVANT SETUP : la clé n'existe pas encore. Sortir en échec ferait partir
+      # une alerte Telegram toutes les semaines pour une configuration
+      # simplement absente. Le journal dit explicitement que RIEN n'a été
+      # publié — c'est la différence avec un « vert qui n'a rien fait ».
+      - name: Publier l'article de la semaine
+        working-directory: traffic
+        env:
+          DEVTO_API_KEY: ${{ secrets.DEVTO_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          if [ -z "$DEVTO_API_KEY" ]; then
+            echo "DEVTO_API_KEY absente : AUCUN article publié."
+            echo "Pour activer ce levier : créer un compte sur dev.to, générer une"
+            echo "clé dans Settings > Extensions > DEV Community API Keys, puis la"
+            echo "poser dans les secrets du dépôt sous le nom DEVTO_API_KEY."
+            exit 0
+          fi
+          python devto_publisher.py
+
+      # Une clé révoquée, un compte suspendu ou un article refusé sont des
+      # pannes définitives : elles doivent réveiller quelqu'un, contrairement à
+      # l'absence de configuration ci-dessus.
+      - name: Alerter l'admin en cas d'échec
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            --data-urlencode "chat_id=8647576528" \
+            --data-urlencode "text=⚠️ Échec de la syndication Dev.to (run #${{ github.run_number }}). Détails : https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"

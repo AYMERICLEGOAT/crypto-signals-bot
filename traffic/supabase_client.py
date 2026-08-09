@@ -40,6 +40,27 @@ def get_posted_signal_ids(platform, limit=100):
     return {row["signal_id"] for row in resp.data}
 
 
+def get_posted_content(platform, limit=500):
+    """
+    Publications déjà faites sur `platform`, avec leur `target`.
+
+    Distinct de get_posted_signal_ids : celui-ci suit des SIGNAUX (colonne
+    signal_id), celui-là suit du contenu identifié par une chaîne — le slug d'un
+    article, par exemple, qui n'a aucun signal associé. Réutiliser la première
+    aurait obligé à inventer un signal_id fictif pour chaque article.
+    """
+    resp = (
+        _get_client()
+        .table("posted_content")
+        .select("target,posted_at")
+        .eq("platform", platform)
+        .order("posted_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return resp.data or []
+
+
 def get_last_post(platform):
     """Dernière publication connue sur `platform` (dict avec posted_at, target), ou None."""
     resp = (

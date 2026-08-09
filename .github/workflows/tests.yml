@@ -95,4 +95,6 @@ jobs:
 
       - name: Tests du module d'acquisition
         working-directory: traffic
-        run: python -m pytest -q
+        run: |
+          pip install -r requirements.txt
+          python -m pytest -q
