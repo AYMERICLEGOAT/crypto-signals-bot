@@ -121,11 +121,13 @@ describe("buildSignalMessage — Multi-TP (mission grille d'excellence)", () => 
     expect(text).toContain("Break-Even");
     expect(text).toContain("🥈 TP2");
     // stop à 3 de distance (100-97), TP2 à 6.3 de distance -> ratio 1:2.1
-    expect(text).toContain("ratio 1:2.1");
+    // Virgule francaise : ce ratio cotoie « +6,2 % » deux caracteres plus
+    // loin. « 1:2.1 » melait les deux conventions dans la meme parenthese.
+    expect(text).toContain("ratio 1:2,1");
     expect(text).toContain("Objectif principal");
     expect(text).toContain("🥉 TP3");
     // TP3 à 10 de distance -> ratio 1:3.3
-    expect(text).toContain("ratio 1:3.3");
+    expect(text).toContain("ratio 1:3,3");
     expect(text).toContain("Runner");
   });
 
@@ -134,7 +136,7 @@ describe("buildSignalMessage — Multi-TP (mission grille d'excellence)", () => 
     // stop à 1.5 de distance, TP1 à 1.0 -> ratio 1:0.7
     const squeezeSignal = { ...buySignal, engine: "squeeze_15m", stop_loss: 98.5, tp1_price: 101, tp2_price: 102, tp3_price: 103 };
     const text = buildSignalMessage(squeezeSignal);
-    expect(text).toContain("ratio 1:0.7");
+    expect(text).toContain("ratio 1:0,7");
     expect(text).not.toContain("ATR");
   });
 

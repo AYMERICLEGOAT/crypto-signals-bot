@@ -94,6 +94,36 @@ function pct(value: number): string {
   return `${signe}${value.toFixed(1).replace(".", ",")} %`;
 }
 
+/**
+ * Un PRIX, arrondi à ce qu'un humain peut réellement saisir.
+ *
+ * Les niveaux affichés sortaient en flottant brut : sur ICP/USDT, un actif à
+ * 2,20 $, le canal a publié « Stop-Loss : 2.06437058 » et « TP1 :
+ * 2.33562942 ». Personne ne passe un ordre à huit décimales. Sur un produit
+ * dont l'argument central est la rigueur de la mesure, c'est le détail qui le
+ * fait passer pour amateur — et il touche la ligne la plus lue du message.
+ *
+ * La précision suit l'ordre de grandeur, parce que l'univers va du BTC à
+ * 65 000 $ au HMSTR à 0,0001977 $ : deux décimales fixes rendraient le second
+ * illisible, huit rendent le premier ridicule.
+ *
+ * LE POINT DÉCIMAL EST CONSERVÉ, contrairement aux pourcentages qui utilisent
+ * la virgule française partout ailleurs. Ces nombres sont faits pour être
+ * recopiés dans une plateforme d'échange, qui attend un point : une virgule
+ * obligerait à convertir à la main, au moment précis où une erreur de saisie
+ * coûte de l'argent.
+ */
+export function prix(valeur: number | string): string {
+  const n = typeof valeur === "number" ? valeur : Number(valeur);
+  if (!Number.isFinite(n)) return String(valeur);
+  const abs = Math.abs(n);
+  const decimales = abs >= 100 ? 2 : abs >= 1 ? 4 : abs >= 0.01 ? 6 : 8;
+  const texte = n.toFixed(decimales);
+  // Retrait des zéros inutiles, uniquement s'il y a une partie décimale :
+  // sans ce garde-fou, "100" deviendrait "1".
+  return texte.includes(".") ? texte.replace(/0+$/, "").replace(/\.$/, "") : texte;
+}
+
 /** Libellé FR pour un côté de signal — à utiliser partout au lieu du "BUY"/"SELL" brut, qui fuitait en anglais dans plusieurs messages de suivi. */
 export function typeLabel(type: SignalSide): string {
   if (type === "CARRY") return "CARRY";
@@ -196,7 +226,7 @@ function buildRiskSizingLine(entryPrice: number, stopLoss: number): string | nul
   return (
     `💰 Risque conseillé : ${SUGGESTED_RISK_PCT} % de ton capital max sur ce trade. ` +
     `Avec un stop à ${fr(riskPct, 1)} % de l'entrée, cela correspond à une position d'environ ` +
-    `${fr(positionPct, 0)} % de ton capital alloué à ce trade${capNote} (${SUGGESTED_RISK_PCT} % ÷ ${fr(riskPct, 1)} %).`
+    `${fr(positionPct, 0)} % de ton capital TOTAL${capNote} (${SUGGESTED_RISK_PCT} % ÷ ${fr(riskPct, 1)} %).`
   );
 }
 
@@ -213,19 +243,27 @@ function buildMultiTpLines(signal: SignalLike, stopLoss: number): string[] {
   const pctOf = (level: number) =>
     signal.type === "BUY" ? ((level - signal.entry_price) / signal.entry_price) * 100 : ((signal.entry_price - level) / signal.entry_price) * 100;
   const slDist = Math.abs(signal.entry_price - stopLoss);
-  const ratioLabel = (level: number) => (slDist > 0 ? ` (ratio 1:${(Math.abs(level - signal.entry_price) / slDist).toFixed(1)})` : "");
+  // « ratio 1:1.0 » melait un point decimal anglais a un texte qui ecrit
+  // « +6,2 % » deux caracteres plus loin. Un ratio entier s'ecrit sans
+  // decimale du tout.
+  const ratioLabel = (level: number) => {
+    if (slDist <= 0) return "";
+    const r = Math.abs(level - signal.entry_price) / slDist;
+    const texte = Number.isInteger(Math.round(r * 10) / 10) ? String(Math.round(r)) : r.toFixed(1).replace(".", ",");
+    return ` (ratio 1:${texte})`;
+  };
 
-  const lines = [`🛑 Stop-Loss : ${stopLoss} (${pct(-Math.abs(pctOf(stopLoss)))})`];
+  const lines = [`🛑 Stop-Loss : ${prix(stopLoss)} (${pct(-Math.abs(pctOf(stopLoss)))})`];
   if (signal.tp1_price != null) {
     lines.push(
-      `🥇 TP1 : ${signal.tp1_price} (${pct(pctOf(signal.tp1_price))}${ratioLabel(signal.tp1_price)}) — Sécurisation rapide + passage automatique au Break-Even`
+      `🥇 TP1 : ${prix(signal.tp1_price)} (${pct(pctOf(signal.tp1_price))}${ratioLabel(signal.tp1_price)}) — Sécurisation rapide + passage automatique au Break-Even`
     );
   }
   if (signal.tp2_price != null) {
-    lines.push(`🥈 TP2 : ${signal.tp2_price} (${pct(pctOf(signal.tp2_price))}${ratioLabel(signal.tp2_price)}) — Objectif principal`);
+    lines.push(`🥈 TP2 : ${prix(signal.tp2_price)} (${pct(pctOf(signal.tp2_price))}${ratioLabel(signal.tp2_price)}) — Objectif principal`);
   }
   if (signal.tp3_price != null) {
-    lines.push(`🥉 TP3 : ${signal.tp3_price} (${pct(pctOf(signal.tp3_price))}${ratioLabel(signal.tp3_price)}) — Runner`);
+    lines.push(`🥉 TP3 : ${prix(signal.tp3_price)} (${pct(pctOf(signal.tp3_price))}${ratioLabel(signal.tp3_price)}) — Runner`);
   }
   return lines;
 }
@@ -276,7 +314,7 @@ export function buildSignalMessage(
     `${emoji} *${label} ${signal.pair}* — ${engineBadge(signal.engine)}${opts.delayNote ? ` _(${opts.delayNote})_` : ""}`,
     buildContext(signal.type, signal.engine),
     "",
-    `💵 Zone d'entrée : ${signal.entry_price}`,
+    `💵 Zone d'entrée : ${prix(signal.entry_price)}`,
     ...(isMultiTp
       ? buildMultiTpLines(signal, stopLoss)
       : [`🎯 Take profit : ${takeProfit} (${pct(rewardPct)})`, `🛑 Stop loss : ${stopLoss} (${pct(-riskPct)})`]),

@@ -40,9 +40,13 @@ function formatDelayNote(signal: SignalRecord): string {
     CHANNEL_DELAY_MINUTES,
     Math.round((Date.now() - new Date(signal.created_at).getTime()) / 60000)
   );
+  // PAS DE PARENTHÈSES ICI : l'appelant enveloppe déjà cette note dans les
+  // siennes, ce qui produisait « (signal différé de 15 h (détecté cette nuit,
+  // publié à la réouverture du canal)) » — deux niveaux imbriqués sur la ligne
+  // de titre du signal. Un tiret porte la même information sans l'empiler.
   return minutes < 90
     ? `signal différé de ${minutes} min`
-    : `signal différé de ${Math.round(minutes / 60)} h (détecté cette nuit, publié à la réouverture du canal)`;
+    : `signal différé de ${Math.round(minutes / 60)} h — détecté cette nuit, publié à la réouverture du canal`;
 }
 
 /**
