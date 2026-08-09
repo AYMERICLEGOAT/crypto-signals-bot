@@ -1,0 +1,81 @@
+name: Tests
+
+# POURQUOI CE FICHIER EXISTE — audit du 09/08/2026.
+#
+# Le projet contenait 68 fichiers de test vitest, 5 scripts de vérification des
+# moteurs Python et une suite pytest, et AUCUN workflow ne les exécutait. Les
+# quatre workflows en place publiaient des signaux, le site, une sauvegarde et
+# un message Discord : rien ne vérifiait quoi que ce soit avant.
+#
+# Ce que ça voulait dire concrètement : n'importe quelle modification poussée
+# sur main partait en production sans qu'une seule assertion soit évaluée. Pour
+# un service censé tourner des semaines sans intervention, et qui manipule des
+# abonnements payants, c'est le trou le plus large de l'édifice — les tests
+# existaient déjà, personne ne les regardait.
+#
+# Volontairement séparé des workflows de publication : un test qui échoue doit
+# bloquer bruyamment sans jamais empêcher les signaux de partir.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  worker:
+    name: Worker (TypeScript)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/main-worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      # Le typage d'abord : une erreur de type est plus rapide à lire qu'un
+      # test qui échoue pour la même raison.
+      - name: Vérifier les types
+        run: npx tsc --noEmit
+
+      - name: Lancer les tests
+        run: npx vitest run
+
+  moteurs:
+    name: Moteurs de signaux (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installer les dépendances
+        run: |
+          pip install -r signals/requirements.txt
+          pip install pytest
+
+      # Ces cinq fichiers sont des SCRIPTS, pas des tests pytest : ils exécutent
+      # leurs vérifications au niveau module et sortent en code 1 en cas
+      # d'échec. pytest ne collecte donc rien dedans — les lancer avec `pytest`
+      # afficherait « no tests ran » et passerait au vert sans rien vérifier.
+      - name: Vérifications des moteurs
+        working-directory: signals
+        run: |
+          for f in test_*.py; do
+            echo "--- $f"
+            python "$f"
+          done
+
+      - name: Tests du module d'acquisition
+        working-directory: traffic
+        run: python -m pytest -q
