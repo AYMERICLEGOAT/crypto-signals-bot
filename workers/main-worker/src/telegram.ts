@@ -102,6 +102,57 @@ export async function sendPhoto(
   });
 }
 
+/**
+ * Limite Telegram d'une légende de photo. Un message normal accepte 4096
+ * caractères ; une légende s'arrête à 1024, et l'API répond 400
+ * « message caption is too long » au-delà — elle ne tronque pas, elle REFUSE.
+ */
+export const CAPTION_MAX = 1024;
+
+/**
+ * Un graphique ACCOMPAGNÉ d'un texte, quelle que soit la longueur du texte.
+ *
+ * CE QUE CE HELPER CORRIGE, ET POURQUOI IL EST CENTRAL.
+ *
+ * Un message de signal complet fait environ 1400 caractères. Envoyé en légende
+ * de photo, il dépassait la limite et Telegram refusait TOUT le message. Le
+ * défaut existait dans trois chemins distincts, écrits séparément :
+ *
+ *   dispatchSignals      — les abonnés payants. Le plus grave : l'échec était
+ *                          attrapé par destinataire, la liste des livraisons
+ *                          restait vide, et le signal était quand même marqué
+ *                          « envoyé ». Les quatre signaux des 09 et 10/08 ont
+ *                          ainsi été comptés comme diffusés alors que PERSONNE
+ *                          ne les avait reçus.
+ *   dispatchStandardTier — même code, même issue.
+ *   dispatchPublicChannel — corrigé sur place le 09/08, avant de comprendre
+ *                          que les deux autres avaient le même défaut.
+ *
+ * Un correctif recopié dans trois fichiers en aurait manqué un quatrième le
+ * jour où un nouveau diffuseur apparaît. La règle vit donc ici, au seul endroit
+ * qui connaisse la limite.
+ *
+ * Au-delà de la limite : la photo part avec une légende courte, puis le texte
+ * entier suit en message séparé. Les deux arrivent, dans l'ordre, rien n'est
+ * tronqué — et surtout, plus rien n'est perdu en silence.
+ */
+export async function sendPhotoWithText(
+  token: string,
+  chatId: number,
+  photoUrl: string,
+  text: string,
+  options: { markdown?: boolean; legendeCourte?: string } = {}
+): Promise<void> {
+  if (text.length <= CAPTION_MAX) {
+    await sendPhoto(token, chatId, photoUrl, { caption: text, markdown: options.markdown });
+    return;
+  }
+  // Légende courte SANS parse_mode : elle est construite ici, pas par
+  // l'appelant, donc elle ne peut pas contenir de Markdown mal apparié.
+  await sendPhoto(token, chatId, photoUrl, { caption: options.legendeCourte ?? "📈 Le détail complet juste en dessous." });
+  await sendMessage(token, chatId, text, { markdown: options.markdown });
+}
+
 export async function answerCallbackQuery(token: string, callbackQueryId: string, text?: string): Promise<void> {
   await callTelegramApi(token, "answerCallbackQuery", { callback_query_id: callbackQueryId, text });
 }

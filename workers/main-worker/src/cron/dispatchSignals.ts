@@ -3,7 +3,7 @@ import { getUnsentSignals, markSignalSent, SignalRecord } from "../db/signals";
 import { getActiveUsers } from "../db/users";
 import { filterByPrefEnabled } from "../db/userPrefs";
 import { recordDeliveries } from "../db/signalDeliveries";
-import { sendMessage, sendPhoto } from "../telegram";
+import { sendMessage, sendPhotoWithText } from "../telegram";
 import { PRO_PLAN } from "../payments/plans";
 import { buildSignalMessage } from "../signalFormat";
 
@@ -44,8 +44,16 @@ export async function dispatchSignals(env: Env): Promise<void> {
     const textWithTrailing = trailingEnabledIds.size > 0 ? buildSignalMessage(signal, { trailingEnabled: true }) : textDefault;
     const send = (id: number) => {
       const text = trailingEnabledIds.has(id) ? textWithTrailing : textDefault;
+      // sendPhotoWithText et non sendPhoto : un message de signal complet fait
+      // ~1400 caracteres, la legende d'une photo s'arrete a 1024 et Telegram
+      // REFUSE au-dela. L'echec etait attrape par destinataire, la liste des
+      // livraisons restait vide, et le signal etait marque « envoye » quand
+      // meme : les abonnes payants ne recevaient RIEN, en silence.
       return signal.chart_url
-        ? sendPhoto(env.TELEGRAM_BOT_TOKEN, id, signal.chart_url as string, { caption: text, markdown: true })
+        ? sendPhotoWithText(env.TELEGRAM_BOT_TOKEN, id, signal.chart_url as string, text, {
+            markdown: true,
+            legendeCourte: `\u{1F4C8} ${signal.pair} \u2014 le detail complet juste en dessous.`,
+          })
         : sendMessage(env.TELEGRAM_BOT_TOKEN, id, text, { markdown: true });
     };
 

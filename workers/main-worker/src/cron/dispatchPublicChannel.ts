@@ -11,7 +11,7 @@
 
 import { Env, dbConfig } from "../env";
 import { getSignalsDueForPublicChannel, markSentToChannel, SignalRecord } from "../db/signals";
-import { sendMessage, sendPhoto } from "../telegram";
+import { sendMessage, sendPhotoWithText } from "../telegram";
 import { buildSignalMessage, buildCarryShortMessage, buildCarryDetailKeyboard, buildPublicTeaserMessage } from "../signalFormat";
 import { getHeartbeat } from "../db/systemHeartbeats";
 import { upsertRow } from "../supabaseRest";
@@ -19,13 +19,6 @@ import { isQuietHours } from "../utils/quietHours";
 import { peutPublier, enregistrerEnvoi } from "../channelBudget";
 
 const CHANNEL_DELAY_MINUTES = 30;
-
-/**
- * Limite Telegram d'une legende de photo. Un message normal accepte 4096
- * caracteres, une legende seulement 1024 : c'est cet ecart qui faisait
- * disparaitre l'echantillon hebdomadaire.
- */
-const LEGENDE_MAX = 1024;
 
 /**
  * Le délai annoncé est CALCULÉ, pas écrit en dur (02/08/2026). Depuis
@@ -140,14 +133,10 @@ export async function dispatchPublicChannel(env: Env): Promise<void> {
       // en message séparé : les deux arrivent, dans l'ordre, et rien n'est
       // tronqué.
       if (complet && signal.chart_url) {
-        if (text.length <= LEGENDE_MAX) {
-          await sendPhoto(env.TELEGRAM_BOT_TOKEN, channelId, signal.chart_url, { caption: text, markdown: true });
-        } else {
-          await sendPhoto(env.TELEGRAM_BOT_TOKEN, channelId, signal.chart_url, {
-            caption: `📈 ${signal.pair} — le détail complet juste en dessous.`,
-          });
-          await sendMessage(env.TELEGRAM_BOT_TOKEN, channelId, text, { markdown: true });
-        }
+        await sendPhotoWithText(env.TELEGRAM_BOT_TOKEN, channelId, signal.chart_url, text, {
+          markdown: true,
+          legendeCourte: `📈 ${signal.pair} — le détail complet juste en dessous.`,
+        });
       } else {
         await sendMessage(env.TELEGRAM_BOT_TOKEN, channelId, text, { markdown: true });
       }

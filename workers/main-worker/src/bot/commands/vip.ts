@@ -31,8 +31,10 @@ export async function handleVipCommand(env: Env, telegramId: number): Promise<vo
       env.TELEGRAM_BOT_TOKEN,
       telegramId,
       `🔒 Le canal VIP est réservé aux abonnés payants (${paliers}). L'essai gratuit n'y donne pas accès.\n\n` +
-        "On y publie les signaux avant le canal public, avec leurs niveaux complets, et le suivi de chaque " +
-        "position jusqu'à sa clôture.",
+        "Tes signaux, eux, arrivent ICI en message privé, dès qu'ils partent et avec tous leurs niveaux — " +
+        "c'est le canal VIP qui vient en plus, pas l'inverse.\n\n" +
+        "On y publie le briefing quotidien : l'état du filtre de tendance, toutes les positions ouvertes avec " +
+        "leur entrée et leur stop, et lesquelles sont déjà sécurisées.",
       { keyboard: [[{ text: "⭐ Voir les offres", callback_data: "start:subscribe" }]] }
     );
     return;
@@ -49,6 +51,9 @@ export async function handleVipCommand(env: Env, telegramId: number): Promise<vo
       env.TELEGRAM_BOT_TOKEN,
       telegramId,
       `🔒 *Canal VIP*\n\nRejoins le canal privé réservé aux abonnés :\n${link}\n\n` +
+        "Tu y trouveras le briefing quotidien : état du filtre de tendance, positions ouvertes avec leurs " +
+        "niveaux, et lesquelles sont déjà sécurisées. Tes signaux, eux, continuent d'arriver en message " +
+        "privé — le canal ne les remplace pas.\n\n" +
         "Ce lien est personnel à ton statut d'abonné — ne le partage pas, il est régénéré périodiquement.\n\n" +
         "À l'échéance de ton abonnement, l'accès se referme automatiquement et tu es retiré du canal. " +
         "Autant que tu le saches maintenant : ce n'est pas une exclusion, c'est le même fonctionnement " +
