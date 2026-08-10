@@ -6,6 +6,7 @@ import { getHeartbeat } from "../db/systemHeartbeats";
 import { upsertRow, SupabaseConfig } from "../supabaseRest";
 import { getOpenSignals, getSignalsResolvedSince } from "../db/signals";
 import { computePnlPct } from "../signalMath";
+import { prix } from "../signalFormat";
 import { isQuietHours } from "../utils/quietHours";
 
 const JOB_NAME = "vip_briefing";
@@ -34,10 +35,18 @@ async function recordSent(db: SupabaseConfig): Promise<void> {
   await upsertRow(db, "system_heartbeats", { job_name: JOB_NAME, last_run_at: new Date().toISOString(), alerted: false }, "job_name");
 }
 
+/**
+ * Les niveaux du briefing passent par le MÊME formatage que les signaux.
+ *
+ * Cette fonction avait sa propre règle (`toPrecision(5)` sous 100), et le
+ * briefing du 10/08 a donc affiché « 0.089100 » et « 2.2000 » — avec des zéros
+ * de queue — pour des niveaux que le message de signal, lui, avait publiés
+ * proprement. Deux formats pour le même prix, dans deux messages que l'abonné
+ * lit à quelques heures d'écart.
+ */
 function formatLevel(value: number | null | undefined): string {
   if (value == null) return "—";
-  const n = Number(value);
-  return n >= 100 ? n.toFixed(2) : n.toPrecision(5);
+  return prix(Number(value));
 }
 
 export async function dispatchVipBriefing(env: Env): Promise<void> {

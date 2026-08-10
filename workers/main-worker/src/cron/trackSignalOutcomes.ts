@@ -25,9 +25,10 @@ import { getCurrentPrices, pairToSymbol } from "../market/binancePrices";
 import { evaluateOutcome, computePnlPct, computeTrailingStop, evaluateMultiTpProgress, CloseReason } from "../signalMath";
 import { sendMessage } from "../telegram";
 import { handleAntiStress } from "./antiStress";
-import { typeLabel } from "../signalFormat";
+import { typeLabel, prix } from "../signalFormat";
 import { buildReferralLink, REFERRAL_BONUS_DAYS } from "../bot/referral";
 import { peutPublier, enregistrerEnvoi } from "../channelBudget";
+import { selectRows } from "../supabaseRest";
 
 // Filet de sécurité, utilisé UNIQUEMENT quand le signal ne porte pas sa propre
 // échéance (signaux antérieurs à hold_until). Voir holdDeadlineMs ci-dessous :
@@ -81,7 +82,7 @@ function pctLabel(pct: number): string {
 }
 
 function formatSubscriberCloseMessage(signal: SignalRecord, pct: number): string {
-  const base = `${typeLabel(signal.type)} ${signal.pair} — entrée ${signal.entry_price}, clôturé à ${signal.outcome_price} (${pctLabel(pct)}).`;
+  const base = `${typeLabel(signal.type)} ${signal.pair} — entrée ${prix(signal.entry_price)}, clôturé à ${prix(signal.outcome_price ?? 0)} (${pctLabel(pct)}).`;
 
   // Mission "grille d'excellence" : un signal peut se clôturer à 0% après
   // avoir déjà sécurisé TP1 (retour au break-even) ou sur le runner TP3 —
@@ -141,11 +142,11 @@ function formatPublicCloseMessage(signal: SignalRecord, pct: number, botUsername
   const gagnant = signal.outcome === "WIN";
   const titre = gagnant ? "✅ *Signal clôturé — gagnant*" : "❌ *Signal clôturé — perdant*";
 
-  const niveaux: string[] = [`💵 Entrée : ${signal.entry_price}`];
-  if (signal.stop_loss != null) niveaux.push(`🛑 Stop : ${signal.stop_loss}`);
-  if (signal.tp1_price != null) niveaux.push(`🥇 TP1 : ${signal.tp1_price}`);
-  if (signal.tp2_price != null) niveaux.push(`🥈 TP2 : ${signal.tp2_price}`);
-  if (signal.tp3_price != null) niveaux.push(`🥉 TP3 : ${signal.tp3_price}`);
+  const niveaux: string[] = [`💵 Entrée : ${prix(signal.entry_price)}`];
+  if (signal.stop_loss != null) niveaux.push(`🛑 Stop : ${prix(signal.stop_loss as number)}`);
+  if (signal.tp1_price != null) niveaux.push(`🥇 TP1 : ${prix(signal.tp1_price as number)}`);
+  if (signal.tp2_price != null) niveaux.push(`🥈 TP2 : ${prix(signal.tp2_price as number)}`);
+  if (signal.tp3_price != null) niveaux.push(`🥉 TP3 : ${prix(signal.tp3_price as number)}`);
 
   const cause =
     signal.close_reason === "tp_hit"
@@ -156,7 +157,7 @@ function formatPublicCloseMessage(signal: SignalRecord, pct: number, botUsername
 
   return [
     titre,
-    `${typeLabel(signal.type)} *${signal.pair}* — sortie à ${signal.outcome_price} (*${pctLabel(pct)}*)`,
+    `${typeLabel(signal.type)} *${signal.pair}* — sortie à ${prix(signal.outcome_price ?? 0)} (*${pctLabel(pct)}*)`,
     "",
     "_Les niveaux tels qu'ils avaient été envoyés aux abonnés :_",
     ...niveaux,
@@ -197,17 +198,17 @@ function formatTrailingStopUpdate(signal: SignalRecord, newTrailingStop: number)
 function formatTp1HitMessage(signal: SignalRecord): string {
   return [
     "🥇 *TP1 sécurisé !*",
-    `${typeLabel(signal.type)} ${signal.pair} a atteint son premier objectif (${signal.tp1_price}).`,
+    `${typeLabel(signal.type)} ${signal.pair} a atteint son premier objectif (${prix(signal.tp1_price as number)}).`,
     `${signal.stop_loss !== signal.entry_price ? "Le stop passe automatiquement au break-even (prix d'entrée)" : "Stop déjà au break-even"} — ce signal ne peut plus finir perdant.`,
-    `Objectif suivant : TP2 (${signal.tp2_price}).`,
+    `Objectif suivant : TP2 (${prix(signal.tp2_price as number)}).`,
   ].join("\n");
 }
 
 function formatTp2HitMessage(signal: SignalRecord): string {
   return [
     "🥈 *TP2 atteint — objectif principal !*",
-    `${typeLabel(signal.type)} ${signal.pair} a atteint son objectif principal (${signal.tp2_price}).`,
-    `Le reste de la position vise maintenant le runner TP3 (${signal.tp3_price}), stop toujours au break-even.`,
+    `${typeLabel(signal.type)} ${signal.pair} a atteint son objectif principal (${prix(signal.tp2_price as number)}).`,
+    `Le reste de la position vise maintenant le runner TP3 (${prix(signal.tp3_price as number)}), stop toujours au break-even.`,
   ].join("\n");
 }
 
@@ -377,8 +378,113 @@ async function notifyRecipients(env: Env, telegramIds: number[], text: string): 
   }
 }
 
+/** Fenêtre de rattrapage des clôtures publiques non parties. */
+const JOURS_RATTRAPAGE_CLOTURES = 4;
+
+/**
+ * Republie les clôtures que le régulateur avait refusées — et qui, sans ça,
+ * étaient perdues pour toujours.
+ *
+ * LE DÉFAUT QUE CETTE FONCTION RÉPARE, ET QUI VENAIT D'UN CORRECTIF.
+ *
+ * L'espacement minimal a été appliqué aux clôtures le 09/08 pour éviter les
+ * rafales. Mais `closeSignal` marque le signal clôturé AVANT de demander
+ * l'autorisation de publier : quand le régulateur refusait, le message était
+ * simplement abandonné, et plus rien ne pouvait le rattraper puisque le signal
+ * n'était plus « ouvert ».
+ *
+ * Constaté le 10/08 : les signaux #25 et #26 sont arrivés à échéance à la même
+ * minute. Le premier a été publié à 16:45, le second JAMAIS — l'espacement de
+ * vingt minutes l'a refusé, et il est mort là.
+ *
+ * Le commentaire posé à l'époque disait pourtant « elle ne peut pas être
+ * supprimée, seulement différée ». Le code faisait l'inverse. C'est exactement
+ * la promesse centrale du canal gratuit qui tombait : « chaque signal est
+ * republié ICI à sa clôture, gagnant ou perdant ».
+ *
+ * La reprise se fait sans colonne supplémentaire : un signal clôturé, diffusé
+ * au canal, et dépourvu de sa ligne `cloture:<id>` dans `channel_posts` est
+ * une clôture manquante. Une seule par passage — le cron repasse toutes les
+ * cinq minutes, et l'espacement reste respecté.
+ */
+async function republierCloturesManquees(env: Env, db: ReturnType<typeof dbConfig>): Promise<void> {
+  if (!env.TELEGRAM_CHANNEL_ID) return;
+
+  const depuis = new Date(Date.now() - JOURS_RATTRAPAGE_CLOTURES * 86_400_000).toISOString();
+
+  let clotures: SignalRecord[];
+  let postes: { reference: string | null }[];
+  try {
+    [clotures, postes] = await Promise.all([
+      // REQUÊTE DÉDIÉE, ET C'EST DÉLIBÉRÉ.
+      //
+      // La version précédente réutilisait getSignalsResolvedSince(), dont le
+      // `select` ne rend que quatre colonnes : type, entry_price,
+      // outcome_price, close_reason. Ni `id`, ni `sent_to_channel`. La
+      // condition ci-dessous lisait donc `undefined && …` — le rattrapage
+      // n'aurait JAMAIS republié quoi que ce soit, sans une ligne d'erreur.
+      //
+      // Les tests ne l'ont pas vu parce que leur bouchon `fetch` rend la ligne
+      // entière quel que soit le `select` demandé. Un correctif qui échoue en
+      // silence pour réparer un bug qui échouait en silence : exactement le
+      // défaut dominant de ce projet, reproduit dans sa propre réparation.
+      selectRows<SignalRecord>(db, "signals", {
+        evaluated_at: `gte.${depuis}`,
+        outcome: "not.is.null",
+        sent_to_channel: "is.true",
+        select: "id,pair,type,entry_price,stop_loss,take_profit,tp1_price,tp2_price,tp3_price,outcome,outcome_price,close_reason,created_at,hold_until,sent_to_channel",
+        // Chronologique : sur un canal public, republier la clôture de mardi
+        // après celle de mercredi serait plus déroutant que le manque.
+        order: "evaluated_at.asc",
+        limit: "50",
+      }),
+      selectRows<{ reference: string | null }>(db, "channel_posts", {
+        canal: "eq.public",
+        categorie: "eq.resultat",
+        sent_at: `gte.${depuis}`,
+        select: "reference",
+        limit: "200",
+      }),
+    ]);
+  } catch (err) {
+    console.error("[post-trade] Rattrapage des clôtures impossible :", err);
+    return;
+  }
+
+  const dejaPublie = new Set(postes.map((p) => p.reference).filter(Boolean));
+  const manquante = clotures.find((s) => s.sent_to_channel && !dejaPublie.has(`cloture:${s.id}`));
+  if (!manquante) return;
+
+  const verdict = await peutPublier(db, "public", "resultat");
+  if (!verdict.autorise) return; // l'espacement n'est pas écoulé : au prochain passage
+
+  const pct =
+    manquante.outcome_price !== null
+      ? computePnlPct(manquante.type, manquante.entry_price, manquante.outcome_price)
+      : 0;
+
+  try {
+    await sendMessage(
+      env.TELEGRAM_BOT_TOKEN,
+      Number(env.TELEGRAM_CHANNEL_ID),
+      formatPublicCloseMessage(manquante, pct, env.TELEGRAM_BOT_USERNAME),
+      { markdown: true }
+    );
+    await enregistrerEnvoi(db, "public", "resultat", `cloture:${manquante.id}`);
+    console.log(`[post-trade] Clôture #${manquante.id} republiée en rattrapage.`);
+  } catch (err) {
+    console.error(`[post-trade] Rattrapage de la clôture #${manquante.id} en échec :`, err);
+  }
+}
+
 export async function trackSignalOutcomes(env: Env): Promise<void> {
   const db = dbConfig(env);
+
+  // AVANT tout le reste : une clôture refusée par l'espacement doit repartir,
+  // sans quoi elle est perdue définitivement (voir la fonction ci-dessus).
+  await republierCloturesManquees(env, db).catch((err) =>
+    console.error("[post-trade] Rattrapage des clôtures en échec :", err)
+  );
   const open = await getOpenSignals(db);
   if (open.length === 0) return;
 

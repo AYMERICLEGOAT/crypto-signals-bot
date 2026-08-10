@@ -62,6 +62,27 @@ function signalExpire(over: Record<string, unknown> = {}) {
 interface Options {
   signal?: Record<string, unknown>;
   prix?: number;
+  /** Clôture déjà enregistrée en base mais jamais publiée sur le canal — vue par le rattrapage. */
+  clotureManquante?: Record<string, unknown>;
+}
+
+/**
+ * LE BOUCHON RESPECTE `select`, ET C'EST LA MOITIÉ DE CE FICHIER.
+ *
+ * Il rendait la ligne entière quelle que soit la projection demandée. Un
+ * appelant pouvait donc lire une colonne qu'il n'avait pas sélectionnée : le
+ * test passait, la production recevait `undefined`. C'est arrivé — le
+ * rattrapage des clôtures (voir republierCloturesManquees) réutilisait une
+ * requête qui ne rend que quatre colonnes et ne pouvait rien republier, sans
+ * une seule ligne d'erreur.
+ *
+ * Projeter réellement transforme cette classe de bug en échec de test.
+ */
+function projeter(ligne: Record<string, unknown>, url: string): Record<string, unknown> {
+  const select = new URL(url).searchParams.get("select");
+  if (!select || select === "*") return ligne;
+  const colonnes = select.split(",").map((c) => c.trim());
+  return Object.fromEntries(colonnes.filter((c) => c in ligne).map((c) => [c, ligne[c]]));
 }
 
 function stub(opts: Options = {}) {
@@ -75,8 +96,15 @@ function stub(opts: Options = {}) {
         messages.push({ chatId: String(b.chat_id), text: String(b.text ?? "") });
         return jsonResponse({ ok: true, result: { message_id: 1 } });
       }
+      // Le rattrapage interroge les signaux DÉJÀ clôturés ; le suivi normal
+      // interroge les signaux ouverts. Deux requêtes distinctes sur la même
+      // table, que le bouchon doit distinguer sous peine de faire republier
+      // chaque test par le rattrapage.
+      if (url.includes("/signals") && url.includes("outcome=not.is.null")) {
+        return jsonResponse(opts.clotureManquante ? [projeter(opts.clotureManquante, url)] : []);
+      }
       if (url.includes("/signals") && (!init || init.method === undefined)) {
-        return jsonResponse([opts.signal ?? signalExpire()]);
+        return jsonResponse([projeter(opts.signal ?? signalExpire(), url)]);
       }
       if (url.includes("signal_deliveries")) return jsonResponse([{ telegram_id: 42 }]);
       if (url.includes("channel_posts") && (!init || init.method === undefined)) return jsonResponse([]);
@@ -124,6 +152,124 @@ describe("L'asymétrie est énoncée sur la clôture publique", () => {
     const publics = canalPublic(messages);
     expect(publics[0].text).toMatch(/perdant/i);
     expect(publics[0].text).toMatch(/Les abonnés avaient ces niveaux/);
+  });
+});
+
+describe("Une clôture refusée par l'espacement repart au passage suivant", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  /**
+   * LE 10/08, LA CLÔTURE #26 A ÉTÉ PERDUE POUR TOUJOURS.
+   *
+   * Les signaux #25 et #26 sont arrivés à échéance à la même minute. Le premier
+   * a été publié à 16:45, le second refusé par l'espacement de vingt minutes —
+   * et comme `markSignalClosed` s'exécute AVANT `peutPublier`, il n'est jamais
+   * repassé dans la boucle des signaux ouverts. Le refus valait suppression.
+   *
+   * C'est la promesse centrale du canal gratuit qui tombait : « chaque signal
+   * est republié ici à sa clôture, gagnant ou perdant ».
+   */
+  const clotureeNonPubliee = () =>
+    signalExpire({
+      id: 26,
+      pair: "ALGO/USDT",
+      outcome: "LOSS",
+      outcome_price: 95,
+      close_reason: "expired",
+      evaluated_at: new Date(Date.now() - 3_600_000).toISOString(),
+    });
+
+  it("republie une clôture absente de channel_posts", async () => {
+    const { messages } = stub({ clotureManquante: clotureeNonPubliee(), prix: 105 });
+    await trackSignalOutcomes(env);
+    expect(canalPublic(messages).some((m) => m.text.includes("ALGO/USDT"))).toBe(true);
+  });
+
+  it("lit RÉELLEMENT les colonnes qu'elle demande", async () => {
+    // Le premier correctif réutilisait une requête projetant quatre colonnes :
+    // ni `id`, ni `sent_to_channel`. Il ne pouvait rien republier, en silence.
+    // Le bouchon projette maintenant comme PostgREST : si une colonne lue n'est
+    // pas demandée, le message sort avec « undefined » et ce test tombe.
+    const { messages } = stub({ clotureManquante: clotureeNonPubliee(), prix: 105 });
+    await trackSignalOutcomes(env);
+    const republie = canalPublic(messages).find((m) => m.text.includes("ALGO/USDT"));
+    expect(republie).toBeDefined();
+    expect(republie!.text).not.toContain("undefined");
+    expect(republie!.text).not.toContain("NaN");
+    expect(republie!.text).toContain("Entrée");
+  });
+
+  it("ne republie rien quand la clôture figure déjà dans channel_posts", async () => {
+    // Sans cette garantie, le canal republierait la même clôture toutes les
+    // cinq minutes — un dégât pire que l'oubli qu'on répare.
+    const messages: { chatId: string; text: string }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("api.telegram.org")) {
+          const b = JSON.parse(init!.body as string);
+          messages.push({ chatId: String(b.chat_id), text: String(b.text ?? "") });
+          return jsonResponse({ ok: true, result: { message_id: 1 } });
+        }
+        if (url.includes("/signals") && url.includes("outcome=not.is.null")) {
+          return jsonResponse([projeter(clotureeNonPubliee(), url)]);
+        }
+        if (url.includes("/signals")) return jsonResponse([]);
+        if (url.includes("channel_posts")) return jsonResponse([{ reference: "cloture:26", sent_at: new Date().toISOString() }]);
+        return jsonResponse([]);
+      })
+    );
+    await trackSignalOutcomes(env);
+    expect(messages.filter((m) => m.text.includes("ALGO/USDT"))).toHaveLength(0);
+  });
+});
+
+describe("Les prix de la clôture sont arrondis comme ceux du signal", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  /**
+   * L'ARRONDI AVAIT ÉTÉ CORRIGÉ AU MAUVAIS ENDROIT.
+   *
+   * `prix()` avait été branché sur le message de signal — celui que l'abonné
+   * reçoit — et nulle part ailleurs. La clôture, elle, republie les MÊMES
+   * niveaux sur le canal public, en interpolant les colonnes brutes. Résultat :
+   * le même trade sortait avec « 2.0644 » à l'ouverture et « 2.06437058 » à la
+   * fermeture, dans deux messages que le lecteur peut comparer à l'écran.
+   *
+   * Ce test lit le message tel qu'il part réellement, parce que c'est la seule
+   * façon de garantir que la correction ne se reperdra pas au prochain
+   * changement de formulation.
+   */
+  const signalHuitDecimales = () =>
+    signalExpire({
+      pair: "ICP/USDT",
+      entry_price: 2.2,
+      stop_loss: 2.06437058,
+      take_profit: 2.60688826,
+      tp1_price: 2.33562942,
+      tp2_price: 2.47125884,
+      tp3_price: 2.60688826,
+    });
+
+  it("ne republie aucun niveau à huit décimales", async () => {
+    const { messages } = stub({ signal: signalHuitDecimales(), prix: 2.25 });
+    await trackSignalOutcomes(env);
+    const texte = [...canalPublic(messages), ...enPrive(messages)].map((m) => m.text).join("\n");
+    expect(texte.length).toBeGreaterThan(0);
+    expect(texte).not.toContain("2.06437058");
+    expect(texte).not.toContain("2.33562942");
+    expect(texte).not.toContain("2.60688826");
+    expect(texte).toContain("2.0644");
+  });
+
+  it("n'écrit nulle part un nombre à plus de huit décimales", async () => {
+    // Le filet large : un prix oublié dans une formulation future se ferait
+    // prendre ici même sans que ce test connaisse la phrase concernée.
+    const { messages } = stub({ signal: signalHuitDecimales(), prix: 2.25 });
+    await trackSignalOutcomes(env);
+    for (const m of [...canalPublic(messages), ...enPrive(messages)]) {
+      expect(m.text, m.text).not.toMatch(/\d+\.\d{9,}/);
+    }
   });
 });
 

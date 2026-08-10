@@ -272,8 +272,8 @@ function buildTrailingStopLine(signal: SignalLike, stopLoss: number): string {
   const risk = Math.abs(signal.entry_price - stopLoss);
   const firstTrailPrice = signal.type === "BUY" ? signal.entry_price + risk : signal.entry_price - risk;
   return (
-    `🔒 Trailing stop activé : dès que le prix atteint ${firstTrailPrice.toFixed(8).replace(/0+$/, "").replace(/\.$/, "")} ` +
-    `(+1R), tu recevras un message pour remonter ton stop au point mort (${signal.entry_price}). Purement indicatif.`
+    `🔒 Trailing stop activé : dès que le prix atteint ${prix(firstTrailPrice)} ` +
+    `(+1R), tu recevras un message pour remonter ton stop au point mort (${prix(signal.entry_price)}). Purement indicatif.`
   );
 }
 
@@ -317,7 +317,7 @@ export function buildSignalMessage(
     `💵 Zone d'entrée : ${prix(signal.entry_price)}`,
     ...(isMultiTp
       ? buildMultiTpLines(signal, stopLoss)
-      : [`🎯 Take profit : ${takeProfit} (${pct(rewardPct)})`, `🛑 Stop loss : ${stopLoss} (${pct(-riskPct)})`]),
+      : [`🎯 Take profit : ${prix(takeProfit)} (${pct(rewardPct)})`, `🛑 Stop loss : ${prix(stopLoss)} (${pct(-riskPct)})`]),
     "",
     buildHoldLine(signal),
     riskSizingLine,
@@ -428,7 +428,7 @@ export function buildCarryMessage(
     "",
     `🟢 Achat au comptant de ${signal.pair}`,
     `🔴 Vente à découvert du perpétuel ${signal.pair}`,
-    `💵 Prix de référence : ${signal.entry_price}`,
+    `💵 Prix de référence : ${prix(signal.entry_price)}`,
     parAn != null && attendu != null
       ? `📈 Rendement attendu : *${pct(parAn)} par an* (soit ${pct(attendu)} sur ${jours} jours, frais déduits)`
       : null,
@@ -547,9 +547,9 @@ export function buildCarryShortMessage(
   const ligne = (s: SignalLike, seul: boolean): string => {
     const nom = seul ? "" : `*${s.pair}* — `;
     const attendu = s.carry_expected_pct;
-    if (attendu == null) return `• ${nom}rendement non chiffré · réf. ${s.entry_price}`;
+    if (attendu == null) return `• ${nom}rendement non chiffré · réf. ${prix(s.entry_price)}`;
     const parAn = annualisePct(attendu, joursDeDetention(s));
-    return `• ${nom}*${pct(parAn)} par an* · ${pct2(attendu)} sur ${joursDeDetention(s)} j · réf. ${s.entry_price}`;
+    return `• ${nom}*${pct(parAn)} par an* · ${pct2(attendu)} sur ${joursDeDetention(s)} j · réf. ${prix(s.entry_price)}`;
   };
 
   const seul = signaux.length === 1;
@@ -605,7 +605,7 @@ export function buildCarryBatchMessage(
     const attendu = s.carry_expected_pct;
     const rendement =
       attendu != null ? `${pct(annualisePct(attendu, joursDeDetention(s)))} par an` : "rendement inconnu";
-    return `• *${s.pair}* — ${rendement} · référence ${s.entry_price}`;
+    return `• *${s.pair}* — ${rendement} · référence ${prix(s.entry_price)}`;
   });
 
   const out: Array<string | null> = [

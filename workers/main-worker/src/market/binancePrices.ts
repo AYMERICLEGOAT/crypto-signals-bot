@@ -24,6 +24,8 @@
  * cette source de secours ne justifie pas.
  */
 
+import { journaliserErreurUneFois, signalerRetablissement } from "../utils/logUneFois";
+
 const BINANCE_BASE_URL = "https://api.binance.com";
 const COINBASE_BASE_URL = "https://api.exchange.coinbase.com";
 const KRAKEN_BASE_URL = "https://api.kraken.com";
@@ -41,6 +43,24 @@ function baseAsset(pair: string): string {
   return pair.split("/")[0];
 }
 
+/**
+ * UN REFUS DÉFINITIF NE SE RÉESSAIE PAS.
+ *
+ * Binance répond 403 aux IP de sortie Cloudflare — un blocage de plage
+ * d'hébergeur, pas un incident. Observé en production le 10/08/2026 : à chaque
+ * cycle de cinq minutes, ce client tentait TROIS fois, avec 400 puis 800 ms
+ * d'attente, avant de passer à Kraken. Soit trois sous-requêtes et 1,2 seconde
+ * jetées, 288 fois par jour, dans une chaîne dont la limite de cinquante
+ * sous-requêtes par invocation est déjà le point de rupture connu du projet.
+ *
+ * Aucun de ces statuts ne change en réessayant la même requête depuis la même
+ * IP dans la seconde. Le repli — Kraken groupé — est la vraie réponse, et il
+ * doit partir tout de suite.
+ */
+function refusDefinitif(status: number): boolean {
+  return status === 401 || status === 403 || status === 404 || status === 451;
+}
+
 async function getBinancePrices(symbols: string[]): Promise<Record<string, number>> {
   const url = `${BINANCE_BASE_URL}/api/v3/ticker/price?symbols=${encodeURIComponent(JSON.stringify(symbols))}`;
 
@@ -48,13 +68,24 @@ async function getBinancePrices(symbols: string[]): Promise<Record<string, numbe
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       const res = await fetch(url);
+      if (refusDefinitif(res.status)) {
+        // Journalisé une fois par panne, avec rappel toutes les six heures :
+        // la ligne partait à chaque cycle et noyait le reste du journal.
+        const err = new Error(`Binance ticker/price a répondu ${res.status} — repli immédiat sur Kraken.`);
+        journaliserErreurUneFois("prix-binance", err);
+        throw err;
+      }
       if (!res.ok) throw new Error(`Binance ticker/price a répondu ${res.status}`);
       const data = (await res.json()) as { symbol: string; price: string }[];
       const prices: Record<string, number> = {};
       for (const row of data) prices[row.symbol] = Number(row.price);
+      signalerRetablissement("prix-binance");
       return prices;
     } catch (err) {
       lastError = err;
+      // Le refus définitif ressort immédiatement : le réessayer serait
+      // exactement le gaspillage que cette fonction vient d'éliminer.
+      if (err instanceof Error && /a répondu (401|403|404|451)/.test(err.message)) throw err;
       if (attempt === MAX_ATTEMPTS) throw lastError;
       await new Promise((resolve) => setTimeout(resolve, RETRY_BASE_DELAY_MS * 2 ** (attempt - 1)));
     }
@@ -183,7 +214,13 @@ export async function getCurrentPrices(pairs: string[]): Promise<Record<string, 
   try {
     prices = await getBinancePrices(symbols);
   } catch (err) {
-    console.error("[post-trade] Échec de récupération des prix Binance, bascule sur Kraken/Coinbase:", err);
+    // Un refus définitif est DÉJÀ journalisé une fois par panne dans
+    // getBinancePrices. Le redire ici rendrait la déduplication inutile — la
+    // ligne repartirait à chaque cycle de cinq minutes, ce qu'elle faisait.
+    const definitif = err instanceof Error && /a répondu (401|403|404|451)/.test(err.message);
+    if (!definitif) {
+      console.error("[post-trade] Échec de récupération des prix Binance, bascule sur Kraken/Coinbase:", err);
+    }
   }
 
   let missing = pairs.filter((pair) => prices[pairToSymbol(pair)] === undefined);
