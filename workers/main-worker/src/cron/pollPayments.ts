@@ -207,9 +207,21 @@ async function processUsdtTransfers(env: Env): Promise<void> {
 async function processMoneroPayments(env: Env): Promise<void> {
   const db = dbConfig(env);
   if (!(await isWalletRpcAvailable(env))) {
-    console.warn("[monero] wallet-rpc injoignable (PC éteint ou ngrok arrêté ?) — nouvelle tentative au prochain cycle.");
+    // Journalisée UNE FOIS par panne, avec rappel toutes les six heures.
+    //
+    // Le wallet-rpc Monero tourne sur le PC du propriétaire, exposé par ngrok :
+    // il est donc indisponible la plupart du temps, par nature. Cette ligne
+    // partait à chaque cycle de cinq minutes, soit 288 fois par jour pour un
+    // état parfaitement connu — exactement le bruit qui a rendu invisible la
+    // panne de paiement USDT pendant des jours. Le fait reste visible, sa
+    // répétition ne l'est plus.
+    journaliserErreurUneFois(
+      "monero",
+      new Error("wallet-rpc injoignable (PC éteint ou ngrok arrêté ?) — nouvelle tentative au prochain cycle.")
+    );
     return;
   }
+  signalerRetablissement("monero");
 
   const pending = await getPendingPayments(db, "XMR");
   for (const payment of pending) {

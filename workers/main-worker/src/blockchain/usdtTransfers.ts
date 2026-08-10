@@ -17,6 +17,42 @@ const CHAIN_STATE_KEY = "last_processed_block_usdt_transfers";
 const CHUNK_SIZE = 2000;
 
 /**
+ * MARGE DE SÉCURITÉ SOUS LA TÊTE DE CHAÎNE. Le scan ne lit jamais les derniers
+ * blocs, et il y a deux raisons distinctes à ça — l'une a cassé la production,
+ * l'autre pourrait coûter de l'argent.
+ *
+ * 1. LES DEUX NŒUDS NE SONT PAS À LA MÊME HAUTEUR. `eth_blockNumber` et
+ *    `eth_getLogs` sont deux appels séparés qui peuvent atterrir sur des
+ *    machines différentes — le nœud principal est un point d'entrée réparti,
+ *    et le repli est un fournisseur entièrement distinct. Demander des logs
+ *    jusqu'à une tête obtenue ailleurs, c'est demander des blocs qui n'existent
+ *    pas encore pour le nœud interrogé.
+ *
+ *    Observé en production le 10/08/2026 :
+ *      [usdt-offchain] RPC Polygon (eth_getLogs): invalid block range params
+ *
+ *    Reproduit à l'identique : tête à 91 785 584, requête jusqu'à 91 785 828 →
+ *    erreur ; jusqu'à 91 785 428 → 454 logs rendus. C'est une erreur JSON-RPC
+ *    APPLICATIVE, donc volontairement non rejouée et non basculée sur le repli
+ *    (voir rpc.ts) : elle remonte sèchement et le scan n'avance plus.
+ *
+ *    Le piège de ce défaut est son calendrier. Tant que le scanner avait du
+ *    retard, `toBlock` tombait loin derrière la tête et tout allait bien. Il
+ *    ne casse qu'au moment où le rattrapage se termine — c'est-à-dire quand le
+ *    système atteint enfin son régime normal.
+ *
+ * 2. UNE RÉORGANISATION ANNULE UN BLOC. Créditer un abonnement sur un
+ *    transfert vu à la tête de chaîne, c'est risquer de l'activer pour un
+ *    paiement qui n'a jamais eu lieu. Le Litecoin et le Monero attendaient
+ *    déjà leurs confirmations (LTC_MIN_CONFIRMATIONS, MONERO_MIN_CONFIRMATIONS)
+ *    ; ce chemin-ci, le plus recommandé par /subscribe, n'en attendait aucune.
+ *
+ * 20 blocs ≈ 40 secondes sur Polygon : imperceptible pour l'abonné, qui attend
+ * déjà le cycle de cinq minutes du cron.
+ */
+const CONFIRMATIONS_POLYGON = 20;
+
+/**
  * Tranches traitees par passage du cron. Voir la boucle plus bas : sans cette
  * borne, un rattrapage de 40 000 blocs epuisait a lui seul le budget de
  * sous-requetes de l'invocation et tuait les taches suivantes de la chaine.
@@ -53,7 +89,9 @@ export async function catchUpUsdtTransfers(env: Env, db: SupabaseConfig): Promis
   if (!env.PAYMENT_ADDRESS_USDT) return [];
 
   const rpc = buildPolygonRpcConfig(env);
-  const currentBlock = await getBlockNumber(rpc);
+  const tete = await getBlockNumber(rpc);
+  // Le scan s'arrête sous la tête, jamais dessus. Voir CONFIRMATIONS_POLYGON.
+  const currentBlock = Math.max(0, tete - CONFIRMATIONS_POLYGON);
   const lastProcessed = await getLastProcessedBlock(db, CHAIN_STATE_KEY);
   let fromBlock = lastProcessed !== null ? lastProcessed + 1 : Math.max(0, currentBlock - DEFAULT_LOOKBACK_BLOCKS);
 

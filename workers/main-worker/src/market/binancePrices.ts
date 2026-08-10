@@ -112,6 +112,15 @@ const FALLBACK_MAX_ATTEMPTS = 2;
 // progressive, et un court espacement sépare aussi deux paires consécutives.
 const FALLBACK_RETRY_DELAY_MS = 350;
 const COINBASE_SPACING_MS = 150;
+/**
+ * Plafond du rattrapage Kraken paire par paire. Il ne s'agit pas d'économiser
+ * Kraken — son API publique tolère largement ce volume — mais le budget de
+ * cinquante sous-requêtes par invocation du Worker, qui est le point de
+ * rupture connu de ce projet : c'est lui qui a tué huit tâches pendant cinq
+ * jours. Au-delà de douze positions ouvertes, le résidu passe par Coinbase.
+ */
+const MAX_KRAKEN_UNITAIRE = 12;
+const KRAKEN_SPACING_MS = 120;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -170,8 +179,23 @@ async function getKrakenPrices(pairs: string[]): Promise<Record<string, number>>
         continue;
       }
       const data = (await res.json()) as { error?: string[]; result?: Record<string, { c?: string[] }> };
-      // Kraken renvoie une erreur par paire inconnue tout en servant les
-      // autres : on ne jette donc pas, on prend ce qui est exploitable.
+      // CE COMMENTAIRE DISAIT L'INVERSE DE LA RÉALITÉ, ET ÇA A COÛTÉ LE REPLI
+      // ENTIER. Il affirmait : « Kraken renvoie une erreur par paire inconnue
+      // tout en servant les autres ». Mesuré contre l'API le 10/08/2026 :
+      //
+      //   ?pair=SOLUSDT,BNBUSDT,TAOUSDT,POLUSDT,ICPUSDT,ADAUSDT
+      //   -> {"error":["EQuery:Unknown asset pair"],"result":{}}
+      //
+      // C'est du tout ou rien. UNE seule paire non listée — TAO et POL le
+      // sont, alors qu'elles sont dans l'univers analysé — annule la réponse
+      // pour les six. Le repli intermédiaire rendait donc {} en permanence, et
+      // TOUT le suivi post-trade retombait sur Coinbase, paire par paire, qui
+      // limite les IP Cloudflare : « Coinbase BNB-USD a répondu 429 »,
+      // « TAO-USD 429 », « POL-USD 429 » dans les journaux de production.
+      //
+      // Un signal dont le prix n'est jamais récupéré ne se clôture jamais : il
+      // reste ouvert au-delà de son échéance, et l'abonné ne reçoit ni sortie
+      // ni résultat.
       const result = data.result ?? {};
       const out: Record<string, number> = {};
       for (const { pair, alias } of wanted) {
@@ -226,6 +250,26 @@ export async function getCurrentPrices(pairs: string[]): Promise<Record<string, 
   let missing = pairs.filter((pair) => prices[pairToSymbol(pair)] === undefined);
   if (missing.length > 0) {
     Object.assign(prices, await getKrakenPrices(missing));
+  }
+
+  // RATTRAPAGE KRAKEN PAIRE PAR PAIRE.
+  //
+  // L'appel groupé est du tout ou rien (voir getKrakenPrices) : une seule
+  // paire non listée le fait rendre {}, et l'intégralité du lot bascule alors
+  // sur Coinbase, qui limite les IP Cloudflare. Interrogées séparément, les
+  // paires que Kraken connaît répondent parfaitement — vérifié : SOLUSDT et
+  // BNBUSDT rendent leur prix, seules TAOUSDT et POLUSDT sont inconnues.
+  //
+  // Ce passage ne se déclenche donc QUE quand le groupé a échoué, et il réduit
+  // le résidu Coinbase à ce que Kraken ne cote vraiment pas — trois requêtes
+  // limitées deviennent zéro.
+  missing = pairs.filter((pair) => prices[pairToSymbol(pair)] === undefined);
+  if (missing.length > 0 && missing.length === pairs.length) {
+    for (let i = 0; i < Math.min(missing.length, MAX_KRAKEN_UNITAIRE); i++) {
+      if (i > 0) await sleep(KRAKEN_SPACING_MS);
+      const unitaire = await getKrakenPrices([missing[i]]);
+      Object.assign(prices, unitaire);
+    }
   }
 
   // Coinbase ne traite plus que le résidu : les paires que Kraken ne cote pas.

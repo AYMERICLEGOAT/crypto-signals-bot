@@ -82,7 +82,19 @@ function stub(opts: Options = {}) {
         }
         return jsonResponse({ jsonrpc: "2.0", id: 1, result: null });
       }
-      if (url.includes("chain_state")) return jsonResponse([{ key: "x", value: String(BLOC - 10) }]);
+      // La position enregistrée est à 300 blocs de la tête, pas à 10.
+      //
+      // Le scan ne lit plus jamais les derniers blocs : il s'arrête vingt
+      // blocs sous la tête (CONFIRMATIONS_POLYGON), à la fois parce que les
+      // deux nœuds RPC ne sont pas à la même hauteur — ce qui produisait
+      // « invalid block range params » en production — et parce que créditer
+      // un abonnement sur un transfert réorganisable revient à l'activer pour
+      // un paiement qui n'a jamais eu lieu.
+      //
+      // À −10, il n'y avait donc plus rien à scanner et ce fichier ne testait
+      // plus que du vide. Ce n'est pas un ajustement de confort : c'est la
+      // configuration réaliste d'un scanner à jour.
+      if (url.includes("chain_state")) return jsonResponse([{ key: "x", value: String(BLOC - 300) }]);
       if (url.includes("payment_cache")) return jsonResponse([]);
       if (url.includes("pending_payments")) {
         if (opts.attendu == null) return jsonResponse([]);
