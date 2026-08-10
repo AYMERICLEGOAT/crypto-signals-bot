@@ -15,7 +15,33 @@ import { isValidEthereumAddress } from "../utils/address";
 export async function handleTextMessage(env: Env, telegramId: number, text: string): Promise<void> {
   const db = dbConfig(env);
   const action = await consumePendingAction(db, telegramId);
-  if (!action) return;
+
+  // UN TEXTE LIBRE NE DOIT PAS TOMBER DANS LE SILENCE.
+  //
+  // Sans action en attente, cette fonction rendait la main sans rien envoyer.
+  // Or c'est le cas le plus fréquent chez quelqu'un qui découvre le bot : il
+  // écrit « bonjour », « ça marche ? », « c'est quoi ce truc » — et ne reçoit
+  // RIEN. Il en conclut que le service est mort, au premier contact.
+  //
+  // Le projet avait déjà corrigé ce silence pour les commandes mal orthographiées
+  // (voir bot/router.ts), mais pas pour le texte ordinaire, qui est pourtant ce
+  // qu'une personne tape spontanément avant de connaître la moindre commande.
+  //
+  // Réponse courte et sans reproche : on ne sait pas répondre à du texte libre,
+  // et on montre les trois portes d'entrée. Aucune ne demande de payer.
+  if (!action) {
+    await sendMessage(
+      env.TELEGRAM_BOT_TOKEN,
+      telegramId,
+      "Je ne comprends que des commandes — je ne sais pas discuter.\n\n" +
+        "Pour commencer :\n" +
+        "/demo — un vrai signal, en entier\n" +
+        "/marche — l'état du marché, recalculé maintenant\n" +
+        "/trial — l'essai gratuit de 3 jours\n\n" +
+        "/help liste tout le reste."
+    );
+    return;
+  }
 
   if (action.type === "awaiting_review_comment") {
     await handleReviewComment(env, telegramId, action.reviewId, text.trim());
