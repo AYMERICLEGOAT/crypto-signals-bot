@@ -24,7 +24,7 @@
  * cette source de secours ne justifie pas.
  */
 
-import { journaliserErreurUneFois, signalerRetablissement } from "../utils/logUneFois";
+import { journaliserPanneConnue } from "../utils/logUneFois";
 
 const BINANCE_BASE_URL = "https://api.binance.com";
 const COINBASE_BASE_URL = "https://api.exchange.coinbase.com";
@@ -69,17 +69,17 @@ async function getBinancePrices(symbols: string[]): Promise<Record<string, numbe
     try {
       const res = await fetch(url);
       if (refusDefinitif(res.status)) {
-        // Journalisé une fois par panne, avec rappel toutes les six heures :
-        // la ligne partait à chaque cycle et noyait le reste du journal.
-        const err = new Error(`Binance ticker/price a répondu ${res.status} — repli immédiat sur Kraken.`);
-        journaliserErreurUneFois("prix-binance", err);
-        throw err;
+        // Une ligne par HEURE, pas une par cycle. La déduplication en mémoire
+        // ne tient pas : chaque déclenchement de cron repart d'un isolat neuf,
+        // ce que la production a montré en journalisant ce 403 à 19:55 puis à
+        // 20:00 (voir utils/logUneFois::journaliserPanneConnue).
+        journaliserPanneConnue("prix-binance", `Binance ticker/price a répondu ${res.status} — repli immédiat sur Kraken.`);
+        throw new Error(`Binance ticker/price a répondu ${res.status} — repli immédiat sur Kraken.`);
       }
       if (!res.ok) throw new Error(`Binance ticker/price a répondu ${res.status}`);
       const data = (await res.json()) as { symbol: string; price: string }[];
       const prices: Record<string, number> = {};
       for (const row of data) prices[row.symbol] = Number(row.price);
-      signalerRetablissement("prix-binance");
       return prices;
     } catch (err) {
       lastError = err;

@@ -71,6 +71,43 @@ export function journaliserErreurUneFois(cle: string, erreur: unknown, maintenan
 }
 
 /**
+ * L'ÉTAT EN MÉMOIRE NE SURVIT PAS À UNE INVOCATION DE CRON. Mesuré, pas supposé.
+ *
+ * Le commentaire d'en-tête pariait qu'un isolat recyclé « laisse repasser une
+ * ligne » de temps en temps. Observé en production le 10/08/2026 sur deux
+ * cycles consécutifs :
+ *
+ *   19:55  (error) [prix-binance] Binance ticker/price a répondu 403 …
+ *   20:00  (error) [prix-binance] Binance ticker/price a répondu 403 …
+ *
+ * Chaque déclenchement de cron repart d'un isolat neuf : la Map est vide à
+ * chaque fois, et la déduplication ne déduplique donc RIEN entre deux cycles.
+ * Le pire cas n'était pas « quelques lignes de plus », c'était toutes.
+ *
+ * Pour les pannes dont la permanence est CONNUE — Binance qui refuse les IP
+ * d'hébergeur, le wallet-rpc Monero qui vit sur un PC éteint — la seule
+ * solution sans état est l'horloge. Une ligne par heure : le fait reste
+ * visible, sa répétition ne noie plus le journal.
+ *
+ * CE QUI EST ÉCHANGÉ, et il faut le savoir : la première occurrence n'est plus
+ * immédiate. C'est acceptable ici précisément parce que ces conditions ne sont
+ * pas des nouvelles. Pour une panne dont la nature est inconnue,
+ * `journaliserErreurUneFois` reste le bon outil — mieux vaut une ligne de trop
+ * qu'une découverte retardée d'une heure.
+ *
+ * Persister l'état en base serait exact, mais coûterait une lecture et une
+ * écriture Supabase à chaque cycle de cinq minutes, dans la chaîne dont la
+ * limite de cinquante sous-requêtes est le point de rupture connu du projet.
+ * Payer ça pour une ligne de journal serait un mauvais échange.
+ */
+export function journaliserPanneConnue(cle: string, message: string, maintenant = new Date()): void {
+  // Premier cycle de chaque heure. Le cron tourne toutes les cinq minutes,
+  // donc exactement une invocation par heure passe ce filtre.
+  if (maintenant.getUTCMinutes() >= 5) return;
+  console.error(`[${cle}] ${message}`);
+}
+
+/**
  * À appeler quand l'opération réussit. Journalise le rétablissement si une
  * panne était en cours, puis oublie l'état.
  */

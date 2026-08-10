@@ -13,7 +13,7 @@ import { SupabaseConfig } from "../supabaseRest";
 import { PLAN_DURATION_DAYS, DISCOVERY_PLAN, STANDARD_PLAN, isValidPlan } from "../payments/plans";
 import { incrementDiscoverySlotsUsed, incrementEarlyAdopterSlotsUsed } from "../db/offerCounter";
 import { getUserIfExists } from "../db/users";
-import { journaliserErreurUneFois, signalerRetablissement } from "../utils/logUneFois";
+import { journaliserErreurUneFois, signalerRetablissement, journaliserPanneConnue } from "../utils/logUneFois";
 import { alerterAdmin } from "../utils/alerteAdmin";
 
 const EARLY_ADOPTER_BONUS_DAYS = 30;
@@ -215,13 +215,22 @@ async function processMoneroPayments(env: Env): Promise<void> {
     // état parfaitement connu — exactement le bruit qui a rendu invisible la
     // panne de paiement USDT pendant des jours. Le fait reste visible, sa
     // répétition ne l'est plus.
-    journaliserErreurUneFois(
-      "monero",
-      new Error("wallet-rpc injoignable (PC éteint ou ngrok arrêté ?) — nouvelle tentative au prochain cycle.")
+    // CLÉ DISTINCTE DE CELLE DU COLLECTEUR, et ce n'est pas un détail.
+    //
+    // Avec la clé « monero », la journalisation était annulée dans la seconde :
+    // pollPayments appelle signalerRetablissement("monero") dès que ce
+    // collecteur se termine sans lever d'exception — ce qui est le cas ici,
+    // puisqu'un wallet indisponible n'est pas une erreur. La production
+    // affichait littéralement les deux lignes à la suite :
+    //
+    //   (error) [monero] wallet-rpc injoignable …
+    //   (log)   [monero] Rétabli après 0 h et 1 tentative(s) en échec.
+    journaliserPanneConnue(
+      "monero-walletrpc",
+      "wallet-rpc injoignable (PC éteint ou ngrok arrêté ?) — nouvelle tentative au prochain cycle."
     );
     return;
   }
-  signalerRetablissement("monero");
 
   const pending = await getPendingPayments(db, "XMR");
   for (const payment of pending) {

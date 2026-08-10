@@ -79,16 +79,41 @@ describe("Un refus définitif ne se réessaie pas", () => {
     expect(s.binance()).toBeGreaterThan(1);
   }, 15000);
 
-  it("ne journalise le 403 qu'une fois, pas à chaque cycle", async () => {
-    // Une ligne d'erreur identique toutes les cinq minutes noie le journal :
-    // c'est ce qui a rendu invisible la panne de paiement pendant des jours.
+  it("ne journalise le 403 qu'une fois par HEURE, pas à chaque cycle", async () => {
+    // Une ligne identique toutes les cinq minutes noie le journal — c'est ce
+    // qui a rendu invisible la panne de paiement pendant des jours.
+    //
+    // La première version de ce test vérifiait une déduplication en mémoire.
+    // Elle passait, et la production journalisait quand même à chaque cycle :
+    // 19:55 puis 20:00, deux invocations de cron consécutives. Chaque
+    // déclenchement repart d'un isolat neuf, donc la Map est toujours vide.
+    // Un test vert sur un mécanisme qui ne s'exécute jamais deux fois.
+    //
+    // Le contrat est donc horaire et sans état : seul le premier cycle de
+    // chaque heure journalise. Ce test le vérifie sur l'horloge, la seule
+    // chose qui survive au recyclage de l'isolat.
     const erreurs: string[] = [];
     const espion = vi.spyOn(console, "error").mockImplementation((...a: unknown[]) => {
       erreurs.push(a.map(String).join(" "));
     });
     stub({ statutBinance: 403 });
-    for (let i = 0; i < 5; i++) await getCurrentPrices(["SOL/USDT"]);
-    espion.mockRestore();
-    expect(erreurs.filter((l) => l.includes("403"))).toHaveLength(1);
+
+    vi.useFakeTimers();
+    try {
+      // Les onze cycles de 20:05 à 20:55 : silence complet.
+      for (let m = 5; m < 60; m += 5) {
+        vi.setSystemTime(new Date(Date.UTC(2026, 7, 10, 20, m)));
+        await getCurrentPrices(["SOL/USDT"]);
+      }
+      expect(erreurs.filter((l) => l.includes("403")), "une ligne est partie en cours d'heure").toHaveLength(0);
+
+      // 21:00 : le fait réapparaît. Il ne doit jamais DISPARAÎTRE du journal.
+      vi.setSystemTime(new Date(Date.UTC(2026, 7, 10, 21, 0)));
+      await getCurrentPrices(["SOL/USDT"]);
+      expect(erreurs.filter((l) => l.includes("403"))).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+      espion.mockRestore();
+    }
   });
 });
