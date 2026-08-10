@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { dispatchVipBriefing } from "../src/cron/dispatchVipBriefing";
-import { dispatchMomentumAlerts } from "../src/cron/dispatchMomentumAlerts";
 
 function jsonResponse(body: unknown) {
   return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
@@ -25,41 +24,6 @@ describe("Valeur du canal VIP", () => {
     vi.useRealTimers();
   });
 
-  it("le bilan momentum va exclusivement en VIP, jamais sur le canal public", async () => {
-    // 18 h UTC : le bilan quotidien ne part qu'à partir de 17 h.
-    vi.setSystemTime(new Date(Date.UTC(2026, 7, 2, 18, 0)));
-    const publicSent: string[] = [];
-    const vipSent: string[] = [];
-
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string, init?: RequestInit) => {
-        if (url.includes("momentum_alerts") && url.includes("sent_at")) return jsonResponse([]);
-        if (url.includes("momentum_alerts") && (!init || init.method === undefined)) {
-          return jsonResponse(
-            [1, 2, 3].map((i) => ({ id: i, pair: `P${i}/USDT`, detail: `détail ${i}` }))
-          );
-        }
-        if (url.includes("momentum_alerts")) return jsonResponse([]);
-        if (url.includes("api.telegram.org")) {
-          const body = JSON.parse(init!.body as string);
-          (String(body.chat_id) === "-100222" ? vipSent : publicSent).push(body.text);
-          return jsonResponse({ ok: true, result: {} });
-        }
-        return jsonResponse([]);
-      })
-    );
-
-    await dispatchMomentumAlerts(env);
-
-    expect(publicSent).toHaveLength(0);
-    // UN seul message, pas un par alerte : c'est tout l'objet du bilan.
-    expect(vipSent).toHaveLength(1);
-    expect(vipSent[0]).toContain("P1/USDT");
-    expect(vipSent[0]).toContain("P3/USDT");
-    // Il n'invite pas à s'abonner : le lecteur l'est déjà.
-    expect(vipSent[0]).not.toContain("/subscribe");
-  });
 
   it("le briefing VIP montre les positions ouvertes, sécurisées ET à risque", async () => {
     vi.setSystemTime(new Date(Date.UTC(2026, 7, 2, 9, 0)));

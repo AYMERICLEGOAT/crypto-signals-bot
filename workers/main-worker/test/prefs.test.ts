@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { handlePrefsCommand, handlePrefsToggle } from "../src/bot/commands/prefs";
-import { dispatchMomentumAlerts } from "../src/cron/dispatchMomentumAlerts";
 
 function jsonResponse(body: unknown) {
   return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
@@ -88,36 +87,5 @@ describe("handlePrefsToggle", () => {
     await handlePrefsToggle(env, 111, "prefs:trailing_stop:on");
     expect(upserted.trailing_stop).toBe(true);
     expect(confirmText).toContain("activé");
-  });
-});
-
-describe("dispatchMomentumAlerts est channel-only (plus de DM, voir retour admin spam 30/07)", () => {
-  afterEach(() => vi.unstubAllGlobals());
-
-  it("ne consulte jamais /users ni user_prefs -- les alertes restent sur le canal, jamais en DM", async () => {
-    const dmRecipients: number[] = [];
-    const envWithChannel = { ...env, TELEGRAM_CHANNEL_ID: "-100123" };
-
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string, init?: RequestInit) => {
-        if (url.includes("momentum_alerts") && url.includes("sent_at=gte.")) {
-          return jsonResponse([]); // plafond quotidien (compté par date d'ENVOI réelle) : rien envoyé aujourd'hui
-        }
-        if (url.includes("momentum_alerts") && url.includes("sent_to_channel=eq.false") && (!init || init.method === undefined)) {
-          return jsonResponse([{ id: 1, pair: "BTC/USDT", kind: "atr_spike", detail: "Volatilité en hausse", created_at: "2026-01-01T00:00:00Z", sent_to_channel: false }]);
-        }
-        if (url.includes("momentum_alerts") && init?.method === "PATCH") return jsonResponse([]);
-        if (url.includes("api.telegram.org")) {
-          const chatId = JSON.parse(init!.body as string).chat_id;
-          if (chatId !== -100123) dmRecipients.push(chatId);
-          return jsonResponse({ ok: true, result: {} });
-        }
-        throw new Error(`URL inattendue (attendu : plus d'appel /users ou user_prefs): ${url}`);
-      })
-    );
-
-    await dispatchMomentumAlerts(envWithChannel);
-    expect(dmRecipients).toEqual([]);
   });
 });

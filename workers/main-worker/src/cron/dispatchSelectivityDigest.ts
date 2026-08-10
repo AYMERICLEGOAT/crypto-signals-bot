@@ -4,11 +4,17 @@ import { sendMessage } from "../telegram";
 import { getHeartbeat } from "../db/systemHeartbeats";
 import { upsertRow, SupabaseConfig } from "../supabaseRest";
 import { getSignalsCreatedSince } from "../db/signals";
-import { getMomentumAlertDetailsSince } from "../db/momentumAlerts";
 import { isQuietHours } from "../utils/quietHours";
 
 const JOB_NAME = "selectivity_digest";
 const DIGEST_HOUR_UTC = 18;
+
+/**
+ * Taille de l'univers balayé à chaque cycle — `config.PAIRS` côté Python,
+ * vérifié à 40 entrées le 10/08/2026. Le chiffre est publié sur le canal
+ * public : s'il change là-bas, il doit changer ici.
+ */
+const TAILLE_UNIVERS = 40;
 
 /**
  * Bilan quotidien de SÉLECTIVITÉ sur le canal public (02/08/2026).
@@ -37,9 +43,29 @@ const DIGEST_HOUR_UTC = 18;
  * pour faire du volume »). Un message par jour au lieu de huit, et le rejet
  * passe du statut de bruit à celui de preuve.
  *
- * Les alertes individuelles restent diffusées sur le canal VIP : pour un
- * abonné qui trade activement, le contexte temps réel a une valeur — c'est
- * précisément le genre de différence qui justifie un abonnement.
+ * CE MESSAGE SE CONTREDISAIT TOUS LES JOURS (corrigé le 10/08/2026).
+ *
+ * Il comptait les « écartées » à partir de la table `momentum_alerts`. Or le
+ * moteur qui les produisait — EMA/RSI, dit « Haute Confiance » — a été
+ * désactivé le 03/08 après avoir été mesuré comme la jambe PERDANTE de la
+ * stratégie (`config.ENABLE_HIGH_CONFIDENCE_ENGINE = False`). Dernière alerte
+ * en base : 03/08 23:13. Depuis, ce bilan publiait chaque jour sur le canal
+ * d'acquisition :
+ *
+ *   2 configuration(s) examinée(s) sur 40 paires :
+ *   ✅ 2 signal(aux) émis
+ *   🚫 0 écartée(s) — critères non réunis
+ *
+ * Deux mensonges dans quatre lignes. « 2 examinées » alors que les 40 paires
+ * sont balayées à chaque cycle, et « 0 écartée » sur un message dont le titre
+ * annonce la sélectivité — soit un taux d'acceptation de 100 % affiché comme
+ * une preuve de rigueur.
+ *
+ * Le bilan ne s'appuie plus que sur des faits vérifiables : la taille de
+ * l'univers balayé, et le nombre de signaux retenus. La soustraction n'est pas
+ * affichée volontairement — le carry puise dans un univers plus large que
+ * `config.PAIRS`, si bien qu'un « 38 écartées » calculé serait à nouveau une
+ * approximation présentée comme un compte.
  */
 async function recordSent(db: SupabaseConfig): Promise<void> {
   await upsertRow(db, "system_heartbeats", { job_name: JOB_NAME, last_run_at: new Date().toISOString(), alerted: false }, "job_name");
@@ -65,34 +91,20 @@ export async function dispatchSelectivityDigest(env: Env): Promise<void> {
   }
 
   const since = startOfTodayUtcIso();
-  const [emitted, rejected] = await Promise.all([
-    getSignalsCreatedSince(db, since),
-    getMomentumAlertDetailsSince(db, since),
-  ]);
-
-  const examined = emitted.length + rejected.length;
-  // Rien examiné du tout = journée sans donnée exploitable : publier
-  // « 0 configuration » n'apprendrait rien et ferait douter du service.
-  if (examined === 0) return;
+  const emitted = await getSignalsCreatedSince(db, since);
 
   const lines = [
     "🔍 *Bilan de sélectivité du jour*",
     "",
-    `${examined} configuration(s) examinée(s) sur 40 paires :`,
-    `✅ ${emitted.length} signal(aux) émis`,
-    `🚫 ${rejected.length} écartée(s) — critères non réunis`,
+    `🔎 ${TAILLE_UNIVERS} paires analysées à chaque cycle.`,
+    `✅ ${emitted.length} signal(aux) retenu(s) aujourd'hui.`,
     "",
   ];
 
-  if (rejected.length > 0) {
-    const sample = rejected.slice(0, 3).map((a) => `• ${a.pair} — ${a.detail}`);
-    lines.push("Exemples de ce qui a été écarté :", ...sample, "");
-  }
-
   lines.push(
     emitted.length === 0
-      ? "Aucun signal aujourd'hui : c'est un résultat, pas une panne. La stratégie n'émet que lorsque ses critères sont réunis."
-      : "Chaque signal émis part avec entrée, stop loss et objectifs définis à l'avance."
+      ? "Aucun signal aujourd'hui : c'est un résultat, pas une panne. La stratégie n'émet que lorsque ses critères sont réunis, et le silence coûte moins cher qu'un mauvais trade."
+      : "Le reste de l'univers n'a pas rempli les conditions d'entrée. Aucun signal n'est forcé pour faire du volume, et chaque signal émis part avec entrée, stop loss et objectifs définis à l'avance."
   );
 
   if (env.TELEGRAM_BOT_USERNAME) {

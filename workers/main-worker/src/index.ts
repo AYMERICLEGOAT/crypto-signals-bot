@@ -4,7 +4,6 @@ import { routeUpdate } from "./bot/router";
 import { dispatchSignals } from "./cron/dispatchSignals";
 import { dispatchStandardTier } from "./cron/dispatchStandardTier";
 import { dispatchPublicChannel } from "./cron/dispatchPublicChannel";
-import { dispatchMomentumAlerts } from "./cron/dispatchMomentumAlerts";
 import { dispatchVolatilitySuspensions } from "./cron/dispatchVolatilitySuspensions";
 import { dispatchWeeklyRecap } from "./cron/dispatchWeeklyRecap";
 import { trackSignalOutcomes } from "./cron/trackSignalOutcomes";
@@ -103,7 +102,6 @@ export default {
           await dispatchSignals(env).catch((err) => console.error("[cron] Erreur dispatchSignals:", err));
           await dispatchStandardTier(env).catch((err) => console.error("[cron] Erreur dispatchStandardTier:", err));
           await dispatchPublicChannel(env).catch((err) => console.error("[cron] Erreur dispatchPublicChannel:", err));
-          await dispatchMomentumAlerts(env).catch((err) => console.error("[cron] Erreur dispatchMomentumAlerts:", err));
           await dispatchVolatilitySuspensions(env).catch((err) => console.error("[cron] Erreur dispatchVolatilitySuspensions:", err));
           await trackSignalOutcomes(env).catch((err) => console.error("[cron] Erreur trackSignalOutcomes:", err));
           await announceSignalPause(env).catch((err) => console.error("[cron] Erreur announceSignalPause:", err));
