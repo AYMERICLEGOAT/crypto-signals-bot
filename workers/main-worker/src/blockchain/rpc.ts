@@ -22,15 +22,28 @@ export interface JsonRpcConfig {
 // panne/limite de trafic du premier plutôt que de faire échouer tous les
 // paiements USDT le temps qu'il revienne.
 //
-// Audit#30 (30/07) : l'ancien fallback (rpc-mainnet.maticvigil.com) s'est
-// révélé DÉFINITIVEMENT fermé ("Our RPC has been shut down - thank you for
-// 4 years of support!", HTTP 403 sur tout appel) -- observé en production
-// via wrangler tail (usdt-offchain échouait en boucle, à chaque cycle de 5
-// min, alors que le nœud principal n'avait qu'un hoquet transitoire). Le
-// "fallback" n'en était donc plus un depuis un temps indéterminé : aucune
-// vraie redondance. Remplacé par drpc.org (vérifié fonctionnel sur
-// eth_blockNumber ET eth_getLogs, sans clé API).
-const FALLBACK_POLYGON_RPC_URL = "https://polygon.drpc.org";
+// DEUXIÈME FOIS QUE CE REPLI MEURT SANS PRÉVENIR.
+//
+// Audit#30 (30/07) : rpc-mainnet.maticvigil.com était DÉFINITIVEMENT fermé
+// (« Our RPC has been shut down »). Remplacé par drpc.org.
+//
+// 10/08/2026 : drpc.org est mort à son tour — « API key disabled, reason:
+// tenant disabled ». Repéré en production parce qu'il renvoyait un HTTP 400
+// dont le corps était jeté par le client : les journaux ne montraient que
+// « a répondu 400 », sans le motif. Le corps est désormais conservé (voir
+// rpcCall) — sans quoi ce diagnostic aurait demandé la même enquête une
+// troisième fois.
+//
+// Tenderly retenu après mesure du 10/08/2026 sur la requête EXACTE de
+// production (eth_getLogs, 2 000 blocs, à −40 000 du bloc courant, avec les
+// vrais topics). Écartés à la même occasion : llamarpc (aucune réponse),
+// 1rpc.io (plafonné à 50 blocs), blockpi (erreur 521), blastapi et
+// polygon-pokt (abonnement payant requis), onfinality (limite de débit).
+//
+// LEÇON, écrite ici parce qu'elle se répétera : un nœud public gratuit ferme
+// sans préavis. Ce n'est pas une anomalie, c'est le régime normal. La seule
+// protection durable est que l'échec soit LISIBLE dans les journaux.
+const FALLBACK_POLYGON_RPC_URL = "https://polygon.gateway.tenderly.co";
 
 /**
  * Construit la config RPC Polygon standard (nœud principal + fallback +
@@ -95,7 +108,17 @@ async function attemptUrl<T>(url: string, method: string, params: unknown[]): Pr
     }
 
     if (!res.ok) {
-      lastError = new Error(`RPC Polygon (${method}) a répondu ${res.status}`);
+      // LE CORPS DE LA RÉPONSE EST CONSERVÉ, et ce n'est pas cosmétique.
+      //
+      // L'erreur ne disait que « a répondu 400 », ce qui n'apprend rien : le
+      // motif réel — « History has been pruned for this block », une limite de
+      // débit, une plage trop large — vit dans le corps, et il était jeté. Deux
+      // conséquences : impossible de diagnostiquer depuis les journaux, et
+      // impossible pour un appelant de DISTINGUER une panne définitive d'une
+      // panne transitoire. Or usdtTransfers a précisément besoin de cette
+      // distinction : avancer sur un élagage, réessayer sur le reste.
+      const corps = await res.text().catch(() => "");
+      lastError = new Error(`RPC Polygon (${method}) a répondu ${res.status}: ${corps.slice(0, 300)}`);
       if (attempt === RPC_MAX_ATTEMPTS) throw lastError;
       await new Promise((resolve) => setTimeout(resolve, RPC_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1)));
       continue;
