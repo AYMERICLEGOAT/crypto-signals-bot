@@ -14,6 +14,7 @@ import { PLAN_DURATION_DAYS, DISCOVERY_PLAN, STANDARD_PLAN, isValidPlan } from "
 import { incrementDiscoverySlotsUsed, incrementEarlyAdopterSlotsUsed } from "../db/offerCounter";
 import { getUserIfExists } from "../db/users";
 import { journaliserErreurUneFois, signalerRetablissement } from "../utils/logUneFois";
+import { alerterAdmin } from "../utils/alerteAdmin";
 
 const EARLY_ADOPTER_BONUS_DAYS = 30;
 
@@ -103,19 +104,79 @@ async function processUsdtTransfers(env: Env): Promise<void> {
   const transfers = await catchUpUsdtTransfers(env, db);
 
   for (const transfer of transfers) {
+    // LES TROIS SITUATIONS OU DE L'ARGENT ARRIVE SANS QUE L'ACCES PUISSE ETRE
+    // OUVERT. Elles se terminaient toutes par un console.warn et un continue :
+    // le payeur n'apprenait RIEN, l'administrateur non plus, et la trace
+    // mourait dans un journal que personne ne lit.
+    //
+    // C'est le pire scenario possible pour ce produit. Quelqu'un envoie de
+    // l'argent reel, n'obtient aucun acces, aucune explication, et finit par
+    // conclure qu'il s'est fait voler. C'est irrattrapable : cette personne ne
+    // revient pas, et elle le raconte.
+    //
+    // Aucune des trois ne peut etre resolue automatiquement — elles demandent
+    // une decision humaine (activer a la main, rembourser, reclamer le
+    // complement). Une decision humaine suppose que quelqu'un soit au courant.
     const user = await findUserByWalletAddress(db, transfer.from);
     if (!user) {
+      // Paiement depuis une adresse jamais declaree : impossible de savoir a
+      // QUI ouvrir l'acces. Seul l'administrateur peut trancher.
       console.warn(`[usdt-offchain] Transfert USDT reçu de ${transfer.from} mais aucun utilisateur Telegram associé.`);
+      await alerterAdmin(
+        env,
+        `⚠️ PAIEMENT NON ATTRIBUABLE\n\n${transfer.amount} USDT reçus de ${transfer.from}, ` +
+          "mais aucune personne n'a déclaré cette adresse.\n\n" +
+          "Quelqu'un a probablement payé depuis un compte d'échange plutôt que depuis son wallet. " +
+          "Il attend son accès et ne recevra rien tant que tu n'auras pas agi : /admin_activate."
+      );
       continue;
     }
 
     const pending = await getLatestPendingPayment(db, user.telegram_id, "USDT");
     if (!pending || pending.amount_expected === null) {
+      // On sait QUI a paye, mais rien n'etait attendu de sa part.
       console.warn(`[usdt-offchain] Transfert de ${transfer.from} (${transfer.amount} USDT) sans paiement en attente correspondant.`);
+      await sendMessage(
+        env.TELEGRAM_BOT_TOKEN,
+        user.telegram_id,
+        `✅ J'ai bien reçu ${transfer.amount} USDT de ta part.\n\n` +
+          "En revanche, aucune commande n'était en attente à ton nom — elle a peut-être expiré avant que " +
+          "le paiement arrive.\n\n" +
+          "Ton argent n'est pas perdu : l'administrateur vient d'être prévenu et va ouvrir ton accès à la main. " +
+          "Tu n'as rien d'autre à faire, et surtout ne renvoie rien."
+      ).catch((err) => console.error("[usdt-offchain] Notification impossible :", err));
+      await alerterAdmin(
+        env,
+        `⚠️ PAIEMENT SANS COMMANDE\n\n${transfer.amount} USDT reçus de ${user.telegram_id} ` +
+          `(${transfer.from}), sans paiement en attente.\n\nIl a été prévenu que tu ouvrirais son accès : ` +
+          "/admin_activate."
+      );
       continue;
     }
     if (transfer.amount < pending.amount_expected * USDT_AMOUNT_TOLERANCE) {
+      // LE CAS LE PLUS CRUEL : on sait qui, on sait combien il manque, et le
+      // produit ne disait rien. Un complement ne resoudrait rien tout seul —
+      // chaque transfert est evalue isolement, un second envoi de la difference
+      // serait rejete pour la meme raison. D'ou l'intervention humaine.
+      const manque = Math.max(0, pending.amount_expected - transfer.amount);
       console.warn(`[usdt-offchain] Montant insuffisant de ${transfer.from}: reçu ${transfer.amount}, attendu ${pending.amount_expected}.`);
+      await sendMessage(
+        env.TELEGRAM_BOT_TOKEN,
+        user.telegram_id,
+        `⚠️ Paiement reçu, mais incomplet\n\n` +
+          `J'ai reçu ${transfer.amount} USDT ; le montant attendu était ${pending.amount_expected} USDT. ` +
+          `Il manque environ ${manque.toFixed(2)} USDT.\n\n` +
+          "N'envoie PAS le complément : chaque virement est vérifié séparément, un second envoi serait " +
+          "également refusé.\n\n" +
+          "L'administrateur vient d'être prévenu et va régulariser à la main. Ton argent n'est pas perdu."
+      ).catch((err) => console.error("[usdt-offchain] Notification impossible :", err));
+      await alerterAdmin(
+        env,
+        `⚠️ PAIEMENT INSUFFISANT\n\n${user.telegram_id} a envoyé ${transfer.amount} USDT ` +
+          `au lieu de ${pending.amount_expected} (manque ${manque.toFixed(2)}).\n\n` +
+          "Il a été prévenu de ne pas renvoyer et d'attendre. À toi de trancher : /admin_activate " +
+          "pour ouvrir l'accès, ou le contacter."
+      );
       continue;
     }
 
