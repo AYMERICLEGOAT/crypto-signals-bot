@@ -5,9 +5,7 @@
  * vérifié empiriquement, pas une supposition).
  */
 
-import { Env, dbConfig } from "../env";
-import { sendMessage } from "../telegram";
-import { shouldAlertRpcFallback, recordRpcFallbackAlert } from "../db/rpcHealthAlerts";
+import { Env } from "../env";
 
 export interface JsonRpcConfig {
   url: string;
@@ -46,32 +44,40 @@ export interface JsonRpcConfig {
 const FALLBACK_POLYGON_RPC_URL = "https://polygon.gateway.tenderly.co";
 
 /**
- * Construit la config RPC Polygon standard (nœud principal + fallback +
- * alerte canal admin). L'alerte est déduplique (voir db/rpcHealthAlerts.ts)
- * -- observé en production : sans ça, le cron de 5 minutes renvoyait une
- * alerte identique à chaque cycle tant que le nœud principal restait en
- * panne (7+ messages en 30 minutes pour la même panne, jamais résolue).
+ * Construit la config RPC Polygon standard : nœud principal, nœud de secours,
+ * et journalisation de la bascule.
+ *
+ * L'alerte Telegram qui accompagnait cette bascule a été RETIRÉE le 10/08/2026
+ * — voir le commentaire sur `onFallback` ci-dessous. Elle avait d'abord été
+ * déduplique à une par heure parce qu'elle partait à chaque cycle de cinq
+ * minutes ; la déduplication traitait le symptôme. Le vrai défaut était
+ * qu'elle annonçait le bon fonctionnement du repli.
  */
 export function buildPolygonRpcConfig(env: Env): JsonRpcConfig {
   return {
     url: env.POLYGON_RPC_URL,
     fallbackUrl: FALLBACK_POLYGON_RPC_URL,
+    // UNE BASCULE RÉUSSIE N'EST PAS UN INCIDENT, ET NE DOIT PLUS ALERTER.
+    //
+    // Ce rappel partait toutes les heures, indéfiniment, pour annoncer que le
+    // système de secours avait FONCTIONNÉ. Trois défauts dans la même alerte :
+    //
+    //   1. Elle n'appelle aucune action. Les nœuds publics limitent les IP
+    //      Cloudflare de façon intermittente ; le propriétaire ne peut rien y
+    //      faire, et il n'y a rien à réparer puisque le repli a tenu.
+    //   2. Elle décrit un succès. « Bascule sur le nœud de secours » signifie
+    //      que la redondance a joué son rôle exactement comme prévu.
+    //   3. Elle use le canal d'alerte. Une alerte non actionnable répétée
+    //      apprend à ignorer les alertes — et le jour où un vrai problème de
+    //      paiement arrive, il tombe dans un canal que plus personne ne lit.
+    //
+    // La bascule reste journalisée : le diagnostic garde sa trace. Ce qui
+    // mérite VRAIMENT une alerte est l'échec des DEUX nœuds, c'est-à-dire le
+    // moment où la détection des paiements s'arrête réellement — et ce cas-là
+    // remonte déjà par l'erreur du cron (voir cron/pollPayments.ts, qui
+    // journalise une fois par panne et rappelle toutes les six heures).
     onFallback: (error) => {
       console.warn(`[rpc] Bascule sur le RPC Polygon de secours (${FALLBACK_POLYGON_RPC_URL}), primaire en échec:`, error);
-      if (!env.ADMIN_TELEGRAM_ID) return;
-
-      const db = dbConfig(env);
-      shouldAlertRpcFallback(db)
-        .then((shouldAlert) => {
-          if (!shouldAlert) return;
-          return sendMessage(
-            env.TELEGRAM_BOT_TOKEN,
-            Number(env.ADMIN_TELEGRAM_ID),
-            `⚠️ RPC Polygon principal (${env.POLYGON_RPC_URL}) en échec, bascule sur le nœud de secours. ` +
-              "(prochain rappel dans au moins 1h si la panne persiste, pas à chaque cycle)"
-          ).then(() => recordRpcFallbackAlert(db));
-        })
-        .catch((err) => console.error("[rpc] Échec de la vérification/notification de bascule RPC:", err));
     },
   };
 }

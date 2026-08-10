@@ -12,13 +12,20 @@ REM previent l'administrateur sur Telegram. Se fier au seul code de retour ne
 REM suffirait pas : `claude -p` rend parfois 0 en ecrivant son erreur sur la
 REM sortie standard, ce qui est precisement le cas qui a dure une semaine.
 
+REM MODELE ET EFFORT FIXES EXPLICITEMENT. Sans ces options, la routine prend
+REM le modele par defaut du jour — observe le 10/08 : Sonnet. Son travail est
+REM du diagnostic profond (croiser des traces, distinguer une panne definitive
+REM d'une transitoire, trouver ce que personne n'a pense a chercher), pas de
+REM l'execution de liste. Laisser ce choix au hasard d'un defaut de
+REM configuration rend la qualite du gardien imprevisible d'un jour a l'autre.
+
 cd /d "C:\code vs code\projet crypto"
 
 set "SORTIE=%TEMP%\ops_routine_sortie.txt"
 
 echo ==== %date% %time% ==== >> ops_routine.log
 
-"C:\Users\aymer\AppData\Roaming\npm\claude.cmd" -p "Lis OPS_ROUTINE_PROMPT.md a la racine du depot et execute integralement la routine qui y est decrite, dans l'ordre." --dangerously-skip-permissions > "%SORTIE%" 2>&1
+"C:\Users\aymer\AppData\Roaming\npm\claude.cmd" --model opus --effort high -p "Lis OPS_ROUTINE_PROMPT.md a la racine du depot et execute integralement la routine qui y est decrite, dans l'ordre." --dangerously-skip-permissions > "%SORTIE%" 2>&1
 set CODE=%ERRORLEVEL%
 
 type "%SORTIE%" >> ops_routine.log
