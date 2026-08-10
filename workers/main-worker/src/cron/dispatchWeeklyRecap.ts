@@ -103,9 +103,11 @@ export async function dispatchWeeklyRecap(env: Env): Promise<void> {
   if (resolved.length > 0) {
     const sign = paperPnlPct >= 0 ? "+" : "";
     lines.push(
-      `🔒 ${secured} trade(s) sécurisé(s) (TP1 atteint, ne peut plus finir perdant) — ${securedPct}% des clôturés`,
+      `🔒 ${secured} trade(s) sécurisé(s) (TP1 atteint, ne peut plus finir perdant) — ${securedPct} % des clôturés`,
       `✅ ${tpCount} take profit touché(s) — ❌ ${slCount} stop loss touché(s)`,
-      `💼 Portefeuille fictif (10%/trade, non composé) : ${sign}${paperPnlPct.toFixed(1)}%`
+      // Virgule française et espace insécable avant le signe, comme partout
+      // ailleurs : le récap publiait « +1.5% » à côté de « 42 % ».
+      `💼 Portefeuille fictif (10 %/trade, non composé) : ${sign}${paperPnlPct.toFixed(1).replace(".", ",")} %`
     );
   } else {
     // « Aucune position clôturée » se lit comme « il ne s'est rien passé », et

@@ -63,17 +63,30 @@ export async function lireDebitReel(db: SupabaseConfig): Promise<DebitReel | nul
     return null;
   }
 
+  // LES MOTEURS RETIRÉS SONT EXCLUS DU DÉBIT COURANT.
+  //
+  // /status affichait « 25 signaux, soit 1,8 par jour (carry 10,
+  // high_confidence 9, momentum 4H 6) ». Deux problèmes dans la même ligne :
+  // le slug brut d'un moteur s'affichait tel quel à l'abonné, et surtout les
+  // signaux du moteur EMA/RSI — désactivé le 03/08 pour avoir été mesuré
+  // PERDANT — gonflaient un chiffre censé décrire ce qu'on reçoit MAINTENANT.
+  //
+  // Ce module existe précisément pour ne pas surestimer le débit. Y compter
+  // une production arrêtée serait la faute qu'il est censé empêcher.
+  const retires = new Set(["high_confidence", "squeeze_15m"]);
+  const actifs = lignes.filter((l) => !retires.has(l.engine ?? ""));
+
   const parMoteur = new Map<string, number>();
   const jours = new Set<string>();
-  for (const l of lignes) {
+  for (const l of actifs) {
     const moteur = l.engine ?? "inconnu";
     parMoteur.set(moteur, (parMoteur.get(moteur) ?? 0) + 1);
     jours.add(l.created_at.slice(0, 10));
   }
 
   return {
-    total: lignes.length,
-    parJour: Math.round((lignes.length / JOURS_OBSERVES) * 10) / 10,
+    total: actifs.length,
+    parJour: Math.round((actifs.length / JOURS_OBSERVES) * 10) / 10,
     joursAvecSignal: jours.size,
     moteurs: [...parMoteur.entries()]
       .map(([engine, nb]) => ({ engine, nb }))

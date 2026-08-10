@@ -12,9 +12,41 @@ export interface MomentumAlertRecord {
   sent_at: string | null;
 }
 
+/**
+ * Fraîcheur maximale d'une alerte diffusable.
+ *
+ * Ces alertes décrivent l'état du marché À L'INSTANT où elles sont calculées.
+ * Publier une observation de la semaine dernière sous le titre « Mouvements du
+ * jour » est faux deux fois : la donnée est périmée, et le titre ment sur sa
+ * date.
+ */
+export const FRAICHEUR_MAX_HEURES = 24;
+
+/**
+ * Alertes non encore diffusées, ET récentes.
+ *
+ * LE FILTRE D'ÂGE N'EXISTAIT PAS, et voici ce que ça donnait en production.
+ * Le moteur EMA/RSI a été désactivé le 03/08/2026 après avoir été mesuré
+ * PERDANT. Il avait produit 90 alertes ce jour-là, dont 17 seulement étaient
+ * parties. Les 73 restantes sont demeurées en file, et le cron les a
+ * distillées à raison de huit par jour sur le canal VIP — c'est-à-dire sur le
+ * canal PAYANT.
+ *
+ * Le 09/08, six jours après la désactivation, les abonnés recevaient donc
+ * encore « Croisement EMA baissier détecté, RSI (51) ne confirme pas encore » :
+ * une analyse périmée, rédigée dans le vocabulaire de la stratégie que ce
+ * projet a lui-même désavouée, et présentée comme l'actualité du jour. Sans ce
+ * filtre, le goutte-à-goutte aurait duré neuf jours de plus.
+ *
+ * La borne d'âge est la bonne réponse plutôt qu'une purge ponctuelle : elle
+ * protège aussi du cas général — une panne de diffusion de plusieurs jours
+ * suivie d'un rattrapage massif de contenu obsolète.
+ */
 export async function getUnsentMomentumAlerts(db: SupabaseConfig, limit = 20): Promise<MomentumAlertRecord[]> {
+  const depuis = new Date(Date.now() - FRAICHEUR_MAX_HEURES * 3_600_000).toISOString();
   return selectRows<MomentumAlertRecord>(db, "momentum_alerts", {
     sent_to_channel: "eq.false",
+    created_at: `gte.${depuis}`,
     order: "created_at.asc",
     limit: String(limit),
   });
