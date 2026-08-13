@@ -1,0 +1,68 @@
+name: Sentinelle (surveillance déterministe)
+
+# POURQUOI CE WORKFLOW EXISTE, ET POURQUOI ICI PLUTÔT QUE SUR LE PC.
+#
+# La surveillance du projet reposait entièrement sur une routine agentique
+# lancée par une tâche planifiée Windows. Elle est morte trois fois, pour trois
+# raisons différentes, sans que rien ne prenne le relais :
+#
+#   03/08  limite de dépense mensuelle atteinte
+#   10/08  session OAuth expirée — sept jours de silence, découverts par hasard
+#   13/08  la même, à 15:32
+#
+# Et elle ne pouvait de toute façon rien surveiller quand le PC était éteint.
+#
+# Pendant ces sept jours d'aveuglement : aucun paiement USDT détectable, aucun
+# signal livré en message privé, huit tâches mortes sur la limite de
+# sous-requêtes, une clôture perdue pour toujours, et un canal public publiant
+# chaque jour un chiffre qui le contredisait.
+#
+# Ce workflow ne remplace pas la routine — il ne raisonne pas, il ne trouvera
+# jamais un défaut nouveau. Il exécute mécaniquement le registre des
+# observables, et il a la seule qualité qui manquait : il marche toujours.
+# Aucun modèle, aucune authentification, aucun PC. Le niveau gratuit de GitHub
+# Actions couvre très largement un passage de vingt secondes.
+
+on:
+  schedule:
+    # Toutes les six heures. Les pannes de ce projet se mesurent en heures, pas
+    # en jours : un scan de paiement mort à 9 h ne doit pas attendre le
+    # lendemain pour être vu.
+    - cron: "17 */6 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: sentinelle
+  cancel-in-progress: false
+
+jobs:
+  surveiller:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Aucune dépendance à installer : la sentinelle n'utilise que la
+      # bibliothèque standard. C'est délibéré — chaque dépendance est une
+      # occasion de plus pour la surveillance de tomber en panne.
+      - name: Exécuter la sentinelle
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          ADMIN_TELEGRAM_ID: "8647576528"
+        run: python ops/sentinelle.py
+
+      # LE GARDIEN DU GARDIEN. Si la sentinelle elle-même casse — clé
+      # révoquée, table renommée, bug d'une modification — elle se tait, et son
+      # silence ressemble exactement à « tout va bien ». C'est la confusion qui
+      # a coûté les sept jours d'août. Cette étape est le seul endroit du
+      # système où l'échec de la surveillance est lui-même surveillé.
+      - name: Alerter si la sentinelle a échoué
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            --data-urlencode "chat_id=8647576528" \
+            --data-urlencode "text=🛡️ La SENTINELLE elle-même est en échec (run #${{ github.run_number }}). Plus rien ne surveille le produit tant que ce n'est pas réparé. Détails : https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
