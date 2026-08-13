@@ -169,11 +169,34 @@ export async function getSignalsCreatedSince(db: SupabaseConfig, sinceIso: strin
 }
 
 /** Bloc 12.3 — récap hebdomadaire : signaux résolus (TP/SL/expiré) depuis `sinceIso`. */
+/**
+ * IL MANQUAIT `outcome` DANS SA PROPRE PROJECTION, et ça a produit un message
+ * arithmétiquement impossible sur le canal payant.
+ *
+ * Le briefing VIP du 11/08/2026 annonçait :
+ *
+ *   📊 Dernières 24 h : 4 clôture(s)
+ *   ✅ 0 gagnante(s) — ❌ 0 perdante(s)
+ *
+ * Quatre clôtures dont aucune n'est ni gagnante ni perdante. L'appelant
+ * comptait `s.outcome === "WIN"` sur des lignes où la colonne n'avait jamais
+ * été demandée : `undefined` des deux côtés, donc zéro des deux côtés. Rien
+ * n'échoue, rien n'est journalisé, et l'abonné payant lit une absurdité.
+ *
+ * Même classe de défaut que le rattrapage des clôtures, trouvée le même jour :
+ * TypeScript type la ligne entière, PostgREST n'en rend qu'une partie, et
+ * l'écart ne se voit qu'en production.
+ *
+ * Les niveaux TP sont là pour permettre le calcul du rendement réel, sorties
+ * partielles comprises (voir trackSignalOutcomes::pnlEffectif).
+ */
 export async function getSignalsResolvedSince(db: SupabaseConfig, sinceIso: string): Promise<SignalRecord[]> {
   return selectRows<SignalRecord>(db, "signals", {
     evaluated_at: `gte.${sinceIso}`,
     outcome: "not.is.null",
-    select: "type,entry_price,outcome_price,close_reason",
+    select:
+      "id,pair,type,entry_price,outcome,outcome_price,close_reason," +
+      "tp1_price,tp2_price,tp3_price,tp1_hit_at,tp2_hit_at,tp3_hit_at",
   });
 }
 

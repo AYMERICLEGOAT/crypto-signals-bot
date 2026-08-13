@@ -76,10 +76,35 @@ async function checkLitecoinPool(env: Env): Promise<CheckResult> {
   }
 }
 
+/**
+ * CE QU'IL FAUT FAIRE, écrit dans l'alerte elle-même.
+ *
+ * « ❌ Supabase: HTTP 401 » a été envoyé le 12/08/2026, puis « ❌ Pool
+ * Litecoin: HTTP 401 » le 13/08. Deux alertes exactes, et aucune des deux ne
+ * disait la seule chose qui comptait : la clé Supabase de CE Worker-ci était
+ * périmée, alors que celle du Worker principal fonctionnait toujours. Sans
+ * cette phrase, l'alerte oblige à rouvrir le code pour comprendre de quoi elle
+ * parle — et une alerte qu'on ne peut pas traiter en la lisant finit ignorée.
+ */
+function quoiFaire(c: CheckResult): string | null {
+  if (/HTTP 401|HTTP 403/.test(c.detail)) {
+    return "Clé Supabase de ce Worker refusée. Reposer la même que le Worker principal : `wrangler secret put SUPABASE_KEY` depuis workers/healthcheck-worker.";
+  }
+  if (c.name === "Pool Litecoin" && /adresse\(s\) disponible/.test(c.detail)) {
+    return "Réapprovisionner le pool d'adresses Litecoin avant qu'un paiement ne trouve plus d'adresse libre.";
+  }
+  if (/db-unreachable/.test(c.detail)) {
+    return "Le Worker principal ne joint plus Supabase. Vérifier l'état du projet Supabase ; si tout est vert, c'était un incident passager et cette alerte ne se répétera pas.";
+  }
+  return null;
+}
+
 async function alertAdmin(env: Env, failing: CheckResult[]): Promise<void> {
-  const text =
-    "🚨 *Alerte supervision*\n\n" +
-    failing.map((c) => `❌ ${c.name}: ${c.detail}`).join("\n");
+  const lignes = failing.map((c) => {
+    const action = quoiFaire(c);
+    return action ? `❌ ${c.name}: ${c.detail}\n   → ${action}` : `❌ ${c.name}: ${c.detail}`;
+  });
+  const text = "🚨 *Alerte supervision*\n\n" + lignes.join("\n\n");
 
   await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: "POST",
@@ -92,14 +117,49 @@ async function runChecks(env: Env): Promise<CheckResult[]> {
   return Promise.all([checkMainWorker(env), checkSupabase(env), checkLitecoinPool(env)]);
 }
 
+/** Délai avant de reconfirmer un échec. Assez pour qu'un hoquet réseau soit passé, assez court pour tenir dans l'invocation. */
+const DELAI_RECONFIRMATION_MS = 4_000;
+
+/**
+ * UN ÉCHEC N'EST PAS UNE PANNE TANT QU'IL N'A PAS ÉTÉ REVU.
+ *
+ * Le 12/08/2026 à 04:00 puis à 09:00, l'administrateur a reçu :
+ *
+ *   🚨 Alerte supervision
+ *   ❌ Worker principal: HTTP 503 body="db-unreachable"
+ *
+ * Ce 503 vient de /health, qui fait UN appel à Supabase sans reprise : un
+ * hoquet réseau d'une seconde suffisait à déclencher une alerte 🚨. Le système
+ * fonctionnait avant et après, et le propriétaire n'avait rien à faire.
+ *
+ * Ce projet a déjà payé cette leçon en retirant l'alerte de bascule RPC : une
+ * alerte non actionnable, répétée, apprend à ignorer TOUTES les alertes — et le
+ * jour où un vrai problème de paiement arrive, il tombe dans un canal que plus
+ * personne ne lit.
+ *
+ * On revérifie donc ce qui a échoué, une seule fois, quelques secondes plus
+ * tard. Le coût est nul quand tout va bien (aucune revérification), et une
+ * panne réelle est simplement signalée quatre secondes plus tard.
+ */
+async function echecsConfirmes(env: Env): Promise<CheckResult[]> {
+  const premiers = (await runChecks(env)).filter((r) => !r.ok);
+  if (premiers.length === 0) return [];
+
+  await new Promise((resolve) => setTimeout(resolve, DELAI_RECONFIRMATION_MS));
+
+  const seconds = await runChecks(env);
+  // Seuls les contrôles qui échouent LES DEUX FOIS sont retenus. Le détail
+  // rapporté est celui du second passage : c'est l'état le plus récent.
+  return seconds.filter((r) => !r.ok && premiers.some((p) => p.name === r.name));
+}
+
 export default {
   async fetch(_request: Request, env: Env): Promise<Response> {
-    const results = await runChecks(env);
-    const failing = results.filter((r) => !r.ok);
+    const failing = await echecsConfirmes(env);
     if (failing.length > 0) {
       await alertAdmin(env, failing);
     }
-    return new Response(JSON.stringify(results, null, 2), {
+    return new Response(JSON.stringify(failing.length > 0 ? failing : [{ ok: true }], null, 2), {
       status: failing.length > 0 ? 503 : 200,
       headers: { "Content-Type": "application/json" },
     });
@@ -108,8 +168,7 @@ export default {
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(
       (async () => {
-        const results = await runChecks(env);
-        const failing = results.filter((r) => !r.ok);
+        const failing = await echecsConfirmes(env);
         if (failing.length > 0) {
           await alertAdmin(env, failing);
         }

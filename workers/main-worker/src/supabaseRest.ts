@@ -126,7 +126,37 @@ export async function callRpc<T>(config: SupabaseConfig, functionName: string, a
 }
 
 /** Ping minimal pour le healthcheck : vérifie que l'API REST répond. */
+/**
+ * Sonde de vitalité, avec UNE reprise — et c'est le point du correctif.
+ *
+ * Cette fonction faisait un seul `fetch`, sans délai d'expiration ni reprise.
+ * Le moindre hoquet réseau faisait donc répondre 503 « db-unreachable » à
+ * /health, ce que le Worker de supervision transformait en alerte 🚨 chez le
+ * propriétaire : reçue le 12/08/2026 à 04:00 puis à 09:00, pour un système qui
+ * fonctionnait avant et après, et sur lequel il n'y avait rien à faire.
+ *
+ * Une sonde de santé qui crie au premier éternuement ne mesure pas la santé,
+ * elle mesure la gigue du réseau. Deux tentatives espacées suffisent à faire la
+ * différence entre les deux, et le superviseur reconfirme de son côté.
+ *
+ * Le délai d'expiration compte autant : sans lui, une réponse qui ne vient
+ * jamais laissait /health pendre jusqu'au plafond de l'invocation.
+ */
 export async function pingSupabase(config: SupabaseConfig): Promise<boolean> {
-  const res = await fetch(`${config.url}/rest/v1/`, { headers: headers(config) });
-  return res.ok;
+  for (let essai = 1; essai <= 2; essai++) {
+    try {
+      const res = await fetch(`${config.url}/rest/v1/`, {
+        headers: headers(config),
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (res.ok) return true;
+      // Un refus d'authentification ne se corrige pas en réessayant : la clé
+      // est mauvaise, et c'est un vrai incident qui doit remonter tout de suite.
+      if (res.status === 401 || res.status === 403) return false;
+    } catch {
+      // Réseau ou expiration : c'est précisément le cas qu'on veut reconfirmer.
+    }
+    if (essai === 1) await new Promise((resolve) => setTimeout(resolve, 600));
+  }
+  return false;
 }

@@ -463,7 +463,36 @@ RS_MIN_RANKED_PAIRS = 15    # en dessous, le classement transversal n'a pas de s
 # Une fenêtre de 15 minutes avait été essayée d'abord ; les crons GitHub Actions
 # étant retardés de 10 à 20 minutes de façon routinière, elle faisait passer des
 # journées entières sans le moindre signal, sans rien signaler.
-RS_RUN_HOUR_UTC = 1
+#
+# CETTE HEURE COMMANDE TOUT LE CALENDRIER DU PRODUIT, pas seulement l'émission.
+#
+# Elle valait 1 h UTC, soit 3 h du matin à Paris. Tout en découlait :
+#   - les signaux partaient en message privé vers 5 h 10 (relevé du 12 et du
+#     13/08/2026, LINK, DOGE, MKR, SOL) ;
+#   - les clôtures tombant exactement à hold_until, c'est-à-dire au même moment
+#     du jour trois jours plus tard, le canal PUBLIC a publié des clôtures à
+#     04 h 25, 04 h 50 et 04 h 30 — en pleines heures calmes, que ce chemin ne
+#     consultait pas ;
+#   - et l'abonné recevait la notification de sortie de sa position à 4 h 30.
+#
+# Aucun de ces trois symptômes n'était un défaut du code qui les produisait :
+# c'était cette constante, trois niveaux plus haut.
+#
+# 8 h UTC = 10 h à Paris. Trois raisons, dans cet ordre :
+#   1. L'audience est française. Un signal reçu à 10 h est lu ; un signal reçu à
+#      5 h réveille ou se perd sous vingt autres notifications.
+#   2. Les heures calmes du canal public finissent à 7 h UTC. Émettre à 8 h met
+#      l'ouverture ET la clôture, trois jours plus tard, largement hors de la
+#      fenêtre de silence — sans dépendre d'un report.
+#   3. Les bougies de 4 heures se closent à 00, 04, 08, 12, 16 et 20 h UTC. Le
+#      passage lit donc une bougie fraîchement close plutôt qu'une bougie de
+#      milieu de période, ce qui rapproche l'exécution réelle de la mesure du
+#      backtest au lieu de l'en éloigner.
+#
+# La force relative, elle, travaille sur des clôtures JOURNALIÈRES : décaler de
+# 1 h à 8 h ne change pas la bougie qu'elle lit, seulement le moment où elle la
+# lit. Sa stratégie est donc strictement inchangée.
+RS_RUN_HOUR_UTC = 8
 
 # --- Moteur Carry de Financement (voir carry_engine.py) ---
 # Position neutre au marché : achat du spot, vente du perpétuel pour le même

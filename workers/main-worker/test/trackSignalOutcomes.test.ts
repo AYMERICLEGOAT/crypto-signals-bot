@@ -110,7 +110,7 @@ describe("trackSignalOutcomes", () => {
     expect(publicText).not.toContain("🎉");
   });
 
-  it("clôture en LOSS/expired après 10 jours sans avoir touché ni le TP ni le SL", async () => {
+  it("clôture à l'échéance en WIN quand le prix a monté, sans avoir touché ni TP ni SL", async () => {
     const oldSignal = { ...recentSignal, id: 2, created_at: new Date(Date.now() - 11 * 24 * 60 * 60 * 1000).toISOString() };
     let closedPatch: any = null;
 
@@ -120,7 +120,43 @@ describe("trackSignalOutcomes", () => {
         if (url.includes("signals") && url.includes("outcome=is.null") && (!init || init.method === undefined)) {
           return jsonResponse([oldSignal]);
         }
-        if (url.includes("binance.com")) return jsonResponse([{ symbol: "BTCUSDT", price: "103.00" }]); // ni TP ni SL
+        // 103 pour une entrée à 100 : ni TP ni SL, mais +3 % dans la poche.
+        if (url.includes("binance.com")) return jsonResponse([{ symbol: "BTCUSDT", price: "103.00" }]);
+        if (url.includes("signals") && init?.method === "PATCH") {
+          closedPatch = JSON.parse(init.body as string);
+          return jsonResponse([]);
+        }
+        if (url.includes("signal_deliveries") && (!init || init.method === undefined)) return jsonResponse([]);
+        if (url.includes("api.telegram.org")) return jsonResponse({ ok: true, result: {} });
+        throw new Error(`URL inattendue: ${url}`);
+      })
+    );
+
+    await trackSignalOutcomes(env);
+
+    // LE VERDICT SUIT L'ARGENT. Ce test exigeait « LOSS » sur un trade sorti
+    // à +3 %, ce qui était exactement le défaut : le canal public a publié
+    // « ❌ Signal clôturé — perdant / sortie à 204.35 (+0.3%) » le 12/08/2026.
+    // La convention écrite dans signals/backtest.py disait pourtant déjà
+    // « WIN si TP1 atteint OU si le PnL final est positif ».
+    expect(closedPatch.outcome).toBe("WIN");
+    expect(closedPatch.close_reason).toBe("expired");
+  });
+
+  it("clôture à l'échéance en LOSS quand le prix a baissé", async () => {
+    // Le pendant du test ci-dessus, et la vraie garantie : le verdict suit le
+    // signe du résultat dans LES DEUX SENS. Sans ce cas, « tout est gagnant »
+    // passerait la suite.
+    const oldSignal = { ...recentSignal, id: 12, created_at: new Date(Date.now() - 11 * 24 * 60 * 60 * 1000).toISOString() };
+    let closedPatch: any = null;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("signals") && url.includes("outcome=is.null") && (!init || init.method === undefined)) {
+          return jsonResponse([oldSignal]);
+        }
+        // 97 pour une entrée à 100 : au-dessus du stop, mais en perte.
+        if (url.includes("binance.com")) return jsonResponse([{ symbol: "BTCUSDT", price: "97.00" }]);
         if (url.includes("signals") && init?.method === "PATCH") {
           closedPatch = JSON.parse(init.body as string);
           return jsonResponse([]);
@@ -504,11 +540,12 @@ describe("trackSignalOutcomes", () => {
     await trackSignalOutcomes(env);
 
     expect(closedPatch.outcome).toBe("WIN");
+    // TP3 touché : ici « tp_hit » est exact, l'objectif a bien clôturé le trade.
     expect(closedPatch.close_reason).toBe("tp_hit");
     expect(closedPatch.outcome_price).toBe(110);
   });
 
-  it("Multi-TP — expire après 10 jours SANS avoir atteint TP1 : LOSS/expired (comme un signal classique)", async () => {
+  it("Multi-TP — expire SANS avoir atteint TP1, mais en gain : WIN/expired", async () => {
     const oldSignal = { ...multiTpSignal, id: 6, created_at: new Date(Date.now() - 11 * 24 * 60 * 60 * 1000).toISOString() };
     let closedPatch: any = null;
     vi.stubGlobal(
@@ -517,7 +554,8 @@ describe("trackSignalOutcomes", () => {
         if (url.includes("signals") && url.includes("outcome=is.null") && (!init || init.method === undefined)) {
           return jsonResponse([oldSignal]);
         }
-        if (url.includes("binance.com")) return jsonResponse([{ symbol: "BTCUSDT", price: "101.00" }]); // ni SL ni TP1
+        // 101 pour une entrée à 100 : ni SL ni TP1, mais +1 % encaissé.
+        if (url.includes("binance.com")) return jsonResponse([{ symbol: "BTCUSDT", price: "101.00" }]);
         if (url.includes("signals") && init?.method === "PATCH") {
           closedPatch = JSON.parse(init.body as string);
           return jsonResponse([]);
@@ -530,7 +568,7 @@ describe("trackSignalOutcomes", () => {
 
     await trackSignalOutcomes(env);
 
-    expect(closedPatch.outcome).toBe("LOSS");
+    expect(closedPatch.outcome).toBe("WIN");
     expect(closedPatch.close_reason).toBe("expired");
   });
 
@@ -563,7 +601,13 @@ describe("trackSignalOutcomes", () => {
     await trackSignalOutcomes(env);
 
     expect(closedPatch.outcome).toBe("WIN");
-    expect(closedPatch.close_reason).toBe("tp_hit");
+    // « expired », PAS « tp_hit ». Ce signal n'a pas été clôturé PAR son
+    // objectif : il est arrivé à son échéance après l'avoir touché en route,
+    // et il sort à 104 alors que son TP1 valait 110. Le motif « tp_hit »
+    // faisait écrire « Objectif atteint. » au message public — publié tel quel
+    // le 12/08/2026 sur ICP, sorti à 2.238 sous un objectif affiché à 2.3356
+    // DANS LE MÊME MESSAGE. Le lecteur n'avait qu'une soustraction à faire.
+    expect(closedPatch.close_reason).toBe("expired");
     expect(closedPatch.outcome_price).toBe(104);
   });
 

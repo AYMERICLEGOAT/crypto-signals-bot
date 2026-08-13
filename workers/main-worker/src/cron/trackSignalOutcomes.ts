@@ -1,10 +1,13 @@
 /**
  * Bloc 4 : suivi automatique des signaux après leur envoi.
  *   1. Vérifie le prix courant (Binance) de chaque signal encore ouvert.
- *   2. Le clôture dès que le take profit ou le stop loss est atteint, ou
- *      après SIGNAL_TIMEOUT_DAYS sans avoir touché ni l'un ni l'autre
- *      (même convention conservatrice que signals/backtest.py et
- *      website/outcome_evaluator.py : un signal expiré compte comme perte).
+ *   2. Le clôture dès que le take profit ou le stop loss est atteint, ou à
+ *      son échéance sans avoir touché ni l'un ni l'autre. Le verdict d'une
+ *      échéance suit alors le RÉSULTAT — gagnant si TP1 avait été sécurisé ou
+ *      si le rendement final est positif — exactement comme la convention
+ *      écrite dans signals/backtest.py::_simulate_multi_tp_exit. La règle
+ *      appliquée ici était plus sévère que celle-là, et publiait « perdant »
+ *      sur des trades sortis en gain.
  *   3. Notifie en DM chaque destinataire réel du signal (signal_deliveries,
  *      pas "tous les actifs au moment de la clôture" — un utilisateur peut
  *      avoir changé de plan entre-temps).
@@ -22,13 +25,14 @@ import { getOpenSignals, markSignalClosed, updateTrailingStop, markTp1Hit, markT
 import { getDeliveryRecipients } from "../db/signalDeliveries";
 import { filterByPrefEnabled } from "../db/userPrefs";
 import { getCurrentPrices, pairToSymbol } from "../market/binancePrices";
-import { evaluateOutcome, computePnlPct, computeTrailingStop, evaluateMultiTpProgress, CloseReason } from "../signalMath";
+import { evaluateOutcome, computePnlPct, computeTrailingStop, evaluateMultiTpProgress, pnlEffectif, CloseReason } from "../signalMath";
 import { sendMessage } from "../telegram";
 import { handleAntiStress } from "./antiStress";
 import { typeLabel, prix } from "../signalFormat";
 import { buildReferralLink, REFERRAL_BONUS_DAYS } from "../bot/referral";
 import { peutPublier, enregistrerEnvoi } from "../channelBudget";
 import { selectRows } from "../supabaseRest";
+import { isQuietHours } from "../utils/quietHours";
 
 // Filet de sécurité, utilisé UNIQUEMENT quand le signal ne porte pas sa propre
 // échéance (signaux antérieurs à hold_until). Voir holdDeadlineMs ci-dessous :
@@ -77,8 +81,28 @@ function joursDepuisEmission(signal: SignalRecord, maintenant = Date.now()): num
   return Math.max(1, Math.round(jours));
 }
 
+/**
+ * Pourcentage au format FRANÇAIS, comme partout ailleurs dans le produit.
+ *
+ * Cette fonction écrivait « -2.6% » : point décimal anglais, sans espace avant
+ * le signe. Le canal public a donc publié le 10/08, à quelques lignes d'écart
+ * dans le même message :
+ *
+ *   ACHAT ADA/USDT — sortie à 0.1962 (-2.6%)
+ *   🛑 Stop : 0.1785 (-6,2 %)
+ *
+ * Deux conventions typographiques pour la même grandeur, sous les yeux du même
+ * lecteur. C'est un détail, et c'est exactement le genre de détail qui fait
+ * amateur sur un produit dont l'argument central est la rigueur de la mesure —
+ * sur la ligne la plus lue du message, celle qui annonce le résultat.
+ *
+ * Le PRIX garde son point décimal (voir signalFormat.ts::prix) parce qu'il est
+ * fait pour être recopié dans une plateforme d'échange. Un pourcentage ne se
+ * recopie nulle part : il se lit, en français.
+ */
 function pctLabel(pct: number): string {
-  return `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
+  const signe = pct >= 0 ? "+" : "";
+  return `${signe}${pct.toFixed(1).replace(".", ",")} %`;
 }
 
 function formatSubscriberCloseMessage(signal: SignalRecord, pct: number): string {
@@ -112,9 +136,14 @@ function formatSubscriberCloseMessage(signal: SignalRecord, pct: number): string
         "La gestion du risque fait partie de la stratégie : le stop loss limite la perte à un niveau connu à l'avance.",
       ].join("\n");
     default:
+      // Le titre et la phrase suivent le RÉSULTAT, pas seulement le motif.
+      // Une échéance ayant touché TP1 en cours de route n'est pas « sans avoir
+      // atteint son objectif » : 30 % de la position en sont sortis, et le stop
+      // était remonté au point mort. Le dire faux ici aurait le même effet que
+      // sur le canal public — l'abonné compare les nombres qu'on lui a donnés.
       return [
-        `⌛ *Signal clôturé à l'échéance*`,
-        `${base} Fermé après ${holdDurationDays(signal)} jours, la durée prévue pour ce signal, sans avoir atteint son objectif ni son stop loss.`,
+        signal.outcome === "WIN" ? `⌛ *Clôturé à l'échéance — en gain*` : `⌛ *Clôturé à l'échéance*`,
+        `${base} ${causeDeCloture(signal)}`,
         "La sortie au bout d'une durée fixe fait partie de la stratégie : c'est ainsi qu'elle a été mesurée.",
       ].join("\n");
   }
@@ -137,6 +166,43 @@ function formatSubscriberCloseMessage(signal: SignalRecord, pct: number): string
  * sans adoucissement. Un canal qui ne montrerait que ses gains ne prouverait
  * rien du tout.
  */
+/**
+ * LA CAUSE DE LA CLÔTURE, dite exactement.
+ *
+ * « Objectif atteint. » partait dès que close_reason valait « tp_hit ». Or ce
+ * motif était posé sur toute échéance ayant touché TP1 en cours de route — et
+ * le canal public a donc publié le 12/08/2026 :
+ *
+ *   ✅ Signal clôturé — gagnant
+ *   ACHAT ICP/USDT — sortie à 2.238
+ *   🥇 TP1 : 2.3356
+ *   Objectif atteint.
+ *
+ * Trois nombres et une phrase dans le même message, et n'importe quel lecteur
+ * peut voir que 2,238 est INFÉRIEUR à l'objectif annoncé. Sur un canal dont la
+ * fonction est de prouver que le relevé est honnête, se faire prendre sur une
+ * soustraction coûte plus cher que la perte qu'on essayait d'habiller.
+ *
+ * Un TP1 touché puis rendu reste une information utile — c'est ce qui a
+ * sécurisé la position au point mort. Elle est donc dite, mais dite juste.
+ */
+function causeDeCloture(signal: SignalRecord): string {
+  if (signal.close_reason === "tp_hit") return "Objectif atteint.";
+  if (signal.close_reason === "sl_hit") {
+    return "Stop loss touché. La perte était bornée à l'avance — c'est à ça que sert un stop.";
+  }
+
+  const jours = holdDurationDays(signal);
+  if (signal.tp1_hit_at) {
+    return (
+      `Clôturé à l'échéance, ${jours} jours après l'ouverture. Le premier objectif avait été touché ` +
+      "en cours de route : 30 % de la position en sont sortis et le stop était remonté au point mort, " +
+      "si bien que ce signal ne pouvait plus finir perdant. Le reste est sorti au prix du jour."
+    );
+  }
+  return `Clôturé à l'échéance, ${jours} jours après l'ouverture, sans avoir touché ni l'objectif ni le stop.`;
+}
+
 function formatPublicCloseMessage(signal: SignalRecord, pct: number, botUsername: string): string {
   const escapedUsername = botUsername.replace(/_/g, "\\_");
   const gagnant = signal.outcome === "WIN";
@@ -148,12 +214,7 @@ function formatPublicCloseMessage(signal: SignalRecord, pct: number, botUsername
   if (signal.tp2_price != null) niveaux.push(`🥈 TP2 : ${prix(signal.tp2_price as number)}`);
   if (signal.tp3_price != null) niveaux.push(`🥉 TP3 : ${prix(signal.tp3_price as number)}`);
 
-  const cause =
-    signal.close_reason === "tp_hit"
-      ? "Objectif atteint."
-      : signal.close_reason === "sl_hit"
-        ? "Stop loss touché. La perte était bornée à l'avance — c'est à ça que sert un stop."
-        : `Clôturé à l'échéance, ${holdDurationDays(signal)} jours après l'ouverture, sans avoir touché ni l'objectif ni le stop.`;
+  const cause = causeDeCloture(signal);
 
   return [
     titre,
@@ -190,7 +251,11 @@ function formatTrailingStopUpdate(signal: SignalRecord, newTrailingStop: number)
   const direction = signal.type === "BUY" ? "remonte" : "baisse";
   return [
     "🔒 *Trailing stop* — mets à jour ton stop",
-    `${typeLabel(signal.type)} ${signal.pair} progresse en ta faveur : ${direction} ton stop de ${previous} à ${newTrailingStop} pour sécuriser une partie du gain.`,
+    // Ces deux prix sortaient bruts : l'abonné a lu « remonte ton stop de
+    // 579.6211377 à 599.23 » le 12/08/2026, et « de 1.3215258 à 1.4 » le 13/08.
+    // Ce message demande une SAISIE sur une plateforme d'échange : c'est
+    // précisément celui où un nombre à sept décimales fait le plus de dégâts.
+    `${typeLabel(signal.type)} ${signal.pair} progresse en ta faveur : ${direction} ton stop de ${prix(previous as number)} à ${prix(newTrailingStop)} pour sécuriser une partie du gain.`,
     "Purement indicatif — n'affecte pas le stop loss officiel de ce signal.",
   ].join("\n");
 }
@@ -311,7 +376,9 @@ async function closeSignal(
   await markSignalClosed(db, signal.id, { outcome, outcomePrice, closeReason });
 
   const closedSignal: SignalRecord = { ...signal, outcome, outcome_price: outcomePrice, close_reason: closeReason };
-  const pct = outcomePrice !== null ? computePnlPct(signal.type, signal.entry_price, outcomePrice) : 0;
+  // Sorties partielles comprises : voir pnlEffectif. Le calcul précédent
+  // ignorait les 30 % vendus à TP1 et les 30 % vendus à TP2.
+  const pct = pnlEffectif(closedSignal, outcomePrice);
 
   const recipients = await getDeliveryRecipients(db, signal.id);
   const messageCloture = formatSubscriberCloseMessage(closedSignal, pct);
@@ -324,7 +391,22 @@ async function closeSignal(
     console.error(`[post-trade] Échec du mécanisme anti-stress pour le signal #${signal.id}:`, err)
   );
 
-  if (signal.sent_to_channel && env.TELEGRAM_CHANNEL_ID) {
+  // LES HEURES CALMES S'APPLIQUENT AUSSI AUX CLÔTURES.
+  //
+  // Ce chemin ne les consultait pas — seul dispatchPublicChannel le faisait —
+  // et le canal public a donc publié le 12/08/2026 à 04 h 25 et 04 h 50, puis
+  // le 13/08 à 04 h 30. Trois notifications nocturnes sur un canal gratuit dont
+  // le seuil de tolérance est le plus bas de tout le produit : c'est ainsi
+  // qu'on se fait couper les notifications, puis quitter.
+  //
+  // Différer était auparavant DANGEREUX ici, parce qu'un report équivalait à
+  // une suppression définitive : markSignalClosed s'exécute avant, le signal ne
+  // repasse jamais dans la boucle des ouverts, et la clôture #26 a été perdue
+  // pour cette raison exacte. Le rattrapage (republierCloturesManquees) a levé
+  // cet obstacle : une clôture non publiée est désormais reprise au passage
+  // suivant. Le report est donc redevenu ce qu'il aurait toujours dû être —
+  // une attente, pas une perte.
+  if (signal.sent_to_channel && env.TELEGRAM_CHANNEL_ID && !isQuietHours()) {
     const channelId = Number(env.TELEGRAM_CHANNEL_ID);
     // Même règle que la célébration VIP : espacé, jamais plafonné. La
     // republication d'un signal à sa clôture est ce que le canal gratuit promet
@@ -409,6 +491,10 @@ const JOURS_RATTRAPAGE_CLOTURES = 4;
  */
 async function republierCloturesManquees(env: Env, db: ReturnType<typeof dbConfig>): Promise<void> {
   if (!env.TELEGRAM_CHANNEL_ID) return;
+  // Même silence nocturne que la clôture elle-même : sans ça, le rattrapage
+  // republierait à 4 h du matin ce que la clôture vient de différer pour
+  // exactement cette raison.
+  if (isQuietHours()) return;
 
   const depuis = new Date(Date.now() - JOURS_RATTRAPAGE_CLOTURES * 86_400_000).toISOString();
 
@@ -579,17 +665,33 @@ export async function trackSignalOutcomes(env: Env): Promise<void> {
       outcome = hit.outcome;
       closeReason = hit.closeReason;
     } else if (now >= holdDeadlineMs(signal)) {
-      // Un signal Multi-TP qui a déjà sécurisé TP1 avant d'expirer reste un
-      // succès (voir signals/backtest.py::_simulate_multi_tp_exit, même
-      // convention) : on ne pénalise jamais un trade déjà passé au
-      // break-even, contrairement à un signal classique jamais sécurisé.
-      if (isMultiTp && signal.tp1_hit_at) {
-        outcome = "WIN";
-        closeReason = "tp_hit";
-      } else {
-        outcome = "LOSS";
-        closeReason = "expired";
-      }
+      // LE VERDICT SUIT L'ARGENT, PAS LE DRAPEAU TP1.
+      //
+      // Cette branche appliquait « TP1 sécurisé -> WIN, sinon LOSS », et elle a
+      // publié sur le canal public, le 12/08/2026 :
+      //
+      //   ❌ Signal clôturé — perdant
+      //   ACHAT TAO/USDT — sortie à 204.35 (+0.3%)
+      //
+      // Une étiquette négative et un nombre positif sur la même ligne. Le
+      // 11/08, BNB était sorti à +1,40 % et comptait aussi comme une perte.
+      //
+      // Elle se réclamait pourtant de signals/backtest.py, dont la convention
+      // écrite dit exactement l'inverse : « outcome = WIN si TP1 a été atteint
+      // OU SI LE PNL FINAL EST POSITIF ». La seconde moitié de la règle avait
+      // été perdue en route. Le relevé publié était donc plus mauvais que la
+      // stratégie mesurée — et incohérent avec le backtest que le produit cite.
+      //
+      // closeReason reste « expired » DANS LES DEUX CAS. Il valait « tp_hit »
+      // quand TP1 avait été touché, ce qui faisait écrire « Objectif atteint. »
+      // au message public — pour ICP, sorti à 2.238 alors que son objectif
+      // était à 2.3356. Le signal n'a pas atteint son objectif : il est arrivé
+      // à son échéance après l'avoir touché en cours de route. Ce n'est pas la
+      // même phrase, et la différence est vérifiable par n'importe quel lecteur
+      // qui compare les deux nombres publiés dans le même message.
+      const pnlFinal = currentPrice !== undefined ? computePnlPct(signal.type, signal.entry_price, currentPrice) : 0;
+      outcome = (isMultiTp && signal.tp1_hit_at) || pnlFinal > 0 ? "WIN" : "LOSS";
+      closeReason = "expired";
     } else {
       // UX — trailing stop optionnel (/prefs, opt-in) : toujours ouvert, mais
       // le prix a peut-être assez progressé pour remonter le niveau indicatif.

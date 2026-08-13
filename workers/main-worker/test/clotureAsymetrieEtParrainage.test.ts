@@ -147,7 +147,11 @@ describe("L'asymétrie est énoncée sur la clôture publique", () => {
   it("l'énonce aussi sur une clôture PERDANTE", async () => {
     // La différence de calendrier existe quel que soit le résultat, et le
     // canal gratuit doit la comprendre sur les pertes comme sur les gains.
-    const { messages } = stub({ prix: 105 });
+    //
+    // 95 pour une entrée à 100, pas 105. Ces tests utilisaient un prix
+    // SUPÉRIEUR à l'entrée pour décrire une perte — ils encodaient le défaut
+    // qui a fait publier « ❌ perdant / sortie à 204.35 (+0.3%) » le 12/08.
+    const { messages } = stub({ prix: 95 });
     await trackSignalOutcomes(env);
     const publics = canalPublic(messages);
     expect(publics[0].text).toMatch(/perdant/i);
@@ -288,7 +292,8 @@ describe("Le parrainage accompagne les gains, et JAMAIS les pertes", () => {
   it("N'EST JAMAIS proposé sur une perte", async () => {
     // Demander de partager un trade perdant serait absurde, et rappeler le
     // bonus au pire moment se lirait comme de l'indécence.
-    const { messages } = stub({ prix: 105 });
+    // 95 : sous l'entrée, donc une VRAIE perte (voir la note ci-dessus).
+    const { messages } = stub({ prix: 95 });
     await trackSignalOutcomes(env);
     for (const m of enPrive(messages)) {
       expect(m.text).not.toMatch(/À partager si tu veux/);

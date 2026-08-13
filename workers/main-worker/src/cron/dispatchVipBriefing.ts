@@ -5,7 +5,7 @@ import { sendMessage } from "../telegram";
 import { getHeartbeat } from "../db/systemHeartbeats";
 import { upsertRow, SupabaseConfig } from "../supabaseRest";
 import { getOpenSignals, getSignalsResolvedSince } from "../db/signals";
-import { computePnlPct } from "../signalMath";
+import { pnlEffectif } from "../signalMath";
 import { prix } from "../signalFormat";
 import { isQuietHours } from "../utils/quietHours";
 
@@ -110,10 +110,10 @@ export async function dispatchVipBriefing(env: Env): Promise<void> {
   if (resolved.length > 0) {
     const wins = resolved.filter((s) => s.outcome === "WIN").length;
     const losses = resolved.filter((s) => s.outcome === "LOSS").length;
-    const total = resolved.reduce((sum, s) => {
-      if (s.outcome_price == null) return sum;
-      return sum + computePnlPct(s.type, s.entry_price, s.outcome_price);
-    }, 0);
+    // Rendement RÉEL, sorties partielles comprises (voir signalMath::pnlEffectif).
+    // Le calcul precedent ne voyait que le prix de sortie final, comme si les
+    // 30 % vendus a TP1 et les 30 % vendus a TP2 n'avaient jamais existe.
+    const total = resolved.reduce((sum, s) => sum + pnlEffectif(s, s.outcome_price ?? null), 0);
     // MOYENNE par signal, pas somme. Additionner les pourcentages de plusieurs
     // trades ne décrit aucun rendement : la somme suppose une mise totale sur
     // chacun, alors que le message de signal conseille 2 %. Même correction que
@@ -121,7 +121,7 @@ export async function dispatchVipBriefing(env: Env): Promise<void> {
     const moyenne = total / resolved.length;
     const sign = moyenne >= 0 ? "+" : "";
     lines.push(`✅ ${wins} gagnante(s) — ❌ ${losses} perdante(s)`);
-    lines.push(`Résultat moyen : ${sign}${moyenne.toFixed(2)} % par signal _(hors pondération Multi-TP et frais)_`);
+    lines.push(`Résultat moyen : ${sign}${moyenne.toFixed(2).replace(".", ",")} % par signal _(sorties partielles Multi-TP comprises, hors frais)_`);
   } else {
     lines.push("_Aucune clôture sur la période._");
   }

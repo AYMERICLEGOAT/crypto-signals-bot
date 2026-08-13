@@ -130,3 +130,59 @@ export function evaluateMultiTpProgress(state: MultiTpState, currentPrice: numbe
   }
   return { kind: "none" };
 }
+
+
+/** Ce dont pnlEffectif a besoin : un sous-ensemble volontairement minimal de SignalRecord. */
+export interface PositionMultiTp {
+  type: SignalSide;
+  entry_price: number;
+  tp1_price?: number | null;
+  tp2_price?: number | null;
+  tp1_hit_at?: string | null;
+  tp2_hit_at?: string | null;
+}
+
+/**
+ * Poids des sorties partielles Multi-TP, copiés de signals/config.py
+ * (MULTI_TP_TP1_WEIGHT = 0.3, TP2 = 0.3, TP3 = 0.4). Ils vivent en double,
+ * dans deux langages : toute modification côté Python doit être reportée ici,
+ * sans quoi le chiffre publié cesse de décrire la stratégie exécutée.
+ */
+const POIDS_TP1 = 0.3;
+const POIDS_TP2 = 0.3;
+
+/**
+ * LE RENDEMENT RÉELLEMENT OBTENU, sorties partielles comprises.
+ *
+ * La stratégie vend 30 % de la position à TP1, 30 % à TP2 et laisse courir le
+ * reste — c'est l'argument central du format Multi-TP, écrit dans chaque
+ * message de signal. Le message de clôture, lui, calculait le rendement sur le
+ * SEUL prix de sortie final, comme si rien n'avait été vendu en route.
+ *
+ * ICP a donc été publié à « +1,7 % » le 12/08/2026. Le trade avait touché TP1
+ * à 2,3356 (+6,16 %) avant de revenir à 2,238 (+1,73 %) : le rendement réel
+ * était 0,3 × 6,16 + 0,7 × 1,73 = +3,06 %. Le canal publiait donc un chiffre
+ * DEUX FOIS plus bas que le résultat de sa propre stratégie — et incohérent
+ * avec le backtest qui, lui, mélange bien les sorties (voir
+ * signals/backtest.py::_simulate_multi_tp_exit, variable pnl_pct).
+ *
+ * Sous-déclarer ses gains n'est pas une faute morale, c'est une faute de
+ * mesure : le relevé public ne décrit plus le produit vendu.
+ */
+export function pnlEffectif(signal: PositionMultiTp, prixSortie: number | null): number {
+  if (prixSortie === null) return 0;
+  const rendement = (niveau: number) => computePnlPct(signal.type, signal.entry_price, niveau);
+
+  let poidsSortis = 0;
+  let cumul = 0;
+  if (signal.tp1_hit_at && signal.tp1_price != null) {
+    poidsSortis += POIDS_TP1;
+    cumul += POIDS_TP1 * rendement(signal.tp1_price);
+  }
+  if (signal.tp2_hit_at && signal.tp2_price != null) {
+    poidsSortis += POIDS_TP2;
+    cumul += POIDS_TP2 * rendement(signal.tp2_price);
+  }
+  // Le reliquat sort au prix de clôture, quel qu'il soit.
+  return cumul + (1 - poidsSortis) * rendement(prixSortie);
+}
