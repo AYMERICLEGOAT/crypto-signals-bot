@@ -371,7 +371,17 @@ async function closeSignal(
   outcomePrice: number | null,
   closeReason: CloseReason,
   /** Texte personnalisé ajouté au message de clôture, par destinataire. */
-  supplement?: (telegramId: number) => string
+  supplement?: (telegramId: number) => string,
+  /**
+   * Une célébration VIP vient-elle de partir pour CE MÊME événement ?
+   *
+   * Une clôture sur TP3 déclenche déjà « 🥉 TP3 ATTEINT » sur le canal VIP.
+   * Y ajouter « Position clôturée — en gain » ferait deux notifications pour
+   * un seul fait, à une seconde d'intervalle — précisément ce que ce module a
+   * déjà corrigé ailleurs (voir le TP2, dont l'annonce et le texte partageable
+   * ont été fusionnés pour cette raison).
+   */
+  dejaCelebreEnVip = false
 ): Promise<void> {
   await markSignalClosed(db, signal.id, { outcome, outcomePrice, closeReason });
 
@@ -390,6 +400,11 @@ async function closeSignal(
   await handleAntiStress(env, recipients, outcome).catch((err) =>
     console.error(`[post-trade] Échec du mécanisme anti-stress pour le signal #${signal.id}:`, err)
   );
+
+  // LE CANAL PAYANT D'ABORD. C'est l'ordre que l'abonnement vend.
+  if (!dejaCelebreEnVip) {
+    await publierClotureVip(env, db, closedSignal, pct);
+  }
 
   // LES HEURES CALMES S'APPLIQUENT AUSSI AUX CLÔTURES.
   //
@@ -418,6 +433,62 @@ async function closeSignal(
       }).catch((err) => console.error(`[post-trade] Échec de la célébration publique pour le signal #${signal.id}:`, err));
       await enregistrerEnvoi(db, "public", "resultat", `cloture:${signal.id}`);
     }
+  }
+}
+
+/**
+ * LA CLÔTURE VA AUSSI SUR LE CANAL PAYANT — et l'inverse était une inversion
+ * complète de la valeur du produit.
+ *
+ * Comptage réel de `channel_posts` sur cinq jours :
+ *
+ *   09/08  public 6 messages  |  VIP 2
+ *   10/08  public 7           |  VIP 1
+ *   11/08  public 7           |  VIP 1
+ *   12/08  public 8           |  VIP 1
+ *   13/08  public 5           |  VIP 1
+ *
+ * Le canal GRATUIT recevait cinq à huit messages par jour, dont les clôtures
+ * complètes avec tous les niveaux. Le canal PAYANT en recevait un : le
+ * briefing. Quelqu'un qui paie rejoignait donc un espace presque vide et
+ * apprenait le résultat de SES propres positions sur le canal des gens qui ne
+ * paient pas.
+ *
+ * Ce n'est pas un problème de volume mais d'ordre : le canal payant reçoit
+ * désormais la clôture EN PREMIER, ce qui est exactement ce que l'abonnement
+ * vend — l'avance. Le message y est aussi plus direct : pas de bloc « voici ce
+ * que vous n'avez pas », qui n'a de sens que pour un lecteur gratuit.
+ *
+ * Aucun contenu n'a été inventé pour remplir : c'est le même événement, envoyé
+ * là où il compte le plus.
+ */
+async function publierClotureVip(
+  env: Env,
+  db: ReturnType<typeof dbConfig>,
+  signal: SignalRecord,
+  pct: number
+): Promise<void> {
+  if (!env.TELEGRAM_VIP_CHANNEL_ID) return;
+  if (isQuietHours()) return;
+
+  const verdict = await peutPublier(db, "vip", "resultat");
+  if (!verdict.autorise) return;
+
+  const gagnant = signal.outcome === "WIN";
+  const texte = [
+    gagnant ? "✅ *Position clôturée — en gain*" : "❌ *Position clôturée — en perte*",
+    `${typeLabel(signal.type)} *${signal.pair}* — entrée ${prix(signal.entry_price)}, sortie ${prix(signal.outcome_price ?? 0)} (*${pctLabel(pct)}*)`,
+    "",
+    causeDeCloture(signal),
+    "",
+    "_Rendement sorties partielles comprises. État du portefeuille suivi, pas une prévision._",
+  ].join("\n");
+
+  try {
+    await sendMessage(env.TELEGRAM_BOT_TOKEN, Number(env.TELEGRAM_VIP_CHANNEL_ID), texte, { markdown: true });
+    await enregistrerEnvoi(db, "vip", "resultat", `cloture:${signal.id}`);
+  } catch (err) {
+    console.error(`[post-trade] Clôture VIP impossible pour le signal #${signal.id} :`, err);
   }
 }
 
@@ -645,8 +716,17 @@ export async function trackSignalOutcomes(env: Env): Promise<void> {
           // Le texte partageable voyage AVEC le message de clôture au lieu de le
           // précéder d'une seconde : deux notifications pour la même nouvelle
           // n'apportaient rien, sinon une vibration de plus.
-          await closeSignal(env, db, signal, progress.outcome, progress.exitPrice, progress.closeReason, (id) =>
-            formatShareableVictory(signal, pctAtTp3, env, id)
+          // La célébration TP3 vient de partir sur le canal VIP : la clôture
+          // ne doit pas y republier le même événement.
+          await closeSignal(
+            env,
+            db,
+            signal,
+            progress.outcome,
+            progress.exitPrice,
+            progress.closeReason,
+            (id) => formatShareableVictory(signal, pctAtTp3, env, id),
+            true
           );
         } else {
           await closeSignal(env, db, signal, progress.outcome, progress.exitPrice, progress.closeReason, partageSiGagnant(env, signal, progress));

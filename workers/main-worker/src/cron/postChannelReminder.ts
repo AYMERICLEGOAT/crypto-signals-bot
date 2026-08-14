@@ -56,21 +56,43 @@ const QUIET_BEFORE_REMINDER_HOURS = 3;
  */
 const CLOSED_FILTER_INTERVAL_HOURS = 24;
 
-async function hasRecentChannelSignal(db: SupabaseConfig, hours: number): Promise<boolean> {
+/**
+ * CE RAPPEL COMBLE UN SILENCE : il doit donc regarder TOUT le contenu, pas
+ * seulement les signaux.
+ *
+ * Il n'interrogeait que la table `signals`. La liste du jour, les clôtures et
+ * les posts pédagogiques lui étaient invisibles — et le canal public a donc
+ * publié le 12/08/2026 :
+ *
+ *   10:27  LA LISTE DU JOUR — 🔴 CONDITION D'ENTRÉE : fermée
+ *          Le Bitcoin est 9,0 % sous sa moyenne 200 jours.
+ *   23:30  ⏸️ Le Bitcoin est sous sa moyenne 200 jours : la force relative ne
+ *          prend plus de position.
+ *
+ * Le même fait, deux fois dans la même journée, sur le même canal, et la
+ * seconde fois en moins précis. Le filtre est fermé depuis novembre 2025 : ce
+ * doublon se répétait donc TOUS LES JOURS.
+ *
+ * `channel_posts` est le journal de tout ce qui part sur un canal — c'est la
+ * bonne source pour savoir si le canal s'est tu.
+ */
+async function canalSilencieuxDepuis(db: SupabaseConfig, hours: number): Promise<boolean> {
   const since = new Date(Date.now() - hours * 3_600_000).toISOString();
   try {
-    const rows = await selectRows<{ id: number }>(db, "signals", {
-      sent_to_channel: "eq.true",
-      created_at: `gte.${since}`,
-      select: "id",
-      limit: "1",
+    const rows = await selectRows<{ reference: string | null }>(db, "channel_posts", {
+      canal: "eq.public",
+      sent_at: `gte.${since}`,
+      select: "reference",
+      limit: "5",
     });
-    return rows.length > 0;
+    // Le rappel lui-même ne compte pas comme du contenu : sans cette
+    // exclusion, un premier rappel empêcherait tous les suivants.
+    return rows.filter((r) => r.reference !== "rappel-filtre-ferme" && r.reference !== "rappel").length === 0;
   } catch (err) {
     // En cas d'échec de lecture, on laisse passer le rappel : mieux vaut un
     // message de trop qu'un canal muet.
-    console.error("[channel-reminder] Lecture des signaux récents impossible:", err);
-    return false;
+    console.error("[channel-reminder] Lecture du journal du canal impossible:", err);
+    return true;
   }
 }
 
@@ -97,8 +119,8 @@ export async function postChannelReminder(env: Env): Promise<void> {
   // cherche à éliminer. S'il y a eu un vrai signal publié récemment, le
   // visiteur a déjà sous les yeux ce que fait le service ET son CTA : le
   // rappel n'apporterait rien.
-  const recentSignal = await hasRecentChannelSignal(db, QUIET_BEFORE_REMINDER_HOURS);
-  if (recentSignal) return;
+  const silencieux = await canalSilencieuxDepuis(db, QUIET_BEFORE_REMINDER_HOURS);
+  if (!silencieux) return;
 
   // État indéterminé (`null`) = on garde le comportement normal : c'est le
   // rappel historique, et le taire sur une simple panne réseau serait pire que

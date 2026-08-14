@@ -123,7 +123,7 @@ describe("Le rappel de canal ne double pas le contenu existant", () => {
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
         if (url.includes("system_heartbeats")) return jsonResponse([]);
-        if (url.includes("/signals")) return jsonResponse([{ id: 1 }]); // signal récent
+        if (url.includes("channel_posts")) return jsonResponse([{ reference: "signal:1" }]);
         if (url.includes("api.telegram.org")) {
           sends++;
           return jsonResponse({ ok: true, result: {} });
@@ -136,6 +136,63 @@ describe("Le rappel de canal ne double pas le contenu existant", () => {
     expect(sends).toBe(0);
   });
 
+  it("se tait aussi si c'est la LISTE DU JOUR qui vient de passer", async () => {
+    // LE DOUBLON QUOTIDIEN DU CANAL PUBLIC, corrigé le 13/08/2026.
+    //
+    // Ce rappel n'interrogeait que la table `signals` : la liste du jour, les
+    // clôtures et les posts pédagogiques lui étaient invisibles. Le canal a
+    // donc publié le 12/08 :
+    //
+    //   10:27  LA LISTE DU JOUR — CONDITION D'ENTRÉE : fermée
+    //          Le Bitcoin est 9,0 % sous sa moyenne 200 jours.
+    //   23:30  Le Bitcoin est sous sa moyenne 200 jours : la force relative ne
+    //          prend plus de position.
+    //
+    // Le même fait, deux fois le même jour, la seconde en moins précis. Le
+    // filtre est fermé depuis novembre 2025 : ce doublon se répétait TOUS LES
+    // JOURS.
+    vi.setSystemTime(new Date(Date.UTC(2026, 7, 2, 12, 0)));
+    let sends = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("system_heartbeats")) return jsonResponse([]);
+        if (url.includes("channel_posts")) return jsonResponse([{ reference: "watchlist" }]);
+        if (url.includes("api.telegram.org")) {
+          sends++;
+          return jsonResponse({ ok: true, result: {} });
+        }
+        return jsonResponse([]);
+      })
+    );
+
+    await postChannelReminder(env);
+    expect(sends, "le rappel a double la liste du jour").toBe(0);
+  });
+
+  it("ne se tait PAS à cause de son propre rappel précédent", async () => {
+    // Le garde-fou ne doit pas s'auto-bloquer : sans cette exclusion, un
+    // premier rappel empêcherait tous les suivants et le canal deviendrait
+    // muet pendant les longues fermetures du filtre.
+    vi.setSystemTime(new Date(Date.UTC(2026, 7, 2, 12, 0)));
+    let sends = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("system_heartbeats")) return jsonResponse([]);
+        if (url.includes("channel_posts")) return jsonResponse([{ reference: "rappel-filtre-ferme" }]);
+        if (url.includes("api.telegram.org")) {
+          sends++;
+          return jsonResponse({ ok: true, result: {} });
+        }
+        return jsonResponse([]);
+      })
+    );
+
+    await postChannelReminder(env);
+    expect(sends).toBeGreaterThan(0);
+  });
+
   it("parle quand le canal est resté silencieux", async () => {
     vi.setSystemTime(new Date(Date.UTC(2026, 7, 2, 12, 0)));
     let sends = 0;
@@ -143,7 +200,7 @@ describe("Le rappel de canal ne double pas le contenu existant", () => {
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
         if (url.includes("system_heartbeats")) return jsonResponse([]);
-        if (url.includes("/signals")) return jsonResponse([]); // aucun signal récent
+        if (url.includes("channel_posts")) return jsonResponse([]); // canal silencieux
         if (url.includes("api.telegram.org")) {
           sends++;
           return jsonResponse({ ok: true, result: {} });
