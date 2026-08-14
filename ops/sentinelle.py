@@ -282,6 +282,48 @@ def c_verdicts_coherents(hb: dict) -> list[Constat]:
     return []
 
 
+def c_positions_bloquees() -> list[Constat]:
+    """
+    Une position qui a dépassé son échéance sans se fermer.
+
+    C'est la trace commune de toute une famille de pannes, et elle a été
+    trouvée DEUX FOIS le 14/08/2026 :
+
+      - ICP, TAO et POL n'avaient plus aucune source de prix, parce que Kraken
+        les cote en USD et que le client ne demandait que la cotation USDT ;
+      - les DIX carrys ouverts ne pouvaient pas se clôturer, parce que Binance
+        bloque les IP d'hébergeur sur son API futures et que le seul repli
+        prévu était un miroir du même service.
+
+    Dans les deux cas le journal disait poliment « clôture reportée au prochain
+    cycle », indéfiniment, et rien ne remontait. Ce contrôle ne dépend d'aucune
+    cause particulière : il regarde le seul fait qui compte — la position est
+    restée ouverte au-delà de la durée annoncée à l'abonné.
+    """
+    seuil = (MAINTENANT - timedelta(hours=12)).isoformat()
+    bloquees = rest(
+        "signals",
+        {
+            "select": "id,pair,engine,hold_until",
+            "outcome": "is.null",
+            "hold_until": f"lt.{seuil}",
+            "limit": "50",
+        },
+    )
+    if not bloquees:
+        return []
+    detail = ", ".join(f"#{s['id']} {s['pair']} ({s.get('engine') or '?'})" for s in bloquees[:12])
+    return [
+        Constat(
+            "Des positions ont dépassé leur échéance sans se clôturer",
+            f"{len(bloquees)} position(s) ouverte(s) plus de 12 h après la date annoncée : {detail}.",
+            "Presque toujours une source de prix ou de financement muette. Lire les journaux du Worker "
+            "(wrangler tail) : le message « Aucune source de prix disponible » ou « financement "
+            "indisponible » nomme la paire en cause. L'abonné, lui, attend une sortie qui ne vient pas.",
+        )
+    ]
+
+
 def c_paiements() -> list[Constat]:
     """L'argent : le scan avance, le pool d'adresses n'est pas vide, rien ne reste en attente."""
     constats = []
@@ -479,6 +521,7 @@ def main() -> int:
         ("livraison", c_livraison),
         ("clôtures publiées", c_clotures_publiees),
         ("cohérence des verdicts", lambda: c_verdicts_coherents(hb)),
+        ("positions bloquees", c_positions_bloquees),
         ("paiements", c_paiements),
         ("heures calmes", lambda: c_heures_calmes(hb)),
         ("doublons", lambda: c_doublons(hb)),
