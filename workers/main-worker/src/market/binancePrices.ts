@@ -20,11 +20,16 @@
  * paire par paire et que le retry réessayait sans le moindre délai. D'où
  * l'ordre actuel — Kraken groupé avant Coinbase — et des attentes progressives.
  *
- * CoinGecko est volontairement absent : il demande un mapping id-par-actif que
- * cette source de secours ne justifie pas.
+ * CoinGecko a longtemps ete volontairement absent, "parce qu'il demande un
+ * mapping id-par-actif que cette source de secours ne justifie pas". Ce n'est
+ * plus vrai depuis le 14/08/2026 : MKR echappait aux TROIS bourses a la fois
+ * (403 Binance, inconnue chez Kraken, delistee chez Coinbase) et sa position
+ * ne pouvait donc jamais se cloturer. Le mapping n'etait meme pas a ecrire :
+ * signals/config.py::PAIRS le maintient depuis le debut. Voir coingeckoPrices.
  */
 
 import { journaliserPanneConnue } from "../utils/logUneFois";
+import { getCoinGeckoPrices } from "./coingeckoPrices";
 
 const BINANCE_BASE_URL = "https://api.binance.com";
 const COINBASE_BASE_URL = "https://api.exchange.coinbase.com";
@@ -298,9 +303,24 @@ export async function getCurrentPrices(pairs: string[]): Promise<Record<string, 
     if (coinbasePrice !== null) prices[pairToSymbol(missing[i])] = coinbasePrice;
   }
 
+  // DERNIER RECOURS : CoinGecko, en un seul appel pour tout le résidu.
+  //
+  // Atteint uniquement par les paires qu'AUCUNE des trois bourses n'a servies.
+  // Le 14/08/2026, MKR était dans ce cas de façon permanente : 403 chez
+  // Binance, inconnue chez Kraken sous toutes ses cotations, et « Not allowed
+  // for delisted products » chez Coinbase. La position restait donc ouverte
+  // au-delà de son échéance, sans sortie ni résultat possible.
+  missing = pairs.filter((pair) => prices[pairToSymbol(pair)] === undefined);
+  if (missing.length > 0) {
+    Object.assign(prices, await getCoinGeckoPrices(missing));
+  }
+
   for (const pair of pairs) {
     if (prices[pairToSymbol(pair)] === undefined) {
-      console.error(`[post-trade] Aucune source de prix disponible pour ${pair} (Binance/Kraken/Coinbase tous en échec).`);
+      console.error(
+        `[post-trade] Aucune source de prix disponible pour ${pair} (Binance/Kraken/Coinbase/CoinGecko tous en échec). ` +
+          "Ce signal ne pourra pas être clôturé tant que ça dure."
+      );
     }
   }
 
