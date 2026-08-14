@@ -136,6 +136,15 @@ async function getCoinbasePrice(pair: string): Promise<number | null> {
   for (let attempt = 1; attempt <= FALLBACK_MAX_ATTEMPTS; attempt++) {
     try {
       const res = await fetch(`${COINBASE_BASE_URL}/products/${productId}/ticker`, { headers: FALLBACK_HEADERS });
+      // UN PRODUIT DÉLISTÉ NE REVIENDRA PAS. Coinbase répond
+      // « Not allowed for delisted products » avec un statut 400 : le réessayer
+      // gaspille une requête ET un jeton de limitation de débit, au moment
+      // précis où il faudrait le garder pour le recours suivant. Mesuré sur
+      // MKR-USD le 14/08/2026, à chaque cycle de cinq minutes.
+      if (res.status === 400 || res.status === 404) {
+        console.error(`[post-trade] Coinbase ${productId} : produit indisponible (${res.status}) — recours suivant.`);
+        return null;
+      }
       if (!res.ok) {
         console.error(`[post-trade] Coinbase ${productId} a répondu ${res.status} (tentative ${attempt}/${FALLBACK_MAX_ATTEMPTS})`);
         await sleep(FALLBACK_RETRY_DELAY_MS * attempt);
