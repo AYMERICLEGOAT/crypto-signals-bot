@@ -653,7 +653,13 @@ describe("trackSignalOutcomes", () => {
     // Aucune exception ne doit remonter : un signal sans prix reste ouvert et
     // sera réévalué au cycle suivant, ce qui vaut mieux qu'un cron qui plante.
     await expect(trackSignalOutcomes(env)).resolves.toBeUndefined();
-  });
+    // Le délai est explicite parce que ce test mesure le PIRE cas de la
+    // cascade : Binance refusé, Kraken groupé en échec, puis Kraken paire par
+    // paire en USDT PUIS en USD, puis Coinbase — chaque étape avec son attente
+    // progressive. C'est le chemin le plus long du client de prix, et le seul
+    // qui approche la seconde. Le voir ici est utile : si ce délai devait
+    // encore grandir, c'est le budget de sous-requêtes du cron qui parlerait.
+  }, 20000);
 });
 
 describe("parrainage dans les célébrations", () => {

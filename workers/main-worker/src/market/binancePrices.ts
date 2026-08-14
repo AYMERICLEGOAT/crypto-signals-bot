@@ -162,13 +162,13 @@ async function getCoinbasePrice(pair: string): Promise<number | null> {
  * historiques (BTC -> XBT, DOGE -> XDG) et le X/Z que Kraken ajoute aux
  * actifs listés avant 2018.
  */
-async function getKrakenPrices(pairs: string[]): Promise<Record<string, number>> {
+async function getKrakenPrices(pairs: string[], cotation: "USDT" | "USD" = "USDT"): Promise<Record<string, number>> {
   if (pairs.length === 0) return {};
   const wanted = pairs.map((pair) => {
     const base = baseAsset(pair);
     return { pair, base, alias: KRAKEN_BASE_ALIASES[base] ?? base };
   });
-  const query = wanted.map((w) => `${w.alias}USDT`).join(",");
+  const query = wanted.map((w) => `${w.alias}${cotation}`).join(",");
 
   for (let attempt = 1; attempt <= FALLBACK_MAX_ATTEMPTS; attempt++) {
     try {
@@ -267,7 +267,25 @@ export async function getCurrentPrices(pairs: string[]): Promise<Record<string, 
   if (missing.length > 0 && missing.length === pairs.length) {
     for (let i = 0; i < Math.min(missing.length, MAX_KRAKEN_UNITAIRE); i++) {
       if (i > 0) await sleep(KRAKEN_SPACING_MS);
-      const unitaire = await getKrakenPrices([missing[i]]);
+      let unitaire = await getKrakenPrices([missing[i]]);
+      // KRAKEN COTE UNE PARTIE DE L'UNIVERS EN USD, PAS EN USDT.
+      //
+      // Vérifié contre l'API le 14/08/2026 : ICPUSDT, TAOUSDT et POLUSDT sont
+      // inconnues, mais ICPUSD, TAOUSD et POLUSD répondent parfaitement. Le
+      // client ne demandait que la cotation USDT et perdait donc ces paires
+      // pour rien — la production affichait au même moment :
+      //
+      //   [post-trade] Aucune source de prix disponible pour ICP/USDT
+      //   (Binance/Kraken/Coinbase tous en échec).
+      //
+      // Un signal dont le prix n'est jamais récupéré ne se CLÔTURE JAMAIS : il
+      // reste ouvert au-delà de son échéance et l'abonné n'obtient ni sortie ni
+      // résultat. L'écart USD/USDT est de l'ordre du dixième de pour cent —
+      // sans commune mesure avec l'absence totale de prix.
+      if (Object.keys(unitaire).length === 0) {
+        await sleep(KRAKEN_SPACING_MS);
+        unitaire = await getKrakenPrices([missing[i]], "USD");
+      }
       Object.assign(prices, unitaire);
     }
   }
