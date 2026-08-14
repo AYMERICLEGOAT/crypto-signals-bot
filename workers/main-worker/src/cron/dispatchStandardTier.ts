@@ -25,6 +25,7 @@ import { filterByPrefEnabled } from "../db/userPrefs";
 import { recordDeliveries, getDeliveryRecipients } from "../db/signalDeliveries";
 import { sendMessage, sendPhotoWithText } from "../telegram";
 import { buildSignalMessage } from "../signalFormat";
+import { getReleveMoteur } from "../db/releveMoteur";
 
 // Zéro : plus aucun palier payant n'est retardé. La constante reste pour que
 // getSignalsDueForStandardTier garde sa signature, et pour que ce choix soit
@@ -41,6 +42,10 @@ export async function dispatchStandardTier(env: Env): Promise<void> {
 
   const activeUsers = await getActiveUsers(db);
 
+  const releveMomentum = due.some((s) => s.engine === "momentum_4h")
+    ? await getReleveMoteur(db, "momentum_4h")
+    : null;
+
   for (const signal of due) {
     // Cible "pas encore livré CE signal" plutôt qu'un filtre par plan figé :
     // un abonné qui change de plan (ex. Standard -> Pro) entre l'envoi
@@ -54,8 +59,8 @@ export async function dispatchStandardTier(env: Env): Promise<void> {
     }
     const trailingEnabledIds = new Set(await filterByPrefEnabled(db, targetIds, "trailing_stop"));
 
-    const textDefault = buildSignalMessage(signal);
-    const textWithTrailing = trailingEnabledIds.size > 0 ? buildSignalMessage(signal, { trailingEnabled: true }) : textDefault;
+    const textDefault = buildSignalMessage(signal, { releveReel: releveMomentum });
+    const textWithTrailing = trailingEnabledIds.size > 0 ? buildSignalMessage(signal, { trailingEnabled: true, releveReel: releveMomentum }) : textDefault;
     const send = (id: number) => {
       const text = trailingEnabledIds.has(id) ? textWithTrailing : textDefault;
       // sendPhotoWithText et non sendPhoto : un message de signal complet fait

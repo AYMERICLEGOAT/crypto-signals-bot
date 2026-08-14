@@ -6,6 +6,7 @@ import { recordDeliveries } from "../db/signalDeliveries";
 import { sendMessage, sendPhotoWithText } from "../telegram";
 import { PRO_PLAN } from "../payments/plans";
 import { buildSignalMessage } from "../signalFormat";
+import { getReleveMoteur } from "../db/releveMoteur";
 
 const TRIAL_PLAN = 0;
 
@@ -39,9 +40,17 @@ export async function dispatchSignals(env: Env): Promise<void> {
   // ne change pas pendant l'exécution de ce cron.
   const trailingEnabledIds = new Set(await filterByPrefEnabled(db, activeIds, "trailing_stop"));
 
+  // Le relevé réel du momentum 4H accompagne sa promesse dans le message (voir
+  // signalFormat::ligneReleveReel). Lu UNE fois pour tout le lot : le budget de
+  // cinquante sous-requêtes par invocation ne supporte pas une lecture par
+  // signal.
+  const releveMomentum = unsent.some((s) => s.engine === "momentum_4h")
+    ? await getReleveMoteur(db, "momentum_4h")
+    : null;
+
   for (const signal of unsent) {
-    const textDefault = buildSignalMessage(signal);
-    const textWithTrailing = trailingEnabledIds.size > 0 ? buildSignalMessage(signal, { trailingEnabled: true }) : textDefault;
+    const textDefault = buildSignalMessage(signal, { releveReel: releveMomentum });
+    const textWithTrailing = trailingEnabledIds.size > 0 ? buildSignalMessage(signal, { trailingEnabled: true, releveReel: releveMomentum }) : textDefault;
     const send = (id: number) => {
       const text = trailingEnabledIds.has(id) ? textWithTrailing : textDefault;
       // sendPhotoWithText et non sendPhoto : un message de signal complet fait

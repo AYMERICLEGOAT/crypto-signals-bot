@@ -16,6 +16,13 @@ import { MOMENTUM_4H } from "./publishedStats";
 
 export const SUGGESTED_RISK_PCT = 2;
 
+/** Le relevé réel d'un moteur, injecté par l'appelant (voir db/releveMoteur.ts). */
+export interface ReleveReel {
+  clotures: number;
+  moyennePct: number;
+  gagnants: number;
+}
+
 export interface SignalLike {
   type: SignalSide;
   pair: string;
@@ -204,6 +211,34 @@ function buildHoldLine(signal: SignalLike): string | null {
  * trade : historique plus court, dernière année en recul, volume plafonné.
  * Personne ne peut engager d'argent sans l'avoir lue.
  */
+/**
+ * LE RELEVÉ RÉEL SE PUBLIE À CÔTÉ DE LA PROMESSE.
+ *
+ * La ligne annonçait « +0,805 % par signal sur 3 jours mesurés » et se
+ * terminait par « il s'arrête tout seul si les résultats réels démentent la
+ * mesure ». Les deux affirmations sont vraies. Mais le relevé réel de ce
+ * moteur, au 14/08/2026, dit −0,07 % par trade sur 10 clôtures, et ce chiffre
+ * n'apparaissait nulle part.
+ *
+ * Taire un chiffre défavorable qu'on possède est la forme la plus facile du
+ * mensonge sur les performances : elle ne demande aucun effort et ne laisse
+ * aucune trace. Sur un produit dont l'argument central est la rigueur de la
+ * mesure, c'est aussi la plus coûteuse le jour où quelqu'un recompte.
+ *
+ * Dix trades ne démontrent rien, et la phrase le dit. Ce n'est pas une
+ * précaution rhétorique : le garde-fou d'espérance exige trente clôtures avant
+ * de couper, parce qu'en dessous la moyenne est du bruit.
+ */
+function ligneReleveReel(releve?: ReleveReel | null): string | null {
+  if (!releve) return null;
+  const moyenne = `${releve.moyennePct >= 0 ? "+" : ""}${releve.moyennePct.toFixed(2).replace(".", ",")} %`;
+  const verdict =
+    releve.moyennePct >= 0
+      ? "au-dessus de zéro, mais l'échantillon reste trop petit pour confirmer la mesure historique."
+      : "en dessous de la mesure historique. L'échantillon est trop petit pour conclure, et c'est le chiffre vrai.";
+  return `📒 Relevé RÉEL de ce moteur depuis sa mise en service : ${moyenne} par signal sur ${releve.clotures} clôtures (${releve.gagnants} gagnantes) — ${verdict}`;
+}
+
 function buildObservationLine(engine?: string | null): string | null {
   if (engine !== "momentum_4h") return null;
   return (
@@ -226,7 +261,22 @@ function buildRiskSizingLine(entryPrice: number, stopLoss: number): string | nul
   return (
     `💰 Risque conseillé : ${SUGGESTED_RISK_PCT} % de ton capital max sur ce trade. ` +
     `Avec un stop à ${fr(riskPct, 1)} % de l'entrée, cela correspond à une position d'environ ` +
-    `${fr(positionPct, 0)} % de ton capital TOTAL${capNote} (${SUGGESTED_RISK_PCT} % ÷ ${fr(riskPct, 1)} %).`
+    `${fr(positionPct, 0)} % de ton capital TOTAL${capNote} (${SUGGESTED_RISK_PCT} % ÷ ${fr(riskPct, 1)} %).` +
+    // CE CALCUL NE VOIT QU'UN SEUL TRADE, ET C'EST DANGEREUX SANS CETTE PHRASE.
+    //
+    // Le 13/08/2026, le message SOL/USDT annonçait « une position d'environ
+    // 44 % de ton capital TOTAL » — arithmétiquement juste : 2 % de risque
+    // divisés par un stop à 4,5 %. Mais six positions étaient ouvertes le même
+    // jour, dont plusieurs à stop serré. Un lecteur qui applique la formule à
+    // chacune se retrouve à plus de 200 % de son capital engagé, c'est-à-dire
+    // à emprunter pour suivre un signal présenté comme prudent.
+    //
+    // La formule est correcte par trade et fausse par portefeuille. Elle
+    // n'était accompagnée d'aucune borne — et c'est le seul chiffre du message
+    // qui peut, à lui seul, ruiner quelqu'un.
+    "\n📐 Ce calcul porte sur CE trade isolément. Plusieurs positions peuvent être ouvertes en même temps : " +
+    "la somme de toutes tes positions ne doit jamais dépasser ton capital, et le total du risque pris " +
+    `(${SUGGESTED_RISK_PCT} % par trade) reste à diviser entre elles.`
   );
 }
 
@@ -279,7 +329,7 @@ function buildTrailingStopLine(signal: SignalLike, stopLoss: number): string {
 
 export function buildSignalMessage(
   signal: SignalLike,
-  opts: { trailingEnabled?: boolean; delayNote?: string; ctaUsername?: string } = {}
+  opts: { trailingEnabled?: boolean; delayNote?: string; ctaUsername?: string; releveReel?: ReleveReel | null } = {}
 ): string {
   // Un carry n'a ni stop ni objectif : tous les calculs de risque/rendement
   // ci-dessous porteraient sur des champs nuls et produiraient des NaN affichés
@@ -322,6 +372,7 @@ export function buildSignalMessage(
     buildHoldLine(signal),
     riskSizingLine,
     buildObservationLine(signal.engine),
+    signal.engine === "momentum_4h" ? ligneReleveReel(opts.releveReel) : null,
     opts.trailingEnabled ? buildTrailingStopLine(signal, stopLoss) : null,
     signal.confidence_score != null ? `📊 Confiance : ${signal.confidence_score}/100 _(indicatif, pas une probabilité de gain)_` : null,
     `🕒 ${new Date(signal.created_at).toLocaleString("fr-FR")}`,
