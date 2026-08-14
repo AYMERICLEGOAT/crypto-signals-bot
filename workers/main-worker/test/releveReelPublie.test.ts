@@ -39,7 +39,7 @@ describe("Le relevé réel accompagne la promesse du moteur", () => {
     expect(texte).toContain("3 gagnantes");
     // La promesse reste : on ne remplace pas un chiffre par l'autre, on
     // publie les deux.
-    expect(texte).toContain("+0,805 %");
+    expect(texte).toContain("+1,86 %");
   });
 
   it("dit que l'échantillon est trop petit pour conclure", () => {
@@ -66,7 +66,7 @@ describe("Le relevé réel accompagne la promesse du moteur", () => {
     const texte = buildSignalMessage(momentum as never, { releveReel: null });
     expect(texte).not.toContain("Relevé RÉEL");
     expect(texte).not.toContain("undefined");
-    expect(texte).toContain("+0,805 %"); // le message reste complet par ailleurs
+    expect(texte).toContain("+1,86 %"); // le message reste complet par ailleurs
   });
 
   it("ne concerne QUE le momentum 4H", () => {

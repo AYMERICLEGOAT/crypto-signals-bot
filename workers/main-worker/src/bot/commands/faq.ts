@@ -124,7 +124,7 @@ export async function handleFaqCommand(env: Env, telegramId: number): Promise<vo
     "jour de capital immobilisé — environ neuf fois le carry sur cette même",
     "unité. C'est aussi celui dont l'historique est le plus court : il commence",
     "en 2023, il est positif trois années sur quatre et en recul sur la",
-    "dernière, d'où un plafond de deux places par jour.",
+    "dernière, d'où un plafond d'UNE place par jour — ramené de deux le 14/08/2026, parce qu'à deux positions tout l'avantage mesuré venait d'un seul trade sur deux ans.",
     "Ce ne sont pas des quotas mais des moyennes constatées. Forcer des signaux",
     "pour tenir une promesse de fréquence est exactement ce que nous refusons",
     "de faire.",

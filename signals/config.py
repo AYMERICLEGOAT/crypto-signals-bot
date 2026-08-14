@@ -674,7 +674,43 @@ M4H_MIN_RANKED_PAIRS = 15
 # Réserve à garder en tête : à top 2 le nombre d'années positives tombe à 2 sur
 # 4, contre 3 sur 4 ailleurs. Moins de signaux, donc plus de bruit d'une année à
 # l'autre. C'est une raison de plus de traiter ce moteur comme en observation.
-M4H_TOP_N = 2
+#
+# ---------------------------------------------------------------------------
+# RAMENÉ DE 2 À 1 LE 14/08/2026, sur mesure (backtest_momentum4h_temoin.py).
+#
+# Le moteur a enfin été soumis au TÉMOIN ALÉATOIRE — le protocole qui a déjà
+# réfuté six candidats de ce projet, dont le momentum transversal journalier
+# (p = 0,885) alors qu'il paraissait excellent sur 17 combinaisons sur 18. Il
+# n'y avait jamais été soumis.
+#
+# Mesure sur 730 jours de bougies 4 h, 40 paires, régime défavorable seul
+# (58,7 % de la période), frais comptés, entrées non chevauchantes :
+#
+#                   espérance   témoin     p        trimestres positifs
+#     top 1         +1,862 %    -0,701 %   0,0000   5 / 6
+#     top 2         +0,444 %    -0,648 %   0,0067   4 / 6
+#
+# LE TEST QUI TRANCHE n'est aucun des deux ci-dessus, c'est la FRAGILITÉ. En
+# retirant le meilleur trade de l'échantillon :
+#
+#     top 1  ->  +0,896 %   (tient largement au-dessus du témoin)
+#     top 2  ->  -0,081 %   (tout l'avantage venait d'UN SEUL trade à +80 %)
+#
+# Un avantage porté par un seul coup de chance n'est pas un avantage. C'est
+# exactement ce que top 2 était, et personne ne l'avait vu parce que le témoin
+# et le retrait du meilleur trade n'avaient pas été faits.
+#
+# La dégradation est MONOTONE avec le nombre de positions, sur l'ensemble du
+# balayage de 100 combinaisons — top 1 : +0,061 %, top 2 : -0,242 %, top 3 :
+# -0,398 %, top 5 : -0,624 % en moyenne de région. C'est la signature d'un
+# avantage réel concentré en tête de classement, pas d'un point de chance.
+#
+# CE QUE ÇA COÛTE, dit franchement : moitié moins de signaux, un par jour au
+# lieu de deux. Mais l'avantage TOTAL par jour augmente quand même (1 x 1,862
+# contre 2 x 0,444), et le canal envoie moitié moins de messages. La quantité
+# perdue était de la quantité qui coûtait de l'argent.
+# ---------------------------------------------------------------------------
+M4H_TOP_N = 1
 
 # --- Arbitre de signaux (voir signal_arbiter.py) ---
 #

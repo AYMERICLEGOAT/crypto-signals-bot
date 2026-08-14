@@ -239,14 +239,29 @@ function ligneReleveReel(releve?: ReleveReel | null): string | null {
   return `📒 Relevé RÉEL de ce moteur depuis sa mise en service : ${moyenne} par signal sur ${releve.clotures} clôtures (${releve.gagnants} gagnantes) — ${verdict}`;
 }
 
+/**
+ * LE PROFIL DE GAIN EST DIT, parce que c'est lui qui fait partir les abonnés.
+ *
+ * Ce moteur gagne 43,9 % de ses trades et sa médiane est NÉGATIVE (-1,18 %) :
+ * il vit de quelques gros gains, pas de la fréquence. Un abonné qui enchaîne
+ * six pertes croit assister à une panne, alors qu'il assiste au régime normal
+ * de la stratégie — et il se désabonne précisément au moment où il ne faut pas.
+ *
+ * Le taux de réussite figurait déjà dans les statistiques publiées, mais jamais
+ * dans le message que l'abonné lit au moment d'engager de l'argent. Une donnée
+ * exacte rangée là où personne ne la voit ne protège personne.
+ */
 function buildObservationLine(engine?: string | null): string | null {
   if (engine !== "momentum_4h") return null;
   return (
     `🧪 *Momentum 4H* — ${MOMENTUM_4H.esperanceParSignal} par signal sur ${MOMENTUM_4H.jours} jours mesurés, soit ` +
-    `${MOMENTUM_4H.esperanceParJour} par jour de capital : environ ${MOMENTUM_4H.facteurContreCarry} fois le rendement ` +
-    `quotidien du carry. Positif ${MOMENTUM_4H.anneesPositives}, en recul sur la dernière, et son historique est plus ` +
-    "court que celui des autres moteurs — d'où deux places par jour au maximum, et un dimensionnement plus petit. " +
-    "Il s'arrête tout seul si les résultats réels démentent la mesure."
+    `${MOMENTUM_4H.esperanceParJour} par jour de capital. Dans le même régime et aux mêmes dates, un tirage au ` +
+    `sort donne ${MOMENTUM_4H.temoinAleatoire} : c'est cet écart-là qui est l'avantage, pas le chiffre brut. ` +
+    `Positif ${MOMENTUM_4H.anneesPositives}.\n` +
+    `⚠️ Profil à connaître AVANT d'engager : seulement ${MOMENTUM_4H.reussite} des trades sont gagnants et la ` +
+    "moitié perdent plus de 1 %. Ce moteur vit de quelques gros gains, pas de la fréquence — enchaîner plusieurs " +
+    "pertes est son régime NORMAL, pas une panne. Il ne prend qu'une place par jour, avec un dimensionnement plus " +
+    "petit que les autres moteurs, et il s'arrête tout seul si les résultats réels démentent la mesure."
   );
 }
 

@@ -199,7 +199,7 @@ STEPS = [
      "deux paires les plus fortes et tenu 3 jours. Sa particularité : il ne se déclenche QUE "
      "lorsque le Bitcoin est sous sa moyenne 200 jours — exactement le créneau où les moteurs "
      "acheteurs se taisent. Il est présenté EN OBSERVATION, et c'est écrit sur chacun de ses "
-     "signaux : positif trois années sur quatre, mais en recul sur la dernière. Deux places par "
+     "signaux : positif cinq trimestres sur six, avec 43,9 % de trades gagnants seulement. Une place par "
      "jour au maximum, et il s'arrête de lui-même si ses résultats réels démentent la mesure."),
     ("Tu reçois le signal complet sur Telegram",
      "Paire, sens, prix d'entrée, stop loss et objectifs — tous définis AVANT l'ouverture, jamais "

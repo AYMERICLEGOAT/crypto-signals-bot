@@ -36,19 +36,21 @@
 
 /** Fenêtres de mesure, à citer quand un texte avance un de ces chiffres. */
 export const FENETRE_DIRECTIONNELS = "août 2020 – août 2026";
-export const FENETRE_MOMENTUM_4H = "septembre 2023 – août 2026";
+export const FENETRE_MOMENTUM_4H = "août 2024 – août 2026 (730 jours, bougies 4 h)";
 
 /**
  * Signaux effectivement reçus par jour, après l'arbitre.
  *
  * `favorable` = 2,85 directionnels mesurés + 1,15 carry.
- * `defavorable` = 2,00 momentum 4H mesurés + 1,15 carry (les trois moteurs
+ * `defavorable` = 1,00 momentum 4H + 1,15 carry (les trois moteurs
  * directionnels sont coupés par le filtre de tendance, par construction).
+ * Le momentum est passé de 2 à 1 signal par jour le 14/08/2026 : à top 2, tout
+ * son avantage venait d'UN SEUL trade sur deux ans (voir config.M4H_TOP_N).
  */
 export const DEBIT = {
   favorable: "4,0",
-  defavorable: "3,1",
-  moyenne: "3,6",
+  defavorable: "2,2",
+  moyenne: "3,2",
 } as const;
 
 /**
@@ -108,16 +110,38 @@ export const MAX_PAR_JOUR = 8;
  * « En observation » reste, et garde un sens précis : son historique commence
  * en septembre 2023, contre août 2020 pour les autres. C'est cette
  * incertitude-là — moins de recul, pas un mauvais résultat — qui justifie de le
- * plafonner à deux places par jour (config.QUOTA_OBSERVATION_MAX).
+ * plafonner à une place par jour (config.M4H_TOP_N, ramené de 2 à 1 le 14/08/2026).
+ */
+/**
+ * REMESURÉ LE 14/08/2026 APRÈS PASSAGE À TOP 1 (backtest_momentum4h_temoin.py).
+ *
+ * Les chiffres précédents décrivaient la variante top 2, qui n'est plus celle
+ * qui tourne. Publier +0,805 % aujourd'hui décrirait une stratégie que le
+ * produit n'exécute plus — la forme de fausseté la plus difficile à repérer,
+ * puisque le chiffre a été vrai.
+ *
+ * Mesure : 730 jours de bougies 4 h, 40 paires, régime défavorable seul, frais
+ * comptés, entrées non chevauchantes, 82 trades. Fenêtre plus courte que
+ * l'ancienne (qui portait sur 1 100 jours) : c'est dit dans FENETRE_MOMENTUM_4H
+ * plutôt que masqué.
+ *
+ * LE TAUX DE RÉUSSITE EST BAS ET LA MÉDIANE EST NÉGATIVE, et il faut le dire :
+ * 43,9 % de trades gagnants, médiane -1,18 %. Ce moteur gagne par quelques
+ * gros gains, pas par la fréquence. Un abonné qui enchaîne six pertes n'est PAS
+ * en train d'assister à une panne — c'est le régime normal de cette stratégie,
+ * et ne pas l'avoir prévenu est la meilleure façon de le perdre au pire moment.
  */
 export const MOMENTUM_4H = {
-  esperanceParSignal: "+0,805 %",
+  esperanceParSignal: "+1,86 %",
   jours: 3,
-  esperanceParJour: "0,268 %",
-  reussite: "48,3 %",
+  esperanceParJour: "0,62 %",
+  reussite: "43,9 %",
   /** Rapport avec le carry sur la même unité. Entier : l'arrondi joue en notre défaveur. */
-  facteurContreCarry: 9,
-  anneesPositives: "3 années sur 4",
+  facteurContreCarry: 20,
+  anneesPositives: "5 trimestres sur 6",
+  /** Ce qu'un tirage au sort donne dans le MÊME régime, mêmes frais, mêmes dates. */
+  temoinAleatoire: "-0,70 %",
+  medianeNegative: true,
 } as const;
 
 /** Détail par moteur, pour les textes qui expliquent d'où vient le débit. */

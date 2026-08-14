@@ -71,8 +71,8 @@ describe("Étiquetage des moteurs", () => {
     // mesure complète et sa limite doivent figurer là où quelqu'un décide
     // d'engager de l'argent, c'est-à-dire dans le message du signal.
     const message = buildSignalMessage(signal("momentum_4h") as any);
-    expect(message).toMatch(/en recul sur la dernière/i);
-    expect(message).toMatch(/deux places par jour/i);
+    expect(message).toMatch(/tirage au sort/i);
+    expect(message).toMatch(/une place par jour/i);
     expect(message).toContain(MOMENTUM_4H.esperanceParJour);
   });
 

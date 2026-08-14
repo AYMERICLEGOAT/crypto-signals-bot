@@ -167,7 +167,8 @@ _ANALYSE_PAR_MOTEUR = {
             "autres stratégies du système restent silencieuses. Entrée vers {entry}, stop loss à "
             "{sl} ({sl_pct}), objectif principal à {tp} ({tp_pct}), sortie prévue au bout de "
             "{jours} jours. Ce moteur est en observation : son avantage est mesuré positif sur "
-            "trois années sur quatre, mais en recul sur la dernière."
+            "cinq trimestres sur six. Attention au profil : 43,9 % de trades gagnants et une mediane negative — "
+            "ce moteur vit de quelques gros gains, pas de la frequence."
         ),
         "en": (
             "On {pair}, the same ranking principle as relative strength, measured on 4-hour "

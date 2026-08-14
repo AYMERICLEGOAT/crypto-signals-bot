@@ -329,7 +329,7 @@ FAMILIES = [
     ("Momentum 4 heures",
      "Le seul moteur qui ne travaille QUE lorsque le marché baisse : il occupe le créneau où "
      "les moteurs directionnels se taisent. Même classement que la force relative, mais "
-     "sur des bougies de 4 heures, limité aux deux plus fortes et tenu 3 jours. Positif trois "
+     "sur des bougies de 4 heures, limité a LA plus forte et tenu 3 jours. Positif cinq "
      "années sur quatre, en recul sur la dernière : il est publié en le disant.",
      "En observation"),
 ]

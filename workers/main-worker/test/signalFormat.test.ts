@@ -196,8 +196,8 @@ describe("buildSignalMessage — le moteur en observation le dit", () => {
     const text = buildSignalMessage(signal4h);
     expect(text).toContain("Momentum 4H");
     expect(text).toContain(MOMENTUM_4H.esperanceParJour);
-    expect(text).toContain("en recul sur la dernière");
-    expect(text).toContain("deux places par jour");
+    expect(text).toContain("un tirage au sort donne");
+    expect(text).toContain("une place par jour");
     expect(text).toContain("dimensionnement plus petit");
   });
 

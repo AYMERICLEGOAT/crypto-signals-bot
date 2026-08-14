@@ -288,12 +288,12 @@ const CARRY_RISK =
 const MOMENTUM_4H_EXPLANATION =
   "Et depuis peu, un second moteur travaille précisément dans ce régime : le momentum 4H. Il ne cherche pas de " +
   "croisement d'indicateurs — il classe toutes les cryptos suivies les unes contre les autres sur des bougies de " +
-  "4 heures, et achète les deux plus fortes du moment, tenues 3 jours.\n" +
+  "4 heures, et achète LA plus forte du moment, tenue 3 jours.\n" +
   `Mesuré : ${MOMENTUM_4H.esperanceParSignal} par signal en ${MOMENTUM_4H.jours} jours, soit ` +
   `${MOMENTUM_4H.esperanceParJour} par jour de capital immobilisé — environ ${MOMENTUM_4H.facteurContreCarry} fois ` +
   "le rendement quotidien du carry. C'est ce qui travaille le mieux quand les moteurs directionnels se taisent.\n" +
   `Son historique commence en 2023, plus court que celui des autres : positif ${MOMENTUM_4H.anneesPositives}, en ` +
-  "recul sur la dernière. D'où deux places par jour au maximum, un dimensionnement plus petit, et un arrêt " +
+  "recul sur la dernière. D'où une place par jour au maximum, un dimensionnement plus petit, et un arrêt " +
   "automatique si ses résultats réels démentent la mesure. Le détail est écrit sur chacun de ses signaux.";
 
 /**

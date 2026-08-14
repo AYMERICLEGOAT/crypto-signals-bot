@@ -60,7 +60,7 @@ TELEGRAM_URL = f"https://t.me/{TELEGRAM_BOT_USERNAME}"
 # « aucun signal aujourd'hui » ne peut plus être écrit quand l'un des deux sort.
 #
 # Le momentum 4 heures est présenté EN OBSERVATION partout où il apparaît :
-# positif trois années sur quatre, mais en recul sur la dernière. Le taire
+# positif cinq trimestres sur six, avec 43,9 % de trades gagnants. Le taire
 # reviendrait à faire porter à l'abonné la fraction incertaine du produit sans
 # le lui dire.
 #
@@ -226,7 +226,7 @@ _STRINGS = {
             ("Momentum 4 heures — en observation",
              "Le seul moteur qui ne travaille QUE lorsque le marché baisse : il occupe exactement le créneau "
              "où la force relative se tait. Même principe de classement que la force relative, "
-             "mais sur des bougies de 4 heures, et limité aux deux plus fortes du moment, tenues 3 jours. "
+             "mais sur des bougies de 4 heures, et limité a LA plus forte du moment, tenue 3 jours. "
              "Il est présenté en observation parce que sa mesure est ambiguë : positive trois années sur "
              "quatre, mais en recul sur la dernière. Il est donc plafonné à deux signaux par jour, chacun "
              "étiqueté comme tel, et il s'arrête de lui-même si ses résultats réels démentent la mesure."),
