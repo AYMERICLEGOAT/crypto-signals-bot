@@ -45,7 +45,7 @@ export async function handleDemoCommand(env: Env, telegramId: number): Promise<v
       "━━━━━━━━━━\n" +
       "*1. UN ACHAT — signal directionnel*\n\n" +
       "🟢 *ACHAT* sur une paire parmi les 12 plus fortes du moment\n" +
-      "📈 Les 40 paires suivies sont classées par force relative, sur des bougies journalières. " +
+      "📈 Les 38 paires suivies sont classées par force relative, sur des bougies journalières. " +
       "On achète les 12 premières. C'est du momentum, pas un indicateur secret.\n\n" +
       "💵 Entrée : le cours à la clôture du jour\n" +
       "🛑 Stop : 4 x ATR sous l'entrée\n" +

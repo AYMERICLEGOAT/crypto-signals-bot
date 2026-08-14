@@ -10,11 +10,18 @@ const JOB_NAME = "selectivity_digest";
 const DIGEST_HOUR_UTC = 18;
 
 /**
- * Taille de l'univers balayé à chaque cycle — `config.PAIRS` côté Python,
- * vérifié à 40 entrées le 10/08/2026. Le chiffre est publié sur le canal
- * public : s'il change là-bas, il doit changer ici.
+ * Taille de l'univers balayé à chaque cycle — `config.PAIRS` côté Python.
+ *
+ * Ramené de 40 à 38 le 14/08/2026 : MKR/USDT et EOS/USDT ont été retirés
+ * comme marchés MORTS (6 007 $ et 76 648 $ de volume sur 24 h, contre une
+ * médiane d'univers à 49 millions). Un signal sur un marché pareil est
+ * injouable pour l'abonné avant même d'être juste ou faux.
+ *
+ * Le chiffre est publié sur le canal public : s'il change là-bas, il doit
+ * changer ici. La sentinelle surveille désormais la liquidité de l'univers,
+ * ce qui rendra ce genre de dérive visible sans attendre une panne.
  */
-const TAILLE_UNIVERS = 40;
+const TAILLE_UNIVERS = 38;
 
 /**
  * Bilan quotidien de SÉLECTIVITÉ sur le canal public (02/08/2026).

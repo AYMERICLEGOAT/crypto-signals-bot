@@ -338,7 +338,7 @@ function buildOpenMessage(state: TrendState, carryLine: string | null): string {
     `Le Bitcoin clôture ${fr(state.gapPct)} % au-dessus de sa moyenne mobile 200 jours (clôture du ${frDate(state.asOfMs)}). C'est la condition d'ouverture du filtre de tendance, et elle est remplie ${duration}.`,
     "",
     "*Ce qui tourne*",
-    "Le moteur directionnel est la force relative : les 40 paires suivies sont classées entre elles, on achète les 12 plus fortes, et on les tient 7 jours.",
+    "Le moteur directionnel est la force relative : les 38 paires suivies sont classées entre elles, on achète les 12 plus fortes, et on les tient 7 jours.",
     "",
     CARRY_EXPLANATION,
     carryLine,

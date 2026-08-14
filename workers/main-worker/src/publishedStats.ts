@@ -120,7 +120,7 @@ export const MAX_PAR_JOUR = 8;
  * produit n'exécute plus — la forme de fausseté la plus difficile à repérer,
  * puisque le chiffre a été vrai.
  *
- * Mesure : 730 jours de bougies 4 h, 40 paires, régime défavorable seul, frais
+ * Mesure : 730 jours de bougies 4 h, 38 paires, régime défavorable seul, frais
  * comptés, entrées non chevauchantes, 82 trades. Fenêtre plus courte que
  * l'ancienne (qui portait sur 1 100 jours) : c'est dit dans FENETRE_MOMENTUM_4H
  * plutôt que masqué.

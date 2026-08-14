@@ -204,7 +204,7 @@ def construire_message(marche: dict | None, proches: list, carrys: list) -> str:
     if marche and not marche["ouvert"]:
         lignes.append("🧪 MOMENTUM 4H — actif aujourd'hui, et c'est son seul créneau")
         lignes.append(
-            "Il classe les 40 paires entre elles sur des bougies de 4 heures et achète les deux "
+            "Il classe les 38 paires entre elles sur des bougies de 4 heures et achète les deux "
             "plus fortes, tenues 3 jours. Deux signaux par jour au maximum."
         )
         lignes.append(

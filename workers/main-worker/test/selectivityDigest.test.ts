@@ -82,7 +82,12 @@ describe("Bilan de sélectivité", () => {
 
     expect(sent).toHaveLength(1); // un seul message par jour
     expect(sent[0].chat).toBe("-100111");
-    expect(sent[0].text).toContain("40 paires analysées");
+    // 38, pas 40 : MKR/USDT et EOS/USDT ont été retirés de l'univers le
+    // 14/08/2026 comme marchés MORTS (76 648 $ et 6 007 $ de volume sur 24 h,
+    // contre une médiane d'univers à 49 millions). Ce chiffre est publié sur
+    // le canal public — il doit suivre l'univers réel, sans quoi le bilan de
+    // « sélectivité » reprendrait l'habitude d'annoncer un nombre faux.
+    expect(sent[0].text).toContain("38 paires analysées");
     expect(sent[0].text).toContain("2 signal(aux) retenu(s)");
   });
 

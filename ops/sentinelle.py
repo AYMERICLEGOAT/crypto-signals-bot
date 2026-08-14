@@ -282,6 +282,85 @@ def c_verdicts_coherents(hb: dict) -> list[Constat]:
     return []
 
 
+"""Volume quotidien en dessous duquel un marché n'est plus exécutable par un particulier."""
+SEUIL_VOLUME_MORT_USD = 5_000_000
+
+
+def c_liquidite_univers() -> list[Constat]:
+    """
+    Une paire de l'univers est-elle devenue intradable ?
+
+    Trouvé le 14/08/2026 en remontant une position bloquée : MKR/USDT n'avait
+    plus que 76 648 $ de volume sur 24 h et EOS/USDT 6 007 $, contre une
+    MÉDIANE d'univers à 49 millions. Quatre ordres de grandeur en dessous.
+
+    MKR avait par ailleurs été délisté par Coinbase, Kraken, Bybit et OKX —
+    quatre plateformes vérifiées une à une. Ce qui l'a fait remonter, c'est sa
+    position qui ne pouvait plus se clôturer faute de source de prix.
+
+    Mais la panne de prix n'était que le SYMPTÔME. Le vrai défaut était de
+    signaler ces paires : un abonné à qui l'on annonce un achat sur un marché à
+    6 000 $ de volume quotidien ne peut pas exécuter le trade — il n'y a pas de
+    contrepartie, et sa propre taille déplacerait le prix. Le signal était
+    injouable avant même d'être juste ou faux.
+
+    La liste `config.PAIRS` n'avait jamais été revalidée depuis sa
+    constitution. Une paire peut mourir et y rester indéfiniment ; ce contrôle
+    est le seul endroit du système qui s'en apercevra.
+    """
+    ouverts = rest("signals", {"select": "pair", "outcome": "is.null", "limit": "100"})
+    recents = rest(
+        "signals",
+        {"select": "pair", "created_at": f"gte.{(MAINTENANT - timedelta(days=14)).isoformat()}", "limit": "200"},
+    )
+    paires = sorted({s["pair"] for s in ouverts + recents if s.get("pair")})
+    if not paires:
+        return []
+
+    # CoinGecko n'est interrogé qu'avec les paires réellement utilisées : la
+    # sentinelle n'a pas à connaître l'univers Python, qu'elle ne peut pas lire.
+    ids = {
+        "BTC": "bitcoin", "ETH": "ethereum", "SOL": "solana", "BNB": "binancecoin", "XRP": "ripple",
+        "ADA": "cardano", "DOGE": "dogecoin", "AVAX": "avalanche-2", "DOT": "polkadot", "LINK": "chainlink",
+        "POL": "polygon-ecosystem-token", "LTC": "litecoin", "SHIB": "shiba-inu", "UNI": "uniswap",
+        "ATOM": "cosmos", "NEAR": "near", "APT": "aptos", "ARB": "arbitrum", "OP": "optimism", "SUI": "sui",
+        "FET": "fetch-ai", "PEPE": "pepe", "RENDER": "render-token", "INJ": "injective-protocol",
+        "TIA": "celestia", "TAO": "bittensor", "STX": "blockstack", "FIL": "filecoin", "VET": "vechain",
+        "ALGO": "algorand", "ICP": "internet-computer", "ETC": "ethereum-classic", "HBAR": "hedera-hashgraph",
+        "XLM": "stellar", "AAVE": "aave", "MKR": "maker", "GRT": "the-graph", "SAND": "the-sandbox",
+        "EOS": "eos", "CHZ": "chiliz",
+    }
+    connues = {p: ids[p.split("/")[0]] for p in paires if p.split("/")[0] in ids}
+    if not connues:
+        return []
+
+    url = (
+        "https://api.coingecko.com/api/v3/simple/price?ids="
+        + urllib.parse.quote(",".join(sorted(set(connues.values()))))
+        + "&vs_currencies=usd&include_24hr_vol=true"
+    )
+    req = urllib.request.Request(url, headers={"User-Agent": "crypto-signals-bot"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        data = json.loads(r.read().decode())
+
+    morts = []
+    for paire, cg in connues.items():
+        volume = (data.get(cg) or {}).get("usd_24h_vol")
+        if volume is not None and volume < SEUIL_VOLUME_MORT_USD:
+            morts.append(f"{paire} ({volume:,.0f} $/24 h)".replace(",", " "))
+    if morts:
+        return [
+            Constat(
+                "Des paires signalées sont devenues intradables",
+                "\n".join(f"• {m}" for m in morts),
+                f"Sous {SEUIL_VOLUME_MORT_USD:,} $ de volume quotidien, un abonné ne peut pas exécuter le trade : "
+                "il n'y a pas de contrepartie et sa propre taille déplacerait le prix. "
+                "Retirer ces paires de signals/config.py::PAIRS.".replace(",", " "),
+            )
+        ]
+    return []
+
+
 def c_positions_bloquees() -> list[Constat]:
     """
     Une position qui a dépassé son échéance sans se fermer.
@@ -522,6 +601,7 @@ def main() -> int:
         ("clôtures publiées", c_clotures_publiees),
         ("cohérence des verdicts", lambda: c_verdicts_coherents(hb)),
         ("positions bloquees", c_positions_bloquees),
+        ("liquidite de l univers", c_liquidite_univers),
         ("paiements", c_paiements),
         ("heures calmes", lambda: c_heures_calmes(hb)),
         ("doublons", lambda: c_doublons(hb)),

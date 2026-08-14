@@ -102,11 +102,35 @@ PAIRS = {
     "HBAR/USDT": "hedera-hashgraph",
     "XLM/USDT": "stellar",
     "AAVE/USDT": "aave",
-    "MKR/USDT": "maker",
     "GRT/USDT": "the-graph",
     "SAND/USDT": "the-sandbox",
-    "EOS/USDT": "eos",
     "CHZ/USDT": "chiliz",
+    # ------------------------------------------------------------------
+    # RETIRÉS LE 14/08/2026 : MKR/USDT et EOS/USDT, marchés MORTS.
+    #
+    # Mesuré sur CoinGecko le même jour :
+    #
+    #     EOS/USDT       6 007 $ de volume sur 24 h, capitalisation nulle
+    #     MKR/USDT      76 648 $ de volume sur 24 h, capitalisation nulle
+    #
+    # La médiane de l'univers est à 49 millions de dollars. Ces deux paires
+    # sont quatre ordres de grandeur en dessous.
+    #
+    # MKR a par ailleurs été DÉLISTÉ par Coinbase (« Not allowed for delisted
+    # products »), et n'existe ni chez Kraken, ni chez Bybit, ni chez OKX —
+    # quatre plateformes vérifiées une à une. C'est ce qui l'a fait remonter :
+    # sa position ouverte ne pouvait plus se clôturer faute de source de prix.
+    #
+    # LE VRAI DÉFAUT N'ÉTAIT PAS LA PANNE DE PRIX, c'était de signaler ces
+    # paires. Un abonné à qui l'on annonce un achat sur un marché à 6 000 $ de
+    # volume quotidien ne peut PAS exécuter le trade : il n'y a pas de
+    # contrepartie, et sa propre taille déplacerait le prix. Le signal était
+    # injouable avant même d'être faux.
+    #
+    # Cette liste n'avait jamais été revalidée depuis sa constitution. Une
+    # paire peut mourir et y rester indéfiniment : la sentinelle surveille
+    # désormais la liquidité de l'univers (ops/sentinelle.py).
+    # ------------------------------------------------------------------
 }
 
 # Correctif fondamental (découvert en validant les "Améliorations 1-9") :
