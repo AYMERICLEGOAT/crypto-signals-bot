@@ -282,8 +282,47 @@ def c_verdicts_coherents(hb: dict) -> list[Constat]:
     return []
 
 
-"""Volume quotidien en dessous duquel un marché n'est plus exécutable par un particulier."""
-SEUIL_VOLUME_MORT_USD = 5_000_000
+"""
+Volume quotidien en dessous duquel un marché n'est plus exécutable.
+
+CALIBRÉ SUR LE DÉGÂT RÉEL, pas sur une intuition. Le premier seuil était à
+5 M$ et a immédiatement signalé VET/USDT à 2,9 M$ — or un abonné qui engage
+quelques centaines d'euros représente là 0,02 % du volume quotidien : il
+exécute sans rien déplacer. C'était une fausse alerte, c'est-à-dire exactement
+le bruit que cette sentinelle existe pour éviter.
+
+Les vrais marchés morts trouvés le 14/08 étaient trois ordres de grandeur plus
+bas : EOS à 6 007 $ et MKR à 76 648 $. Un million sépare proprement
+« intradable » de « simplement mince », et laisse VET tranquille.
+"""
+SEUIL_VOLUME_MORT_USD = 1_000_000
+
+
+def univers_tradable() -> set[str]:
+    """
+    Les paires que le générateur PEUT signaler, lues dans signals/config.py.
+
+    La sentinelle tourne dans le dépôt (GitHub Actions le clone) : la source de
+    vérité est donc à portée de lecture, et il serait absurde d'en tenir une
+    copie qui divergerait. Le fichier est lu au texte plutôt qu'importé —
+    importer config.py exécuterait son chargement d'environnement et ses
+    dépendances, dont la sentinelle n'a aucun besoin.
+
+    En cas d'échec de lecture, on rend un ensemble vide : le contrôle se
+    rabattra sur les seules positions ouvertes. Mieux vaut surveiller moins que
+    faire échouer la sentinelle entière sur un détail de chemin.
+    """
+    import re
+
+    chemin = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "signals", "config.py")
+    try:
+        texte = open(chemin, encoding="utf-8").read()
+    except OSError:
+        return set()
+    bloc = re.search(r"^PAIRS = \{(.*?)^\}", texte, re.S | re.M)
+    if not bloc:
+        return set()
+    return {p for p, _ in re.findall(r'"([A-Z0-9]+/USDT)":\s*"([a-z0-9-]+)"', bloc.group(1))}
 
 
 def c_liquidite_univers() -> list[Constat]:
@@ -308,12 +347,23 @@ def c_liquidite_univers() -> list[Constat]:
     constitution. Une paire peut mourir et y rester indéfiniment ; ce contrôle
     est le seul endroit du système qui s'en apercevra.
     """
+    # ON NE REGARDE QUE CE QUI PEUT ENCORE ÊTRE SIGNALÉ.
+    #
+    # La première version prenait aussi les paires signalées dans les 14 jours
+    # écoulés. MKR a donc continué d'être alertée toutes les six heures APRÈS
+    # avoir été retirée de config.PAIRS et sa position fermée — quatre alertes
+    # identiques et sans action possible en une journée, relevées le 15/08.
+    #
+    # C'est exactement le défaut que cette sentinelle existe pour éviter : une
+    # alerte non actionnable, répétée, apprend à ignorer toutes les alertes.
+    # Elle se l'était infligée à elle-même.
+    #
+    # La question utile n'est pas « avons-nous signalé une paire morte » mais
+    # « POUVONS-NOUS encore en signaler une ». La réponse vit dans
+    # signals/config.py, que ce script peut lire : il tourne dans le dépôt.
+    univers = univers_tradable()
     ouverts = rest("signals", {"select": "pair", "outcome": "is.null", "limit": "100"})
-    recents = rest(
-        "signals",
-        {"select": "pair", "created_at": f"gte.{(MAINTENANT - timedelta(days=14)).isoformat()}", "limit": "200"},
-    )
-    paires = sorted({s["pair"] for s in ouverts + recents if s.get("pair")})
+    paires = sorted(univers | {s["pair"] for s in ouverts if s.get("pair")})
     if not paires:
         return []
 

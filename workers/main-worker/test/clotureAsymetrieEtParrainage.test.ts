@@ -203,6 +203,54 @@ describe("Une clôture refusée par l'espacement repart au passage suivant", () 
     expect(republie!.text).toContain("Entrée");
   });
 
+  it("dit la MÊME chose que le message privé quand TP1 a été touché", async () => {
+    /**
+     * LE CANAL PUBLIC A CONTREDIT LE MESSAGE PRIVÉ, SUR LE MÊME TRADE.
+     *
+     * Relevé réel du 15/08/2026, LINK/USDT :
+     *
+     *   MP      : « clôturé à 9.7311 (+9,3 %) — le premier objectif avait été
+     *              touché en cours de route »
+     *   PUBLIC  : « sortie à 9.7311 (+10,8 %) — sans avoir touché ni
+     *              l'objectif ni le stop »
+     *
+     * Deux chiffres et deux récits opposés. Le public passait par le
+     * rattrapage, dont la projection PostgREST oubliait `tp1_hit_at` : sans
+     * cette colonne, causeDeCloture prend la branche « rien touché » et
+     * pnlEffectif ignore les 30 % sortis à TP1 — ce qui GONFLE le chiffre
+     * publié. La version la plus flatteuse partait sur le canal d'acquisition.
+     *
+     * Le bouchon projette comme PostgREST : si la colonne disparaît de la
+     * projection partagée, ce test tombe.
+     */
+    const avecTp1 = signalExpire({
+      id: 35,
+      pair: "LINK/USDT",
+      entry_price: 8.779,
+      stop_loss: 8.2762,
+      tp1_price: 9.2818,
+      tp2_price: 9.7846,
+      tp3_price: 10.2875,
+      tp1_hit_at: new Date(Date.now() - 86_400_000).toISOString(),
+      outcome: "WIN",
+      outcome_price: 9.7311,
+      close_reason: "expired",
+      evaluated_at: new Date(Date.now() - 3_600_000).toISOString(),
+    });
+    const { messages } = stub({ clotureManquante: avecTp1, prix: 9.7311 });
+    await trackSignalOutcomes(env);
+
+    const publie = canalPublic(messages).find((m) => m.text.includes("LINK/USDT"));
+    expect(publie, "la clôture rattrapée n'est pas partie").toBeDefined();
+    // Le récit : TP1 a été touché, le message doit le dire.
+    expect(publie!.text).toMatch(/premier objectif avait été touché/);
+    expect(publie!.text).not.toMatch(/sans avoir touché ni l'objectif/);
+    // Le chiffre : 30 % sortis à TP1 (+5,7 %) et 70 % à 9.7311 (+10,8 %)
+    // donnent +9,3 %, pas +10,8 %.
+    expect(publie!.text).toContain("+9,3 %");
+    expect(publie!.text).not.toContain("+10,8 %");
+  });
+
   it("ne republie rien quand la clôture figure déjà dans channel_posts", async () => {
     // Sans cette garantie, le canal republierait la même clôture toutes les
     // cinq minutes — un dégât pire que l'oubli qu'on répare.

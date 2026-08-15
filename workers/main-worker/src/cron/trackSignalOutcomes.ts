@@ -21,7 +21,7 @@
  */
 
 import { Env, dbConfig } from "../env";
-import { getOpenSignals, markSignalClosed, updateTrailingStop, markTp1Hit, markTp2Hit, SignalRecord } from "../db/signals";
+import { getOpenSignals, markSignalClosed, updateTrailingStop, markTp1Hit, markTp2Hit, SignalRecord, PROJECTION_SIGNAL_COMPLET } from "../db/signals";
 import { getDeliveryRecipients } from "../db/signalDeliveries";
 import { filterByPrefEnabled } from "../db/userPrefs";
 import { getCurrentPrices, pairToSymbol } from "../market/binancePrices";
@@ -339,7 +339,11 @@ function partageSiGagnant(
   resultat: { outcome: "WIN" | "LOSS"; exitPrice: number | null }
 ): ((telegramId: number) => string) | undefined {
   if (resultat.outcome !== "WIN" || resultat.exitPrice === null) return undefined;
-  const pct = computePnlPct(signal.type, signal.entry_price, resultat.exitPrice);
+  // Le texte partageable voyage DANS le message de clôture : deux calculs
+  // différents y afficheraient deux pourcentages différents pour le même
+  // trade, à trois lignes d'écart. Le 15/08, LINK est parti en « +9,3 % » dans
+  // la clôture et « +10,8 % » dans le bloc de partage juste en dessous.
+  const pct = pnlEffectif(signal, resultat.exitPrice);
   return (telegramId: number) => formatShareableVictory(signal, pct, env, telegramId);
 }
 
@@ -589,7 +593,7 @@ async function republierCloturesManquees(env: Env, db: ReturnType<typeof dbConfi
         evaluated_at: `gte.${depuis}`,
         outcome: "not.is.null",
         sent_to_channel: "is.true",
-        select: "id,pair,type,entry_price,stop_loss,take_profit,tp1_price,tp2_price,tp3_price,outcome,outcome_price,close_reason,created_at,hold_until,sent_to_channel",
+        select: PROJECTION_SIGNAL_COMPLET,
         // Chronologique : sur un canal public, republier la clôture de mardi
         // après celle de mercredi serait plus déroutant que le manque.
         order: "evaluated_at.asc",
@@ -615,10 +619,12 @@ async function republierCloturesManquees(env: Env, db: ReturnType<typeof dbConfi
   const verdict = await peutPublier(db, "public", "resultat");
   if (!verdict.autorise) return; // l'espacement n'est pas écoulé : au prochain passage
 
-  const pct =
-    manquante.outcome_price !== null
-      ? computePnlPct(manquante.type, manquante.entry_price, manquante.outcome_price)
-      : 0;
+  // pnlEffectif, PAS computePnlPct. C'est la seconde moitié de la
+  // contradiction du 15/08 : même avec `tp1_hit_at` correctement projeté, ce
+  // calcul-ci ignorait les sorties partielles et publiait « +10,8 % » là où le
+  // message privé du même abonné annonçait « +9,3 % ». Le chiffre le plus
+  // flatteur des deux partait sur le canal d'acquisition.
+  const pct = pnlEffectif(manquante, manquante.outcome_price ?? null);
 
   try {
     await sendMessage(

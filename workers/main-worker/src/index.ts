@@ -189,15 +189,37 @@ export default {
             return;
           }
 
-          // MAINTENANCE ET PÉRIODIQUES. trackCarryOutcomes reste ici : la
-          // clôture d'un carry est TEMPORELLE, une position tenue 21 jours n'a
-          // aucun besoin d'être examinée quatre fois par heure.
-          await trackCarryOutcomes(env).catch((err) => console.error("[cron] Erreur trackCarryOutcomes:", err));
-          await runDailyMaintenance(env).catch((err) => console.error("[cron] Erreur runDailyMaintenance:", err));
+          // MAINTENANCE ET PÉRIODIQUES.
+          //
+          // L'ORDRE EST LE CORRECTIF, et il a coûté trois tâches mortes.
+          //
+          // trackCarryOutcomes s'exécutait EN PREMIER. Tant que l'API futures
+          // de Binance répondait 403 sans que ce soit traité comme définitif,
+          // elle consommait quatre requêtes par carry ouvert — QUARANTE avec
+          // dix positions, sur un plafond de cinquante par invocation. Tout ce
+          // qui la suivait mourait donc sur « Too many subrequests », en
+          // silence, chaque heure :
+          //
+          //     ensureChannelPinned        146 h sans passer
+          //     dispatchSelectivityDigest   47 h sans passer
+          //     monthlyRecap / rotateVip    jamais vérifiées
+          //
+          // C'est exactement la panne du 09/08 qui avait motivé le découpage en
+          // créneaux, reproduite à l'intérieur d'un créneau. La leçon n'était
+          // donc pas « répartir » : c'est que sous un plafond dur, L'ORDRE
+          // DÉCIDE de ce qui tourne. Ce qui passe en dernier ne passe jamais.
+          //
+          // Les tâches sont donc rangées du moins cher au plus cher, et la plus
+          // gourmande ferme la marche. Elle est aussi la moins pressée : un
+          // carry se tient 21 jours, le voir une heure plus tard ne change
+          // rien, alors qu'un bilan de sélectivité manqué est un jour de canal
+          // muet.
           await ensureChannelPinned(env).catch((err) => console.error("[cron] Erreur ensureChannelPinned:", err));
           await dispatchSelectivityDigest(env).catch((err) => console.error("[cron] Erreur dispatchSelectivityDigest:", err));
-          await monthlyRecap(env).catch((err) => console.error("[cron] Erreur monthlyRecap:", err));
           await rotateVipInviteLinkIfDue(env).catch((err) => console.error("[cron] Erreur rotateVipInviteLinkIfDue:", err));
+          await monthlyRecap(env).catch((err) => console.error("[cron] Erreur monthlyRecap:", err));
+          await runDailyMaintenance(env).catch((err) => console.error("[cron] Erreur runDailyMaintenance:", err));
+          await trackCarryOutcomes(env).catch((err) => console.error("[cron] Erreur trackCarryOutcomes:", err));
         })()
       );
     }

@@ -204,12 +204,20 @@ def construire_message(marche: dict | None, proches: list, carrys: list) -> str:
     if marche and not marche["ouvert"]:
         lignes.append("🧪 MOMENTUM 4H — actif aujourd'hui, et c'est son seul créneau")
         lignes.append(
-            "Il classe les 38 paires entre elles sur des bougies de 4 heures et achète les deux "
-            "plus fortes, tenues 3 jours. Deux signaux par jour au maximum."
+            "Il classe les 38 paires entre elles sur des bougies de 4 heures et achète LA plus "
+            "forte, tenue 3 jours. Un signal par jour au maximum."
         )
         lignes.append(
-            "Ce moteur est EN OBSERVATION : mesuré positif trois années sur quatre, mais en recul "
-            "sur la dernière. À dimensionner plus petit que les autres."
+            # REMESURÉ LE 14/08/2026 (voir ETUDE_MOMENTUM_4H_2026-08-14.md). Ce
+            # paragraphe partait CHAQUE MATIN sur le canal public en annonçant
+            # « les deux plus fortes », « deux signaux par jour » et « positif
+            # trois années sur quatre » — trois affirmations devenues fausses le
+            # jour où le moteur est passé à une seule position. Un texte
+            # quotidien est le plus dangereux à laisser périmer : il republie
+            # l'erreur tous les jours.
+            "Ce moteur est EN OBSERVATION : positif 5 trimestres sur 6, mais seulement 43,9 % de "
+            "trades gagnants — il vit de quelques gros gains, pas de la fréquence. À dimensionner "
+            "plus petit que les autres."
         )
         lignes.append("")
 

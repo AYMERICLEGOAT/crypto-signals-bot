@@ -190,13 +190,42 @@ export async function getSignalsCreatedSince(db: SupabaseConfig, sinceIso: strin
  * Les niveaux TP sont là pour permettre le calcul du rendement réel, sorties
  * partielles comprises (voir trackSignalOutcomes::pnlEffectif).
  */
+/**
+ * LA PROJECTION COMPLÈTE D'UN SIGNAL, en un seul endroit.
+ *
+ * TROISIÈME occurrence du même défaut, et c'est pour ça que cette constante
+ * existe. Chaque fois, un appelant a écrit sa propre liste de colonnes et en a
+ * oublié une que le constructeur de message lisait pourtant. PostgREST rend la
+ * ligne amputée, TypeScript la type comme complète, et l'écart ne se voit qu'en
+ * production :
+ *
+ *   1. le rattrapage des clôtures ne demandait ni `id` ni `sent_to_channel` :
+ *      il ne pouvait RIEN republier, sans une ligne d'erreur ;
+ *   2. le briefing VIP ne demandait pas `outcome` : il a publié
+ *      « 4 clôtures / 0 gagnante / 0 perdante » sur le canal payant ;
+ *   3. le rattrapage ne demandait pas `tp1_hit_at`. Le canal public a donc
+ *      publié le 15/08 « ACHAT LINK/USDT — sortie à 9.7311 (+10,8 %) » et
+ *      « sans avoir touché ni l'objectif ni le stop », pendant que le MP du
+ *      même abonné annonçait +9,3 % et « le premier objectif avait été touché
+ *      en cours de route ». Deux chiffres et deux récits contradictoires pour
+ *      un seul trade — et le chiffre PUBLIC était le plus flatteur, parce que
+ *      sans `tp1_hit_at` le calcul ignore les 30 % sortis à TP1.
+ *
+ * Ajouter deux colonnes de plus n'aurait réglé que la troisième. Une projection
+ * unique et partagée règle la famille : ajouter un champ à un message se fait
+ * désormais à un seul endroit.
+ */
+export const PROJECTION_SIGNAL_COMPLET =
+  "id,pair,type,engine,entry_price,stop_loss,take_profit," +
+  "tp1_price,tp2_price,tp3_price,tp1_hit_at,tp2_hit_at,tp3_hit_at," +
+  "outcome,outcome_price,close_reason,created_at,hold_until," +
+  "sent_to_channel,sent_to_standard,trailing_stop_price,breakeven_active,evaluated_at";
+
 export async function getSignalsResolvedSince(db: SupabaseConfig, sinceIso: string): Promise<SignalRecord[]> {
   return selectRows<SignalRecord>(db, "signals", {
     evaluated_at: `gte.${sinceIso}`,
     outcome: "not.is.null",
-    select:
-      "id,pair,type,entry_price,outcome,outcome_price,close_reason," +
-      "tp1_price,tp2_price,tp3_price,tp1_hit_at,tp2_hit_at,tp3_hit_at",
+    select: PROJECTION_SIGNAL_COMPLET,
   });
 }
 
