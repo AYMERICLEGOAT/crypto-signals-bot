@@ -66,6 +66,7 @@ export const ENGINE_BADGE: Record<string, string> = {
   // que le lecteur ait vu un seul chiffre — alors que ce moteur rend neuf fois
   // le carry par jour de capital.
   momentum_4h: "🧪 Momentum 4H",
+  faiblesse_4h: "🔻 Faiblesse 4H",
   cassure_canal: "🚀 Cassure de Canal",
   expansion_volatilite: "🌋 Expansion de Volatilité",
 };
@@ -152,6 +153,13 @@ function buildContext(type: SignalSide, engine?: string | null): string {
   }
   if (engine === "momentum_4h") {
     return `${arrow} Momentum 4H : même principe, mesuré sur des bougies de 4 heures. Ce moteur ne se déclenche QUE quand le marché est baissier — le créneau où les autres se taisent.`;
+  }
+  if (engine === "faiblesse_4h") {
+    return (
+      "🔻 Faiblesse 4H : le miroir du momentum. Là où celui-ci achète les plus fortes, celui-ci VEND À DÉCOUVERT " +
+      "les deux plus faibles du classement. Il ne travaille que quand le marché baisse — c'est le seul moteur du " +
+      "produit qui a la tendance du marché POUR lui au lieu de contre lui."
+    );
   }
   if (engine === "cassure_canal") {
     return `${arrow} Cassure de Canal : le prix vient de franchir son plus haut des 50 derniers jours. On n'anticipe pas la cassure, on attend qu'elle ait eu lieu — c'est toute la différence.`;
@@ -262,6 +270,37 @@ function buildObservationLine(engine?: string | null): string | null {
     "moitié perdent plus de 1 %. Ce moteur vit de quelques gros gains, pas de la fréquence — enchaîner plusieurs " +
     "pertes est son régime NORMAL, pas une panne. Il ne prend qu'une place par jour, avec un dimensionnement plus " +
     "petit que les autres moteurs, et il s'arrête tout seul si les résultats réels démentent la mesure."
+  );
+}
+
+/**
+ * CE QU'UNE VENTE À DÉCOUVERT EXIGE, dit AVANT les niveaux.
+ *
+ * Ce produit n'avait jamais émis autre chose que des achats. Un abonné qui
+ * reçoit « VENTE » pour la première fois doit savoir trois choses, et aucune
+ * n'est optionnelle :
+ *
+ *   1. Il lui faut un compte à terme (perpétuels). C'est UNE jambe avec un
+ *      stop — bien plus accessible que le carry qui en demande deux — mais ce
+ *      n'est pas du spot, et une partie des abonnés ne le fera pas.
+ *   2. Une vente peut théoriquement perdre SANS BORNE : le prix peut monter
+ *      indéfiniment, alors qu'un achat ne peut pas descendre sous zéro. Le
+ *      stop n'est pas un confort, c'est la condition.
+ *   3. Un squeeze franchit un stop en une seule bougie. Le pire trade de la
+ *      mesure a perdu 31,7 % — davantage que la largeur du stop.
+ *
+ * Ces trois points passent AVANT le chiffre de performance, pas après. Un
+ * avertissement placé sous une espérance de +1,10 % ne se lit pas.
+ */
+function buildVenteADecouvertLine(engine?: string | null): string | null {
+  if (engine !== "faiblesse_4h") return null;
+  return (
+    "🔻 *VENTE À DÉCOUVERT — à lire avant d'engager.* Ce signal se joue sur un perpétuel, pas au comptant : " +
+    "il te faut un compte à terme. Contrairement à un achat, une vente peut perdre SANS LIMITE si le prix " +
+    "monte — le stop loss n'est pas une option ici, c'est la condition pour prendre ce trade. Un rachat " +
+    "forcé (squeeze) peut franchir le stop en une seule bougie : la pire position mesurée a perdu 31,7 %, " +
+    "soit davantage que la largeur du stop. Si tu n'es pas à l'aise avec ça, ignore ce signal — les signaux " +
+    "d'achat continuent d'arriver normalement."
   );
 }
 
@@ -378,6 +417,10 @@ export function buildSignalMessage(
   const lines: Array<string | null> = [
     `${emoji} *${label} ${signal.pair}* — ${engineBadge(signal.engine)}${opts.delayNote ? ` _(${opts.delayNote})_` : ""}`,
     buildContext(signal.type, signal.engine),
+    // L'avertissement de vente à découvert passe AVANT les niveaux et avant
+    // tout chiffre de performance. Placé plus bas, il se lit après que le
+    // lecteur a déjà décidé — c'est-à-dire jamais.
+    buildVenteADecouvertLine(signal.engine),
     "",
     `💵 Zone d'entrée : ${prix(signal.entry_price)}`,
     ...(isMultiTp

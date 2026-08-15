@@ -49,8 +49,19 @@ export const FENETRE_MOMENTUM_4H = "août 2024 – août 2026 (730 jours, bougie
  */
 export const DEBIT = {
   favorable: "4,0",
-  defavorable: "2,2",
-  moyenne: "3,2",
+  // LE REGIME BAISSIER PRODUIT DESORMAIS PLUS QUE LE REGIME PORTEUR, et ce
+  // n'est pas une anomalie de calcul : c'est le sens du moteur Faiblesse 4H.
+  //
+  // Il ne travaille QUE quand le filtre est ferme, et il y produit 1,97 signal
+  // par jour a lui seul (mesure du 15/08/2026). Avec le momentum (1,00) et le
+  // carry (1,15), le creux historique du produit — 2,2 signaux par jour —
+  // devient son sommet.
+  //
+  // C'est la reponse au vrai probleme commercial : une fermeture de filtre peut
+  // durer 381 jours, et l'abonne payait pendant ce temps pour un service
+  // presque muet.
+  defavorable: "4,1",
+  moyenne: "4,0",
 } as const;
 
 /**
@@ -151,6 +162,7 @@ export const DEBIT_PAR_MOTEUR = {
   expansion_volatilite: "0,13",
   carry_funding: "1,15",
   momentum_4h: "1,00",
+  faiblesse_4h: "1,97",
 } as const;
 
 /**

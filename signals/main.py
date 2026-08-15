@@ -45,6 +45,7 @@ from relative_strength import detect_relative_strength_signals
 import cassure_expansion
 import carry_engine
 import momentum_4h
+import faiblesse_4h
 import signal_arbiter
 import watchlist
 from confidence import compute_confidence_score
@@ -530,6 +531,23 @@ def run_momentum_4h_engine() -> list:
                 len(candles), len(ouvertes))
     signaux = momentum_4h.detect_momentum_4h_signals(candles, btc, already_open=ouvertes)
     storage.record_heartbeat("momentum_4h")
+
+    # LA JAMBE VENDEUSE, sur les MEMES bougies deja en memoire.
+    #
+    # Ses positions ouvertes sont comptees separement : une paire peut tres
+    # bien etre vendue par ce moteur alors qu'elle n'a jamais ete achetee par
+    # l'autre, et confondre les deux exclusions ferait taire l'un a cause de
+    # l'autre. En revanche une meme paire ne peut pas etre a la fois achetee et
+    # vendue : le verrou de portefeuille en aval s'en charge.
+    if config.ENABLE_FAIBLESSE_4H:
+        ouvertes_vente = storage.pairs_signalled_by_engine(
+            faiblesse_4h.ENGINE_NAME, config.F4H_HOLD_BOUGIES * 4
+        )
+        ventes = faiblesse_4h.detect_faiblesse_4h_signals(
+            candles, btc, already_open=ouvertes_vente | ouvertes
+        )
+        storage.record_heartbeat("faiblesse_4h")
+        signaux = signaux + ventes
     # Les bougies accompagnent le signal jusqu'au générateur de graphiques :
     # elles ne sont disponibles qu'ici, et sans elles aucun signal de ce moteur
     # n'avait d'image (voir _generate_and_upload_chart).
@@ -831,6 +849,15 @@ def run_once(params: dict) -> tuple[int, int]:
         for carry_signal in run_carry_engine():
             candidates.append((carry_signal, None))
 
+    # 🔻 Moteur Faiblesse 4H (voir faiblesse_4h.py) : la jambe VENDEUSE.
+    #
+    # Il partage entierement le chargement de bougies du momentum ci-dessous —
+    # memes 38 paires, memes bougies de 4 h, meme regime. Les recharger serait
+    # payer deux fois quarante appels d'API pour la meme donnee, dans un module
+    # deja limite par CoinGecko a cinq appels par minute.
+    #
+    # C'est pour cette raison qu'il est appele DEPUIS run_momentum_4h_engine,
+    # qui rend desormais les deux familles.
     # ⏱️ Moteur Momentum 4H (voir momentum_4h.py). EN OBSERVATION : positif
     # 3 années sur 4 en marché défavorable, mais en décroissance monotone
     # jusqu'au négatif sur l'année en cours. Livré bridé (top 5) et surveillé

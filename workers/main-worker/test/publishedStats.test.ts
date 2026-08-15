@@ -56,16 +56,30 @@ describe("Cohérence interne des chiffres publiés", () => {
   // convertir, sinon Number() rend NaN et toutes les comparaisons passent.
   const nombre = (s: string) => Number(s.replace(",", ".").replace(/[^0-9.]/g, ""));
 
-  it("le débit défavorable est inférieur au favorable", () => {
-    // Les trois moteurs directionnels sont coupés en régime défavorable : le
-    // débit ne peut pas y être supérieur. Une inversion signalerait une erreur
-    // de report, pas une découverte.
-    expect(nombre(DEBIT.defavorable)).toBeLessThan(nombre(DEBIT.favorable));
+  it("les deux régimes produisent un débit comparable", () => {
+    // CET INVARIANT A ÉTÉ RENVERSÉ LE 15/08/2026, ET C'EST VOULU.
+    //
+    // Il exigeait « défavorable < favorable », au motif que les trois moteurs
+    // directionnels sont coupés quand le filtre se ferme. C'était vrai tant que
+    // le produit était long-only : le régime baissier était forcément le creux.
+    //
+    // Le moteur Faiblesse 4H ne travaille QUE dans ce régime et y produit 1,97
+    // signal par jour à lui seul. Le creux historique du produit (2,2) est
+    // devenu son sommet (4,1). Ce n'est pas une erreur de report — c'était tout
+    // l'objet de l'ajout : une fermeture de filtre peut durer 381 jours, et
+    // l'abonné payait pendant ce temps pour un service presque muet.
+    //
+    // Ce qui reste à vérifier n'est donc plus un ordre mais un ÉCART : si les
+    // deux régimes divergeaient fortement, le produit redeviendrait irrégulier.
+    const ecart = Math.abs(nombre(DEBIT.defavorable) - nombre(DEBIT.favorable));
+    expect(ecart, "les deux régimes ne délivrent plus un service comparable").toBeLessThan(1);
   });
 
-  it("la moyenne tombe entre les deux régimes", () => {
-    expect(nombre(DEBIT.moyenne)).toBeGreaterThan(nombre(DEBIT.defavorable));
-    expect(nombre(DEBIT.moyenne)).toBeLessThan(nombre(DEBIT.favorable));
+  it("la moyenne reste encadrée par les deux régimes", () => {
+    const bas = Math.min(nombre(DEBIT.defavorable), nombre(DEBIT.favorable));
+    const haut = Math.max(nombre(DEBIT.defavorable), nombre(DEBIT.favorable));
+    expect(nombre(DEBIT.moyenne)).toBeGreaterThanOrEqual(bas);
+    expect(nombre(DEBIT.moyenne)).toBeLessThanOrEqual(haut);
   });
 
   it("la moyenne est cohérente avec la part de temps passée dans chaque régime", () => {

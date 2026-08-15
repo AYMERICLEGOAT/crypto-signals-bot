@@ -736,6 +736,46 @@ M4H_MIN_RANKED_PAIRS = 15
 # ---------------------------------------------------------------------------
 M4H_TOP_N = 1
 
+# --- Moteur Faiblesse 4H (voir faiblesse_4h.py) ---
+#
+# LA JAMBE QUI MANQUAIT. Le produit etait long-only dans un marche qui baisse
+# depuis novembre 2025 : le momentum 4H achete les plus fortes en marche
+# baissier, donc contre la derive. Ce moteur-ci VEND les plus faibles, avec la
+# derive pour lui.
+#
+# Mesure du 15/08/2026 dans la forme de PRODUCTION (passage quotidien,
+# exclusion des positions deja tenues, regime defavorable seul, frais comptes,
+# 730 jours de bougies 4 h) :
+#
+#                         trades  esperance  gagnants     p    sans le meilleur
+#     vente top 1           306    +1,100 %   59,8 %   0,000      +1,048 %
+#     vente top 2           612    +0,920 %   58,8 %   0,000      +0,891 %
+#     tirage au sort                +0,164 %
+#     ------------------------------------------------------------------------
+#     achat top 1 (momentum) 306   +0,237 %   44,8 %   0,010      -0,025 %
+#
+# TOP 2 RETENU, ET C'EST UN CHOIX DIFFERENT DE CELUI DU MOMENTUM. Le momentum a
+# ete ramene a top 1 parce que son top 2 s'effondrait sans son meilleur trade
+# (-0,081 %). Ici les DEUX rangs survivent largement a ce test (+1,048 % et
+# +0,891 %) : l'avantage n'est porte par aucun coup isole, et le second rang
+# vaut encore cinq fois l'esperance de la jambe longue. Prendre le volume est
+# donc gratuit en qualite, ce qui n'etait pas le cas a l'achat.
+#
+# RSI 21 et non 42. Mesure sur la meme grille : a l'achat, RSI 42 domine ; a la
+# vente, RSI 21 domine (+1,100 contre +0,882 au top 1). La faiblesse recente se
+# lit sur une fenetre plus courte que la force.
+F4H_RSI_PERIOD = 21          # 21 bougies de 4 h = 3,5 jours
+F4H_HOLD_BOUGIES = 18        # 18 bougies = 3 jours, la duree mesuree
+F4H_SL_ATR_MULT = 4.0        # meme largeur de stop que la jambe longue
+F4H_MIN_RANKED_PAIRS = 15    # en dessous, le classement transversal n'a pas de sens
+F4H_TOP_N = 2
+
+# Interrupteur. Ce moteur introduit la VENTE A DECOUVERT dans un produit qui
+# n'en avait jamais emis : le mettre a False le coupe entierement, sans
+# toucher au reste, si le proprietaire decide que ses abonnes ne doivent pas
+# avoir a ouvrir un compte a terme.
+ENABLE_FAIBLESSE_4H = True
+
 # --- Arbitre de signaux (voir signal_arbiter.py) ---
 #
 # Un juge unique pour tous les moteurs. Sans lui, chaque moteur décide seul :
