@@ -1,7 +1,7 @@
 import { Env } from "../../env";
 import { sendMessage } from "../../telegram";
 import { TREND_FILTER_STATUS } from "./subscribe";
-import { DEBIT, PART_FILTRE_FERME, PART_JOURS_AVEC_SIGNAL, MOMENTUM_4H } from "../../publishedStats";
+import { CARRY_EN_SALVES, DEBIT, PART_FILTRE_FERME, PART_JOURS_AVEC_SIGNAL, MOMENTUM_4H } from "../../publishedStats";
 
 /**
  * Audit#8 : liste centralisée des commandes — 13 commandes existaient sans qu'aucune ne les récapitule.
@@ -63,9 +63,15 @@ export async function handleHelpCommand(env: Env, telegramId: number): Promise<v
       "peut être liquidée si ta marge devient insuffisante, il reste un risque de plateforme, et une " +
       "journée de financement extrême a déjà coûté -19,86 % sur une position.\n\n" +
       "*Le rythme*\n" +
-      `${DEBIT.moyenne} signaux par jour en moyenne : ${DEBIT.favorable} quand le marché est porteur, ` +
+      `${DEBIT.moyenne} signaux par jour EN MOYENNE : ${DEBIT.favorable} quand le marché est porteur, ` +
       `${DEBIT.defavorable} quand il ne l'est pas. ${PART_JOURS_AVEC_SIGNAL} des jours ont au moins un ` +
-      "signal.\n\n" +
+      "signal.\n" +
+      // « En moyenne » n'est pas une figure de style ici : le carry part par
+      // salves. Les 10 signaux jamais émis par ce moteur l'ont TOUS été le
+      // même matin, suivis de trois semaines de silence. Un abonné qui lit un
+      // débit quotidien et ne voit rien pendant trois semaines conclut à une
+      // panne — le dire d'avance coûte une phrase.
+      `⏱️ ${CARRY_EN_SALVES}\n\n` +
       "*Le silence*\n" +
       "Les trois moteurs directionnels sont coupés tant que le Bitcoin reste sous sa moyenne mobile " +
       `200 jours — ${PART_FILTRE_FERME} du temps sur 6 ans, jusqu'à 381 jours d'affilée du 28/12/2021 au ` +

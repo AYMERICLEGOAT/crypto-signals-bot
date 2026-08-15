@@ -1,6 +1,6 @@
 import { Env } from "../../env";
 import { sendMessage } from "../../telegram";
-import { DEBIT, DEBIT_PAR_MOTEUR, MAX_PAR_JOUR, PART_FILTRE_FERME } from "../../publishedStats";
+import { DEBIT, CARRY_EN_SALVES, DEBIT_PAR_MOTEUR, MAX_PAR_JOUR, PART_FILTRE_FERME } from "../../publishedStats";
 
 /**
  * Montre la FORME réelle des signaux du moteur — désormais DEUX formes, pas une.
@@ -86,6 +86,9 @@ export async function handleDemoCommand(env: Env, telegramId: number): Promise<v
       `momentum 4H (${DEBIT_PAR_MOTEUR.momentum_4h}), qui ne travaille que dans ce régime\n` +
       `• jamais plus de ${MAX_PAR_JOUR} par jour au total — 5 directionnels au maximum, plus les carrys, ` +
       "qui ne prennent aucun risque de marché et ne concourent donc pas pour ces places\n\n" +
+      `⏱️ ${CARRY_EN_SALVES}
+
+` +
       "⚠️ *Ce qu'il faut accepter*\n" +
       "Les signaux directionnels réussissent environ une fois sur deux, et leur signal médian PERD " +
       "0,69 % — il y a donc une majorité de perdants. Tout le gain vient d'une minorité de gros gagnants. " +

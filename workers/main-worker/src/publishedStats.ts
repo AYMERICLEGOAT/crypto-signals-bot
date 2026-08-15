@@ -150,5 +150,28 @@ export const DEBIT_PAR_MOTEUR = {
   cassure_canal: "0,55",
   expansion_volatilite: "0,13",
   carry_funding: "1,15",
-  momentum_4h: "2,00",
+  momentum_4h: "1,00",
 } as const;
+
+/**
+ * LE CARRY N'ARRIVE PAS EN FLUX, IL ARRIVE EN SALVES — et l'omettre rendait le
+ * chiffre ci-dessus vrai en moyenne et faux dans le vécu.
+ *
+ * Relevé du 15/08/2026 : les 10 signaux de carry jamais émis l'ont TOUS été le
+ * 06/08 à 06:00. Aucun depuis, et aucun avant le 25/08, date à laquelle la
+ * première position de 21 jours se libère. Sur la période, 10 ÷ 8,5 jours fait
+ * bien 1,18 par jour — mais personne ne vit une moyenne. L'abonné a reçu dix
+ * signaux un matin, puis trois semaines de silence.
+ *
+ * La cause n'est pas un plafond de places (40 disponibles, 10 occupées) : ce
+ * sont les mêmes trois ou quatre noms qui dominent le classement chaque jour,
+ * déjà en position, et rien de nouveau ne franchit la barre.
+ *
+ * Un abonné qui lit « 1,15 par jour » et ne voit rien pendant trois semaines
+ * conclut que le service est en panne. Le dire d'avance coûte une phrase ; le
+ * laisser découvrir coûte un abonnement.
+ */
+export const CARRY_EN_SALVES =
+  "Le carry n'arrive pas au compte-gouttes : il part par salves de plusieurs positions le même jour, " +
+  "puis se tait jusqu'à ce que les précédentes arrivent à échéance (21 jours). Sur la durée la moyenne " +
+  "tient, mais une semaine sans carry est normale.";
