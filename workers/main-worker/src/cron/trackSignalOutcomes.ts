@@ -102,8 +102,28 @@ function joursDepuisEmission(signal: SignalRecord, maintenant = Date.now()): num
  */
 function pctLabel(pct: number): string {
   const signe = pct >= 0 ? "+" : "";
-  return `${signe}${pct.toFixed(1).replace(".", ",")} %`;
+  // DEUX DÉCIMALES SOUS 0,1 %, sinon le nombre se lit « zéro ».
+  //
+  // SOL est sorti à -0,013 % le 16/08/2026 et le canal a publié « -0,0 % » à
+  // côté de l'étiquette « perdant ». Le lecteur voit un zéro et une perte
+  // annoncée : soit le produit ment, soit il ne sait pas compter. Ni l'un ni
+  // l'autre n'est vrai — il manquait une décimale.
+  const decimales = Math.abs(pct) < 0.1 ? 2 : 1;
+  return `${signe}${pct.toFixed(decimales).replace(".", ",")} %`;
 }
+
+/**
+ * Seuil en deçà duquel un résultat n'est ni un gain ni une perte.
+ *
+ * Le produit n'a que deux verdicts en base (contrainte signals_outcome_check :
+ * WIN ou LOSS), et c'est très bien ainsi pour la comptabilité. Mais ANNONCER
+ * « perdant » sur un trade à -0,013 % est faux au sens où le lecteur l'entend :
+ * il n'a rien perdu, il est sorti au même prix.
+ *
+ * 0,1 % est l'ordre de grandeur des frais d'un aller-retour : en dessous, le
+ * résultat est indiscernable du bruit d'exécution.
+ */
+const SEUIL_POINT_MORT_PCT = 0.1;
 
 function formatSubscriberCloseMessage(signal: SignalRecord, pct: number): string {
   const base = `${typeLabel(signal.type)} ${signal.pair} — entrée ${prix(signal.entry_price)}, clôturé à ${prix(signal.outcome_price ?? 0)} (${pctLabel(pct)}).`;
@@ -142,7 +162,11 @@ function formatSubscriberCloseMessage(signal: SignalRecord, pct: number): string
       // était remonté au point mort. Le dire faux ici aurait le même effet que
       // sur le canal public — l'abonné compare les nombres qu'on lui a donnés.
       return [
-        signal.outcome === "WIN" ? `⌛ *Clôturé à l'échéance — en gain*` : `⌛ *Clôturé à l'échéance*`,
+        Math.abs(pct) < SEUIL_POINT_MORT_PCT
+          ? `⌛ *Clôturé à l'échéance — au point mort*`
+          : signal.outcome === "WIN"
+            ? `⌛ *Clôturé à l'échéance — en gain*`
+            : `⌛ *Clôturé à l'échéance*`,
         `${base} ${causeDeCloture(signal)}`,
         "La sortie au bout d'une durée fixe fait partie de la stratégie : c'est ainsi qu'elle a été mesurée.",
       ].join("\n");
@@ -206,7 +230,12 @@ function causeDeCloture(signal: SignalRecord): string {
 function formatPublicCloseMessage(signal: SignalRecord, pct: number, botUsername: string): string {
   const escapedUsername = botUsername.replace(/_/g, "\\_");
   const gagnant = signal.outcome === "WIN";
-  const titre = gagnant ? "✅ *Signal clôturé — gagnant*" : "❌ *Signal clôturé — perdant*";
+  const titre =
+    Math.abs(pct) < SEUIL_POINT_MORT_PCT
+      ? "⚖️ *Signal clôturé — au point mort*"
+      : gagnant
+        ? "✅ *Signal clôturé — gagnant*"
+        : "❌ *Signal clôturé — perdant*";
 
   const niveaux: string[] = [`💵 Entrée : ${prix(signal.entry_price)}`];
   if (signal.stop_loss != null) niveaux.push(`🛑 Stop : ${prix(signal.stop_loss as number)}`);
@@ -480,7 +509,11 @@ async function publierClotureVip(
 
   const gagnant = signal.outcome === "WIN";
   const texte = [
-    gagnant ? "✅ *Position clôturée — en gain*" : "❌ *Position clôturée — en perte*",
+    Math.abs(pct) < SEUIL_POINT_MORT_PCT
+      ? "⚖️ *Position clôturée — au point mort*"
+      : gagnant
+        ? "✅ *Position clôturée — en gain*"
+        : "❌ *Position clôturée — en perte*",
     `${typeLabel(signal.type)} *${signal.pair}* — entrée ${prix(signal.entry_price)}, sortie ${prix(signal.outcome_price ?? 0)} (*${pctLabel(pct)}*)`,
     "",
     causeDeCloture(signal),

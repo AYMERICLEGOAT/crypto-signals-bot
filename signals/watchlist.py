@@ -141,7 +141,8 @@ def construire_message(marche: dict | None, proches: list, carrys: list) -> str:
     if marche and not marche["ouvert"]:
         lignes.append(
             "La force relative est à l'arrêt aujourd'hui. "
-            "Deux moteurs continuent : le carry, et le momentum 4H qui ne travaille que dans ce régime."
+            "Trois moteurs continuent : le carry, le momentum 4H, et la faiblesse 4H — "
+            "les deux derniers ne travaillent QUE dans ce régime."
         )
     elif marche and marche["ouvert"]:
         lignes.append("Le marché est favorable : les signaux d'achat sont actifs.")
@@ -206,6 +207,24 @@ def construire_message(marche: dict | None, proches: list, carrys: list) -> str:
         lignes.append(
             "Il classe les 38 paires entre elles sur des bougies de 4 heures et achète LA plus "
             "forte, tenue 3 jours. Un signal par jour au maximum."
+        )
+        # LA JAMBE VENDEUSE, annoncée le matin comme les autres.
+        #
+        # Elle est nouvelle et elle change la nature de ce que reçoit l'abonné :
+        # une vente à découvert demande un compte à terme et peut perdre sans
+        # borne. La découvrir sans préavis, dans un message de signal, serait le
+        # plus mauvais moment pour l'apprendre.
+        lignes.append("")
+        lignes.append("🔻 FAIBLESSE 4H — le miroir, actif dans le même créneau")
+        lignes.append(
+            "Même classement, sens inverse : il VEND À DÉCOUVERT les deux plus faibles, tenues "
+            "3 jours. C'est le seul moteur qui a la baisse du marché pour lui au lieu de contre lui. "
+            "Mesuré à 58,8 % de trades gagnants, contre 43,9 % pour la jambe acheteuse."
+        )
+        lignes.append(
+            "⚠️ Une vente se joue sur un perpétuel, pas au comptant : il faut un compte à terme, "
+            "et une vente peut perdre sans limite si le prix monte. Chaque signal le rappelle avant "
+            "ses niveaux, et tu peux l'ignorer sans rien perdre du reste."
         )
         lignes.append(
             # REMESURÉ LE 14/08/2026 (voir ETUDE_MOMENTUM_4H_2026-08-14.md). Ce

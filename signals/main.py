@@ -924,17 +924,17 @@ def run_once(params: dict) -> tuple[int, int]:
     failed_inserts = 0
     for signal_dict, enriched in candidates:
         signal_dict["chart_url"] = _generate_and_upload_chart(enriched, signal_dict, now_ms)
-        # Métadonnée interne à la détection (fraîcheur/anti-doublon de la
-        # fenêtre de rattrapage), sans colonne correspondante en base : la
-        # laisser ferait échouer l'insertion entière du signal.
-        signal_dict.pop("candle_ts_ms", None)
-        # Même raison pour les métadonnées du moteur Force Relative : rang dans
-        # le classement, RSI et durée de détention prévue n'ont pas de colonne
-        # en base. Elles sont utiles au débogage et au message envoyé aux
-        # abonnés, mais les laisser ferait échouer l'insertion entière.
-        for key in ("rs_rank", "rs_rsi", "rs_hold_days", "carry_rate_per_day",
-                    "carry_rank", "carry_source", "m4h_rang", "m4h_heures"):
-            signal_dict.pop(key, None)
+        # LES MÉTADONNÉES DE DÉTECTION SONT ÉCARTÉES PAR storage.insert_signal.
+        #
+        # Ce bloc RETIRAIT ici une liste de clés connues — candle_ts_ms,
+        # rs_rank, carry_rank, m4h_rang... Chaque nouveau moteur devait penser
+        # à y ajouter les siennes, et l'oubli ne se voyait qu'en production.
+        #
+        # Il s'est produit le 16/08/2026 : le moteur Faiblesse 4H portait
+        # f4h_rang et f4h_heures, absentes de la liste, et ses DEUX ventes ont
+        # été refusées par PostgREST. Le tri se fait désormais contre le schéma
+        # réel de la table, à la frontière de la base (storage.COLONNES_SIGNALS)
+        # — la métadonnée d'un moteur futur sera écartée toute seule.
         if not storage.insert_signal(signal_dict):
             failed_inserts += 1
 

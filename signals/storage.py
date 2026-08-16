@@ -29,6 +29,35 @@ def get_client() -> Client:
     return _client
 
 
+# Colonnes RÉELLES de la table `signals`, relevées dans information_schema.
+#
+# POURQUOI UNE LISTE BLANCHE PLUTÔT QU'UNE LISTE D'EXCEPTIONS.
+#
+# Le tri se faisait dans main.py, en RETIRANT une liste de clés connues :
+# rs_rank, rs_rsi, carry_rank, m4h_rang, m4h_heures... Chaque nouveau moteur
+# devait penser à y ajouter les siennes, et l'oubli ne se voyait qu'en
+# production.
+#
+# Il s'est produit le 16/08/2026, dès le premier passage du moteur Faiblesse
+# 4H : ses deux ventes portaient `f4h_rang` et `f4h_heures`, absentes de cette
+# liste. PostgREST a répondu « Could not find the 'f4h_heures' column of
+# 'signals' in the schema cache » et les DEUX signaux ont été perdus — les
+# seuls que ce moteur ait jamais produits.
+#
+# Une liste d'exceptions demande de se souvenir ; une liste blanche demande
+# seulement que la base existe. La métadonnée d'un moteur futur sera écartée
+# toute seule, et l'ajout d'une VRAIE colonne reste un geste explicite, ici.
+COLONNES_SIGNALS = {
+    "pair", "type", "entry_price", "stop_loss", "take_profit", "created_at",
+    "sent", "chart_url", "outcome", "outcome_price", "evaluated_at",
+    "sent_to_channel", "close_reason", "last_status_update_at",
+    "sent_to_standard", "confidence_score", "trailing_stop_price",
+    "tp1_price", "tp2_price", "tp3_price", "tp1_hit_at", "tp2_hit_at",
+    "tp3_hit_at", "breakeven_active", "engine", "carry_expected_pct",
+    "carry_realized_pct", "hold_until",
+}
+
+
 def insert_signal(signal: dict) -> bool:
     """
     Insère un signal dans la table `signals`. `sent` démarre à False.
@@ -39,8 +68,19 @@ def insert_signal(signal: dict) -> bool:
     alerte, symptôme identique au "3 jours sans signal" du 29/07 (commit
     c067484) mais côté écriture plutôt que lecture de données. L'appelant
     (main.py) alerte l'admin immédiatement si ceci retourne False.
+
+    Les métadonnées de détection sont écartées ICI, à la frontière de la base :
+    c'est le seul endroit qui connaisse le schéma, donc le seul où la garantie
+    puisse tenir quel que soit l'appelant.
     """
-    payload = {**signal, "sent": False}
+    ignorees = sorted(k for k in signal if k not in COLONNES_SIGNALS)
+    if ignorees:
+        # Journalisé, jamais silencieux : si une VRAIE colonne venait à manquer
+        # de cette liste, elle apparaîtrait ici plutôt que d'être perdue sans
+        # bruit.
+        logger.debug("Métadonnées écartées avant insertion (%s) : %s", signal.get("pair"), ", ".join(ignorees))
+    payload = {k: v for k, v in signal.items() if k in COLONNES_SIGNALS}
+    payload["sent"] = False
     try:
         get_client().table("signals").insert(payload).execute()
         logger.info("Signal enregistré: %s %s @ %s", signal["pair"], signal["type"], signal["entry_price"])
