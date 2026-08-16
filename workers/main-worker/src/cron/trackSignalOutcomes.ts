@@ -584,8 +584,26 @@ async function notifyRecipients(env: Env, telegramIds: number[], text: string): 
   }
 }
 
-/** Fenêtre de rattrapage des clôtures publiques non parties. */
-const JOURS_RATTRAPAGE_CLOTURES = 4;
+/**
+ * Fenêtre de rattrapage des clôtures non parties. VINGT-QUATRE HEURES, pas
+ * quatre jours.
+ *
+ * Elle valait 4 jours, ce qui semblait prudent. Observé en production le
+ * 16/08 : dès que le rattrapage a couvert le canal VIP, il a commencé à y
+ * republier des clôtures vieilles de QUATRE JOURS — « Position clôturée »
+ * annoncé au présent pour un trade fermé le 12/08, dont le briefing quotidien
+ * avait déjà rendu compte deux fois.
+ *
+ * Un rattrapage sert à récupérer un message DIFFÉRÉ, pas à réécrire
+ * l'histoire. Au-delà d'une journée, le moment est passé : republier fait plus
+ * de dégâts que le manque, parce que le lecteur ne peut pas savoir que le
+ * message parle d'hier.
+ *
+ * Vingt-quatre heures couvrent très largement le cas réel — une clôture
+ * refusée par l'espacement repart au cycle suivant, cinq minutes plus tard, et
+ * une clôture nocturne attend au pire huit heures la fin des heures calmes.
+ */
+const JOURS_RATTRAPAGE_CLOTURES = 1;
 
 /**
  * Republie les clôtures que le régulateur avait refusées — et qui, sans ça,
