@@ -495,6 +495,34 @@ async function closeSignal(
  * Aucun contenu n'a été inventé pour remplir : c'est le même événement, envoyé
  * là où il compte le plus.
  */
+/**
+ * Cloture telle qu'elle parait sur le canal PAYANT.
+ *
+ * Extraite de publierClotureVip pour que le RATTRAPAGE puisse la reutiliser.
+ * Tant qu'elle etait en ligne dans l'envoi, le rattrapage ne pouvait pas
+ * republier une cloture VIP manquee — et six l'ont ete entre le 13 et le
+ * 16/08, toutes tombees entre 2 h et 3 h UTC.
+ *
+ * Le texte differe volontairement de celui du canal gratuit : pas de bloc
+ * « voici ce que vous n'avez pas », qui n'a de sens que pour un lecteur qui
+ * ne paie pas.
+ */
+function formatVipCloseMessage(signal: SignalRecord, pct: number): string {
+  const gagnant = signal.outcome === "WIN";
+  return [
+    Math.abs(pct) < SEUIL_POINT_MORT_PCT
+      ? "⚖️ *Position clôturée — au point mort*"
+      : gagnant
+        ? "✅ *Position clôturée — en gain*"
+        : "❌ *Position clôturée — en perte*",
+    `${typeLabel(signal.type)} *${signal.pair}* — entrée ${prix(signal.entry_price)}, sortie ${prix(signal.outcome_price ?? 0)} (*${pctLabel(pct)}*)`,
+    "",
+    causeDeCloture(signal),
+    "",
+    "_Rendement sorties partielles comprises. État du portefeuille suivi, pas une prévision._",
+  ].join("\n");
+}
+
 async function publierClotureVip(
   env: Env,
   db: ReturnType<typeof dbConfig>,
@@ -507,19 +535,7 @@ async function publierClotureVip(
   const verdict = await peutPublier(db, "vip", "resultat");
   if (!verdict.autorise) return;
 
-  const gagnant = signal.outcome === "WIN";
-  const texte = [
-    Math.abs(pct) < SEUIL_POINT_MORT_PCT
-      ? "⚖️ *Position clôturée — au point mort*"
-      : gagnant
-        ? "✅ *Position clôturée — en gain*"
-        : "❌ *Position clôturée — en perte*",
-    `${typeLabel(signal.type)} *${signal.pair}* — entrée ${prix(signal.entry_price)}, sortie ${prix(signal.outcome_price ?? 0)} (*${pctLabel(pct)}*)`,
-    "",
-    causeDeCloture(signal),
-    "",
-    "_Rendement sorties partielles comprises. État du portefeuille suivi, pas une prévision._",
-  ].join("\n");
+  const texte = formatVipCloseMessage(signal, pct);
 
   try {
     await sendMessage(env.TELEGRAM_BOT_TOKEN, Number(env.TELEGRAM_VIP_CHANNEL_ID), texte, { markdown: true });
@@ -594,16 +610,59 @@ const JOURS_RATTRAPAGE_CLOTURES = 4;
  *
  * La reprise se fait sans colonne supplémentaire : un signal clôturé, diffusé
  * au canal, et dépourvu de sa ligne `cloture:<id>` dans `channel_posts` est
- * une clôture manquante. Une seule par passage — le cron repasse toutes les
- * cinq minutes, et l'espacement reste respecté.
+ * une clôture manquante. Une seule par passage et par canal — le cron repasse
+ * toutes les cinq minutes, et l'espacement reste respecté.
+ *
+ * LE MÊME DÉFAUT A ÉTÉ REFAIT LE 15/08, SUR LE CANAL PAYANT.
+ *
+ * En ajoutant la publication des clôtures sur le canal VIP, je lui ai donné la
+ * garde des heures calmes — mais pas le rattrapage, qui ne regardait que
+ * `canal = 'public'`. Résultat, mesuré en base le 16/08 : SIX clôtures
+ * (#32 à #36, #38) publiées sur le canal gratuit et JAMAIS sur le payant,
+ * toutes tombées entre 2 h et 3 h UTC.
+ *
+ * C'est exactement le bug de la clôture #26, reproduit dans le correctif du
+ * bug de la clôture #26. La leçon est structurelle : une garantie écrite pour
+ * un canal doit être écrite POUR LES CANAUX, sinon le prochain canal naît sans
+ * elle. Cette fonction boucle donc sur les deux.
  */
+interface CanalDeCloture {
+  canal: "public" | "vip";
+  chatId: string | undefined;
+  /** Le canal gratuit reçoit les niveaux d'origine ; le payant, un point direct. */
+  format: (signal: SignalRecord, pct: number) => string;
+}
+
 async function republierCloturesManquees(env: Env, db: ReturnType<typeof dbConfig>): Promise<void> {
-  if (!env.TELEGRAM_CHANNEL_ID) return;
   // Même silence nocturne que la clôture elle-même : sans ça, le rattrapage
   // republierait à 4 h du matin ce que la clôture vient de différer pour
   // exactement cette raison.
   if (isQuietHours()) return;
 
+  const canaux: CanalDeCloture[] = [
+    {
+      canal: "public",
+      chatId: env.TELEGRAM_CHANNEL_ID,
+      format: (sig, pct) => formatPublicCloseMessage(sig, pct, env.TELEGRAM_BOT_USERNAME),
+    },
+    {
+      canal: "vip",
+      chatId: env.TELEGRAM_VIP_CHANNEL_ID,
+      format: (sig, pct) => formatVipCloseMessage(sig, pct),
+    },
+  ];
+
+  for (const cible of canaux) {
+    if (!cible.chatId) continue;
+    await rattraperPourCanal(env, db, cible);
+  }
+}
+
+async function rattraperPourCanal(
+  env: Env,
+  db: ReturnType<typeof dbConfig>,
+  cible: CanalDeCloture
+): Promise<void> {
   const depuis = new Date(Date.now() - JOURS_RATTRAPAGE_CLOTURES * 86_400_000).toISOString();
 
   let clotures: SignalRecord[];
@@ -633,7 +692,7 @@ async function republierCloturesManquees(env: Env, db: ReturnType<typeof dbConfi
         limit: "50",
       }),
       selectRows<{ reference: string | null }>(db, "channel_posts", {
-        canal: "eq.public",
+        canal: `eq.${cible.canal}`,
         categorie: "eq.resultat",
         sent_at: `gte.${depuis}`,
         select: "reference",
@@ -641,7 +700,7 @@ async function republierCloturesManquees(env: Env, db: ReturnType<typeof dbConfi
       }),
     ]);
   } catch (err) {
-    console.error("[post-trade] Rattrapage des clôtures impossible :", err);
+    console.error(`[post-trade] Rattrapage des clôtures (${cible.canal}) impossible :`, err);
     return;
   }
 
@@ -649,7 +708,7 @@ async function republierCloturesManquees(env: Env, db: ReturnType<typeof dbConfi
   const manquante = clotures.find((s) => s.sent_to_channel && !dejaPublie.has(`cloture:${s.id}`));
   if (!manquante) return;
 
-  const verdict = await peutPublier(db, "public", "resultat");
+  const verdict = await peutPublier(db, cible.canal, "resultat");
   if (!verdict.autorise) return; // l'espacement n'est pas écoulé : au prochain passage
 
   // pnlEffectif, PAS computePnlPct. C'est la seconde moitié de la
@@ -660,16 +719,13 @@ async function republierCloturesManquees(env: Env, db: ReturnType<typeof dbConfi
   const pct = pnlEffectif(manquante, manquante.outcome_price ?? null);
 
   try {
-    await sendMessage(
-      env.TELEGRAM_BOT_TOKEN,
-      Number(env.TELEGRAM_CHANNEL_ID),
-      formatPublicCloseMessage(manquante, pct, env.TELEGRAM_BOT_USERNAME),
-      { markdown: true }
-    );
-    await enregistrerEnvoi(db, "public", "resultat", `cloture:${manquante.id}`);
-    console.log(`[post-trade] Clôture #${manquante.id} republiée en rattrapage.`);
+    await sendMessage(env.TELEGRAM_BOT_TOKEN, Number(cible.chatId), cible.format(manquante, pct), {
+      markdown: true,
+    });
+    await enregistrerEnvoi(db, cible.canal, "resultat", `cloture:${manquante.id}`);
+    console.log(`[post-trade] Clôture #${manquante.id} republiée en rattrapage (${cible.canal}).`);
   } catch (err) {
-    console.error(`[post-trade] Rattrapage de la clôture #${manquante.id} en échec :`, err);
+    console.error(`[post-trade] Rattrapage de la clôture #${manquante.id} (${cible.canal}) en échec :`, err);
   }
 }
 

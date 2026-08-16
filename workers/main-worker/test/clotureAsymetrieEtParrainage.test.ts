@@ -276,6 +276,90 @@ describe("Une clôture refusée par l'espacement repart au passage suivant", () 
   });
 });
 
+describe("Le rattrapage couvre les DEUX canaux", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  /**
+   * LE MÊME BUG, REFAIT DANS SON PROPRE CORRECTIF.
+   *
+   * Le rattrapage avait été écrit pour sauver la clôture #26, perdue parce
+   * qu'un refus d'espacement valait suppression. En ajoutant ensuite la
+   * publication des clôtures sur le canal PAYANT, je lui ai donné la garde des
+   * heures calmes — mais pas le rattrapage, qui ne regardait que
+   * `canal = 'public'`.
+   *
+   * Mesuré en base le 16/08/2026 : SIX clôtures (#32 à #36, #38) publiées sur
+   * le canal gratuit et JAMAIS sur le payant, toutes tombées entre 2 h et 3 h
+   * UTC. L'abonné qui paie apprenait le résultat de ses propres positions sur
+   * le canal des gens qui ne paient pas — l'inverse exact de ce que
+   * l'abonnement vend.
+   *
+   * La leçon est structurelle : une garantie écrite pour UN canal doit être
+   * écrite POUR LES CANAUX, sinon le prochain canal naît sans elle.
+   */
+  const clotureeNonPubliee = () =>
+    signalExpire({
+      id: 42,
+      pair: "SOL/USDT",
+      outcome: "LOSS",
+      outcome_price: 95,
+      close_reason: "expired",
+      evaluated_at: new Date(Date.now() - 3_600_000).toISOString(),
+    });
+
+  function stubDeuxCanaux(dejaPublie: { public: boolean; vip: boolean }) {
+    const messages: { chatId: string; text: string }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.includes("api.telegram.org")) {
+          const b = JSON.parse(init!.body as string);
+          messages.push({ chatId: String(b.chat_id), text: String(b.text ?? "") });
+          return jsonResponse({ ok: true, result: { message_id: 1 } });
+        }
+        if (url.includes("/signals") && url.includes("outcome=not.is.null")) {
+          return jsonResponse([projeter(clotureeNonPubliee(), url)]);
+        }
+        if (url.includes("/signals")) return jsonResponse([]);
+        if (url.includes("channel_posts")) {
+          const estVip = url.includes("canal=eq.vip");
+          const publie = estVip ? dejaPublie.vip : dejaPublie.public;
+          return jsonResponse(publie ? [{ reference: "cloture:42", sent_at: new Date().toISOString() }] : []);
+        }
+        return jsonResponse([]);
+      })
+    );
+    return messages;
+  }
+
+  it("republie sur le canal PAYANT une clôture qui n'y est jamais partie", async () => {
+    // Le cas réel : la clôture a bien atteint le canal gratuit pendant les
+    // heures ouvrées, mais le canal payant l'a manquée pendant la nuit.
+    const messages = stubDeuxCanaux({ public: true, vip: false });
+    await trackSignalOutcomes({ ...env, TELEGRAM_VIP_CHANNEL_ID: "-100222" } as never);
+    const vip = messages.filter((m) => m.chatId === "-100222");
+    expect(vip.length, "le canal payant n'a pas ete rattrape").toBeGreaterThan(0);
+    expect(vip[0].text).toContain("SOL/USDT");
+  });
+
+  it("ne republie pas sur un canal où la clôture figure déjà", async () => {
+    // Sans cette garantie, chaque passage republierait la même clôture toutes
+    // les cinq minutes — un dégât pire que l'oubli qu'on répare.
+    const messages = stubDeuxCanaux({ public: true, vip: true });
+    await trackSignalOutcomes({ ...env, TELEGRAM_VIP_CHANNEL_ID: "-100222" } as never);
+    expect(messages.filter((m) => m.text.includes("SOL/USDT"))).toHaveLength(0);
+  });
+
+  it("traite les deux canaux INDÉPENDAMMENT", async () => {
+    // Une clôture manquante des deux côtés doit repartir des deux côtés : le
+    // rattrapage d'un canal ne doit pas consommer celui de l'autre.
+    const messages = stubDeuxCanaux({ public: false, vip: false });
+    await trackSignalOutcomes({ ...env, TELEGRAM_VIP_CHANNEL_ID: "-100222" } as never);
+    expect(messages.some((m) => m.chatId === "-100111")).toBe(true);
+    expect(messages.some((m) => m.chatId === "-100222")).toBe(true);
+  });
+});
+
 describe("Les prix de la clôture sont arrondis comme ceux du signal", () => {
   afterEach(() => vi.unstubAllGlobals());
 
