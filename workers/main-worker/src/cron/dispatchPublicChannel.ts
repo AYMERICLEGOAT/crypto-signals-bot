@@ -13,9 +13,10 @@ import { Env, dbConfig } from "../env";
 import { getSignalsDueForPublicChannel, markSentToChannel, SignalRecord } from "../db/signals";
 import { sendMessage, sendPhotoWithText } from "../telegram";
 import { buildSignalMessage, buildCarryShortMessage, buildCarryDetailKeyboard, buildPublicTeaserMessage } from "../signalFormat";
+import { getReleveMoteur } from "../db/releveMoteur";
 import { getHeartbeat } from "../db/systemHeartbeats";
 import { upsertRow } from "../supabaseRest";
-import { isQuietHours } from "../utils/quietHours";
+import { isQuietHours, QUIET_START_UTC, QUIET_END_UTC } from "../utils/quietHours";
 import { peutPublier, enregistrerEnvoi } from "../channelBudget";
 
 const CHANNEL_DELAY_MINUTES = 30;
@@ -37,9 +38,26 @@ function formatDelayNote(signal: SignalRecord): string {
   // siennes, ce qui produisait « (signal différé de 15 h (détecté cette nuit,
   // publié à la réouverture du canal)) » — deux niveaux imbriqués sur la ligne
   // de titre du signal. Un tiret porte la même information sans l'empiler.
-  return minutes < 90
-    ? `signal différé de ${minutes} min`
-    : `signal différé de ${Math.round(minutes / 60)} h — détecté cette nuit, publié à la réouverture du canal`;
+  // « DÉTECTÉ CETTE NUIT » ÉTAIT VRAI, ET NE L'EST PLUS.
+  //
+  // Cette phrase partait dès que le report dépassait 90 minutes. Elle avait du
+  // sens quand les signaux naissaient à 3 h du matin (RS_RUN_HOUR_UTC valait
+  // 1). Le passage quotidien a été déplacé à 8 h UTC le 14/08 : le 17/08, le
+  // canal public a donc annoncé « signal différé de 2 h — détecté cette nuit »
+  // pour APT/USDT, détecté à 10 h 56 du MATIN.
+  //
+  // Un report de deux heures n'est pas une nuit : c'est l'espacement entre
+  // deux publications. La note lit maintenant l'heure RÉELLE de détection au
+  // lieu de la déduire d'une durée — un signal né pendant les heures calmes le
+  // dira, les autres diront simplement leur retard.
+  const heureDetection = new Date(signal.created_at).getUTCHours();
+  const detecteLaNuit = heureDetection >= QUIET_START_UTC || heureDetection < QUIET_END_UTC;
+
+  if (minutes < 90) return `signal différé de ${minutes} min`;
+  const heures = Math.round(minutes / 60);
+  return detecteLaNuit
+    ? `signal différé de ${heures} h — détecté cette nuit, publié à la réouverture du canal`
+    : `signal différé de ${heures} h`;
 }
 
 /**
@@ -65,8 +83,33 @@ async function echantillonHebdoDu(db: ReturnType<typeof dbConfig>): Promise<bool
   return jours >= 7;
 }
 
-function formatPublicChannelMessage(signal: SignalRecord, botUsername: string): string {
-  return buildSignalMessage(signal, { delayNote: formatDelayNote(signal), ctaUsername: botUsername });
+/**
+ * LE CANAL GRATUIT VOYAIT LA PROMESSE SANS LE RELEVÉ.
+ *
+ * L'échantillon hebdomadaire publie le signal COMPLET, y compris la ligne
+ * « Momentum 4H — +1,86 % par signal ». Le message envoyé à l'abonné porte en
+ * plus le relevé réel du moteur depuis sa mise en service — le 17/08/2026,
+ * « -0,39 % sur 16 clôtures ». Le canal public, lui, ne recevait que le premier
+ * des deux.
+ *
+ * C'est exactement l'inverse de ce qu'il faut : la surface d'ACQUISITION est
+ * celle où un chiffre flatteur non contredit fait le plus de dégâts, parce que
+ * c'est là que quelqu'un décide de payer. L'abonné, lui, a déjà payé.
+ *
+ * Le relevé est donc lu et transmis ici aussi. Une lecture par publication
+ * hebdomadaire : le coût est négligeable et la cohérence, totale.
+ */
+async function formatPublicChannelMessage(
+  db: ReturnType<typeof dbConfig>,
+  signal: SignalRecord,
+  botUsername: string
+): Promise<string> {
+  const releveReel = signal.engine === "momentum_4h" ? await getReleveMoteur(db, "momentum_4h") : null;
+  return buildSignalMessage(signal, {
+    delayNote: formatDelayNote(signal),
+    ctaUsername: botUsername,
+    releveReel,
+  });
 }
 
 export async function dispatchPublicChannel(env: Env): Promise<void> {
@@ -110,7 +153,7 @@ export async function dispatchPublicChannel(env: Env): Promise<void> {
     // republié à la clôture.
     const complet = await echantillonHebdoDu(db);
     const text = complet
-      ? `🎁 *Signal offert de la semaine — le format complet*\n\n${formatPublicChannelMessage(signal, env.TELEGRAM_BOT_USERNAME)}`
+      ? `🎁 *Signal offert de la semaine — le format complet*\n\n${await formatPublicChannelMessage(db, signal, env.TELEGRAM_BOT_USERNAME)}`
       : buildPublicTeaserMessage(signal, {
           botUsername: env.TELEGRAM_BOT_USERNAME,
           delayNote: formatDelayNote(signal),

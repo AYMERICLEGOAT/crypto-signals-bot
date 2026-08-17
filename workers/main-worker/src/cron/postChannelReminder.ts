@@ -143,7 +143,7 @@ export async function postChannelReminder(env: Env): Promise<void> {
       // momentum 4H travaillent précisément dans ce régime. Le dire évite la
       // contradiction avec les signaux qui partent le même jour.
       "⏸️ Le Bitcoin est sous sa moyenne 200 jours : la force relative ne prend plus de position.\n" +
-        "Le carry de financement et le momentum 4H, eux, travaillent dans ce régime.\n" +
+        "Le carry de financement, le momentum 4H et la faiblesse 4H, eux, travaillent dans ce régime.\n" +
         `Pour comprendre la méthode et recevoir ce qui sort : @${env.TELEGRAM_BOT_USERNAME}`
     );
     await enregistrerEnvoi(db, "public", "editorial", "rappel-filtre-ferme");

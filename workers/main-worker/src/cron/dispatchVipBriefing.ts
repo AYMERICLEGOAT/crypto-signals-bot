@@ -84,7 +84,7 @@ export async function dispatchVipBriefing(env: Env): Promise<void> {
       ? "🌐 État du marché indisponible en ce moment (sources de prix injoignables)."
       : trend.isClosed
         ? `📉 Filtre de tendance FERMÉ — le Bitcoin est ${Math.abs(trend.gapPct).toFixed(1).replace(".", ",")} % sous sa moyenne 200 jours. ` +
-          "Les trois moteurs directionnels se taisent ; le carry et le momentum 4H travaillent."
+          "Les trois moteurs directionnels se taisent ; le carry, le momentum 4H et la faiblesse 4H travaillent."
         : `📈 Filtre de tendance OUVERT — le Bitcoin est ${trend.gapPct.toFixed(1).replace(".", ",")} % au-dessus de sa moyenne 200 jours. ` +
           "Les moteurs directionnels émettent.";
 

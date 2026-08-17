@@ -7,6 +7,7 @@
  */
 
 import { Env, dbConfig } from "../env";
+import { CloseReason } from "../signalMath";
 import { sendMessage } from "../telegram";
 import { getUsersByIds, setConsecutiveLosses, UserRecord } from "../db/users";
 import { getActiveStrategyParams } from "../db/strategyParams";
@@ -55,7 +56,26 @@ async function buildContextPhrase(env: Env): Promise<string> {
  * clôturé. Met à jour le compteur de pertes consécutives et envoie le
  * message adapté — jamais bloquant pour le reste du cycle (best-effort).
  */
-export async function handleAntiStress(env: Env, recipients: number[], outcome: "WIN" | "LOSS"): Promise<void> {
+export async function handleAntiStress(
+  env: Env,
+  recipients: number[],
+  outcome: "WIN" | "LOSS",
+  /**
+   * Motif RÉEL de la clôture. Sans lui, la célébration mentait.
+   *
+   * Le 17/08/2026, un abonné a reçu « 🎉 Take profit dans la poche ! » pour
+   * ICP/USDT — un signal arrivé à ÉCHÉANCE à +2,8 %, sans jamais toucher son
+   * objectif à 2,3541. Le message de clôture, une seconde plus tôt, disait
+   * pourtant correctement « Clôturé à l'échéance, sans avoir touché ni
+   * l'objectif ni le stop ».
+   *
+   * Deux messages consécutifs qui se contredisent, dont l'un félicite pour
+   * quelque chose qui n'a pas eu lieu. Sur un produit dont l'argument central
+   * est la rigueur de la mesure, c'est exactement le détail qui décrédibilise
+   * tout le reste.
+   */
+  closeReason?: CloseReason
+): Promise<void> {
   if (recipients.length === 0) return;
   const db = dbConfig(env);
 
@@ -76,9 +96,17 @@ export async function handleAntiStress(env: Env, recipients: number[], outcome: 
         .filter((u) => u.consecutive_losses > 0)
         .map((u) => setConsecutiveLosses(db, u.telegram_id, 0).catch((err) => console.error(`[anti-stress] Échec reset pour ${u.telegram_id}:`, err)))
     );
+    // Le texte suit ce qui s'est RÉELLEMENT passé. Un gain arrivé à échéance
+    // n'est pas un take profit, et le dire ainsi contredirait le message de
+    // clôture envoyé une seconde plus tôt.
+    const felicitation =
+      closeReason === "tp_hit"
+        ? "🎉 Take profit dans la poche ! Bien joué, on continue comme ça. 💪"
+        : "✅ Position clôturée en gain. Elle n'a pas touché son objectif — c'est la sortie au temps qui l'a fermée, et elle fait partie de la stratégie. 💪";
+
     await Promise.all(
       payingUsers.map((u) =>
-        sendMessage(env.TELEGRAM_BOT_TOKEN, u.telegram_id, "🎉 Take profit dans la poche ! Bien joué, on continue comme ça. 💪").catch((err) =>
+        sendMessage(env.TELEGRAM_BOT_TOKEN, u.telegram_id, felicitation).catch((err) =>
           console.error(`[anti-stress] Échec célébration pour ${u.telegram_id}:`, err)
         )
       )

@@ -430,7 +430,7 @@ async function closeSignal(
   } else {
     await notifyRecipients(env, recipients, messageCloture);
   }
-  await handleAntiStress(env, recipients, outcome).catch((err) =>
+  await handleAntiStress(env, recipients, outcome, closeReason).catch((err) =>
     console.error(`[post-trade] Échec du mécanisme anti-stress pour le signal #${signal.id}:`, err)
   );
 
