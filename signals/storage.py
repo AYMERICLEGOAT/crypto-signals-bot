@@ -228,6 +228,61 @@ def insert_momentum_alerts(alerts: list) -> None:
         logger.exception("Échec de l'insertion des alertes momentum dans Supabase: %s", payload)
 
 
+#: Priorités du régulateur de canal, copiées de workers/main-worker/src/channelBudget.ts.
+#: Plus le nombre est bas, plus le message est important.
+_PRIORITE_CANAL = {"signal": 10, "resultat": 20, "quotidien": 40, "editorial": 70}
+
+
+def enregistrer_post_canal(canal: str, categorie: str, reference: str) -> None:
+    """
+    Consigne dans `channel_posts` un message publié DEPUIS PYTHON.
+
+    LE RÉGULATEUR DE CANAL NE VOYAIT PAS LA LISTE DU JOUR — le seul message que
+    le projet publie hors du Worker.
+
+    `channelBudget.ts` fait trois choses à partir de cette table : il compte les
+    messages du jour (plafond de 8 sur le canal public), il mesure l'écart avec
+    le précédent (espacement minimal de 20 minutes), et il sert de définition à
+    « le canal s'est-il tu ? » pour le rappel automatique. Les trois lisent
+    `channel_posts`, et la liste du jour n'y écrivait rien.
+
+    Trois conséquences, toutes vérifiées sur le relevé du 17/08/2026 :
+
+      * le canal public a publié 10 messages pour un plafond de 8, parce que le
+        dixième était invisible au compteur ;
+      * rien n'empêchait un message du Worker de tomber à la seconde près
+        derrière la liste — l'horloge d'espacement ne bougeait pas ;
+      * le rappel automatique pouvait repartir en croyant le canal silencieux.
+
+    Ce dernier point est le plus net : l'en-tête de `postChannelReminder.ts`
+    décrit le doublon du 12/08 (« LA LISTE DU JOUR » à 10 h 27, puis le même
+    fait redit à 23 h 30) et annonce l'avoir corrigé en passant par
+    `channel_posts`. La correction couvrait les clôtures et les posts
+    pédagogiques, qui y écrivent — pas la liste du jour, qui est pourtant le
+    premier exemple cité. Le doublon restait donc entièrement possible.
+
+    ON ENREGISTRE, ON NE DEMANDE PAS L'AUTORISATION. La liste du jour part une
+    fois par jour depuis GitHub Actions, sans mécanisme de reprise : la
+    soumettre au plafond risquerait de la perdre pour de bon. L'enregistrement
+    est la moitié utile — il rend le message visible à tout ce qui décide
+    ensuite, sans jamais menacer sa propre livraison.
+
+    Échec non bloquant : le message est déjà parti quand on arrive ici, et
+    perdre une ligne de journal fait au pire publier un message de trop.
+    """
+    try:
+        get_client().table("channel_posts").insert(
+            {
+                "canal": canal,
+                "categorie": categorie,
+                "priorite": _PRIORITE_CANAL.get(categorie, 70),
+                "reference": reference,
+            }
+        ).execute()
+    except Exception:
+        logger.exception("Journalisation impossible dans channel_posts (%s/%s).", canal, categorie)
+
+
 def record_source_health(pairs_with_data: int, total_pairs: int) -> tuple[int, bool]:
     """
     Suivi des pannes totales de source de données (Binance+CoinGecko+

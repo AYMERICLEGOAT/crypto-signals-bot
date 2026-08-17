@@ -16,17 +16,21 @@ const env = {
 } as any;
 
 /** Retour utilisateur du 02/08/2026 : des messages partaient à 2 h du matin. */
-describe("Heures calmes du canal public (23h-7h UTC)", () => {
+describe("Heures calmes du canal public (21h-7h UTC)", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("couvre toute la nuit, bornes comprises, et laisse la journée libre", () => {
     const at = (h: number) => new Date(Date.UTC(2026, 7, 2, h, 30));
-    // Nuit
-    for (const h of [23, 0, 1, 2, 3, 4, 5, 6]) {
+    // Nuit. LA BORNE EST PASSÉE DE 23 H À 21 H UTC le 17/08/2026 : 23 h UTC,
+    // c'est 1 h du matin à Paris en été, et le canal a effectivement notifié
+    // une clôture à 0 h 55. Ce test exigeait auparavant que 22 h UTC — minuit
+    // à Paris — soit un créneau ouvert. Voir test/nuitFrancaise.test.ts, qui
+    // raisonne en heure de Paris plutôt qu'en UTC.
+    for (const h of [21, 22, 23, 0, 1, 2, 3, 4, 5, 6]) {
       expect(isQuietHours(at(h)), `${h}h UTC doit être silencieux`).toBe(true);
     }
     // Journée
-    for (const h of [7, 8, 12, 18, 20, 22]) {
+    for (const h of [7, 8, 12, 18, 20]) {
       expect(isQuietHours(at(h)), `${h}h UTC doit être autorisé`).toBe(false);
     }
   });
@@ -151,13 +155,21 @@ describe("Le rappel de canal ne double pas le contenu existant", () => {
     // Le même fait, deux fois le même jour, la seconde en moins précis. Le
     // filtre est fermé depuis novembre 2025 : ce doublon se répétait TOUS LES
     // JOURS.
+    //
+    // CE TEST A VALIDÉ LE GARDE-FOU CONTRE UNE LIGNE QUI N'EXISTAIT PAS. Il
+    // simulait une entrée `channel_posts` pour la liste du jour — mais la
+    // liste du jour est publiée depuis Python et n'écrivait rien dans cette
+    // table. Le garde-fou était donc correct, sa donnée d'entrée absente, et
+    // le doublon décrit ci-dessus restait entièrement possible en production.
+    // `signals/watchlist.py` journalise depuis le 17/08/2026 ; la référence
+    // ci-dessous est celle qu'il écrit réellement.
     vi.setSystemTime(new Date(Date.UTC(2026, 7, 2, 12, 0)));
     let sends = 0;
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
         if (url.includes("system_heartbeats")) return jsonResponse([]);
-        if (url.includes("channel_posts")) return jsonResponse([{ reference: "watchlist" }]);
+        if (url.includes("channel_posts")) return jsonResponse([{ reference: "liste-du-jour" }]);
         if (url.includes("api.telegram.org")) {
           sends++;
           return jsonResponse({ ok: true, result: {} });

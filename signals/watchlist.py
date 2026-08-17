@@ -36,6 +36,7 @@ from datetime import datetime, timezone
 import requests
 
 import config
+import storage
 
 logger = logging.getLogger(__name__)
 
@@ -273,6 +274,12 @@ def publier(message: str) -> bool:
             logger.error("Échec de publication de la liste du jour : %s %s", resp.status_code, resp.text[:300])
             return False
         logger.info("Liste du jour publiée sur le canal (%d caractères).", len(message))
+        # Le régulateur de canal ne connaît que ce qui est écrit dans
+        # `channel_posts` : plafond quotidien, espacement, et « le canal
+        # s'est-il tu ? ». Sans cette ligne, la liste du jour reste le seul
+        # message du produit qu'aucune de ces trois règles ne voit passer (voir
+        # storage.enregistrer_post_canal pour le détail de ce que ça a coûté).
+        storage.enregistrer_post_canal("public", "quotidien", "liste-du-jour")
         return True
     except Exception:
         logger.exception("Échec de l'envoi de la liste du jour.")
