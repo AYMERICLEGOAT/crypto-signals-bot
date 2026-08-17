@@ -62,6 +62,18 @@ const MOTEURS = [
   "cassure_canal",
   "expansion_volatilite",
   "momentum_4h",
+  // AJOUTÉ LE 16/08/2026, ET L'OUBLI ÉTAIT LE VRAI RISQUE.
+  //
+  // Ce fichier vérifie que TOUT message du produit peut être délivré. Un
+  // moteur absent de cette liste n'est simplement pas vérifié : ses messages
+  // peuvent contenir un délimiteur non apparié ou dépasser la limite, et rien
+  // ne le dira avant que Telegram refuse en production.
+  //
+  // La faiblesse 4H porte le message le plus LONG du produit — contexte,
+  // avertissement de vente à découvert, dimensionnement, réserve — donc celui
+  // qui approche le plus la limite de 4096 et dépasse largement les 1024 d'une
+  // légende de photo.
+  "faiblesse_4h",
   "carry_funding",
   "high_confidence",
   "moteur_inconnu",

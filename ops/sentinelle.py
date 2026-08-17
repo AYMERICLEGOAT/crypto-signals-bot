@@ -157,7 +157,11 @@ def c_generation(hb: dict) -> list[Constat]:
 def c_moteurs(hb: dict) -> list[Constat]:
     """Chaque moteur laisse un battement quotidien, même quand il décide de se taire."""
     constats = []
-    for moteur in ("relative_strength", "carry_funding", "momentum_4h"):
+    # faiblesse_4h ajouté le 16/08/2026, en même temps que le moteur lui-même.
+    # Un moteur absent de cette liste n'est pas surveillé : il peut cesser de
+    # tourner sans que rien ne le dise. C'est exactement ce qui est arrivé au
+    # bilan de sélectivité, muet 42 h avant qu'un contrôle ne le remonte.
+    for moteur in ("relative_strength", "carry_funding", "momentum_4h", "faiblesse_4h"):
         h = heures_depuis(hb.get(moteur))
         if h > 30:
             constats.append(

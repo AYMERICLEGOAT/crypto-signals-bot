@@ -585,11 +585,34 @@ export function buildPublicTeaserMessage(
     ? Math.round((new Date(signal.hold_until).getTime() - new Date(signal.created_at).getTime()) / 86400000)
     : null;
 
+  // LA DIRECTION DANS LE TITRE, pas seulement dans le paragraphe.
+  //
+  // Le titre disait « Nouveau signal — SAND/USDT » quel que soit le sens. Sur
+  // un canal qui n'a publié que des ACHATS depuis sa création, un lecteur
+  // pressé lit « signal » et comprend « acheter ». Le mot VENTE doit être là
+  // où l'œil se pose en premier.
+  const sens = signal.type === "SELL" ? " — VENTE À DÉCOUVERT" : "";
+
   const lines: Array<string | null> = [
-    `${emoji} *Nouveau signal — ${signal.pair}*`,
+    `${emoji} *Nouveau signal — ${signal.pair}*${sens}`,
     `${engineBadge(signal.engine)}${opts.delayNote ? ` _(${opts.delayNote})_` : ""}`,
     "",
     buildContext(signal.type, signal.engine),
+    // L'AVERTISSEMENT EXISTE AUSSI ICI, EN COURT.
+    //
+    // Le teaser retient les niveaux : personne ne peut agir dessus, donc le
+    // bloc complet du message d'abonné y serait disproportionné. Mais c'est la
+    // surface d'ACQUISITION — quelqu'un lit ce message et s'abonne pour
+    // recevoir ce signal. Découvrir APRÈS avoir payé qu'il faut un compte à
+    // terme et qu'une vente peut perdre sans limite, c'est la surprise qui
+    // produit un remboursement et une mauvaise réputation.
+    //
+    // Une ligne suffit à ce que la décision d'abonnement soit informée ; le
+    // détail complet accompagne le signal lui-même.
+    signal.type === "SELL"
+      ? "⚠️ Vente à découvert : se joue sur un perpétuel (compte à terme requis), et une vente peut perdre " +
+        "sans limite si le prix monte. Le signal complet détaille le risque avant ses niveaux."
+      : null,
     "",
     jours ? `⏳ Durée prévue : ${jours} jours` : null,
     "🔒 Entrée, stop et objectifs : réservés aux abonnés.",
