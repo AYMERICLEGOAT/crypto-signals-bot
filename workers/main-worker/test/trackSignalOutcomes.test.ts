@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { trackSignalOutcomes } from "../src/cron/trackSignalOutcomes";
 
 function jsonResponse(body: unknown) {
@@ -13,6 +13,27 @@ const env = {
   TELEGRAM_BOT_USERNAME: "ProVIPSignals_bot",
 } as any;
 
+/**
+ * L'HORLOGE EST FIGEE, ET C'EST LE SUJET DE CE BLOC.
+ *
+ * Ce fichier ne figeait rien : chaque date etait relative a `Date.now()` reel,
+ * et la publication d'une cloture sur le canal public est soumise aux heures
+ * calmes (src/utils/quietHours.ts). Les assertions sur `publicText` dependaient
+ * donc de l'HEURE A LAQUELLE LA CI SE DECLENCHAIT.
+ *
+ * Le 18/08/2026 a 06 h 27 UTC, la CI est passee au rouge sur deux assertions
+ * — « expected '' to contain "Objectif atteint" » — alors que la meme suite
+ * etait verte en local une heure plus tot. Rien n'avait change dans le code
+ * teste : seule l'heure du jour avait change. Les envois en message prive, eux,
+ * ne sont pas soumis aux heures calmes, ce qui explique que seules les
+ * assertions portant sur le canal tombaient — le test avait l'air a moitie bon.
+ *
+ * Un test qui echoue selon l'heure use la seule chose qui rend une CI utile :
+ * la certitude que le rouge signifie une regression. Midi UTC est en dehors de
+ * la fenetre de silence toute l'annee, ete comme hiver.
+ */
+const MAINTENANT = new Date(Date.UTC(2026, 7, 18, 12, 0, 0));
+
 const recentSignal = {
   id: 1,
   pair: "BTC/USDT",
@@ -20,7 +41,7 @@ const recentSignal = {
   entry_price: 100,
   stop_loss: 95,
   take_profit: 110,
-  created_at: new Date().toISOString(),
+  created_at: MAINTENANT.toISOString(),
   sent: true,
   chart_url: null,
   sent_to_channel: true,
@@ -31,7 +52,11 @@ const recentSignal = {
 };
 
 describe("trackSignalOutcomes", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  beforeEach(() => vi.setSystemTime(MAINTENANT));
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
 
   it("clôture en WIN quand le take profit est atteint, notifie les destinataires et célèbre publiquement", async () => {
     let closedPatch: any = null;
@@ -663,7 +688,11 @@ describe("trackSignalOutcomes", () => {
 });
 
 describe("parrainage dans les célébrations", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  beforeEach(() => vi.setSystemTime(MAINTENANT));
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
 
   // On demandait à un abonné qui vient de gagner de faire la promotion du
   // produit, et on ne lui en rendait rien : le texte partageable ne portait
