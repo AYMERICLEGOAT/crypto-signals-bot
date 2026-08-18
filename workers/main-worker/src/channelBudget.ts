@@ -73,6 +73,38 @@ const PRIORITE: Record<Categorie, number> = {
 const INCONTOURNABLES: Categorie[] = ["signal", "resultat"];
 
 /**
+ * PLACES RÉSERVÉES AUX RENDEZ-VOUS QUOTIDIENS, que le remplissage ne peut pas
+ * prendre.
+ *
+ * La règle 3 en tête de ce module — « quand la place manque, un signal passe
+ * avant une anecdote » — n'existait qu'en commentaire. `PRIORITE` était écrit
+ * dans une colonne et n'était JAMAIS relu pour décider : `peutPublier` ne
+ * comparait que des plafonds. Le classement était donc une intention, pas un
+ * mécanisme.
+ *
+ * Ce que ça a coûté, mesuré sur `channel_posts` :
+ *
+ *     08-14   8 messages (7 incontournables + 1 éditorial)   bilan NON parti
+ *     08-17   8 messages (6 incontournables + 2 éditoriaux)  bilan NON parti
+ *     les autres jours, 6 ou 7 messages                      bilan parti
+ *
+ * Le 17/08 en heure UTC : sept messages avant 18 h, dont un post pédagogique et
+ * un rappel de canal. Les deux sont du remplissage, les deux sont partis, et le
+ * bilan de sélectivité — un rendez-vous quotidien annoncé aux lecteurs — s'est
+ * vu refuser la huitième place. C'est le scénario que la règle 3 décrit mot pour
+ * mot, arrivé faute d'être implémenté.
+ *
+ * Le défaut se voit d'autant moins qu'il frappe LES JOURS OÙ TOUT VA BIEN :
+ * plus la stratégie émet, plus le canal se remplit, et moins il peut expliquer
+ * ce qu'il fait. La sentinelle l'a signalé comme « canal muet depuis 41 h »,
+ * ce qui est le symptôme et pas la cause.
+ *
+ * Deux places suffisent : la liste du jour et le bilan de sélectivité sont les
+ * seuls rendez-vous quotidiens du canal public.
+ */
+const PLACES_RESERVEES_AUX_RENDEZ_VOUS = 2;
+
+/**
  * Réglages par canal.
  *
  * Le canal PUBLIC est vu par des gens qui ne paient rien et n'ont rien demandé :
@@ -160,6 +192,18 @@ export async function peutPublier(db: SupabaseConfig, canal: Canal, categorie: C
     const editoriaux = posts.filter((p) => p.categorie === "editorial").length;
     if (editoriaux >= reglages.editorialMax) {
       return { autorise: false, motif: `quota éditorial atteint (${editoriaux}/${reglages.editorialMax})` };
+    }
+
+    // Le remplissage s'arrête AVANT le plafond, pour que les rendez-vous
+    // quotidiens trouvent encore de la place en fin de journée. Sans cette
+    // marge, une anecdote publiée à midi coûte le bilan du soir — et c'est
+    // exactement ce qui s'est produit les 14 et 17/08.
+    const plafondEditorial = reglages.plafondQuotidien - PLACES_RESERVEES_AUX_RENDEZ_VOUS;
+    if (posts.length >= plafondEditorial) {
+      return {
+        autorise: false,
+        motif: `places réservées aux rendez-vous quotidiens (${posts.length}/${plafondEditorial})`,
+      };
     }
   }
 
