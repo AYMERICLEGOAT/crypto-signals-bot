@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="google-site-verification" content="iwkjLubh4IiT0MuD5EGIiy8KniPxQ6KivFdZA7frUdg" />
+  <meta charset="UTF-8">
+  <title>Crypto Signals for 08/19/2026 — Signaux Crypto Gratuits</title>
+  <meta name="description" content="Free analysis of 5 crypto signals (STX/USDT, SUI/USDT, POL/USDT, APT/USDT, FET/USDT) for 08/19/2026, from five engines measured over 6 years: relative strength, channel breakout, volatility expansion and funding carry. Real track record included.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://crypto-signals-bot-site.signalytics.workers.dev/en/signals/2026-08-19.html">
+  <link rel="alternate" hreflang="en" href="https://crypto-signals-bot-site.signalytics.workers.dev/en/signals/2026-08-19.html">
+  <link rel="alternate" hreflang="fr" href="https://crypto-signals-bot-site.signalytics.workers.dev/signaux/2026-08-19.html">
+  <link rel="alternate" hreflang="x-default" href="https://crypto-signals-bot-site.signalytics.workers.dev/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Crypto Signals for 08/19/2026 — Signaux Crypto Gratuits">
+  <meta property="og:description" content="Free analysis of 5 crypto signals (STX/USDT, SUI/USDT, POL/USDT, APT/USDT, FET/USDT) for 08/19/2026, from five engines measured over 6 years: relative strength, channel breakout, volatility expansion and funding carry. Real track record included.">
+  <meta property="og:url" content="https://crypto-signals-bot-site.signalytics.workers.dev/en/signals/2026-08-19.html">
+  <style>
+  :root {
+    /* Fonds, du plus profond au plus proche. La carte n'est pas plus claire
+       « pour faire joli » : c'est ce léger écart qui permet de voir où un bloc
+       commence et finit sans avoir à tracer une bordure partout. */
+    --bg:        #080b12;
+    --bg-soft:   #0f141f;
+    --bg-card:   #141a27;
+    --bg-raised: #1b2231;
+    --border:    #232c3d;
+    --border-lit:#2f3b52;
+
+    --text:      #e8edf7;
+    --text-dim:  #9aa6bd;
+    --text-faint:#6b7689;
+
+    /* Bleu : liens, boutons, tout ce qui se clique. */
+    --accent:      #5b9dff;
+    --accent-hi:   #7fb4ff;
+    --accent-deep: #1b3a72;
+    --accent-glow: rgba(91, 157, 255, 0.16);
+
+    /* Or : les chiffres qui portent la preuve. Jamais un lien, jamais un bouton. */
+    --gold:      #f2b53c;
+    --gold-soft: rgba(242, 181, 60, 0.12);
+
+    /* Vert et rouge : RÉSULTATS RÉELS uniquement. Aucun usage décoratif. */
+    --win:  #2ecc71;
+    --loss: #f0574d;
+
+    --radius:    16px;
+    --radius-sm: 10px;
+    --shadow:    0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+    --shadow-lg: 0 2px 4px rgba(0,0,0,.4), 0 24px 48px -20px rgba(0,0,0,.75);
+
+    --max:  1080px;
+    --text-max: 68ch;
+
+    color-scheme: dark;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    padding: 0 0 80px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  /* Une seule gouttière, définie ici, respectée partout : c'est ce qui fait
+     que les blocs s'alignent verticalement au lieu de flotter chacun de son
+     côté. */
+  header, section, .cta, .backtest, footer, .disclaimer,
+  .lang-switch, .breadcrumb, .honesty-banner, .guide-body, .glossary {
+    max-width: var(--max);
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  /* ---- Titres ------------------------------------------------------------ */
+  h1, h2, h3, h4 {
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin: 0 0 12px;
+    font-weight: 700;
+  }
+  h1 { font-size: 2rem; letter-spacing: -0.035em; }
+  h2 {
+    font-size: 1.5rem;
+    margin-top: 8px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  h3 { font-size: 1.125rem; color: var(--text); }
+  h4 { font-size: 1rem; color: var(--text-dim); font-weight: 600; }
+
+  p { margin: 0 0 16px; max-width: var(--text-max); }
+  section { margin-bottom: 56px; }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-hi); text-decoration: underline; }
+  strong, b { color: var(--text); font-weight: 650; }
+
+  ul, ol { padding-left: 22px; max-width: var(--text-max); }
+  li { margin-bottom: 8px; }
+
+  code, .mono {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.92em;
+    background: var(--bg-raised);
+    padding: 2px 6px;
+    border-radius: 5px;
+  }
+
+  /* ---- HERO -------------------------------------------------------------- */
+  /* La seule zone du site qui s'autorise un dégradé. Elle a cinq secondes pour
+     dire ce que fait le produit et pourquoi on peut le croire ; tout le reste
+     de la page suppose que ces cinq secondes ont réussi. */
+  .hero {
+    position: relative;
+    padding-top: 56px;
+    padding-bottom: 48px;
+    margin-bottom: 48px;
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    top: -220px; left: 50%;
+    width: 900px; height: 520px;
+    transform: translateX(-50%);
+    background: radial-gradient(ellipse at center, var(--accent-glow) 0%, transparent 68%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .hero > * { position: relative; z-index: 1; }
+
+  .hero h1 {
+    font-size: clamp(2rem, 7vw, 3.25rem);
+    margin-bottom: 20px;
+    max-width: 18ch;
+  }
+  .hero h1 .hl {
+    background: linear-gradient(100deg, var(--accent-hi), var(--gold));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .hero-sub {
+    font-size: 1.0625rem;
+    color: var(--text-dim);
+    max-width: 56ch;
+    margin-bottom: 28px;
+  }
+
+  /* Pastille d'état : le seul élément du hero qui change tout seul. Elle dit
+     ce que fait le moteur MAINTENANT, ce qu'aucune promesse ne remplace. */
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px 6px 12px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border-lit);
+    border-radius: 999px;
+    background: var(--bg-card);
+    font-size: 0.8125rem;
+    color: var(--text-dim);
+    max-width: 100%;
+  }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--win);
+    flex: 0 0 auto;
+    box-shadow: 0 0 0 3px rgba(46, 204, 113, .18);
+  }
+  .status-pill.is-closed .status-dot {
+    background: var(--gold);
+    box-shadow: 0 0 0 3px var(--gold-soft);
+  }
+
+  /* ---- Preuve chiffrée du hero ------------------------------------------- */
+  .proof {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin: 32px 0 0;
+    padding: 0;
+    list-style: none;
+    max-width: 100%;
+  }
+  .proof li {
+    margin: 0;
+    padding: 16px 18px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .proof b {
+    display: block;
+    font-size: 1.625rem;
+    line-height: 1.1;
+    color: var(--gold);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+  }
+  .proof span {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.8125rem;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+
+  /* ---- Boutons ----------------------------------------------------------- */
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 26px;
+    border-radius: 999px;
+    font-weight: 650;
+    font-size: 1rem;
+    text-decoration: none;
+    border: 1px solid transparent;
+    transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+    /* 48 px de haut : la cible minimale confortable au pouce. */
+    min-height: 48px;
+  }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); }
+
+  .btn-main, .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #3f7fe6);
+    color: #fff;
+    box-shadow: 0 4px 16px -4px rgba(91, 157, 255, .55);
+  }
+  .btn-main:hover, .btn-primary:hover {
+    color: #fff;
+    box-shadow: 0 8px 24px -6px rgba(91, 157, 255, .7);
+  }
+  .btn-ghost {
+    background: var(--bg-card);
+    border-color: var(--border-lit);
+    color: var(--text);
+  }
+  .btn-ghost:hover { background: var(--bg-raised); color: var(--text); }
+
+  .btn-note {
+    font-size: 0.8125rem;
+    color: var(--text-faint);
+    margin-top: 14px;
+  }
+
+  /* ---- Étapes « comment ça marche » -------------------------------------- */
+  .steps {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 0;
+    margin: 24px 0 0;
+    list-style: none;
+    counter-reset: step;
+  }
+  .steps li {
+    position: relative;
+    margin: 0;
+    padding: 22px 22px 22px 68px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    counter-increment: step;
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 22px; top: 22px;
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: var(--accent-deep);
+    color: var(--accent-hi);
+    font-size: 0.9375rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .steps h3 { margin: 0 0 6px; font-size: 1.0625rem; }
+  .steps p  { margin: 0; color: var(--text-dim); font-size: 0.9375rem; }
+
+  /* ---- Cartes de signal --------------------------------------------------- */
+  .signal-card, .backtest, .glossary, .related, .guide-cta {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .signal-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .signal-pair { font-size: 1.1875rem; font-weight: 700; letter-spacing: -0.02em; }
+
+  .badge {
+    display: inline-block;
+    padding: 4px 11px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .badge.buy   { background: rgba(46,204,113,.14);  color: var(--win);   border: 1px solid rgba(46,204,113,.3); }
+  .badge.sell  { background: rgba(240,87,77,.14);   color: var(--loss);  border: 1px solid rgba(240,87,77,.3); }
+  .badge.carry { background: var(--gold-soft);      color: var(--gold);  border: 1px solid rgba(242,181,60,.3); }
+
+  .prices, .legs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin: 14px 0;
+  }
+  /* Le HTML est `<span>Libellé<b>valeur</b></span>` : le libellé est un nœud de
+     texte nu, impossible à cibler directement. On style donc le conteneur
+     COMME un libellé (petit, gris, capitales), et le <b> reprend la main pour
+     la valeur. Sans cette bascule, les deux se collaient — « Entrée0.089100 ». */
+  .price-line, .leg, .prices > span, .legs > span, .legs > li {
+    display: block;
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--text-faint);
+  }
+  .price-line b, .leg b, .prices > span b, .legs > span b {
+    display: block;
+    margin-top: 4px;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--text);
+    text-transform: none;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Les deux jambes d'un carry sont une liste, pas une grille de valeurs. */
+  ul.carry-legs {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 14px;
+    display: grid;
+    gap: 8px;
+  }
+  ul.carry-legs li {
+    margin: 0;
+    padding: 11px 14px;
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.9375rem;
+  }
+  .signal-chart { width: 100%; height: auto; border-radius: var(--radius-sm); margin-top: 14px; }
+
+  .carry-neutral {
+    background: var(--gold-soft);
+    border-left: 3px solid var(--gold);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    padding: 12px 16px;
+    margin: 0 0 14px;
+    font-size: 0.9375rem;
+  }
+  .carry-legs-heading, .carry-caveats-heading, .sub-heading {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--text-faint);
+    font-weight: 700;
+    margin: 18px 0 8px;
+  }
+  .carry-caveats { font-size: 0.9375rem; color: var(--text-dim); }
+
+  /* ---- Chiffres de performance -------------------------------------------- */
+  .perf-stats, .kpis, .stats-grid, .archive-stats, .family-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 12px;
+    margin: 20px 0;
+  }
+  .perf-stat, .kpi, .stat-box, .backtest-stat, .family {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 18px 16px;
+    text-align: center;
+    font-size: 0.8125rem;
+    color: var(--text-dim);
+    line-height: 1.35;
+  }
+  .perf-stat b, .kpi b, .stat-box b, .backtest-stat b, .family b {
+    display: block;
+    font-size: 1.5rem;
+    line-height: 1.15;
+    color: var(--gold);
+    margin-bottom: 5px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .gold { color: var(--gold); }
+
+  /* ---- Tableaux ------------------------------------------------------------ */
+  /* Tout tableau défile DANS son conteneur. Sans cela, un tableau un peu large
+     fait défiler la page entière de côté sur mobile — le défaut le plus visible
+     et le plus banal d'un site fait au clavier sur grand écran. */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 18px 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9375rem;
+    min-width: 320px;
+  }
+  th, td {
+    padding: 11px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--text-faint);
+    font-weight: 700;
+    background: var(--bg-soft);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  .recent { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+  .outcome-win  { color: var(--win);  font-weight: 700; }
+  .outcome-loss { color: var(--loss); font-weight: 700; }
+
+  /* ---- Témoignages --------------------------------------------------------- */
+  blockquote {
+    margin: 0 0 14px;
+    padding: 20px 22px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+  }
+  blockquote p { margin: 0; font-size: 1rem; }
+  blockquote cite {
+    display: block;
+    margin-top: 10px;
+    font-style: normal;
+    font-size: 0.8125rem;
+    color: var(--text-faint);
+  }
+
+  /* ---- FAQ ----------------------------------------------------------------- */
+  /* <details> natif : ouverture sans une ligne de JavaScript, accessible au
+     clavier, et fonctionnel même si tout le reste échoue à charger. */
+  details.qa {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  details.qa summary {
+    padding: 16px 46px 16px 20px;
+    cursor: pointer;
+    font-weight: 620;
+    position: relative;
+    list-style: none;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+  }
+  details.qa summary::-webkit-details-marker { display: none; }
+  details.qa summary::after {
+    content: "+";
+    position: absolute;
+    right: 20px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.25rem;
+    color: var(--text-faint);
+    transition: transform .2s ease;
+  }
+  details.qa[open] summary::after { content: "\2212"; }
+  details.qa[open] summary { border-bottom: 1px solid var(--border); }
+  details.qa .qa-body { padding: 16px 20px 4px; color: var(--text-dim); }
+  details.qa .qa-body p:last-child { margin-bottom: 12px; }
+
+  /* ---- Bloc d'appel final --------------------------------------------------- */
+  .cta {
+    text-align: center;
+    padding-top: 44px;
+    padding-bottom: 44px;
+    margin-top: 8px;
+  }
+  .cta-inner {
+    background: linear-gradient(160deg, var(--bg-raised), var(--bg-card));
+    border: 1px solid var(--border-lit);
+    border-radius: 22px;
+    padding: 40px 24px;
+    box-shadow: var(--shadow-lg);
+  }
+  .cta h2 { border: none; padding: 0; margin-bottom: 12px; font-size: 1.625rem; }
+  .cta p { margin-left: auto; margin-right: auto; color: var(--text-dim); }
+  .cta .actions { justify-content: center; }
+
+  /* ---- Bandeaux d'information ------------------------------------------------ */
+  .honesty-banner, .filter-closed, .warn, .risk {
+    background: var(--gold-soft);
+    border: 1px solid rgba(242,181,60,.25);
+    border-left: 3px solid var(--gold);
+    border-radius: var(--radius-sm);
+    padding: 16px 18px;
+    margin: 20px auto;
+    font-size: 0.9375rem;
+  }
+  .honesty-banner p:last-child, .warn p:last-child, .risk p:last-child { margin-bottom: 0; }
+
+  .note, .note-left, .signals-note, .backtest-caveat, .perf-secured,
+  .guide-disclaimer, .asof, .measured {
+    font-size: 0.875rem;
+    color: var(--text-faint);
+    line-height: 1.55;
+  }
+  .lead { font-size: 1.0625rem; color: var(--text-dim); max-width: 60ch; }
+  .lead-sub { color: var(--text-dim); }
+  .subtitle { color: var(--text-dim); font-size: 1.0625rem; max-width: 60ch; }
+
+  .disclaimer {
+    font-size: 0.8125rem;
+    color: var(--text-faint);
+    border-top: 1px solid var(--border);
+    padding-top: 22px;
+    margin-top: 40px;
+  }
+
+  .breadcrumb, .lang-switch { font-size: 0.8125rem; color: var(--text-faint); padding-top: 18px; }
+  .breadcrumb a, .lang-switch a { color: var(--text-dim); }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding-top: 26px;
+    margin-top: 40px;
+    font-size: 0.8125rem;
+    color: var(--text-faint);
+  }
+  footer a { color: var(--text-dim); }
+  footer p { max-width: none; }
+
+  /* ---- Archives ------------------------------------------------------------- */
+  .archive-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+  }
+  .archive-pair { font-weight: 650; }
+  .archive-info, .archive-detail, .archive-side { color: var(--text-dim); font-size: 0.875rem; }
+  .archive-outcome { margin-left: auto; font-weight: 700; }
+  .archive-svg { width: 100%; height: auto; }
+
+  /* ---- Étapes de paiement ---------------------------------------------------- */
+  .steps-pay { list-style: none; padding: 0; margin: 22px 0; }
+  .step {
+    display: flex;
+    gap: 16px;
+    padding: 18px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 10px;
+  }
+  .step-num {
+    flex: 0 0 32px;
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: var(--accent-deep);
+    color: var(--accent-hi);
+    font-weight: 700;
+  }
+  .step-body { flex: 1; min-width: 0; }
+  .step-body p:last-child { margin-bottom: 0; }
+
+  /* ---- Grands écrans ---------------------------------------------------------- */
+  @media (min-width: 760px) {
+    body { font-size: 17px; }
+    .hero { padding-top: 88px; padding-bottom: 72px; }
+    .hero-sub { font-size: 1.1875rem; }
+    h2 { font-size: 1.75rem; }
+    section { margin-bottom: 72px; }
+    .steps { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .cta-inner { padding: 56px 48px; }
+    .signal-card, .backtest { padding: 26px; }
+  }
+  @media (min-width: 1040px) {
+    .steps { grid-template-columns: repeat(4, 1fr); }
+    .steps li { padding: 24px 20px 22px; }
+    .steps li::before { position: static; margin-bottom: 14px; }
+  }
+
+  /* ---- Mouvement ---------------------------------------------------------------- */
+  /* Une seule animation, à l'apparition, décalée par section. Elle donne le
+     sentiment que la page se construit plutôt qu'elle ne s'affiche d'un bloc.
+     Elle est purement décorative : la page est déjà lisible sans elle, ce qui
+     est la condition pour pouvoir la couper entièrement ci-dessous. */
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .hero, section, .cta {
+    animation: rise .5s cubic-bezier(.22,.61,.36,1) both;
+  }
+  section:nth-of-type(1) { animation-delay: .05s; }
+  section:nth-of-type(2) { animation-delay: .1s; }
+  section:nth-of-type(3) { animation-delay: .15s; }
+  section:nth-of-type(4) { animation-delay: .2s; }
+  section:nth-of-type(n+5) { animation-delay: .25s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+
+  /* Focus visible au clavier. Sans cette règle, un visiteur qui navigue au
+     clavier ne sait plus où il se trouve dès qu'il quitte les liens de texte. */
+  a:focus-visible, summary:focus-visible, .btn:focus-visible {
+    outline: 2px solid var(--accent-hi);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+</style>
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Are most signals winners?", "acceptedAnswer": {"@type": "Answer", "text": "No, and it is measured: the directional engines are right about half the time, and the median signal loses 0.69% . Profitability comes from a minority of large winners. The consequence matters: you have to take them all . Cherry-picking the ones that “look solid” statistically means keeping only the losing half."}}, {"@type": "Question", "name": "Why do I get nothing for weeks?", "acceptedAnswer": {"@type": "Answer", "text": "Because the market is falling. The engines that buy strength are cut off while Bitcoin sits below its 200-day average — 41% of the time over six years, and up to 381 consecutive days between December 2021 and January 2023. Two engines keep working meanwhile: funding carry, which does not bet on price, and 4H momentum. The /marche command recomputes that state live, on demand."}}, {"@type": "Question", "name": "What exactly is a “carry”?", "acceptedAnswer": {"@type": "Answer", "text": "You open two opposite positions of equal size on the same crypto: a spot buy and a short on the perpetual contract. They cancel out — if price rises, one gains what the other loses. Market direction no longer affects you. What you collect is the funding rate : paid every 8 hours by perpetual buyers to sellers. Measured over six years: 84.2% winning positions. It is not risk-free — the short leg can be liquidated, and the worst measured position lost 19.86%."}}, {"@type": "Question", "name": "How do I know the numbers are not dressed up?", "acceptedAnswer": {"@type": "Answer", "text": "Every signal is published before its outcome is known, then closed publicly, win or lose. The full history is on the transparency page, losses included. Backtests are measured against a control: a random draw of the same density. A strategy that does not beat that control is dropped — which happened to ten of the twelve approaches tested."}}, {"@type": "Question", "name": "What does it cost, and am I locked in?", "acceptedAnswer": {"@type": "Answer", "text": "The trial is 3 days, free, no card. After that the subscription is paid in crypto, one period at a time: no recurring charge , no auto-renewal. If you do not renew, access simply stops, and there is nothing to cancel."}}]}</script>
+</head>
+<body>
+  <p class="lang-switch"><a href="/signaux/2026-08-19.html">Version française</a></p>
+
+  
+  <header class="hero">
+    <span class="status-pill is-closed"><span class="status-dot"></span>Bear market — directional engines are silent; carry and 4H momentum take over</span>
+    <h1>Free Crypto Signals — 08/19/2026</h1>
+    <p class="hero-sub">Crypto signals that <b>go quiet</b> when there is nothing worth buying. Five engines measured over six years, each validated against a random draw of the same density. When the market does not cooperate, the channel says so instead of inventing trades. Free on Telegram, no signup.</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="https://t.me/ProVIPSignals_bot">🎁 Try 3 days free</a>
+      <a class="btn btn-ghost" href="#signaux">See a sample signal</a>
+    </div>
+    <p class="btn-note">No card. No recurring charge. Nothing to cancel.</p>
+    <ul class="proof"><li><b>6 years</b><span>of real data, not a simulation</span></li><li><b>84.2%</b><span>winning carries over the period</span></li><li><b>2 to 5</b><span>signals per day, at most</span></li><li><b>0</b><span>signals forced to pad the volume</span></li></ul>
+  </header>
+
+  
+  <section id="fonctionnement">
+    <h2>⚙️ How it works</h2>
+    <p class="lead">No human involvement, no opinions, no “analyst”. A program reads prices, applies rules fixed in advance, and publishes — or does not.</p>
+    <ol class="steps"><li><h3>The market is ranked</h3><p>Every day, 40 cryptos are compared against each other. The program is not looking for a secret pattern: it checks which ones are genuinely strongest right now.</p></li><li><h3>The regime is checked</h3><p>If Bitcoin closes below its 200-day average, the engines that buy strength stop. That happens 41% of the time, and it is what avoids the -70% years.</p></li><li><h3>You get the signal</h3><p>Entry, stop, three milestones, and the exit date. On Telegram, the moment it is detected. Every signal names the engine it came from.</p></li><li><h3>The outcome is published</h3><p>Win or lose, the signal is closed publicly on the channel and archived on this site. Nothing is removed afterwards.</p></li></ol>
+    <p style="margin-top:22px"><a href="/comment-ca-marche.html">See the full breakdown →</a></p>
+  </section>
+
+  
+    <section id="signaux">
+      <h2>🔎 Latest 5 signals</h2>
+      <p class="subtitle">Five signal engines, each validated against a random control: relative strength, channel breakout, volatility expansion, funding carry, and 4-hour momentum. The last two keep producing when the market falls. Updated daily.</p>
+      <p class="signals-note">Three families buy an uptrend: entry, a deliberately wide 4x ATR stop (disaster protection, not a management tool), tracking milestones at 4x, 8x and 12x ATR, and a time-based exit — the date closes the position, not a price target. The fourth one, the funding carry, does not bet on price at all: it opens two opposite legs and closes on a date. It therefore has no stop loss and no take profit, and that is normal.</p>
+      
+    <article class="signal-card sell">
+      <div class="signal-header">
+        <span class="signal-pair">STX/USDT</span>
+        <span class="badge sell">SELL</span>
+      </div>
+      <div class="prices"><span>Entry<b>0.118000</b></span><span>Stop loss<b>0.125232</b></span><span>Take profit<b>0.103536</b></span></div>
+      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/STX-USDT-1787042837759.png" alt="STX/USDT chart" loading="lazy">
+      <p>On STX/USDT, the fast EMA (9 periods) crossed below the slow EMA (21 periods) while the RSI was leaving overbought territory, triggering this SELL signal. Entry near 0.118000, stop loss at 0.125232, take profit target at 0.103536.</p>
+    </article>
+    <article class="signal-card sell">
+      <div class="signal-header">
+        <span class="signal-pair">SUI/USDT</span>
+        <span class="badge sell">SELL</span>
+      </div>
+      <div class="prices"><span>Entry<b>0.646900</b></span><span>Stop loss<b>0.684489</b></span><span>Take profit<b>0.571721</b></span></div>
+      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/SUI-USDT-1787042837759.png" alt="SUI/USDT chart" loading="lazy">
+      <p>The SELL signal on SUI/USDT was triggered by a bearish crossover: price moved back below its 21-period exponential moving average while the RSI was exiting overbought territory, signaling a possible short-term reversal. Entry around 0.646900, stop loss at 0.684489 (+5.8%), take profit at 0.571721 (-11.6%).</p>
+    </article>
+    <article class="signal-card buy">
+      <div class="signal-header">
+        <span class="signal-pair">POL/USDT</span>
+        <span class="badge buy">BUY</span>
+      </div>
+      <div class="prices"><span>Entry<b>0.079870</b></span><span>Stop loss<b>0.074226</b></span><span>Take profit<b>0.091157</b></span></div>
+      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/POL-USDT-1787042837759.png" alt="POL/USDT chart" loading="lazy">
+      <p>On POL/USDT, the same ranking principle as relative strength, measured on 4-hour candles: POL/USDT ranked among the strongest cryptos of the moment. This engine only fires while the market is bearish — the window where the system&#x27;s other strategies stay silent. Entry near 0.079870, stop loss at 0.074226 (-7.1%), main target at 0.091157 (+14.1%), exit after 3 days. This engine is under observation: its edge measures positive in three years out of four, but declining in the most recent one.</p>
+    </article>
+    <article class="signal-card sell">
+      <div class="signal-header">
+        <span class="signal-pair">APT/USDT</span>
+        <span class="badge sell">SELL</span>
+      </div>
+      <div class="prices"><span>Entry<b>0.523000</b></span><span>Stop loss<b>0.558326</b></span><span>Take profit<b>0.452347</b></span></div>
+      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/APT-USDT-1786956942269.png" alt="APT/USDT chart" loading="lazy">
+      <p>On APT/USDT, the fast EMA (9 periods) crossed below the slow EMA (21 periods) while the RSI was leaving overbought territory, triggering this SELL signal. Entry near 0.523000, stop loss at 0.558326, take profit target at 0.452347.</p>
+    </article>
+    <article class="signal-card sell">
+      <div class="signal-header">
+        <span class="signal-pair">FET/USDT</span>
+        <span class="badge sell">SELL</span>
+      </div>
+      <div class="prices"><span>Entry<b>0.119800</b></span><span>Stop loss<b>0.129618</b></span><span>Take profit<b>0.100163</b></span></div>
+      <img class="signal-chart" src="https://itajsfxouxbwcvmzartp.supabase.co/storage/v1/object/public/signal-charts/FET-USDT-1786956942269.png" alt="FET/USDT chart" loading="lazy">
+      <p>On FET/USDT, the fast EMA (9 periods) crossed below the slow EMA (21 periods) while the RSI was leaving overbought territory, triggering this SELL signal. Entry near 0.119800, stop loss at 0.129618, take profit target at 0.100163.</p>
+    </article>
+    </section>
+
+  
+    <section>
+      <h2>📊 Real performance of past signals</h2>
+      
+        <div class="perf-stats">
+          <div class="perf-stat"><b>29</b>closed signals</div>
+          <div class="perf-stat"><b>37.9%</b>win rate</div>
+          <div class="perf-stat"><b>11</b>wins</div>
+          <div class="perf-stat"><b>18</b>losses</div>
+        </div>
+        <p class="perf-secured">🔒 7 (24%) secured trades (TP1 reached, break-even or better)</p>
+        <table class="recent">
+          <thead><tr><th>Pair</th><th>Type</th><th>Result</th></tr></thead>
+          <tbody><tr>
+                  <td>LINK/USDT</td>
+                  <td>BUY</td>
+                  <td class="outcome-win">WIN</td>
+                </tr><tr>
+                  <td>BNB/USDT</td>
+                  <td>BUY</td>
+                  <td class="outcome-loss">LOSS</td>
+                </tr><tr>
+                  <td>ATOM/USDT</td>
+                  <td>BUY</td>
+                  <td class="outcome-loss">LOSS</td>
+                </tr><tr>
+                  <td>ICP/USDT</td>
+                  <td>BUY</td>
+                  <td class="outcome-win">WIN</td>
+                </tr><tr>
+                  <td>TAO/USDT</td>
+                  <td>BUY</td>
+                  <td class="outcome-loss">LOSS</td>
+                </tr><tr>
+                  <td>SOL/USDT</td>
+                  <td>BUY</td>
+                  <td class="outcome-loss">LOSS</td>
+                </tr><tr>
+                  <td>DOGE/USDT</td>
+                  <td>BUY</td>
+                  <td class="outcome-loss">LOSS</td>
+                </tr><tr>
+                  <td>LINK/USDT</td>
+                  <td>BUY</td>
+                  <td class="outcome-win">WIN</td>
+                </tr><tr>
+                  <td>MKR/USDT</td>
+                  <td>BUY</td>
+                  <td class="outcome-loss">LOSS</td>
+                </tr><tr>
+                  <td>BNB/USDT</td>
+                  <td>BUY</td>
+                  <td class="outcome-win">WIN</td>
+                </tr></tbody>
+        </table>
+        <p style="font-size:0.85rem;color:#777;">Result determined automatically by comparing each signal's current price to its stop loss and take profit (not a tick-by-tick intrabar analysis).</p>
+        <p style="font-size:0.85rem;color:#777;">These results may include signals produced by earlier engines, since switched off. They therefore do not describe the four families above, which have no live track record yet. A carry's outcome is not measured on a price but on the funding actually collected, net of fees.</p>
+    </section>
+
+  
+
+  
+    <section class="paper-trading">
+      <h2>💼 Live performance (paper portfolio)</h2>
+      <p>If a paper portfolio had allocated 10% of its capital to each of the last 28 resolved signals (sent or not), here is its cumulative track record:</p>
+      <svg viewBox="0 0 640 200" width="100%" height="200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Courbe du portefeuille fictif, de 100 à 100.3"><line x1="10" y1="190.0" x2="630" y2="190.0" stroke="#d1d5db" stroke-width="1" stroke-dasharray="4,4"/><polyline points="10.0,190.0 31.4,126.2 52.8,73.4 74.1,84.0 95.5,94.2 116.9,102.4 138.3,111.7 159.7,111.7 181.0,53.6 202.4,10.0 223.8,18.6 245.2,49.2 266.6,122.9 287.9,138.4 309.3,122.1 330.7,102.0 352.1,98.3 373.4,148.4 394.8,157.7 416.2,50.2 437.6,26.8 459.0,179.1 480.3,52.9 501.7,77.9 523.1,78.0 544.5,113.1 565.9,81.0 587.2,162.9 608.6,167.8 630.0,154.8" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <p class="paper-result" style="color:#16a34a;font-weight:700;">+0.3%</p>
+      <p>📉 Worst cumulative drop observed (max drawdown): 1.4%</p>
+      <p style="font-size:0.82rem;color:#777;">⚠️ Illustrative simulation (fixed position sizing, no compounding of gains) — does not reflect a real account or fees/slippage. Not investment advice.</p>
+    </section>
+
+  
+    <section class="testimonials">
+      <h2>💬 What people say</h2>
+      <blockquote><p>👍 « Je trouve le bot vraiment très complet. Les signaux sont de très bonne qualité et le rapport qualité-prix est franchement exceptionnel. Pour le prix, c’est vraiment difficile de trouver mieux. »</p></blockquote>
+      <p style="font-size:0.82rem;color:#777;">✅ Real reviews left via /review by subscribers (anonymized).</p>
+    </section>
+
+  
+  <section id="faq">
+    <h2>❓ The awkward questions</h2>
+    <p class="lead">In the order they actually come up, starting with the one we would rather skip.</p>
+    <details class="qa" open><summary>Are most signals winners?</summary><div class="qa-body"><p>No, and it is measured: the directional engines are right about half the time, and the <b>median signal loses 0.69%</b>. Profitability comes from a minority of large winners.</p><p>The consequence matters: you have to take them <b>all</b>. Cherry-picking the ones that “look solid” statistically means keeping only the losing half.</p></div></details><details class="qa"><summary>Why do I get nothing for weeks?</summary><div class="qa-body"><p>Because the market is falling. The engines that buy strength are cut off while Bitcoin sits below its 200-day average — 41% of the time over six years, and up to <b>381 consecutive days</b> between December 2021 and January 2023.</p><p>Two engines keep working meanwhile: funding carry, which does not bet on price, and 4H momentum. The /marche command recomputes that state live, on demand.</p></div></details><details class="qa"><summary>What exactly is a “carry”?</summary><div class="qa-body"><p>You open two opposite positions of equal size on the same crypto: a spot buy and a short on the perpetual contract. They cancel out — if price rises, one gains what the other loses. Market direction no longer affects you.</p><p>What you collect is the <b>funding rate</b>: paid every 8 hours by perpetual buyers to sellers. Measured over six years: 84.2% winning positions. It is not risk-free — the short leg can be liquidated, and the worst measured position lost 19.86%.</p></div></details><details class="qa"><summary>How do I know the numbers are not dressed up?</summary><div class="qa-body"><p>Every signal is published <b>before</b> its outcome is known, then closed publicly, win or lose. The full history is on the transparency page, losses included.</p><p>Backtests are measured against a control: a random draw of the same density. A strategy that does not beat that control is dropped — which happened to ten of the twelve approaches tested.</p></div></details><details class="qa"><summary>What does it cost, and am I locked in?</summary><div class="qa-body"><p>The trial is 3 days, free, no card. After that the subscription is paid in crypto, one period at a time: <b>no recurring charge</b>, no auto-renewal. If you do not renew, access simply stops, and there is nothing to cancel.</p></div></details>
+    <p style="margin-top:20px"><a href="/faq.html">All questions →</a></p>
+  </section>
+
+  
+  <div class="cta">
+    <div class="cta-inner">
+      <h2>Start with the 3 free days</h2>
+      <p>You will see the real cadence, the shape of the signals, and the days with nothing. It is exactly what a subscriber sees — there is no separate “demo” version of the product.</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="https://t.me/ProVIPSignals_bot">🎁 Open the Telegram bot</a>
+        <a class="btn btn-ghost" href="https://t.me/ProSignauxPublic">📖 See the public channel</a>
+      </div>
+      <p class="btn-note">No card, no commitment, no recurring charge.</p>
+    </div>
+  </div>
+
+  <p class="disclaimer">⚠️ This content is provided for informational and educational purposes only, it does not constitute investment advice. Trading cryptoassets carries a risk of capital loss. Past performance does not guarantee future results.</p>
+
+  <footer>
+    <p>Page automatically generated on 08/19/2026. — <a href="/privacy.html">Privacy Policy</a> — <a href="/terms.html">Terms of Service</a> — <a href="/transparency.html">Transparency</a> — <a href="/guides/">Guides</a> — <a href="/comment-ca-marche.html">How it works</a> — <a href="/faq.html">FAQ</a> — <a href="/glossaire.html">Glossary</a> — <a href="/a-propos.html">About</a> — <a href="/mentions-legales.html">Mentions légales</a></p>
+  </footer>
+</body>
+</html>
